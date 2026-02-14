@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* ============================================
+   HAIWAVE BRAND TOKENS
+   Deep Navy, Orange, Teal palette
+   4px baseline grid, generous white space
+   ============================================ */
+
+@theme inline {
+  /* Primary */
+  --color-navy: #1A1F36;
+  --color-orange: #F58220;
+  --color-teal: #29B0C3;
+
+  /* Secondary */
+  --color-cobalt: #0055A8;
+  --color-teal-dark: #007585;
+
+  /* Text */
+  --color-charcoal: #2D3748;
+  --color-slate: #64748B;
+  --color-light-slate: #94A3B8;
+
+  /* Backgrounds */
+  --color-white: #FFFFFF;
+  --color-light-gray: #F8FAFC;
+  --color-soft-gray: #EEF6F7;
+
+  /* Status */
+  --color-success: #059669;
+  --color-problem: #DC2626;
+  --color-warning: #FFA600;
+
+  /* Network layer colors */
+  --color-layer-0: #0055A8;
+  --color-layer-1: #29B0C3;
+  --color-layer-2: #F25D00;
+  --color-lateral: #CBD5E1;
+
+  /* Fonts */
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-dm-sans);
+}
+
+body {
+  font-family: var(--font-body), sans-serif;
+  color: var(--color-charcoal);
+  background: var(--color-white);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
