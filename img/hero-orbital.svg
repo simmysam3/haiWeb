@@ -1,0 +1,53 @@
+<svg viewBox="0 0 560 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Layer boundary circles: faint dashed, per brand standards -->
+          <circle cx="280" cy="280" r="60" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.5"/>
+          <circle cx="280" cy="280" r="150" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.4"/>
+          <circle cx="280" cy="280" r="250" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.3"/>
+
+          <!-- Center: Anchor node (Cobalt) -->
+          <circle cx="280" cy="280" r="8" fill="none" stroke="#0055A8" stroke-width="2"/>
+          <circle cx="280" cy="280" r="3" fill="#0055A8"/>
+
+          <!-- Layer 1: Trading partners (Teal), orbiting -->
+          <g class="orbit-ring-1">
+            <circle cx="280" cy="130" r="5" fill="none" stroke="#29B0C3" stroke-width="1.5"/>
+            <circle cx="400" cy="210" r="5" fill="none" stroke="#29B0C3" stroke-width="1.5"/>
+            <circle cx="380" cy="370" r="5" fill="none" stroke="#29B0C3" stroke-width="1.5"/>
+            <circle cx="200" cy="400" r="5" fill="none" stroke="#29B0C3" stroke-width="1.5"/>
+            <circle cx="160" cy="230" r="5" fill="none" stroke="#29B0C3" stroke-width="1.5"/>
+            <!-- Connection lines to anchor: thin, curved -->
+            <line x1="280" y1="135" x2="280" y2="272" stroke="#29B0C3" stroke-width="0.5" opacity="0.3"/>
+            <line x1="395" y1="213" x2="288" y2="278" stroke="#29B0C3" stroke-width="0.5" opacity="0.3"/>
+            <line x1="375" y1="367" x2="286" y2="286" stroke="#29B0C3" stroke-width="0.5" opacity="0.3"/>
+            <line x1="205" y1="397" x2="275" y2="286" stroke="#29B0C3" stroke-width="0.5" opacity="0.3"/>
+            <line x1="165" y1="233" x2="273" y2="278" stroke="#29B0C3" stroke-width="0.5" opacity="0.3"/>
+          </g>
+
+          <!-- Layer 2: Suppliers (Orange), more nodes, outer ring -->
+          <g class="orbit-ring-2">
+            <circle cx="280" cy="35" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="340" cy="45" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="220" cy="42" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="460" cy="130" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="490" cy="200" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="510" cy="290" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="480" cy="380" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="430" cy="450" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="350" cy="500" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="250" cy="510" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="150" cy="470" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="90" cy="390" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="60" cy="290" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="80" cy="190" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+            <circle cx="130" cy="100" r="3.5" fill="none" stroke="#F25D00" stroke-width="1"/>
+          </g>
+
+          <!-- Lateral discovery lines: faint dashed gray -->
+          <g class="orbit-ring-3" opacity="0.15">
+            <line x1="340" y1="45" x2="460" y2="130" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <line x1="490" y1="200" x2="480" y2="380" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <line x1="150" y1="470" x2="250" y2="510" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <line x1="80" y1="190" x2="130" y2="100" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <line x1="60" y1="290" x2="90" y2="390" stroke="#CBD5E1" stroke-width="0.5" stroke-dasharray="3 3"/>
+          </g>
+        </svg>
