@@ -1,6 +1,42 @@
+"use client";
+
 import Link from "next/link";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Login failed");
+        return;
+      }
+
+      router.push("/account");
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-light-gray flex items-center justify-center">
       <div className="w-full max-w-md">
@@ -8,21 +44,27 @@ export default function LoginPage() {
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy">
             Sign in to HAIWAVE
           </h1>
-          <p className="text-sm text-slate mt-2">
-            Access your account portal
-          </p>
+          <p className="text-sm text-slate mt-2">Access your account portal</p>
         </div>
 
         <div className="bg-white rounded-xl border border-slate/15 p-8">
-          <form className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-charcoal mb-1">
                 Email
               </label>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
                 placeholder="you@company.com"
+                required
               />
             </div>
             <div>
@@ -31,14 +73,18 @@ export default function LoginPage() {
               </label>
               <input
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                required
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-navy text-white text-sm font-medium py-2.5 rounded-lg hover:bg-charcoal transition-colors"
+              disabled={loading}
+              className="w-full bg-navy text-white text-sm font-medium py-2.5 rounded-lg hover:bg-charcoal transition-colors disabled:opacity-50"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 

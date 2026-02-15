@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 
 /**
  * POST /api/auth/logout
+ * GET  /api/auth/logout (convenience for link-based logout)
  *
- * Clears local session and calls Keycloak end-session endpoint.
+ * Deletes session cookie, returns success.
  */
 export async function POST() {
-  // TODO: Clear session cookie
-  // TODO: Call Keycloak end-session endpoint
-  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
+  const response = NextResponse.json({ success: true });
+  response.cookies.set("haiwave_session", "", {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+  return response;
+}
+
+export async function GET() {
+  const response = NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_URL || "http://localhost:3000"));
+  response.cookies.set("haiwave_session", "", {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+  return response;
 }

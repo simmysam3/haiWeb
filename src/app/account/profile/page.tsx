@@ -1,20 +1,23 @@
-export default function ProfilePage() {
+import { getSession, hasRole } from "@/lib/auth";
+import { PageHeader } from "@/components/page-header";
+import { ProfileForm } from "./profile-form";
+
+export default async function ProfilePage() {
+  const session = await getSession();
+  const readOnly = !session || !hasRole(session.user.role, "account_admin");
+
   return (
     <div>
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy mb-2">
-        Company Profile
-      </h1>
-      <p className="text-slate mb-8">
-        Manage your company information visible on the HAIWAVE network.
-      </p>
-
-      <div className="bg-white rounded-lg border border-slate/15 p-6">
-        <p className="text-sm text-slate">
-          Company profile form: legal name, business type, address, contacts,
-          logo upload, industry tags, DBA, tax ID, DUNS, website, and
-          description.
-        </p>
-      </div>
+      <PageHeader
+        title="Company Profile"
+        description="Manage your company information visible on the HAIWAVE network."
+      />
+      {readOnly && (
+        <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning mb-6">
+          You have read-only access. Contact your account owner to make changes.
+        </div>
+      )}
+      <ProfileForm readOnly={readOnly} />
     </div>
   );
 }
