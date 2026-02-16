@@ -22,7 +22,7 @@ export default function HomePage() {
               that.
             </h1>
             <p className="text-lg font-light text-slate max-w-[560px] mb-10 leading-relaxed">
-              HAIWAVE lets AI agents discover, negotiate, and transact across
+              Remove the friction. HAIWAVE lets AI agents discover, negotiate, and transact across
               corporate boundaries. One integration. Every counterparty on the
               network.
             </p>
