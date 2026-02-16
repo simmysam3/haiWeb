@@ -1,37 +1,84 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { MOCK_SESSION } from "@/lib/mock-data";
+import { useApi } from "@/lib/use-api";
 
 const BUSINESS_TYPES = ["Corporation", "LLC", "Partnership", "Sole Proprietorship", "Government", "Nonprofit"];
+
+interface ProfileData {
+  id: string;
+  company_name: string;
+  status: string;
+  business_type: string;
+  address: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  };
+  phone: string;
+  email: string;
+  dba: string;
+  tax_id: string;
+  duns: string;
+  website: string;
+  description: string;
+}
 
 interface ProfileFormProps {
   readOnly: boolean;
 }
 
 export function ProfileForm({ readOnly }: ProfileFormProps) {
-  const p = MOCK_SESSION.participant;
+  const { data: profile, loading } = useApi<ProfileData>({
+    url: "/api/account/profile",
+    fallback: MOCK_SESSION.participant,
+  });
 
-  const [companyName, setCompanyName] = useState(p.company_name);
-  const [businessType, setBusinessType] = useState(p.business_type);
-  const [address1, setAddress1] = useState(p.address.line1);
-  const [address2, setAddress2] = useState(p.address.line2);
-  const [city, setCity] = useState(p.address.city);
-  const [state, setState] = useState(p.address.state);
-  const [postalCode, setPostalCode] = useState(p.address.postal_code);
-  const [country, setCountry] = useState(p.address.country);
-  const [phone, setPhone] = useState(p.phone);
-  const [email, setEmail] = useState(p.email);
-  const [dba, setDba] = useState(p.dba);
-  const [taxId, setTaxId] = useState(p.tax_id);
-  const [duns, setDuns] = useState(p.duns);
-  const [website, setWebsite] = useState(p.website);
-  const [description, setDescription] = useState(p.description);
+  const [companyName, setCompanyName] = useState(profile.company_name);
+  const [businessType, setBusinessType] = useState(profile.business_type);
+  const [address1, setAddress1] = useState(profile.address.line1);
+  const [address2, setAddress2] = useState(profile.address.line2);
+  const [city, setCity] = useState(profile.address.city);
+  const [state, setState] = useState(profile.address.state);
+  const [postalCode, setPostalCode] = useState(profile.address.postal_code);
+  const [country, setCountry] = useState(profile.address.country);
+  const [phone, setPhone] = useState(profile.phone);
+  const [email, setEmail] = useState(profile.email);
+  const [dba, setDba] = useState(profile.dba);
+  const [taxId, setTaxId] = useState(profile.tax_id);
+  const [duns, setDuns] = useState(profile.duns);
+  const [website, setWebsite] = useState(profile.website);
+  const [description, setDescription] = useState(profile.description);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
+
+  // Sync form fields when API data arrives
+  useEffect(() => {
+    setCompanyName(profile.company_name);
+    setBusinessType(profile.business_type);
+    setAddress1(profile.address.line1);
+    setAddress2(profile.address.line2);
+    setCity(profile.address.city);
+    setState(profile.address.state);
+    setPostalCode(profile.address.postal_code);
+    setCountry(profile.address.country);
+    setPhone(profile.phone);
+    setEmail(profile.email);
+    setDba(profile.dba);
+    setTaxId(profile.tax_id);
+    setDuns(profile.duns);
+    setWebsite(profile.website);
+    setDescription(profile.description);
+  }, [profile]);
 
   const inputClass = `w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal ${readOnly ? "bg-light-gray cursor-not-allowed" : ""}`;
 
@@ -40,7 +87,7 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
     if (readOnly) return;
 
     // Check for sensitive field changes
-    if (companyName !== p.company_name || taxId !== p.tax_id) {
+    if (companyName !== profile.company_name || taxId !== profile.tax_id) {
       setConfirmModal(true);
       setPendingSubmit(true);
       return;
@@ -48,11 +95,59 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
     doSave();
   }
 
-  function doSave() {
-    setSaved(true);
+  async function doSave() {
     setConfirmModal(false);
     setPendingSubmit(false);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError(null);
+    setSaving(true);
+
+    const payload: Omit<ProfileData, "id" | "status"> = {
+      company_name: companyName,
+      business_type: businessType,
+      address: {
+        line1: address1,
+        line2: address2,
+        city,
+        state,
+        postal_code: postalCode,
+        country,
+      },
+      phone,
+      email,
+      dba,
+      tax_id: taxId,
+      duns,
+      website,
+      description,
+    };
+
+    try {
+      const res = await fetch("/api/account/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? `Save failed (${res.status})`);
+      }
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate">Loading profile...</div>
+      </div>
+    );
   }
 
   return (
@@ -61,6 +156,12 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
         {saved && (
           <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
             Profile saved successfully.
+          </div>
+        )}
+
+        {saveError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            {saveError}
           </div>
         )}
 
@@ -164,7 +265,7 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
 
         {!readOnly && (
           <div className="flex justify-end">
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
           </div>
         )}
       </form>
@@ -175,7 +276,7 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
         </p>
         <div className="flex gap-3 justify-end">
           <Button variant="secondary" onClick={() => { setConfirmModal(false); setPendingSubmit(false); }}>Cancel</Button>
-          <Button onClick={doSave}>Confirm Changes</Button>
+          <Button onClick={doSave} disabled={saving}>{saving ? "Saving..." : "Confirm Changes"}</Button>
         </div>
       </Modal>
     </>

@@ -1,20 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
+import { useApi } from "@/lib/use-api";
 import {
   MOCK_INBOUND_REQUIREMENTS,
   MOCK_OUTBOUND_POSTURES,
+  MOCK_PRICING_DEFAULTS,
   MockRequirement,
   MockPosture,
 } from "@/lib/mock-data";
 
+interface ManifestData {
+  inbound_requirements: MockRequirement[];
+  outbound_postures: MockPosture[];
+  pricing_defaults: typeof MOCK_PRICING_DEFAULTS;
+}
+
 export function CounterpartyManifest() {
+  const { data, loading } = useApi<ManifestData>({
+    url: "/api/account/manifests",
+    fallback: {
+      inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
+      outbound_postures: MOCK_OUTBOUND_POSTURES,
+      pricing_defaults: MOCK_PRICING_DEFAULTS,
+    },
+  });
+
   const [requirements, setRequirements] = useState(MOCK_INBOUND_REQUIREMENTS);
   const [postures, setPostures] = useState(MOCK_OUTBOUND_POSTURES);
   const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data.inbound_requirements) {
+      setRequirements(data.inbound_requirements);
+    }
+    if (data.outbound_postures) {
+      setPostures(data.outbound_postures);
+    }
+  }, [data]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -52,12 +79,43 @@ export function CounterpartyManifest() {
     ));
   }
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/account/manifests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "counterparty",
+          data: {
+            inbound_requirements: requirements,
+            outbound_postures: postures,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Save failed" }));
+        showToast(err.error ?? "Save failed");
+        return;
+      }
+      showToast("Counterparty manifest saved.");
+    } catch {
+      showToast("Network error -- changes saved locally only.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
           {toast}
         </div>
+      )}
+
+      {loading && (
+        <div className="text-sm text-slate animate-pulse">Loading manifest data...</div>
       )}
 
       {/* Inbound Requirements */}
@@ -179,7 +237,9 @@ export function CounterpartyManifest() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={() => showToast("Counterparty manifest saved.")}>Save Manifest</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Manifest"}
+        </Button>
       </div>
     </div>
   );

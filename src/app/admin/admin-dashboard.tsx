@@ -7,6 +7,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { MOCK_ADMIN_STATS, MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
 
+// TODO: Wire to BFF admin API routes when available (e.g. /api/admin/stats, /api/admin/participants)
+// For now, admin dashboard uses mock data directly.
+
 export function AdminDashboard() {
   const stats = MOCK_ADMIN_STATS;
   const recentRegistrations = MOCK_ADMIN_PARTICIPANTS.slice(-5).reverse();

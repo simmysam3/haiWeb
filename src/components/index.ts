@@ -11,3 +11,5 @@ export { Button } from "./button";
 export { ProgressSteps } from "./progress-steps";
 export { ScoreBar } from "./score-bar";
 export { AccountNav } from "./account-nav";
+export { MarketingNav } from "./marketing-nav";
+export { MarketingFooter } from "./marketing-footer";

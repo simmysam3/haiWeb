@@ -1,55 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
+import { MarketingNav } from "@/components/marketing-nav";
+import { MarketingFooter } from "@/components/marketing-footer";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/92 backdrop-blur-md border-b border-navy/6">
-        <div className="max-w-[1200px] mx-auto px-10 flex items-center justify-between h-[72px]">
-          <Link href="/">
-            <Image
-              src="/img/haiwave-logo.png"
-              alt="hAIWave"
-              width={120}
-              height={36}
-              className="h-9 w-auto"
-            />
-          </Link>
-          <div className="flex items-center gap-8">
-            <Link
-              href="#how-it-works"
-              className="text-sm text-slate hover:text-navy transition-colors"
-            >
-              How It Works
-            </Link>
-            <Link
-              href="#network"
-              className="text-sm text-slate hover:text-navy transition-colors"
-            >
-              Network
-            </Link>
-            <Link
-              href="#pricing"
-              className="text-sm text-slate hover:text-navy transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/login"
-              className="text-sm text-slate hover:text-navy transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="text-sm font-medium text-white bg-navy px-5 py-2 rounded-md hover:bg-charcoal transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <MarketingNav />
 
       {/* Hero */}
       <section className="pt-[140px] pb-[120px] relative overflow-hidden">
@@ -235,59 +192,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-slate/15">
-        <div className="max-w-[1200px] mx-auto px-10">
-          <div className="flex justify-between items-start max-md:flex-col max-md:gap-8">
-            <div>
-              <Image
-                src="/img/haiwave-logo.png"
-                alt="hAIWave"
-                width={120}
-                height={36}
-                className="h-9 w-auto mb-3"
-              />
-              <p className="text-sm text-slate max-w-[280px]">
-                The medium of exchange for cross-organizational agentic
-                commerce.
-              </p>
-            </div>
-            <div className="flex gap-16">
-              {[
-                {
-                  title: "Product",
-                  links: ["Protocol", "Reference Implementation", "Documentation"],
-                },
-                { title: "Company", links: ["About", "Careers", "Contact"] },
-                {
-                  title: "Resources",
-                  links: ["Case Studies", "Blog", "Partners"],
-                },
-              ].map((col) => (
-                <div key={col.title}>
-                  <h4 className="text-xs font-medium uppercase tracking-wider text-light-slate mb-4">
-                    {col.title}
-                  </h4>
-                  {col.links.map((link) => (
-                    <a
-                      key={link}
-                      href="#"
-                      className="block text-sm text-slate hover:text-teal-dark transition-colors mb-3"
-                    >
-                      {link}
-                    </a>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="mt-10 pt-6 border-t border-slate/10">
-            <p className="text-[13px] text-light-slate">
-              &copy; 2026 HAIWAVE. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

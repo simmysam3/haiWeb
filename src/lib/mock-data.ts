@@ -38,6 +38,9 @@ export interface MockPartner {
   established_at: string;
   location: string;
   industry: string;
+  invite_yours: boolean;
+  invite_theirs: boolean;
+  connection_id: string;
 }
 
 export interface MockAccessRequest {
@@ -48,6 +51,15 @@ export interface MockAccessRequest {
   requested_at: string;
   industry: string;
   location: string;
+  business_type: string;
+  company_description: string;
+  behavioral_score: number | null;
+  product_lines: string[];
+  region: string;
+  network_member_since: string | null;
+  request_type: "approved" | "trading_pair";
+  invite: boolean;
+  age_days: number;
 }
 
 export interface MockDirectoryCompany {
@@ -249,6 +261,9 @@ export const MOCK_PARTNERS: MockPartner[] = [
     established_at: "2025-11-15T00:00:00Z",
     location: "Chicago, IL",
     industry: "Industrial Distribution",
+    invite_yours: true,
+    invite_theirs: true,
+    connection_id: "conn-001",
   },
   {
     id: "p-cascade-001",
@@ -258,6 +273,9 @@ export const MOCK_PARTNERS: MockPartner[] = [
     established_at: "2025-12-01T00:00:00Z",
     location: "Portland, OR",
     industry: "Chemical Manufacturing",
+    invite_yours: true,
+    invite_theirs: true,
+    connection_id: "conn-002",
   },
   {
     id: "p-falcon-001",
@@ -267,6 +285,9 @@ export const MOCK_PARTNERS: MockPartner[] = [
     established_at: "2026-01-20T00:00:00Z",
     location: "Austin, TX",
     industry: "Electronics Manufacturing",
+    invite_yours: true,
+    invite_theirs: false,
+    connection_id: "conn-003",
   },
   {
     id: "p-global-001",
@@ -276,8 +297,55 @@ export const MOCK_PARTNERS: MockPartner[] = [
     established_at: "2026-02-05T00:00:00Z",
     location: "Pittsburgh, PA",
     industry: "Steel Manufacturing",
+    invite_yours: false,
+    invite_theirs: false,
+    connection_id: "conn-004",
   },
 ];
+
+// ─── Mock Approval Rules ────────────────────────────────────
+
+export interface MockApprovalRules {
+  bulk: {
+    publicly_traded: boolean;
+    duns_verified: boolean;
+    min_years_on_network: number;
+    min_score: number;
+    allowlist_ids: string[];
+  };
+  per_request: {
+    min_score: number;
+    allowed_business_types: string[];
+    allowed_regions: string[];
+    blocklist_ids: string[];
+    default_posture: "auto_approve_all" | "auto_approve_with_rules" | "manual_only";
+  };
+  contact: {
+    email: string;
+    phone: string;
+  };
+}
+
+export const MOCK_APPROVAL_RULES: MockApprovalRules = {
+  bulk: {
+    publicly_traded: true,
+    duns_verified: true,
+    min_years_on_network: 1,
+    min_score: 80,
+    allowlist_ids: [],
+  },
+  per_request: {
+    min_score: 70,
+    allowed_business_types: ["Corporation", "LLC"],
+    allowed_regions: ["Midwest", "West Coast", "East Coast"],
+    blocklist_ids: [],
+    default_posture: "auto_approve_with_rules",
+  },
+  contact: {
+    email: "partnerships@apexmfg.com",
+    phone: "+1 (313) 555-0100",
+  },
+};
 
 // ─── Mock Access Requests ────────────────────────────────────
 
@@ -290,6 +358,15 @@ export const MOCK_ACCESS_REQUESTS: MockAccessRequest[] = [
     requested_at: "2026-02-11T10:30:00Z",
     industry: "Logistics & Freight",
     location: "Long Beach, CA",
+    business_type: "Corporation",
+    company_description: "Port-to-door freight forwarding and warehousing services for industrial clients.",
+    behavioral_score: 88,
+    product_lines: ["Freight Forwarding", "Warehousing", "Last-Mile Delivery"],
+    region: "West Coast",
+    network_member_since: "2025-09-15T00:00:00Z",
+    request_type: "approved",
+    invite: false,
+    age_days: 4,
   },
   {
     id: "req-002",
@@ -299,6 +376,15 @@ export const MOCK_ACCESS_REQUESTS: MockAccessRequest[] = [
     requested_at: "2026-02-09T14:00:00Z",
     industry: "Metal Fabrication",
     location: "Cleveland, OH",
+    business_type: "LLC",
+    company_description: "Custom metal fabrication and welding services for industrial and commercial projects.",
+    behavioral_score: 72,
+    product_lines: ["Steel Fabrication", "Welding Services", "Custom Machining"],
+    region: "Midwest",
+    network_member_since: "2025-11-20T00:00:00Z",
+    request_type: "trading_pair",
+    invite: true,
+    age_days: 6,
   },
   {
     id: "req-003",
@@ -308,6 +394,15 @@ export const MOCK_ACCESS_REQUESTS: MockAccessRequest[] = [
     requested_at: "2026-02-08T08:45:00Z",
     industry: "Industrial Automation",
     location: "San Jose, CA",
+    business_type: "Corporation",
+    company_description: "Robotics integration and industrial control systems for manufacturing.",
+    behavioral_score: null,
+    product_lines: ["Robotics", "PLCs", "Motion Control", "Sensors"],
+    region: "West Coast",
+    network_member_since: null,
+    request_type: "approved",
+    invite: false,
+    age_days: 23,
   },
 ];
 
