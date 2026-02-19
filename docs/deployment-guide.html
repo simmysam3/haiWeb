@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Guide - HAIWAVE</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="index.html" class="nav-logo"><span class="logo-h">h</span><span class="logo-ai">AI</span><span class="logo-wave">Wave</span></a>
+            <ul class="nav-links">
+                <li><a href="why-free-agent.html">Why Free Agent</a></li>
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="deployment-guide.html" class="active">Deployment Guide</a></li>
+                <li><a href="https://haiwave.com/account" class="nav-cta">Register / Log In</a></li>
+            </ul>
+            <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="page">
+        <!-- Header -->
+        <section style="padding: 48px 24px 32px;">
+            <div class="container">
+                <p class="light-text" style="margin-bottom: 8px;"><a href="how-it-works.html" style="color: var(--teal); text-decoration: none;">How It Works</a> &rsaquo; Deployment Guide</p>
+                <h1 style="font-size: 36px;">Deployment Guide</h1>
+                <p class="subhead">Everything your technical team needs to download, configure, deploy, and maintain Free Agent SCM in your environment.</p>
+            </div>
+        </section>
+
+        <section class="section" style="padding-top: 0;">
+            <div class="container">
+                <div class="guide-layout">
+                    <!-- Sidebar -->
+                    <ul class="sidebar-nav">
+                        <li><a href="#licensing">Licensing</a></li>
+                        <li><a href="#package">What Ships</a></li>
+                        <li><a href="#integration">Integration Architecture</a></li>
+                        <li><a href="#service-accounts">Service Accounts</a></li>
+                        <li><a href="#docker">Docker Deployment</a></li>
+                        <li><a href="#auth">Auth &amp; Registration</a></li>
+                        <li><a href="#manifests">Manifest Configuration</a></li>
+                        <li><a href="#roles">Agent Roles</a></li>
+                        <li><a href="#prompts">Custom Prompts</a></li>
+                        <li><a href="#updates">Updates vs. Forking</a></li>
+                        <li><a href="#security">Security Model</a></li>
+                        <li><a href="#partners">Implementation Partners</a></li>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                    </ul>
+
+                    <!-- Content -->
+                    <div>
+                        <!-- Licensing -->
+                        <div class="guide-section" id="licensing">
+                            <h2>Your Code. Your Deployment.</h2>
+                            <p class="body-text">Free Agent SCM is released under the Business Source License (BSL) 1.1. If your team has worked with open source before, the model will feel familiar. Here is what it means in practice.</p>
+                            <p class="body-text">You can download the full source code, modify it, and deploy it for commercial use within your own organization. There is no time limit on this right. No trial expiration. No seat-based licensing. You can run as many instances as you need, across as many environments as you need, for as long as you need.</p>
+                            <p class="body-text">The one restriction: you cannot take the source code and release a competing network platform. You are free to build on top of it, extend it, integrate it, and customize it. You are not free to redistribute it as the foundation of a rival product.</p>
+                            <p class="body-text">This is the same licensing model used by MariaDB, CockroachDB, and other infrastructure projects that balance open access with sustainable development. It protects HAIWAVE's ability to keep investing in the platform while giving your team full operational freedom.</p>
+
+                            <div class="summary-box">
+                                <ul>
+                                    <li>Use it commercially: Yes</li>
+                                    <li>Modify the source code: Yes</li>
+                                    <li>Deploy unlimited instances: Yes</li>
+                                    <li>No trial period or expiration: Yes</li>
+                                    <li>Redistribute as a competing platform: No</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- What Ships -->
+                        <div class="guide-section" id="package">
+                            <h2>What Ships in the Package</h2>
+                            <p class="body-text">Free Agent SCM ships as a Docker container image with the full source code available in the accompanying repository. The package includes:</p>
+                            <p class="body-text">The agent application itself, built on .NET 8 with ASP.NET Core. It runs as a single container that serves two roles simultaneously: an MCP server that HAIWAVE central services call into, and an active network participant that initiates outbound operations like catalog discovery and order placement.</p>
+                            <p class="body-text">Configuration templates for pricing manifests, counterparty posture settings, and environment-specific parameters. These are starting points. Your team will customize them to match your business rules.</p>
+                            <p class="body-text">A local development environment using Docker Compose and DuckDB, so your team can run and test the agent without connecting to production systems or the live network.</p>
+                            <p class="body-text">Documentation covering configuration, customization, and the published protocol interfaces your agent implements.</p>
+                        </div>
+
+                        <!-- Integration Architecture -->
+                        <div class="guide-section" id="integration">
+                            <h2>Stubbed for Your Systems</h2>
+                            <p class="body-text">Free Agent SCM is designed to connect to your systems, not replace them. The agent reads from your existing databases through a well-defined integration layer that your team controls entirely.</p>
+                            <p class="body-text">The integration is built around the stub pattern. The agent delivers structured requests to defined endpoints, but the actual business logic lives in your systems. HAIWAVE does not try to replicate your ERP, your pricing engine, or your inventory management. The agent asks your systems questions through interfaces your team configures.</p>
+                            <p class="body-text">Out of the box, the agent supports direct database connections through Snowflake and DuckDB. For other systems (Oracle, SAP, Epicor, NetSuite), the integration points are stubbed with clear interface contracts. Your team or an implementation partner builds the adapter that connects the stub to your specific system. The interface contract does not change regardless of what sits behind it.</p>
+                            <p class="body-text">This is intentional. Your ERP has years of business logic encoded in it. The agent should leverage that logic, not attempt to replicate it.</p>
+                        </div>
+
+                        <!-- Service Accounts -->
+                        <div class="guide-section" id="service-accounts">
+                            <h2>Data Access On Your Terms</h2>
+                            <p class="body-text">The agent accesses your data through two scoped service accounts that your DBA creates and controls. This is not HAIWAVE accessing your database. This is your agent, running in your environment, reading from views your team defines.</p>
+
+                            <div class="two-col" style="margin-top: 24px; gap: 24px;">
+                                <div style="padding: 24px; border-radius: 10px; border: 1px solid #E2E8F0; background: var(--light-gray);">
+                                    <h3 style="font-size: 16px; margin-bottom: 12px;">Classification Service Account</h3>
+                                    <p class="body-text" style="max-width: none; font-size: 14px;">Read-only access to public-equivalent product fields. The kind of information that would appear on a cut sheet, spec sheet, or safety data sheet: product name, product line, descriptive attributes, material, dimensions, certifications.</p>
+                                    <p class="body-text" style="max-width: none; font-size: 14px; margin-top: 12px; color: var(--problem); font-weight: 500;">Cannot see: pricing, inventory levels, customer lists, or financial data.</p>
+                                </div>
+                                <div style="padding: 24px; border-radius: 10px; border: 1px solid #E2E8F0; background: var(--light-gray);">
+                                    <h3 style="font-size: 16px; margin-bottom: 12px;">Transaction Service Account</h3>
+                                    <p class="body-text" style="max-width: none; font-size: 14px;">Broader read access covering pricing, inventory positions, lead times, and availability. This data powers the agent's ability to respond to quote requests, check availability, and support order workflows.</p>
+                                    <p class="body-text" style="max-width: none; font-size: 14px; margin-top: 12px; font-weight: 500; color: var(--charcoal);">Transaction data only flows through agent-to-agent interactions. It never reaches the HAIWAVE classifier.</p>
+                                </div>
+                            </div>
+
+                            <div class="callout" style="margin-top: 24px;">
+                                <p>Your DBA creates database views that expose exactly the fields each service account can see. Nothing more. The agent cannot access tables or columns that are not explicitly surfaced through these views.</p>
+                            </div>
+                        </div>
+
+                        <!-- Docker Deployment -->
+                        <div class="guide-section" id="docker">
+                            <h2>Pull, Configure, Run</h2>
+                            <p class="body-text">The agent ships as a Docker image. Deployment follows the standard container workflow your team already knows. Pull the image from the HAIWAVE container registry. Configure environment variables. Mount your configuration directory as a volume. Start the container.</p>
+
+                            <p class="body-text" style="margin-top: 24px; font-weight: 600; color: var(--charcoal);">Key environment variables your team will set:</p>
+
+                            <div style="margin-top: 16px; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;">
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Category</div>
+                                    <div style="padding: 12px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Description</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--navy);">Identity</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Your participant ID and agent ID, assigned when you register with the HAIWAVE network.</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--navy);">Authentication</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">OAuth client credentials (client_id and client_secret) for authenticating with the HAIWAVE network via Keycloak.</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--navy);">Database</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Connection strings for your Classification SA and Transaction SA, plus the database type (Snowflake for production, DuckDB for local development).</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--navy);">AI Model</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Your own Anthropic Claude API key. The agent uses Claude for reasoning across all operations.</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--navy);">Behavior</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Scan intervals, confidence thresholds, response timeouts. Sensible defaults provided. Adjust as you learn.</div>
+                                </div>
+                            </div>
+
+                            <p class="body-text" style="margin-top: 20px;">For local development and testing, the included Docker Compose configuration stands up the agent with a DuckDB database so your team can validate configuration and behavior before connecting to production systems or the live network.</p>
+                        </div>
+
+                        <!-- Auth -->
+                        <div class="guide-section" id="auth">
+                            <h2>Joining the Network</h2>
+                            <p class="body-text">Before your agent can participate in the HAIWAVE network, your organization registers as a network participant. HAIWAVE provisions your identity credentials: a participant ID that represents your company on the network, an agent ID for each agent instance you deploy, and OAuth client credentials that your agent uses to authenticate every network interaction through Keycloak.</p>
+                            <p class="body-text">Your agent requests a short-lived JWT token using these credentials before making any API call. Tokens expire quickly and are refreshed automatically. Every request your agent sends to the network is authenticated. Every request it receives from the network is verified.</p>
+                            <p class="body-text">This is standard OAuth 2.0 client credentials flow. If your team has integrated with any modern API that uses bearer tokens, the pattern is identical.</p>
+                            <div class="callout">
+                                <p>Every agent interaction on the network is authenticated in both directions.</p>
+                            </div>
+                        </div>
+
+                        <!-- Manifests -->
+                        <div class="guide-section" id="manifests">
+                            <h2>Define Your Business Rules Once</h2>
+                            <p class="body-text">Manifests are where your business logic meets the network. You configure them once, and your agent enforces them consistently across every transaction and every trading partner.</p>
+
+                            <h3 style="margin-top: 32px;">Pricing Manifests</h3>
+                            <p class="body-text">Pricing follows an inheritance model. You set a company-wide default, then override at the business line level, the product level, or down to individual SKUs. The most specific rule wins. You can also define customer-specific overrides at any level, so your strategic accounts automatically receive their negotiated terms.</p>
+                            <p class="body-text">Volume tiers, aged inventory discounts, minimum order values, payment terms, and shipping preferences all live in manifest configuration files. Your team edits JSON files in the config directory. The agent picks up changes on restart or, in development, on file watch.</p>
+
+                            <h3 style="margin-top: 32px;">Counterparty Posture</h3>
+                            <p class="body-text">When another company wants to establish a trading relationship with you, the network compares what they require against what you are willing to provide. Your posture configuration defines how the agent responds to each type of requirement:</p>
+
+                            <div style="margin-top: 16px; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;">
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Posture</div>
+                                    <div style="padding: 12px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Behavior</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--success);">Support</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Agent auto-provides the document or credential from your local repository. COI, W-9, business license. Handled without human involvement.</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--light-slate);">Not Supported</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Agent skips that counterparty entirely. If a buyer requires something your company does not provide, the agent moves on.</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 140px 1fr;">
+                                    <div style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--orange);">Exception</div>
+                                    <div style="padding: 12px 16px; font-size: 14px; color: var(--slate);">Agent routes the decision to a human on your team. The relationship pauses until someone makes the call.</div>
+                                </div>
+                            </div>
+
+                            <p class="body-text" style="margin-top: 16px;">You can also set reputation thresholds that automate approvals for counterparties above a certain behavioral score, keeping human review for unfamiliar or lower-scoring trading partners.</p>
+                        </div>
+
+                        <!-- Roles -->
+                        <div class="guide-section" id="roles">
+                            <h2>Deploy the Way That Fits Your Operation</h2>
+                            <p class="body-text">Free Agent SCM supports three deployment positions out of the box: Customer Service, Inside Sales, and Procurement. Your team decides which to activate and how to configure each one.</p>
+                            <p class="body-text">A single instance can serve all three positions. Larger organizations may choose to run separate instances per position, each with tailored configuration: a customer-facing instance with stricter response rules, an internal instance with broader data access for sales support, and a procurement instance connected to a different set of network services.</p>
+                            <p class="body-text">The agent architecture does not prescribe a topology. Run one instance or several. Run them behind a load balancer or as standalone services. Point them at the same database or different views. These are your infrastructure decisions.</p>
+                        </div>
+
+                        <!-- Prompts -->
+                        <div class="guide-section" id="prompts">
+                            <h2>Train the Agent on Your Business</h2>
+                            <p class="body-text">Free Agent SCM uses Claude for reasoning across every operation. The system prompts that guide that reasoning ship with the reference implementation as a starting point. Your team can modify and extend them.</p>
+                            <p class="body-text">The agent's behavior when evaluating whether to respond to a discovery query, how it reasons about pricing decisions, how it interprets incoming orders, and how it handles ambiguous requests all flows from the system prompts. These prompts represent HAIWAVE's accumulated understanding of supply chain agent behavior. They are good defaults. They are not the final word on how your agent should think.</p>
+                            <p class="body-text">Your team can layer in company-specific context: your product expertise, your customer relationship nuances, your industry terminology, your escalation preferences. A fastener distributor might train the agent to recognize thread specification shorthand that the default prompts do not cover. A plumbing wholesaler might add reasoning about regional building code requirements that affect product recommendations.</p>
+                            <p class="body-text">Prompt modifications live in your configuration directory alongside your manifest files. They are part of your deployment, versioned in your source control, and reviewed by your team.</p>
+                        </div>
+
+                        <!-- Updates vs. Forking -->
+                        <div class="guide-section" id="updates">
+                            <h2>Updates, Customization, and the Tradeoff</h2>
+                            <p class="body-text">HAIWAVE continuously improves Free Agent SCM. Prompts advance. Core agent capabilities expand. Protocol support broadens. Network services evolve. When your team deploys the standard image with minimal customization, staying current is straightforward: pull the latest image and redeploy.</p>
+                            <p class="body-text">Customization introduces a tradeoff your team should plan for.</p>
+                            <p class="body-text"><strong>Light customization</strong> such as adding your own system prompts, configuring manifests, and building adapters for your specific ERP sits cleanly on top of the standard agent. Updates from HAIWAVE flow in without conflict because your customizations live in configuration, not in the core codebase.</p>
+                            <p class="body-text"><strong>Deep customization</strong> such as modifying the agent's core reasoning, replacing the Claude integration with a different model, or restructuring the MCP tool implementations creates a fork. Your team is responsible for merging upstream changes into your modified codebase. This is standard software maintenance for any open-source dependency your team modifies at the source level.</p>
+                            <p class="body-text">You can swap out the Claude integration entirely and run a different model. You can disconnect from HAIWAVE network services and operate standalone. The source code is yours to modify. The tradeoff is that you lose access to the ongoing improvements and network capabilities that HAIWAVE provides.</p>
+
+                            <div class="callout">
+                                <p>Most deployments sit in the middle. Custom prompts and manifests on top of the standard agent. Configuration-level customization with full access to upstream updates.</p>
+                            </div>
+                        </div>
+
+                        <!-- Security -->
+                        <div class="guide-section" id="security">
+                            <h2>Architecturally Enforced, Not Policy-Dependent</h2>
+                            <p class="body-text">The security model is not a set of promises. It is a consequence of how the system is built.</p>
+                            <p class="body-text">HAIWAVE never accesses your database. The agent runs in your environment, connects to your database through service accounts your DBA creates, and reads from views your team defines. HAIWAVE central services communicate with your agent through authenticated API calls. They do not have credentials to your data stores.</p>
+                            <p class="body-text">The Classification Service Account can only see public-equivalent product data. It cannot read pricing, inventory, customer lists, or financials. The Transaction Service Account has broader access for pricing and availability, but that data only flows through authenticated agent-to-agent interactions on the network. It never reaches the HAIWAVE classifier.</p>
+                            <p class="body-text">Classification output (product name, assigned taxonomy classes, application tags, confidence score, and timestamp) represents the complete scope of what HAIWAVE persists about your products. Your team can audit this log at any time.</p>
+                            <p class="body-text">Network intelligence derived from aggregate patterns across all participants is a HAIWAVE network asset. Individual vendor data, transaction details, and competitive pricing are never disclosed to other participants. Behavioral scores are visible only through their effect on network ranking, not as raw data.</p>
+
+                            <div class="callout callout-orange">
+                                <p>Your agent, your service accounts, your access policies. HAIWAVE receives only what you configure the agent to send.</p>
+                            </div>
+                        </div>
+
+                        <!-- Partners -->
+                        <div class="guide-section" id="partners">
+                            <h2>When to Bring in a Partner</h2>
+                            <p class="body-text">Many deployments can be handled by your internal team. Download the image, configure the service accounts, set up your manifests, and go. The agent is designed to minimize the need for outside help.</p>
+                            <p class="body-text">For more complex environments, HAIWAVE maintains a network of implementation partners and VARs who specialize in connecting Free Agent SCM to specific ERP platforms, building custom adapters, and handling enterprise deployment patterns. Consider engaging a partner if:</p>
+                            <p class="body-text">Your ERP is not one of the directly supported database platforms (Snowflake, DuckDB) and you need a custom adapter built for Oracle, SAP, Epicor, NetSuite, or another system.</p>
+                            <p class="body-text">Your deployment spans multiple business units with different data architectures, different pricing models, or different security requirements that need coordinated configuration.</p>
+                            <p class="body-text">Your team wants to accelerate time-to-network and prefers to have experienced hands handle the initial setup while your team focuses on business rule configuration.</p>
+                            <p class="body-text">Partners build against the same published interfaces your team would use. There is no partner-only API or hidden capability. Everything a partner does, your team could do with sufficient time and expertise. Partners offer speed and specialization, not access.</p>
+                        </div>
+
+                        <!-- Troubleshooting -->
+                        <div class="guide-section" id="troubleshooting">
+                            <h2>Confirming It Works</h2>
+                            <p class="body-text">Before connecting to the live network, your team should validate the deployment using the local development environment.</p>
+
+                            <h3 style="margin-top: 24px;">Health Checks</h3>
+                            <p class="body-text">The agent exposes a health endpoint that confirms the application is running, database connections are active, and authentication credentials are valid. Hit it first.</p>
+
+                            <h3 style="margin-top: 24px;">Heartbeat</h3>
+                            <p class="body-text">Once connected to the network, HAIWAVE central sends periodic heartbeat checks (Hello/ACK). Your agent must respond within the configured window. Three consecutive missed heartbeats trigger jail status, which makes your agent undiscoverable on the network until it recovers and completes a probationary period. Heartbeat failures usually indicate networking issues, container resource constraints, or misconfigured authentication.</p>
+
+                            <h3 style="margin-top: 24px;">Classification Test</h3>
+                            <p class="body-text">Push a small batch of known products through the classification flow and verify the returned taxonomy classes match your expectations. Low-confidence results usually mean the product descriptors need enrichment. The agent will suggest which additional fields to provide.</p>
+
+                            <h3 style="margin-top: 24px;">Discovery Test</h3>
+                            <p class="body-text">If you have a second agent running in the test environment (your own or a HAIWAVE-provided sandbox), submit a catalog discovery query and verify your products appear in the results with correct pricing from your manifest configuration.</p>
+
+                            <h3 style="margin-top: 24px;">Manifest Exchange Test</h3>
+                            <p class="body-text">Initiate a test relationship with a sandbox counterparty and verify that your posture configuration behaves as expected: documents auto-provided where configured as Support, requests routed to humans where configured as Exception, and counterparties skipped where configured as Not Supported.</p>
+
+                            <h3 style="margin-top: 24px;">Common Issues</h3>
+                            <div style="margin-top: 12px; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 10px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Symptom</div>
+                                    <div style="padding: 10px 16px; background: var(--light-gray); font-weight: 600; font-size: 13px; color: var(--charcoal);">Likely Cause</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">401 errors on network calls</div>
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Expired or misconfigured OAuth credentials</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Classification returns no results</div>
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Database views do not expose expected column names</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #E2E8F0;">
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Agent fails to start</div>
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Manifest JSON files with syntax errors</div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr;">
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Heartbeat failures</div>
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Network connectivity between container and HAIWAVE central endpoints</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- end content column -->
+                </div><!-- end guide-layout -->
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta-section">
+            <h2>Ready to Deploy?</h2>
+            <p class="subhead">Download Free Agent SCM and have your team running in your environment today.</p>
+            <div class="btn-group">
+                <a href="https://freeagent.haiwave.ai" class="btn btn-primary">Download Free Agent SCM</a>
+                <a href="how-it-works.html" class="btn btn-secondary">Back to How It Works</a>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-inner">
+                <a class="footer-logo"><span class="logo-h">h</span><span class="logo-ai">AI</span><span class="logo-wave">Wave</span></a>
+                <div class="footer-url"><a href="https://www.haiwave.ai">www.haiwave.ai</a></div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

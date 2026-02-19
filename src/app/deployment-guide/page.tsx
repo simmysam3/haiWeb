@@ -21,7 +21,7 @@ const sidebarLinks = [
 const envVarRows = [
   { category: "Identity", description: "Your participant ID and agent ID, assigned when you register with the HAIWAVE network." },
   { category: "Authentication", description: "OAuth client credentials (client_id and client_secret) for authenticating with the HAIWAVE network via Keycloak." },
-  { category: "Database", description: "Connection strings for your Classification SA and Transaction SA, plus the database type (Snowflake for production, DuckDB for local development)." },
+  { category: "Database", description: "Connection strings for your Classification SA and Transaction SA, plus the database type (PostgreSQL for production, DuckDB for local development)." },
   { category: "AI Model", description: "Your own Anthropic Claude API key. The agent uses Claude for reasoning across all operations." },
   { category: "Behavior", description: "Scan intervals, confidence thresholds, response timeouts. Sensible defaults provided. Adjust as you learn." },
 ];
@@ -102,7 +102,7 @@ export default function DeploymentGuidePage() {
                   This is the same licensing model used by MariaDB, CockroachDB, and other infrastructure projects that balance open access with sustainable development. It protects HAIWAVE&apos;s ability to keep investing in the platform while giving your team full operational freedom.
                 </p>
                 <div className="p-6 rounded-[10px] border border-slate/15 bg-light-gray">
-                  <ul className="space-y-1.5">
+                  <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5">
                     {[
                       "Use it commercially: Yes",
                       "Modify the source code: Yes",
@@ -129,7 +129,7 @@ export default function DeploymentGuidePage() {
                   Free Agent SCM ships as a Docker container image with the full source code available in the accompanying repository. The package includes:
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
-                  The agent application itself, built on .NET 8 with ASP.NET Core. It runs as a single container that serves two roles simultaneously: an MCP server that HAIWAVE central services call into, and an active network participant that initiates outbound operations like catalog discovery and order placement.
+                  The agent application itself, built on Node.js 22 and TypeScript with Fastify. It runs as a single container that serves two roles simultaneously: an MCP server that HAIWAVE central services call into, and an active network participant that initiates outbound operations like catalog discovery and order placement.
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
                   Configuration templates for pricing manifests, counterparty posture settings, and environment-specific parameters. These are starting points. Your team will customize them to match your business rules.
@@ -156,7 +156,7 @@ export default function DeploymentGuidePage() {
                   The integration is built around the stub pattern. The agent delivers structured requests to defined endpoints, but the actual business logic lives in your systems. HAIWAVE does not try to replicate your ERP, your pricing engine, or your inventory management. The agent asks your systems questions through interfaces your team configures.
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
-                  Out of the box, the agent supports direct database connections through Snowflake and DuckDB. For other systems (Oracle, SAP, Epicor, NetSuite), the integration points are stubbed with clear interface contracts. Your team or an implementation partner builds the adapter that connects the stub to your specific system. The interface contract does not change regardless of what sits behind it.
+                  Out of the box, the agent supports direct database connections through PostgreSQL and DuckDB. For other systems (Oracle, SAP, Epicor, NetSuite), the integration points are stubbed with clear interface contracts. Your team or an implementation partner builds the adapter that connects the stub to your specific system. The interface contract does not change regardless of what sits behind it.
                 </p>
                 <p className="text-base text-slate leading-relaxed">
                   This is intentional. Your ERP has years of business logic encoded in it. The agent should leverage that logic, not attempt to replicate it.
@@ -400,7 +400,7 @@ export default function DeploymentGuidePage() {
                   For more complex environments, HAIWAVE maintains a network of implementation partners and VARs who specialize in connecting Free Agent SCM to specific ERP platforms, building custom adapters, and handling enterprise deployment patterns. Consider engaging a partner if:
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
-                  Your ERP is not one of the directly supported database platforms (Snowflake, DuckDB) and you need a custom adapter built for Oracle, SAP, Epicor, NetSuite, or another system.
+                  Your ERP is not one of the directly supported database platforms (PostgreSQL, DuckDB) and you need a custom adapter built for Oracle, SAP, Epicor, NetSuite, or another system.
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
                   Your deployment spans multiple business units with different data architectures, different pricing models, or different security requirements that need coordinated configuration.

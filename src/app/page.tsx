@@ -18,11 +18,11 @@ export default function HomePage() {
             </div>
             <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.5rem)] font-bold text-navy leading-tight mb-6">
               AI automation fails at{" "}
-              <span className="text-teal">company boundaries.</span> We fix
-              that.
+              <span className="text-teal">company boundaries.</span> We remove
+              the friction.
             </h1>
             <p className="text-lg font-light text-slate max-w-[560px] mb-10 leading-relaxed">
-              Remove the friction. HAIWAVE lets AI agents discover, negotiate, and transact across
+              HAIWAVE lets AI agents discover, negotiate, and transact across
               corporate boundaries. One integration. Every counterparty on the
               network.
             </p>
