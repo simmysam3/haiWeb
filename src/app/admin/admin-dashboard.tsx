@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { MOCK_ADMIN_STATS, MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
 
-// TODO: Wire to BFF admin API routes when available (e.g. /api/admin/stats, /api/admin/participants)
-// For now, admin dashboard uses mock data directly.
+interface AdminOverview {
+  participants: { active: number; pending_payment: number; suspended: number; total: number };
+  trading_pairs: number;
+  outstanding_invoices: number;
+  outstanding_amount: number;
+  agent_health: { active: number; jailed: number; probation: number; offline: number };
+}
 
 export function AdminDashboard() {
-  const stats = MOCK_ADMIN_STATS;
+  const [stats, setStats] = useState<AdminOverview>(MOCK_ADMIN_STATS);
   const recentRegistrations = MOCK_ADMIN_PARTICIPANTS.slice(-5).reverse();
   const suspended = MOCK_ADMIN_PARTICIPANTS.filter((p) => p.status === "suspended");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/dashboard?type=overview")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setStats(d); })
+      .catch(() => {});
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);

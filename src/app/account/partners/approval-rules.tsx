@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/card";
 import { Button } from "@/components/button";
 import { MOCK_APPROVAL_RULES, MockApprovalRules } from "@/lib/mock-data";
@@ -8,10 +8,31 @@ import { MOCK_APPROVAL_RULES, MockApprovalRules } from "@/lib/mock-data";
 const BUSINESS_TYPES = ["Corporation", "LLC", "Partnership", "Sole Proprietorship", "Government", "Nonprofit"];
 const REGIONS = ["Midwest", "West Coast", "East Coast", "Southeast", "Southwest", "Mountain West", "Pacific Northwest"];
 
+interface TestResult {
+  result: "auto_approve" | "queue" | "reject";
+  reason: string;
+  matched_criterion?: string;
+}
+
 export function ApprovalRules() {
   const [rules, setRules] = useState<MockApprovalRules>(MOCK_APPROVAL_RULES);
   const [toast, setToast] = useState("");
   const [newRegion, setNewRegion] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [newBlocklistId, setNewBlocklistId] = useState("");
+  const [newAllowlistId, setNewAllowlistId] = useState("");
+  const [testScore, setTestScore] = useState(75);
+  const [testBusinessType, setTestBusinessType] = useState("Corporation");
+  const [testRegion, setTestRegion] = useState("Midwest");
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/account/rules")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setRules(d); })
+      .catch(() => {});
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -231,9 +252,251 @@ export function ApprovalRules() {
         </div>
       </Card>
 
+      {/* Blocklist */}
+      <Card title="Blocklist">
+        <p className="text-sm text-slate mb-4">
+          Participants on the blocklist are automatically rejected regardless of other rules.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {rules.per_request.blocklist_ids.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-problem/10 text-problem rounded-full">
+              {id.slice(0, 12)}...
+              <button
+                onClick={() => setRules({
+                  ...rules,
+                  per_request: {
+                    ...rules.per_request,
+                    blocklist_ids: rules.per_request.blocklist_ids.filter((i) => i !== id),
+                  },
+                })}
+                className="text-problem/60 hover:text-problem ml-0.5"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+          {rules.per_request.blocklist_ids.length === 0 && (
+            <span className="text-xs text-slate">No blocked participants.</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newBlocklistId}
+            onChange={(e) => setNewBlocklistId(e.target.value)}
+            placeholder="Participant ID to block..."
+            className={inputClass}
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              if (newBlocklistId.trim()) {
+                setRules({
+                  ...rules,
+                  per_request: {
+                    ...rules.per_request,
+                    blocklist_ids: [...rules.per_request.blocklist_ids, newBlocklistId.trim()],
+                  },
+                });
+                setNewBlocklistId("");
+              }
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </Card>
+
+      {/* Allowlist (Bulk Criteria) */}
+      <Card title="Allowlist (Bulk Pre-Approval)">
+        <p className="text-sm text-slate mb-4">
+          Participants on the allowlist are always auto-approved regardless of criteria checks.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {rules.bulk.allowlist_ids.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-success/10 text-success rounded-full">
+              {id.slice(0, 12)}...
+              <button
+                onClick={() => setRules({
+                  ...rules,
+                  bulk: {
+                    ...rules.bulk,
+                    allowlist_ids: rules.bulk.allowlist_ids.filter((i) => i !== id),
+                  },
+                })}
+                className="text-success/60 hover:text-success ml-0.5"
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+          {rules.bulk.allowlist_ids.length === 0 && (
+            <span className="text-xs text-slate">No allowlisted participants.</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newAllowlistId}
+            onChange={(e) => setNewAllowlistId(e.target.value)}
+            placeholder="Participant ID to allowlist..."
+            className={inputClass}
+          />
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              if (newAllowlistId.trim()) {
+                setRules({
+                  ...rules,
+                  bulk: {
+                    ...rules.bulk,
+                    allowlist_ids: [...rules.bulk.allowlist_ids, newAllowlistId.trim()],
+                  },
+                });
+                setNewAllowlistId("");
+              }
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </Card>
+
+      {/* Test Rules */}
+      <Card title="Test Rules">
+        <p className="text-sm text-slate mb-4">
+          Preview what would happen for a hypothetical connection request.
+        </p>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-charcoal mb-1">Behavioral Score</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={testScore}
+              onChange={(e) => setTestScore(parseInt(e.target.value) || 0)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal mb-1">Business Type</label>
+            <select value={testBusinessType} onChange={(e) => setTestBusinessType(e.target.value)} className={inputClass}>
+              {BUSINESS_TYPES.map((bt) => <option key={bt} value={bt}>{bt}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal mb-1">Region</label>
+            <select value={testRegion} onChange={(e) => setTestRegion(e.target.value)} className={inputClass}>
+              {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={async () => {
+            setIsTesting(true);
+            setTestResult(null);
+            try {
+              const res = await fetch("/api/account/rules/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ behavioral_score: testScore, business_type: testBusinessType, region: testRegion }),
+              });
+              if (res.ok) {
+                setTestResult(await res.json());
+              } else {
+                // Fallback: evaluate locally
+                const localResult = evaluateLocally(rules, testScore, testBusinessType, testRegion);
+                setTestResult(localResult);
+              }
+            } catch {
+              const localResult = evaluateLocally(rules, testScore, testBusinessType, testRegion);
+              setTestResult(localResult);
+            } finally {
+              setIsTesting(false);
+            }
+          }}
+        >
+          {isTesting ? "Testing..." : "Test Rules"}
+        </Button>
+        {testResult && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            testResult.result === "auto_approve" ? "bg-success/5 border-success/20" :
+            testResult.result === "queue" ? "bg-warning/5 border-warning/20" :
+            "bg-problem/5 border-problem/20"
+          }`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-sm font-bold ${
+                testResult.result === "auto_approve" ? "text-success" :
+                testResult.result === "queue" ? "text-warning" : "text-problem"
+              }`}>
+                {testResult.result === "auto_approve" ? "Auto-Approve" :
+                 testResult.result === "queue" ? "Queued for Review" : "Rejected"}
+              </span>
+            </div>
+            <p className="text-sm text-charcoal">{testResult.reason}</p>
+            {testResult.matched_criterion && (
+              <p className="text-xs text-slate mt-1">Matched: {testResult.matched_criterion}</p>
+            )}
+          </div>
+        )}
+      </Card>
+
       <div className="flex justify-end">
-        <Button onClick={() => showToast("Approval rules saved.")}>Save Rules</Button>
+        <Button
+          disabled={isSaving}
+          onClick={async () => {
+            setIsSaving(true);
+            try {
+              await Promise.all([
+                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "bulk_criteria", data: rules.bulk }) }),
+                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "per_request", data: rules.per_request }) }),
+                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "contact_route", data: rules.contact }) }),
+              ]);
+              showToast("Approval rules saved.");
+            } catch {
+              showToast("Approval rules saved (local only).");
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+        >
+          {isSaving ? "Saving..." : "Save Rules"}
+        </Button>
       </div>
     </div>
   );
+}
+
+function evaluateLocally(
+  rules: MockApprovalRules,
+  score: number,
+  businessType: string,
+  region: string,
+): TestResult {
+  if (rules.per_request.default_posture === "auto_approve_all") {
+    return { result: "auto_approve", reason: "Posture is auto-approve all." };
+  }
+  if (rules.per_request.default_posture === "manual_only") {
+    return { result: "queue", reason: "Posture is manual review only." };
+  }
+  // Check bulk criteria first
+  if (score >= rules.bulk.min_score) {
+    return { result: "auto_approve", reason: `Score ${score} meets bulk minimum of ${rules.bulk.min_score}.`, matched_criterion: "bulk_criteria.min_score" };
+  }
+  // Per-request checks
+  if (score < rules.per_request.min_score) {
+    return { result: "queue", reason: `Score ${score} below per-request minimum of ${rules.per_request.min_score}.`, matched_criterion: "per_request.min_score" };
+  }
+  if (rules.per_request.allowed_business_types.length > 0 && !rules.per_request.allowed_business_types.includes(businessType)) {
+    return { result: "queue", reason: `Business type "${businessType}" not in allowed types.`, matched_criterion: "per_request.allowed_business_types" };
+  }
+  if (rules.per_request.allowed_regions.length > 0 && !rules.per_request.allowed_regions.includes(region)) {
+    return { result: "queue", reason: `Region "${region}" not in allowed regions.`, matched_criterion: "per_request.allowed_regions" };
+  }
+  return { result: "auto_approve", reason: "All per-request rules passed." };
 }

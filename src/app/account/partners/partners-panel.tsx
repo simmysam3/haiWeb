@@ -40,6 +40,7 @@ export function PartnersPanel() {
   const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
   const [banPartner, setBanPartner] = useState<MockPartner | null>(null);
   const [invitePartner, setInvitePartner] = useState<MockPartner | null>(null);
+  const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
   const [toast, setToast] = useState("");
 
@@ -122,6 +123,19 @@ export function PartnersPanel() {
     setPartners(partners.filter((p) => p.id !== banPartner.id));
     setBanPartner(null);
     showToast(`Banned ${banPartner.company_name}`);
+    fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) });
+  }
+
+  function handleDowngrade() {
+    if (!downgradePartner) return;
+    setPartners(partners.map((p) =>
+      p.id === downgradePartner.id
+        ? { ...p, status: "approved" as const, invite_yours: false, invite_theirs: false }
+        : p,
+    ));
+    setDowngradePartner(null);
+    showToast(`Downgraded ${downgradePartner.company_name} to Approved`);
+    fetch('/api/account/connections/downgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ connection_id: downgradePartner.connection_id, target_state: 'approved' }) });
   }
 
   function handleConnect() {
@@ -271,8 +285,11 @@ export function PartnersPanel() {
           >
             {p.invite_yours ? "Withdraw Invite" : "Set Invite"}
           </Button>
+          {p.status === "trading_pair" && (
+            <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
+          )}
           <Button size="sm" variant="ghost" onClick={() => setRemovePartner(p)}>Remove</Button>
-          <Button size="sm" variant="ghost" onClick={() => setBanPartner(p)}>Ban</Button>
+          <Button size="sm" variant="ghost" onClick={() => setBanPartner(p)}>Block</Button>
         </div>
       ),
     },
@@ -592,8 +609,24 @@ export function PartnersPanel() {
         </div>
       </Modal>
 
+      {/* Downgrade Modal */}
+      <Modal open={!!downgradePartner} onClose={() => setDowngradePartner(null)} title="Downgrade to Approved">
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            Downgrade <strong>{downgradePartner?.company_name}</strong> from Trading Pair to Approved?
+          </p>
+          <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
+            Both trading pair invites will be withdrawn. Active orders in flight will not be cancelled, but no new agent-to-agent transactions can be initiated. Connection fee billing stops at end of billing period.
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setDowngradePartner(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDowngrade}>Downgrade</Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Ban Modal */}
-      <Modal open={!!banPartner} onClose={() => setBanPartner(null)} title="Ban Trading Partner">
+      <Modal open={!!banPartner} onClose={() => setBanPartner(null)} title="Block Trading Partner">
         <div className="space-y-4">
           <p className="text-sm text-charcoal">
             Permanently ban <strong>{banPartner?.company_name}</strong>?

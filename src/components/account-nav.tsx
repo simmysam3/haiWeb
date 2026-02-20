@@ -9,7 +9,9 @@ const navItems = [
   { href: "/account/users", label: "Users" },
   { href: "/account/agents", label: "Agents" },
   { href: "/account/manifests", label: "Manifests" },
+  { href: "/account/pricing", label: "Pricing" },
   { href: "/account/partners", label: "Trading Partners" },
+  { href: "/account/partners/blocked", label: "Blocked Companies" },
   { href: "/account/scores", label: "Behavioral Scores" },
   { href: "/account/billing", label: "Billing" },
 ];

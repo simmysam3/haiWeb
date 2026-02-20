@@ -482,6 +482,117 @@ export const MOCK_ADMIN_STATS = {
   agent_health: { active: 15, jailed: 2, probation: 3, offline: 4 },
 };
 
+// ─── Mock Audit Events ────────────────────────────────────
+
+export interface MockAuditEvent {
+  id: string;
+  event_type: string;
+  actor_id: string;
+  actor_type: string;
+  participant_id: string | null;
+  action: string;
+  timestamp: string;
+  retention_class: string;
+}
+
+export const MOCK_AUDIT_EVENTS: MockAuditEvent[] = [
+  { id: "ae-001", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: null, action: "auto_approved_bulk_criteria", timestamp: "2026-02-13T10:00:00Z", retention_class: "standard" },
+  { id: "ae-002", event_type: "admin.suspend", actor_id: "admin-001", actor_type: "admin", participant_id: "p-trident-001", action: "suspended_account", timestamp: "2026-02-12T08:30:00Z", retention_class: "critical" },
+  { id: "ae-003", event_type: "connection.blocked", actor_id: "p-apex-001", actor_type: "participant", participant_id: "p-vertex-001", action: "blocked_participant", timestamp: "2026-02-11T15:45:00Z", retention_class: "standard" },
+  { id: "ae-004", event_type: "pricing.updated", actor_id: "p-bolt-001", actor_type: "participant", participant_id: "p-bolt-001", action: "updated_pricing_manifest", timestamp: "2026-02-10T12:00:00Z", retention_class: "standard" },
+  { id: "ae-005", event_type: "order.placed", actor_id: "p-apex-001", actor_type: "participant", participant_id: "p-bolt-001", action: "placed_order", timestamp: "2026-02-09T16:30:00Z", retention_class: "standard" },
+];
+
+// ─── Mock Admin Analytics ─────────────────────────────────
+
+export const MOCK_ADMIN_ANALYTICS = {
+  connections: {
+    approval_rate_30d: 78.5,
+    mean_time_to_approve_hours: 4.2,
+    auto_approval_rate: 62.3,
+    requests_30d: 47,
+    top_requesters: [
+      { participant_id: "p-novatech-001", name: "NovaTech Systems", request_count: 8 },
+      { participant_id: "p-harbor-001", name: "Harbor Logistics Inc", request_count: 6 },
+      { participant_id: "p-ironbridge-001", name: "IronBridge Fabrication", request_count: 5 },
+    ],
+  },
+  abuse: {
+    active_blocks: 3,
+    blocks_30d: 2,
+    spam_signals: [] as { participant_id: string; name: string; signal_type: string; count: number }[],
+    trust_anomalies: [] as { participant_id: string; name: string; anomaly: string }[],
+  },
+  health: {
+    agent_uptime_pct: 97.2,
+    agents_jailed: 2,
+    agents_probation: 3,
+    heartbeat_success_rate: 98.1,
+    avg_response_time_ms: 245,
+    narrowing_completion_rate: 84.5,
+    rma_volume_30d: 3,
+  },
+};
+
+// ─── Mock Blocked Companies ───────────────────────────────
+
+export interface MockBlockedCompany {
+  participant_id: string;
+  company_name: string;
+  blocked_at: string;
+  reason: string;
+}
+
+export const MOCK_BLOCKED_COMPANIES: MockBlockedCompany[] = [
+  { participant_id: "p-vertex-001", company_name: "Vertex Coatings", blocked_at: "2026-02-11T15:45:00Z", reason: "Repeated pricing manipulation" },
+];
+
+// ─── Mock Pricing Hierarchy ──────────────────────────────
+
+export interface MockPricingNode {
+  id: string;
+  level: string;
+  label: string;
+  scope?: { product_line?: string; product_id?: string };
+  customer_override?: string;
+  inherited_from?: string;
+  pricing: Record<string, unknown>;
+  terms: Record<string, unknown>;
+  children?: MockPricingNode[];
+}
+
+export const MOCK_PRICING_HIERARCHY: MockPricingNode[] = [
+  {
+    id: "pm-company",
+    level: "company",
+    label: "Company Default",
+    pricing: { base_unit_price: null, currency: "USD", unit_of_measure: "EA", volume_tiers: [], aged_inventory_rules: [] },
+    terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin", minimum_order_value: 500 },
+    children: [
+      {
+        id: "pm-fasteners",
+        level: "product_line",
+        label: "Fasteners",
+        scope: { product_line: "Fasteners" },
+        inherited_from: "Company Default",
+        pricing: { base_unit_price: 0.85, currency: "USD", unit_of_measure: "EA" },
+        terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin", minimum_order_quantity: 100 },
+        children: [],
+      },
+      {
+        id: "pm-bearings",
+        level: "product_line",
+        label: "Bearings",
+        scope: { product_line: "Bearings" },
+        inherited_from: "Company Default",
+        pricing: { base_unit_price: 4.50, currency: "USD", unit_of_measure: "EA" },
+        terms: { default_payment_terms: "Net 45", default_shipping_terms: "FOB Origin" },
+        children: [],
+      },
+    ],
+  },
+];
+
 export const MOCK_ADMIN_PARTICIPANTS: MockParticipant[] = [
   { id: "p-apex-001", company_name: "Apex Manufacturing", status: "active", location: "Detroit, MI", registered_at: "2025-10-01T00:00:00Z", agent_count: 2, trading_pairs: 4 },
   { id: "p-bolt-001", company_name: "Bolt Industrial Supply", status: "active", location: "Chicago, IL", registered_at: "2025-10-05T00:00:00Z", agent_count: 2, trading_pairs: 3 },
