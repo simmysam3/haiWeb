@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DataTable, Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { MOCK_USERS, MockUser } from "@/lib/mock-data";
+import { useApi } from "@/lib/use-api";
 
 const ROLES = ["account_admin", "account_viewer"] as const;
 
 export function UsersTable() {
-  const [users, setUsers] = useState(MOCK_USERS);
+  const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: MOCK_USERS });
+  const [users, setUsers] = useState<MockUser[]>(apiUsers);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
@@ -18,6 +20,10 @@ export function UsersTable() {
   const [inviteRole, setInviteRole] = useState<string>("account_viewer");
   const [editRole, setEditRole] = useState<string>("");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    setUsers(apiUsers);
+  }, [apiUsers]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -41,20 +47,38 @@ export function UsersTable() {
     setInviteOpen(false);
     setInviteEmail("");
     showToast(`Invitation sent to ${inviteEmail}`);
+
+    fetch("/api/account/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+    }).catch(() => {});
   }
 
   function handleEditRole() {
     if (!editUser || !editRole) return;
     setUsers(users.map((u) => u.id === editUser.id ? { ...u, role: editRole as MockUser["role"] } : u));
+    const userId = editUser.id;
     setEditUser(null);
     showToast("Role updated");
+
+    fetch(`/api/account/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: editRole }),
+    }).catch(() => {});
   }
 
   function handleDeactivate() {
     if (!deactivateUser) return;
     setUsers(users.map((u) => u.id === deactivateUser.id ? { ...u, status: "disabled" as const } : u));
+    const userId = deactivateUser.id;
     setDeactivateUser(null);
     showToast("User deactivated");
+
+    fetch(`/api/account/users/${userId}`, {
+      method: "DELETE",
+    }).catch(() => {});
   }
 
   const columns: Column<MockUser>[] = [

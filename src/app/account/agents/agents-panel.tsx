@@ -6,6 +6,11 @@ import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { Card } from "@/components/card";
 import { MOCK_AGENTS, MockAgent } from "@/lib/mock-data";
+// BFF route available for individual agent status: /api/account/agents/[agentId]
+// No list endpoint exists yet, so agents are loaded from mock data.
+// When a list endpoint is added, wire it with:
+//   import { useApi } from "@/lib/use-api";
+//   const { data: agents } = useApi({ url: "/api/account/agents", fallback: MOCK_AGENTS });
 
 function keyAgeColor(days: number): string {
   if (days === 0) return "bg-slate/10 text-slate";

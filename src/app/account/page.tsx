@@ -2,6 +2,8 @@ import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
+import { fetchFromApi } from "@/lib/fetch-api";
+import { getSession } from "@/lib/auth";
 import {
   MOCK_AGENTS,
   MOCK_ACCESS_REQUESTS,
@@ -10,7 +12,23 @@ import {
   MOCK_SCORE_COMPOSITE,
 } from "@/lib/mock-data";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await getSession();
+
+  // Fetch composite behavioral score from haiCore, falling back to mock data
+  const scoreData = session
+    ? await fetchFromApi(
+        async (client) => {
+          const result = (await client.getScore(session.participant.id)) as {
+            composite_score?: number;
+            composite?: number;
+          } | null;
+          return result?.composite_score ?? result?.composite ?? MOCK_SCORE_COMPOSITE;
+        },
+        MOCK_SCORE_COMPOSITE,
+      )
+    : MOCK_SCORE_COMPOSITE;
+
   const agentsOnline = MOCK_AGENTS.filter((a) => a.status === "active").length;
   const pendingInvoice = MOCK_INVOICES.find((i) => i.status === "open");
 
@@ -38,9 +56,9 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Behavioral Score"
-          value={`${MOCK_SCORE_COMPOSITE}%`}
+          value={`${scoreData}%`}
           trend={2}
-          color={MOCK_SCORE_COMPOSITE >= 90 ? "text-success" : "text-teal"}
+          color={scoreData >= 90 ? "text-success" : "text-teal"}
         />
       </div>
 

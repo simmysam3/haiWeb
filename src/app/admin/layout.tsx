@@ -3,6 +3,10 @@ import Link from "next/link";
 const adminNav = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/participants", label: "Participants" },
+  { href: "/admin/analytics", label: "Analytics" },
+  { href: "/admin/abuse", label: "Abuse Monitoring" },
+  { href: "/admin/health", label: "Network Health" },
+  { href: "/admin/audit", label: "Audit Log" },
 ];
 
 export default function AdminLayout({

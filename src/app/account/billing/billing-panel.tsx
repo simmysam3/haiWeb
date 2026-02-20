@@ -1,5 +1,11 @@
 "use client";
 
+// TODO: Integrate Stripe for payment method management, subscription billing,
+// and invoice retrieval. When Stripe is wired up, replace MOCK_INVOICES and
+// MOCK_PARTNERS with data from Stripe Customer Portal / Billing API and the
+// haiCore connections endpoint respectively. The BFF route will be
+// /api/account/billing backed by Stripe webhooks + haiCore subscription state.
+
 import { useState } from "react";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";

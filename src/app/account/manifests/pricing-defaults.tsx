@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
-import { MOCK_PRICING_DEFAULTS } from "@/lib/mock-data";
+import { useApi } from "@/lib/use-api";
+import {
+  MOCK_INBOUND_REQUIREMENTS,
+  MOCK_OUTBOUND_POSTURES,
+  MOCK_PRICING_DEFAULTS,
+  MockRequirement,
+  MockPosture,
+} from "@/lib/mock-data";
 
 interface VolumeTier {
   min_qty: number;
@@ -11,19 +18,48 @@ interface VolumeTier {
   discount_pct: number;
 }
 
-export function PricingDefaults() {
-  const d = MOCK_PRICING_DEFAULTS;
+interface ManifestData {
+  inbound_requirements: MockRequirement[];
+  outbound_postures: MockPosture[];
+  pricing_defaults: typeof MOCK_PRICING_DEFAULTS;
+}
 
-  const [currency, setCurrency] = useState(d.default_currency);
-  const [paymentTerms, setPaymentTerms] = useState(d.default_payment_terms);
-  const [freightTerms, setFreightTerms] = useState(d.default_freight_terms);
-  const [mov, setMov] = useState(d.minimum_order_value.toString());
-  const [quoteValidity, setQuoteValidity] = useState(d.quote_validity_days.toString());
-  const [tiers, setTiers] = useState<VolumeTier[]>(d.volume_discount_tiers);
-  const [agedEnabled, setAgedEnabled] = useState(d.aged_inventory_discount_enabled);
-  const [agedThreshold, setAgedThreshold] = useState(d.aged_inventory_threshold_days.toString());
-  const [agedDiscount, setAgedDiscount] = useState(d.aged_inventory_discount_pct.toString());
+export function PricingDefaults() {
+  const { data, loading } = useApi<ManifestData>({
+    url: "/api/account/manifests",
+    fallback: {
+      inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
+      outbound_postures: MOCK_OUTBOUND_POSTURES,
+      pricing_defaults: MOCK_PRICING_DEFAULTS,
+    },
+  });
+
+  const [currency, setCurrency] = useState(MOCK_PRICING_DEFAULTS.default_currency);
+  const [paymentTerms, setPaymentTerms] = useState(MOCK_PRICING_DEFAULTS.default_payment_terms);
+  const [freightTerms, setFreightTerms] = useState(MOCK_PRICING_DEFAULTS.default_freight_terms);
+  const [mov, setMov] = useState(MOCK_PRICING_DEFAULTS.minimum_order_value.toString());
+  const [quoteValidity, setQuoteValidity] = useState(MOCK_PRICING_DEFAULTS.quote_validity_days.toString());
+  const [tiers, setTiers] = useState<VolumeTier[]>(MOCK_PRICING_DEFAULTS.volume_discount_tiers);
+  const [agedEnabled, setAgedEnabled] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_discount_enabled);
+  const [agedThreshold, setAgedThreshold] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_threshold_days.toString());
+  const [agedDiscount, setAgedDiscount] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_discount_pct.toString());
   const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data.pricing_defaults) {
+      const d = data.pricing_defaults;
+      setCurrency(d.default_currency);
+      setPaymentTerms(d.default_payment_terms);
+      setFreightTerms(d.default_freight_terms);
+      setMov(d.minimum_order_value.toString());
+      setQuoteValidity(d.quote_validity_days.toString());
+      setTiers(d.volume_discount_tiers);
+      setAgedEnabled(d.aged_inventory_discount_enabled);
+      setAgedThreshold(d.aged_inventory_threshold_days.toString());
+      setAgedDiscount(d.aged_inventory_discount_pct.toString());
+    }
+  }, [data]);
 
   const inputClass = "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
 
@@ -51,12 +87,50 @@ export function PricingDefaults() {
     setTiers(tiers.filter((_, i) => i !== index));
   }
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/account/manifests", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "pricing",
+          data: {
+            default_currency: currency,
+            default_payment_terms: paymentTerms,
+            default_freight_terms: freightTerms,
+            minimum_order_value: parseInt(mov, 10) || 0,
+            quote_validity_days: parseInt(quoteValidity, 10) || 0,
+            volume_discount_tiers: tiers,
+            aged_inventory_discount_enabled: agedEnabled,
+            aged_inventory_threshold_days: parseInt(agedThreshold, 10) || 0,
+            aged_inventory_discount_pct: parseInt(agedDiscount, 10) || 0,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Save failed" }));
+        showToast(err.error ?? "Save failed");
+        return;
+      }
+      showToast("Pricing defaults saved.");
+    } catch {
+      showToast("Network error -- changes saved locally only.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
           {toast}
         </div>
+      )}
+
+      {loading && (
+        <div className="text-sm text-slate animate-pulse">Loading pricing data...</div>
       )}
 
       <Card title="General Terms">
@@ -150,7 +224,9 @@ export function PricingDefaults() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={() => showToast("Pricing defaults saved.")}>Save Pricing</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : "Save Pricing"}
+        </Button>
       </div>
     </div>
   );
