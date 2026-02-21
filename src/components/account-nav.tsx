@@ -13,6 +13,7 @@ const navItems = [
   { href: "/account/partners", label: "Trading Partners" },
   { href: "/account/partners/blocked", label: "Blocked Companies" },
   { href: "/account/scores", label: "Behavioral Scores" },
+  { href: "/account/payments", label: "Payments" },
   { href: "/account/billing", label: "Billing" },
 ];
 

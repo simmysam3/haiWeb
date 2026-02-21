@@ -59,6 +59,18 @@ export interface HaiwaveClient {
   blockParticipant(targetId: string): Promise<unknown>;
   unblockParticipant(blockedId: string): Promise<unknown>;
   downgradeConnection(connectionId: string): Promise<unknown>;
+  // Payments (v1.11)
+  getWallet(participantId: string): Promise<unknown>;
+  getWalletBalance(walletId: string): Promise<unknown>;
+  registerWallet(data: unknown): Promise<unknown>;
+  getPaymentManifest(participantId: string, type?: string): Promise<unknown>;
+  updatePaymentManifest(data: unknown): Promise<unknown>;
+  getSpendingPolicy(participantId: string): Promise<unknown>;
+  updateSpendingPolicy(data: unknown): Promise<unknown>;
+  getPaymentHistory(address: string, limit?: number, offset?: number): Promise<unknown>;
+  getPaymentStatus(orderId: string): Promise<unknown>;
+  approvePayment(orderId: string, approverEmail: string): Promise<unknown>;
+  rejectPayment(orderId: string, reason: string): Promise<unknown>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -219,6 +231,41 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     downgradeConnection(connectionId: string) {
       return request("POST", `/connections/${connectionId}/downgrade`);
+    },
+
+    // ─── Payments (v1.11) ────────────────────────────────
+    getWallet(participantId: string) {
+      return request("GET", `/wallets/${participantId}`);
+    },
+    getWalletBalance(walletId: string) {
+      return request("GET", `/wallets/${walletId}/balance`);
+    },
+    registerWallet(data: unknown) {
+      return request("POST", "/wallets/register", data);
+    },
+    getPaymentManifest(participantId: string, type = "vendor") {
+      return request("GET", `/payments/manifests/${participantId}?type=${type}`);
+    },
+    updatePaymentManifest(data: unknown) {
+      return request("POST", "/payments/manifests", data);
+    },
+    getSpendingPolicy(participantId: string) {
+      return request("GET", `/policies/spending/${participantId}`);
+    },
+    updateSpendingPolicy(data: unknown) {
+      return request("POST", "/policies/spending", data);
+    },
+    getPaymentHistory(address: string, limit = 20, offset = 0) {
+      return request("GET", `/payments/history?address=${address}&limit=${limit}&offset=${offset}`);
+    },
+    getPaymentStatus(orderId: string) {
+      return request("GET", `/payments/${orderId}/status`);
+    },
+    approvePayment(orderId: string, approverEmail: string) {
+      return request("POST", `/payments/${orderId}/approve`, { approver_email: approverEmail });
+    },
+    rejectPayment(orderId: string, reason: string) {
+      return request("POST", `/payments/${orderId}/reject`, { reason });
     },
   };
 }
