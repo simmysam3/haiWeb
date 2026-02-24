@@ -213,3 +213,19 @@ export async function disableUser(userId: string): Promise<void> {
     body: JSON.stringify({ enabled: false }),
   });
 }
+
+export async function deleteUser(userId: string): Promise<void> {
+  const token = await getAdminToken();
+
+  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Keycloak delete user failed: ${res.status} ${body}`);
+  }
+}

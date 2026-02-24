@@ -8,7 +8,25 @@ import { Modal } from "@/components/modal";
 import { MOCK_USERS, MockUser } from "@/lib/mock-data";
 import { useApi } from "@/lib/use-api";
 
-const ROLES = ["account_admin", "account_viewer"] as const;
+const ROLES = [
+  "procurement_read_only",
+  "procurement_transact",
+  "buyer_view_only",
+  "buyer_request_quote",
+  "buyer_full_transact",
+  "inside_sales_read_only",
+  "inside_sales_transact",
+] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  procurement_read_only: "Procurement Read Only",
+  procurement_transact: "Procurement Transact",
+  buyer_view_only: "Buyer View Only",
+  buyer_request_quote: "Buyer Request Quote",
+  buyer_full_transact: "Buyer Full Transact",
+  inside_sales_read_only: "Inside Sales Read Only",
+  inside_sales_transact: "Inside Sales Transact",
+};
 
 export function UsersTable() {
   const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: MOCK_USERS });
@@ -17,7 +35,7 @@ export function UsersTable() {
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<string>("account_viewer");
+  const [inviteRole, setInviteRole] = useState<string>("buyer_view_only");
   const [editRole, setEditRole] = useState<string>("");
   const [toast, setToast] = useState("");
 
@@ -162,7 +180,7 @@ export function UsersTable() {
               className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
             >
               {ROLES.map((r) => (
-                <option key={r} value={r}>{r === "account_admin" ? "Admin" : "Viewer"}</option>
+                <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
               ))}
             </select>
           </div>
@@ -185,7 +203,7 @@ export function UsersTable() {
             className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
           >
             {ROLES.map((r) => (
-              <option key={r} value={r}>{r === "account_admin" ? "Admin" : "Viewer"}</option>
+              <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
             ))}
           </select>
           <div className="flex gap-3 justify-end">

@@ -299,7 +299,7 @@ export default function RegisterPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-charcoal mb-1">Website</label>
-                      <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass} />
+                      <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="www.example.com" className={inputClass} />
                     </div>
                   </div>
                   <div>
