@@ -22,7 +22,6 @@ interface VolumeTier {
 }
 
 const PRICING_FIELDS: { key: string; label: string; type: "text" | "number" | "select"; section: "pricing" | "terms"; options?: string[] }[] = [
-  { key: "base_unit_price", label: "Base Unit Price", type: "number", section: "pricing" },
   { key: "currency", label: "Currency", type: "select", section: "pricing", options: ["USD", "EUR", "GBP", "CAD", "AUD"] },
   { key: "unit_of_measure", label: "Unit of Measure", type: "select", section: "pricing", options: ["EA", "KG", "LB", "FT", "M", "BOX", "CS", "GAL", "L"] },
   { key: "default_payment_terms", label: "Payment Terms", type: "select", section: "terms", options: ["Net 15", "Net 30", "Net 45", "Net 60", "Net 90", "Due on Receipt"] },
@@ -53,6 +52,8 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
   const [saving, setSaving] = useState(false);
 
   const isCompanyLevel = node.level === "company";
+  const isSkuLevel = node.level === "sku";
+  const [baseUnitPrice, setBaseUnitPrice] = useState<string>("");
 
   // Reset overrides when node changes
   useEffect(() => {
@@ -69,6 +70,9 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
     const tiers = (node.pricing.volume_tiers as VolumeTier[]) ?? [];
     setVolumeTiers(tiers);
     setTiersOverridden(tiers.length > 0);
+
+    const bup = node.pricing.base_unit_price;
+    setBaseUnitPrice(bup != null ? String(bup) : "");
   }, [node]);
 
   function handleOverrideToggle(key: string, checked: boolean) {
@@ -120,6 +124,10 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
           terms[field.key] = val;
         }
       }
+    }
+
+    if (isSkuLevel && baseUnitPrice !== "") {
+      pricing.base_unit_price = Number(baseUnitPrice);
     }
 
     if (tiersOverridden) {
@@ -176,6 +184,26 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
           Pricing
         </h4>
         <div className="space-y-4">
+          {isSkuLevel ? (
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-charcoal">
+                Base Unit Price <span className="text-problem">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={baseUnitPrice}
+                onChange={(e) => setBaseUnitPrice(e.target.value)}
+                placeholder="Required at SKU level"
+                className={inputClass}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-slate">
+              Base pricing is set at the SKU level. Configure discount policies and terms here.
+            </p>
+          )}
           {PRICING_FIELDS.filter((f) => f.section === "pricing").map((field) => {
             const override = overrides[field.key];
             const isOverridden = override?.overridden ?? false;
