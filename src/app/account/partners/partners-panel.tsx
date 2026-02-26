@@ -16,6 +16,7 @@ import {
   MOCK_DIRECTORY,
   MOCK_ACCESS_REQUESTS,
   MOCK_PARTNERS,
+  MOCK_SESSION,
   MockDirectoryCompany,
   MockAccessRequest,
   MockPartner,
@@ -69,6 +70,14 @@ export function PartnersPanel() {
 
   // ─── Queue Actions ──────────────────────────────────────────
 
+  function updateDirectoryStatus(companyId: string, status: MockDirectoryCompany["connection_status"]) {
+    setDirectory((prev) => prev.map((c) => c.id === companyId ? { ...c, connection_status: status } : c));
+  }
+
+  function findDirectoryIdForRequest(req: MockAccessRequest): string | undefined {
+    return directory.find((c) => c.company_name === req.company_name)?.id;
+  }
+
   function handleApprove(req: MockAccessRequest) {
     setRequests(requests.filter((r) => r.id !== req.id));
     setPartners([...partners, {
@@ -83,17 +92,20 @@ export function PartnersPanel() {
       invite_theirs: req.invite,
       connection_id: `conn-${req.id}`,
     }]);
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, "approved");
     showToast(`Approved connection with ${req.company_name}`);
     // Fire-and-forget: persist approval to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) });
   }
 
   function handleApproveWithInvite(req: MockAccessRequest) {
+    const newStatus = req.invite ? "trading_pair" : "approved";
     setRequests(requests.filter((r) => r.id !== req.id));
     setPartners([...partners, {
       id: `p-${req.id}`,
       company_name: req.company_name,
-      status: req.invite ? "trading_pair" : "approved",
+      status: newStatus,
       manifest_progress: 0,
       established_at: new Date().toISOString(),
       location: req.location,
@@ -102,6 +114,8 @@ export function PartnersPanel() {
       invite_theirs: req.invite,
       connection_id: `conn-${req.id}`,
     }]);
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, newStatus === "trading_pair" ? "trading_pair" : "approved");
     showToast(`Approved as trading partner — ${req.company_name}${req.invite ? " (Trading Pair Active)" : " (Pending their proposal)"}`);
     // Fire-and-forget: persist approval + invite to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve', invite: true }) });
@@ -109,6 +123,8 @@ export function PartnersPanel() {
 
   function handleDecline(req: MockAccessRequest) {
     setRequests(requests.filter((r) => r.id !== req.id));
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, "none");
     showToast(`Declined connection from ${req.company_name}`);
     // Fire-and-forget: persist denial to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deny' }) });
@@ -119,6 +135,7 @@ export function PartnersPanel() {
   function handleRemove() {
     if (!removePartner) return;
     setPartners(partners.filter((p) => p.id !== removePartner.id));
+    updateDirectoryStatus(removePartner.id, "none");
     setRemovePartner(null);
     showToast(`Removed partnership with ${removePartner.company_name}`);
   }
@@ -126,6 +143,7 @@ export function PartnersPanel() {
   function handleBan() {
     if (!banPartner) return;
     setPartners(partners.filter((p) => p.id !== banPartner.id));
+    updateDirectoryStatus(banPartner.id, "banned");
     setBanPartner(null);
     showToast(`Banned ${banPartner.company_name}`);
     fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) });
@@ -138,6 +156,7 @@ export function PartnersPanel() {
         ? { ...p, status: "approved" as const, invite_yours: false, invite_theirs: false }
         : p,
     ));
+    updateDirectoryStatus(downgradePartner.id, "approved");
     setDowngradePartner(null);
     showToast(`Downgraded ${downgradePartner.company_name} to Approved`);
     fetch('/api/account/connections/downgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ connection_id: downgradePartner.connection_id, target_state: 'approved' }) });
@@ -145,6 +164,7 @@ export function PartnersPanel() {
 
   function handleConnect() {
     if (!connectCompany) return;
+    updateDirectoryStatus(connectCompany.id, "pending");
     // Fire-and-forget: send connection request to BFF
     fetch('/api/account/connections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: connectCompany.id, message: connectMessage }) });
     setConnectCompany(null);
@@ -155,14 +175,12 @@ export function PartnersPanel() {
   function handleSetInvite() {
     if (!invitePartner) return;
     const newInviteYours = !invitePartner.invite_yours;
+    const newStatus = newInviteYours && invitePartner.invite_theirs ? "trading_pair" : "approved";
     setPartners(partners.map((p) => {
       if (p.id !== invitePartner.id) return p;
-      return {
-        ...p,
-        invite_yours: newInviteYours,
-        status: newInviteYours && p.invite_theirs ? "trading_pair" : "approved",
-      };
+      return { ...p, invite_yours: newInviteYours, status: newStatus };
     }));
+    updateDirectoryStatus(invitePartner.id, newStatus);
     const action = invitePartner.invite_yours ? "Withdrew trading pair proposal from" : "Proposed trading pair with";
     showToast(`${action} ${invitePartner.company_name}`);
     // Fire-and-forget: persist invite toggle to BFF
@@ -208,9 +226,11 @@ export function PartnersPanel() {
   // ─── Directory ──────────────────────────────────────────────
 
   const filteredDirectory = directory.filter((c) =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry.toLowerCase().includes(search.toLowerCase()) ||
-    c.location.toLowerCase().includes(search.toLowerCase())
+    c.id !== MOCK_SESSION.participant.id && (
+      c.company_name.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry.toLowerCase().includes(search.toLowerCase()) ||
+      c.location.toLowerCase().includes(search.toLowerCase())
+    )
   );
 
   // ─── Tabs ───────────────────────────────────────────────────
