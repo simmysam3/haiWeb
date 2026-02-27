@@ -438,7 +438,13 @@ export function PartnersPanel() {
                           <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${age.color}`}>
                             {age.text}
                           </span>
-                          <StatusBadge status={req.request_type} />
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                            req.request_type === "trading_pair"
+                              ? "bg-navy/10 text-navy"
+                              : "bg-slate/10 text-slate"
+                          }`}>
+                            {req.request_type === "trading_pair" ? "Trading Pair Request" : "Connection Request"}
+                          </span>
                           {req.invite && (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-orange/10 text-orange font-medium">
                               Invite
