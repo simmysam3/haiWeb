@@ -127,7 +127,7 @@ export function ScoreDashboard() {
             <div className={`text-2xl font-bold ${compositeColor(MOCK_BUYER_SCORES.composite)}`}>
               {MOCK_BUYER_SCORES.composite}
             </div>
-            <p className="text-sm text-slate">Overall buyer performance</p>
+            <p className="text-sm text-slate">Network activity decile based on active trading pairs</p>
           </div>
           <div className="space-y-3">
             {MOCK_BUYER_SCORES.components.map((c) => (

@@ -27,11 +27,11 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
 
   return (
     <aside className="w-64 bg-navy text-white flex flex-col shrink-0">
-      <div className="p-6 border-b border-white/10">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          HAIWAVE
+      <div className="bg-white px-6 py-5">
+        <Link href="/">
+          <img src="/img/haiwave-logo.png" alt="HAIWAVE" className="h-8 w-auto" />
         </Link>
-        <p className="text-xs text-light-slate mt-1">Account Portal</p>
+        <p className="text-xs text-slate mt-1.5">Account Portal</p>
       </div>
       <nav className="flex-1 py-4">
         {navItems.map((item) => {

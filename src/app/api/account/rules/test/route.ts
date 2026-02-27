@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         outcome: "auto_approve",
         matched_rules: ["bulk_criteria"],
-        explanation: "Company meets all bulk pre-approval criteria (publicly traded, DUNS verified, behavioral score 92 >= 80, 3 years on network >= 1).",
+        explanation: "Company meets all bulk pre-approval criteria (publicly traded, DUNS verified, behavioral score 92 >= 80, 8 months on network >= 6, 12 active trading pairs >= 10).",
       });
     }
 

@@ -70,9 +70,10 @@ export default async function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {MOCK_ACCESS_REQUESTS.slice(0, 3).map((req) => (
-                <div
+                <Link
                   key={req.id}
-                  className="flex items-center justify-between py-2 border-b border-slate/10 last:border-0"
+                  href="/account/partners?tab=queue"
+                  className="flex items-center justify-between py-2 border-b border-slate/10 last:border-0 hover:bg-light-gray/30 -mx-2 px-2 rounded transition-colors"
                 >
                   <div>
                     <p className="text-sm font-medium text-charcoal">
@@ -80,16 +81,14 @@ export default async function DashboardPage() {
                     </p>
                     <p className="text-xs text-slate">{req.industry}</p>
                   </div>
-                  <p className="text-xs text-slate">
-                    {new Date(req.requested_at).toLocaleDateString()}
-                  </p>
-                </div>
+                  <span className="text-xs text-teal font-medium">Review →</span>
+                </Link>
               ))}
               <Link
-                href="/account/partners"
+                href="/account/partners?tab=queue"
                 className="block text-sm text-teal-dark hover:underline pt-1"
               >
-                View all requests
+                Review &amp; Approve →
               </Link>
             </div>
           )}

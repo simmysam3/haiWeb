@@ -73,14 +73,14 @@ export function ApprovalRules() {
             />
             <span className="text-sm text-charcoal">DUNS verified</span>
           </label>
-          <div className="grid grid-cols-2 gap-4 mt-3">
+          <div className="grid grid-cols-3 gap-4 mt-3">
             <div>
-              <label className="block text-sm font-medium text-charcoal mb-1">Min Years on Network</label>
+              <label className="block text-sm font-medium text-charcoal mb-1">Min Months on Network</label>
               <input
                 type="number"
                 min="0"
-                value={rules.bulk.min_years_on_network}
-                onChange={(e) => setRules({ ...rules, bulk: { ...rules.bulk, min_years_on_network: parseInt(e.target.value) || 0 } })}
+                value={rules.bulk.min_months_on_network}
+                onChange={(e) => setRules({ ...rules, bulk: { ...rules.bulk, min_months_on_network: parseInt(e.target.value) || 0 } })}
                 className={inputClass}
               />
             </div>
@@ -92,6 +92,16 @@ export function ApprovalRules() {
                 max="100"
                 value={rules.bulk.min_score}
                 onChange={(e) => setRules({ ...rules, bulk: { ...rules.bulk, min_score: parseInt(e.target.value) || 0 } })}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-charcoal mb-1">Min Active Trading Pairs</label>
+              <input
+                type="number"
+                min="0"
+                value={rules.bulk.min_active_trading_pairs}
+                onChange={(e) => setRules({ ...rules, bulk: { ...rules.bulk, min_active_trading_pairs: parseInt(e.target.value) || 0 } })}
                 className={inputClass}
               />
             </div>

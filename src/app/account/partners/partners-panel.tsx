@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Tabs } from "@/components/tabs";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
@@ -15,6 +16,7 @@ import {
   MOCK_DIRECTORY,
   MOCK_ACCESS_REQUESTS,
   MOCK_PARTNERS,
+  MOCK_SESSION,
   MockDirectoryCompany,
   MockAccessRequest,
   MockPartner,
@@ -30,7 +32,9 @@ function ageLabel(days: number) {
 }
 
 export function PartnersPanel() {
-  const [activeTab, setActiveTab] = useState("directory");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") ?? "directory";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [directory, setDirectory] = useState(MOCK_DIRECTORY);
   const [requests, setRequests] = useState(MOCK_ACCESS_REQUESTS);
   const [partners, setPartners] = useState(MOCK_PARTNERS);
@@ -50,12 +54,25 @@ export function PartnersPanel() {
   const [queueTypeFilter, setQueueTypeFilter] = useState<"all" | "approved" | "trading_pair">("all");
   const [queueInviteFilter, setQueueInviteFilter] = useState<"all" | "with_invite" | "without_invite">("all");
 
-  // ─── BFF API Integration ──────────────────────────────────
-  const directoryApi = useApi<MockDirectoryCompany[]>({ url: `/api/account/directory?q=${encodeURIComponent(search)}`, fallback: MOCK_DIRECTORY });
-  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: MOCK_ACCESS_REQUESTS });
+  // ─── BFF API Integration (initial load only) ─────────────
+  // Directory loads once — search filtering is done client-side.
+  // After initial load, local state is the source of truth so that
+  // optimistic updates from actions (approve, connect, etc.) persist.
+  const [initialLoaded, setInitialLoaded] = useState(false);
+  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: MOCK_DIRECTORY, enabled: !initialLoaded });
+  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: MOCK_ACCESS_REQUESTS, enabled: !initialLoaded });
+  const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: MOCK_PARTNERS, enabled: !initialLoaded });
 
-  useEffect(() => { if (!directoryApi.loading) setDirectory(directoryApi.data); }, [directoryApi.data, directoryApi.loading]);
-  useEffect(() => { if (!connectionsApi.loading && connectionsApi.data !== requests) setRequests(connectionsApi.data); }, [connectionsApi.data, connectionsApi.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (initialLoaded) return;
+    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading;
+    if (allDone) {
+      setDirectory(directoryApi.data);
+      setRequests(connectionsApi.data);
+      setPartners(partnersApi.data);
+      setInitialLoaded(true);
+    }
+  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -63,6 +80,14 @@ export function PartnersPanel() {
   }
 
   // ─── Queue Actions ──────────────────────────────────────────
+
+  function updateDirectoryStatus(companyId: string, status: MockDirectoryCompany["connection_status"]) {
+    setDirectory((prev) => prev.map((c) => c.id === companyId ? { ...c, connection_status: status } : c));
+  }
+
+  function findDirectoryIdForRequest(req: MockAccessRequest): string | undefined {
+    return directory.find((c) => c.company_name === req.company_name)?.id;
+  }
 
   function handleApprove(req: MockAccessRequest) {
     setRequests(requests.filter((r) => r.id !== req.id));
@@ -78,17 +103,20 @@ export function PartnersPanel() {
       invite_theirs: req.invite,
       connection_id: `conn-${req.id}`,
     }]);
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, "approved");
     showToast(`Approved connection with ${req.company_name}`);
     // Fire-and-forget: persist approval to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) });
   }
 
   function handleApproveWithInvite(req: MockAccessRequest) {
+    const newStatus = req.invite ? "trading_pair" : "approved";
     setRequests(requests.filter((r) => r.id !== req.id));
     setPartners([...partners, {
       id: `p-${req.id}`,
       company_name: req.company_name,
-      status: req.invite ? "trading_pair" : "approved",
+      status: newStatus,
       manifest_progress: 0,
       established_at: new Date().toISOString(),
       location: req.location,
@@ -97,13 +125,17 @@ export function PartnersPanel() {
       invite_theirs: req.invite,
       connection_id: `conn-${req.id}`,
     }]);
-    showToast(`Approved with invite — ${req.company_name}${req.invite ? " (Trading Pair Active)" : ""}`);
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, newStatus === "trading_pair" ? "trading_pair" : "approved");
+    showToast(`Approved as trading partner — ${req.company_name}${req.invite ? " (Trading Pair Active)" : " (Pending their proposal)"}`);
     // Fire-and-forget: persist approval + invite to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve', invite: true }) });
   }
 
   function handleDecline(req: MockAccessRequest) {
     setRequests(requests.filter((r) => r.id !== req.id));
+    const dirId = findDirectoryIdForRequest(req);
+    if (dirId) updateDirectoryStatus(dirId, "none");
     showToast(`Declined connection from ${req.company_name}`);
     // Fire-and-forget: persist denial to BFF
     fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deny' }) });
@@ -114,6 +146,7 @@ export function PartnersPanel() {
   function handleRemove() {
     if (!removePartner) return;
     setPartners(partners.filter((p) => p.id !== removePartner.id));
+    updateDirectoryStatus(removePartner.id, "none");
     setRemovePartner(null);
     showToast(`Removed partnership with ${removePartner.company_name}`);
   }
@@ -121,6 +154,7 @@ export function PartnersPanel() {
   function handleBan() {
     if (!banPartner) return;
     setPartners(partners.filter((p) => p.id !== banPartner.id));
+    updateDirectoryStatus(banPartner.id, "banned");
     setBanPartner(null);
     showToast(`Banned ${banPartner.company_name}`);
     fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) });
@@ -133,6 +167,7 @@ export function PartnersPanel() {
         ? { ...p, status: "approved" as const, invite_yours: false, invite_theirs: false }
         : p,
     ));
+    updateDirectoryStatus(downgradePartner.id, "approved");
     setDowngradePartner(null);
     showToast(`Downgraded ${downgradePartner.company_name} to Approved`);
     fetch('/api/account/connections/downgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ connection_id: downgradePartner.connection_id, target_state: 'approved' }) });
@@ -140,6 +175,7 @@ export function PartnersPanel() {
 
   function handleConnect() {
     if (!connectCompany) return;
+    updateDirectoryStatus(connectCompany.id, "pending");
     // Fire-and-forget: send connection request to BFF
     fetch('/api/account/connections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: connectCompany.id, message: connectMessage }) });
     setConnectCompany(null);
@@ -150,15 +186,13 @@ export function PartnersPanel() {
   function handleSetInvite() {
     if (!invitePartner) return;
     const newInviteYours = !invitePartner.invite_yours;
+    const newStatus = newInviteYours && invitePartner.invite_theirs ? "trading_pair" : "approved";
     setPartners(partners.map((p) => {
       if (p.id !== invitePartner.id) return p;
-      return {
-        ...p,
-        invite_yours: newInviteYours,
-        status: newInviteYours && p.invite_theirs ? "trading_pair" : "approved",
-      };
+      return { ...p, invite_yours: newInviteYours, status: newStatus };
     }));
-    const action = invitePartner.invite_yours ? "Withdrew invite from" : "Set invite for";
+    updateDirectoryStatus(invitePartner.id, newStatus);
+    const action = invitePartner.invite_yours ? "Withdrew trading pair proposal from" : "Proposed trading pair with";
     showToast(`${action} ${invitePartner.company_name}`);
     // Fire-and-forget: persist invite toggle to BFF
     fetch(`/api/account/connections/${invitePartner.connection_id}/invite`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invite: newInviteYours }) });
@@ -203,9 +237,11 @@ export function PartnersPanel() {
   // ─── Directory ──────────────────────────────────────────────
 
   const filteredDirectory = directory.filter((c) =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry.toLowerCase().includes(search.toLowerCase()) ||
-    c.location.toLowerCase().includes(search.toLowerCase())
+    c.id !== MOCK_SESSION.participant.id && (
+      c.company_name.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry.toLowerCase().includes(search.toLowerCase()) ||
+      c.location.toLowerCase().includes(search.toLowerCase())
+    )
   );
 
   // ─── Tabs ───────────────────────────────────────────────────
@@ -283,7 +319,7 @@ export function PartnersPanel() {
             variant={p.invite_yours ? "ghost" : "secondary"}
             onClick={() => setInvitePartner(p)}
           >
-            {p.invite_yours ? "Withdraw Invite" : "Set Invite"}
+            {p.invite_yours ? "Withdraw Trading Pair" : "Propose Trading Pair"}
           </Button>
           {p.status === "trading_pair" && (
             <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
@@ -402,7 +438,13 @@ export function PartnersPanel() {
                           <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${age.color}`}>
                             {age.text}
                           </span>
-                          <StatusBadge status={req.request_type} />
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                            req.request_type === "trading_pair"
+                              ? "bg-navy/10 text-navy"
+                              : "bg-slate/10 text-slate"
+                          }`}>
+                            {req.request_type === "trading_pair" ? "Trading Pair Request" : "Connection Request"}
+                          </span>
                           {req.invite && (
                             <span className="px-2 py-0.5 text-xs rounded-full bg-orange/10 text-orange font-medium">
                               Invite
@@ -414,9 +456,9 @@ export function PartnersPanel() {
                         </p>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <Button size="sm" onClick={() => handleApprove(req)}>Approve</Button>
-                        <Button size="sm" variant="secondary" onClick={() => handleApproveWithInvite(req)}>
-                          Approve + Invite
+                        <Button size="sm" variant="secondary" onClick={() => handleApprove(req)}>Approve</Button>
+                        <Button size="sm" onClick={() => handleApproveWithInvite(req)}>
+                          Approve as Trading Partner
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleDecline(req)}>Deny</Button>
                       </div>
@@ -555,29 +597,29 @@ export function PartnersPanel() {
       </Modal>
 
       {/* Invite Consent Modal */}
-      <Modal open={!!invitePartner} onClose={() => setInvitePartner(null)} title={invitePartner?.invite_yours ? "Withdraw Invite" : "Set Invite"}>
+      <Modal open={!!invitePartner} onClose={() => setInvitePartner(null)} title={invitePartner?.invite_yours ? "Withdraw Trading Pair" : "Propose Trading Pair"}>
         <div className="space-y-4">
           {invitePartner?.invite_yours ? (
             <>
               <p className="text-sm text-charcoal">
-                Withdraw your trading pair invite from <strong>{invitePartner.company_name}</strong>?
+                Withdraw your trading pair proposal from <strong>{invitePartner.company_name}</strong>?
               </p>
               <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
-                If they have also sent an invite, the trading pair will be deactivated. No new agent-to-agent transactions will be initiated.
+                If they have also proposed, the trading pair will be deactivated. No new agent-to-agent transactions will be initiated.
               </div>
             </>
           ) : (
             <>
               <p className="text-sm text-charcoal">
-                Send a trading pair invite to <strong>{invitePartner?.company_name}</strong>?
+                Propose a trading pair with <strong>{invitePartner?.company_name}</strong>?
               </p>
               <div className="bg-teal/5 border border-teal/20 rounded-lg px-4 py-3 text-sm text-teal-dark">
-                <p className="font-medium mb-1">Billing Notice</p>
-                <p>When both parties set their invite, the trading pair becomes active and connection fees begin at the start of the next billing period ($100/mo per trading pair).</p>
+                <p className="font-medium mb-1">How Trading Pairs Work</p>
+                <p>A trading pair is activated when both parties propose. Once active, your agents can transact directly — search inventory, exchange quotes, and place orders. Connection fees begin at the start of the next billing period ($100/mo per pair).</p>
               </div>
               {invitePartner?.invite_theirs && (
                 <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
-                  {invitePartner.company_name} has already sent their invite. Setting yours will immediately activate the trading pair.
+                  {invitePartner.company_name} has already proposed. Confirming yours will immediately activate the trading pair.
                 </div>
               )}
             </>
@@ -585,7 +627,7 @@ export function PartnersPanel() {
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setInvitePartner(null)}>Cancel</Button>
             <Button onClick={handleSetInvite}>
-              {invitePartner?.invite_yours ? "Withdraw Invite" : "Set Invite"}
+              {invitePartner?.invite_yours ? "Withdraw" : "Propose Trading Pair"}
             </Button>
           </div>
         </div>

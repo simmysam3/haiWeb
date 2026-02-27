@@ -7,7 +7,7 @@ export interface MockUser {
   email: string;
   first_name: string;
   last_name: string;
-  role: "account_owner" | "account_admin" | "account_viewer";
+  role: "account_owner" | "procurement_read_only" | "procurement_transact" | "buyer_view_only" | "buyer_request_quote" | "buyer_full_transact" | "inside_sales_read_only" | "inside_sales_transact";
   job_title: string;
   phone: string;
   status: "active" | "disabled";
@@ -114,32 +114,32 @@ export interface MockParticipant {
 export const MOCK_SESSION = {
   user: {
     id: "u-001",
-    email: "sarah.chen@apexmfg.com",
-    first_name: "Sarah",
-    last_name: "Chen",
+    email: "admin@lyntron.com",
+    first_name: "Robert",
+    last_name: "Fleming",
     role: "account_owner" as const,
-    job_title: "VP Operations",
+    job_title: "Operations Manager",
   },
   participant: {
-    id: "p-apex-001",
-    company_name: "Apex Manufacturing",
+    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    company_name: "Lyn-Tron Inc",
     status: "active" as const,
     business_type: "Corporation",
     address: {
-      line1: "1200 Industrial Parkway",
-      line2: "Suite 400",
-      city: "Detroit",
-      state: "MI",
-      postal_code: "48201",
+      line1: "612 N Fancher Rd",
+      line2: "",
+      city: "Spokane",
+      state: "WA",
+      postal_code: "99212",
       country: "US",
     },
-    phone: "+1 (313) 555-0100",
-    email: "info@apexmfg.com",
+    phone: "+1 (509) 924-2662",
+    email: "info@lyntron.com",
     dba: "",
-    tax_id: "38-4012789",
-    duns: "084567123",
-    website: "https://apexmfg.com",
-    description: "Precision-machined industrial components and assemblies for automotive, aerospace, and heavy equipment markets.",
+    tax_id: "",
+    duns: "",
+    website: "www.lyntron.com",
+    description: "Precision electronic hardware manufacturer — spacers, standoffs, shoulder screws, and NAS hardware for electronics and aerospace.",
   },
 };
 
@@ -162,7 +162,7 @@ export const MOCK_USERS: MockUser[] = [
     email: "james.park@apexmfg.com",
     first_name: "James",
     last_name: "Park",
-    role: "account_admin",
+    role: "procurement_transact",
     job_title: "Procurement Manager",
     phone: "+1 (313) 555-0102",
     status: "active",
@@ -173,7 +173,7 @@ export const MOCK_USERS: MockUser[] = [
     email: "maria.garcia@apexmfg.com",
     first_name: "Maria",
     last_name: "Garcia",
-    role: "account_viewer",
+    role: "buyer_view_only",
     job_title: "Supply Chain Analyst",
     phone: "+1 (313) 555-0103",
     status: "active",
@@ -240,67 +240,21 @@ export const MOCK_VENDOR_SCORES = {
 };
 
 export const MOCK_BUYER_SCORES = {
-  composite: 89,
+  composite: 70,
   components: [
-    { label: "Fulfillment Reliability", value: 92 },
-    { label: "Response Time", value: 86 },
-    { label: "Price Adherence", value: 97 },
-    { label: "Agent Uptime", value: 91 },
-    { label: "Exception Rate", value: 82 },
+    { label: "Active Trading Pairs", value: 70 },
   ],
 };
 
 // ─── Mock Trading Partners ───────────────────────────────────
 
 export const MOCK_PARTNERS: MockPartner[] = [
-  {
-    id: "p-bolt-001",
-    company_name: "Bolt Industrial Supply",
-    status: "trading_pair",
-    manifest_progress: 100,
-    established_at: "2025-11-15T00:00:00Z",
-    location: "Chicago, IL",
-    industry: "Industrial Distribution",
-    invite_yours: true,
-    invite_theirs: true,
-    connection_id: "conn-001",
-  },
-  {
-    id: "p-cascade-001",
-    company_name: "Cascade Chemicals",
-    status: "trading_pair",
-    manifest_progress: 100,
-    established_at: "2025-12-01T00:00:00Z",
-    location: "Portland, OR",
-    industry: "Chemical Manufacturing",
-    invite_yours: true,
-    invite_theirs: true,
-    connection_id: "conn-002",
-  },
-  {
-    id: "p-falcon-001",
-    company_name: "Falcon Electronics",
-    status: "approved",
-    manifest_progress: 60,
-    established_at: "2026-01-20T00:00:00Z",
-    location: "Austin, TX",
-    industry: "Electronics Manufacturing",
-    invite_yours: true,
-    invite_theirs: false,
-    connection_id: "conn-003",
-  },
-  {
-    id: "p-global-001",
-    company_name: "Global Steel Corp",
-    status: "approved",
-    manifest_progress: 30,
-    established_at: "2026-02-05T00:00:00Z",
-    location: "Pittsburgh, PA",
-    industry: "Steel Manufacturing",
-    invite_yours: false,
-    invite_theirs: false,
-    connection_id: "conn-004",
-  },
+  { id: "22222222-2222-2222-2222-222222222222", company_name: "MidWest Fastener Corp", status: "trading_pair", manifest_progress: 100, established_at: "2025-11-15T00:00:00Z", location: "Chicago, IL", industry: "Fastener Manufacturing", invite_yours: true, invite_theirs: true, connection_id: "conn-mw" },
+  { id: "33333333-3333-3333-3333-333333333333", company_name: "Great Lakes Hardware", status: "trading_pair", manifest_progress: 100, established_at: "2025-12-01T00:00:00Z", location: "Detroit, MI", industry: "Hardware Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-gl" },
+  { id: "66666666-6666-6666-6666-666666666666", company_name: "National Industrial Supply", status: "trading_pair", manifest_progress: 100, established_at: "2025-10-10T00:00:00Z", location: "Columbus, OH", industry: "Industrial Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-ni" },
+  { id: "88888888-8888-8888-8888-888888888888", company_name: "Pacific Safety Products", status: "trading_pair", manifest_progress: 100, established_at: "2025-11-20T00:00:00Z", location: "Portland, OR", industry: "Safety Equipment", invite_yours: true, invite_theirs: true, connection_id: "conn-ps" },
+  { id: "55555555-5555-5555-5555-555555555555", company_name: "Precision Plastics Inc", status: "approved", manifest_progress: 60, established_at: "2026-01-20T00:00:00Z", location: "Fort Wayne, IN", industry: "Plastics Manufacturing", invite_yours: true, invite_theirs: false, connection_id: "conn-pp" },
+  { id: "77777777-7777-7777-7777-777777777777", company_name: "Summit Electrical Components", status: "approved", manifest_progress: 30, established_at: "2026-02-05T00:00:00Z", location: "Indianapolis, IN", industry: "Electrical Components", invite_yours: false, invite_theirs: false, connection_id: "conn-se" },
 ];
 
 // ─── Mock Approval Rules ────────────────────────────────────
@@ -309,8 +263,9 @@ export interface MockApprovalRules {
   bulk: {
     publicly_traded: boolean;
     duns_verified: boolean;
-    min_years_on_network: number;
+    min_months_on_network: number;
     min_score: number;
+    min_active_trading_pairs: number;
     allowlist_ids: string[];
   };
   per_request: {
@@ -330,8 +285,9 @@ export const MOCK_APPROVAL_RULES: MockApprovalRules = {
   bulk: {
     publicly_traded: true,
     duns_verified: true,
-    min_years_on_network: 1,
+    min_months_on_network: 6,
     min_score: 80,
+    min_active_trading_pairs: 10,
     allowlist_ids: [],
   },
   per_request: {
@@ -352,75 +308,73 @@ export const MOCK_APPROVAL_RULES: MockApprovalRules = {
 export const MOCK_ACCESS_REQUESTS: MockAccessRequest[] = [
   {
     id: "req-001",
-    company_name: "Harbor Logistics Inc",
-    contact_name: "David Kim",
-    message: "We handle freight forwarding for several industrial clients and would like to connect with Apex for logistics coordination.",
+    company_name: "Delta Flow Systems",
+    contact_name: "Mark Sullivan",
+    message: "We supply flow control systems and valves — interested in sourcing fasteners and fittings for our assemblies.",
     requested_at: "2026-02-11T10:30:00Z",
-    industry: "Logistics & Freight",
-    location: "Long Beach, CA",
+    industry: "Flow Systems Manufacturing",
+    location: "Milwaukee, WI",
     business_type: "Corporation",
-    company_description: "Port-to-door freight forwarding and warehousing services for industrial clients.",
-    behavioral_score: 88,
-    product_lines: ["Freight Forwarding", "Warehousing", "Last-Mile Delivery"],
-    region: "West Coast",
-    network_member_since: "2025-09-15T00:00:00Z",
+    company_description: "Industrial flow control systems, valves, and fluid handling equipment.",
+    behavioral_score: 91,
+    product_lines: ["Valves", "Flow Meters", "Pipe Fittings", "Regulators"],
+    region: "Midwest",
+    network_member_since: "2025-06-15T00:00:00Z",
     request_type: "approved",
     invite: false,
     age_days: 4,
   },
   {
     id: "req-002",
-    company_name: "IronBridge Fabrication",
-    contact_name: "Lisa Thompson",
-    message: "Interested in sourcing precision components for our fabrication projects.",
+    company_name: "W.M. Gore Advanced Materials",
+    contact_name: "Patricia Collins",
+    message: "Gore manufactures PTFE-based materials and we are looking to supply coated fastener components.",
     requested_at: "2026-02-09T14:00:00Z",
-    industry: "Metal Fabrication",
-    location: "Cleveland, OH",
-    business_type: "LLC",
-    company_description: "Custom metal fabrication and welding services for industrial and commercial projects.",
-    behavioral_score: 72,
-    product_lines: ["Steel Fabrication", "Welding Services", "Custom Machining"],
-    region: "Midwest",
-    network_member_since: "2025-11-20T00:00:00Z",
+    industry: "Advanced Materials",
+    location: "Newark, DE",
+    business_type: "Corporation",
+    company_description: "PTFE, expanded PTFE, and advanced polymer materials for industrial and electronics applications.",
+    behavioral_score: 86,
+    product_lines: ["PTFE Membranes", "Sealants", "Gaskets", "Cable Assemblies"],
+    region: "East Coast",
+    network_member_since: "2025-04-01T00:00:00Z",
     request_type: "trading_pair",
     invite: true,
     age_days: 6,
   },
   {
     id: "req-003",
-    company_name: "NovaTech Systems",
-    contact_name: "Ryan Mitchell",
-    message: "We are expanding our supplier network for industrial automation components.",
+    company_name: "Lyn-Tron Inc",
+    contact_name: "Robert Fleming",
+    message: "Precision electronic hardware manufacturer — spacers, standoffs, and shoulder screws for PCB and panel assemblies.",
     requested_at: "2026-02-08T08:45:00Z",
-    industry: "Industrial Automation",
-    location: "San Jose, CA",
+    industry: "Electronic Hardware",
+    location: "Spokane, WA",
     business_type: "Corporation",
-    company_description: "Robotics integration and industrial control systems for manufacturing.",
-    behavioral_score: null,
-    product_lines: ["Robotics", "PLCs", "Motion Control", "Sensors"],
+    company_description: "Precision spacers, standoffs, and fasteners for electronics and aerospace applications.",
+    behavioral_score: 88,
+    product_lines: ["Spacers", "Standoffs", "Shoulder Screws", "NAS Hardware", "Jack Screws"],
     region: "West Coast",
-    network_member_since: null,
+    network_member_since: "2026-02-15T00:00:00Z",
     request_type: "approved",
     invite: false,
-    age_days: 23,
+    age_days: 7,
   },
 ];
 
 // ─── Mock Network Directory ──────────────────────────────────
 
 export const MOCK_DIRECTORY: MockDirectoryCompany[] = [
-  { id: "p-bolt-001", company_name: "Bolt Industrial Supply", location: "Chicago, IL", industry: "Industrial Distribution", description: "Full-line industrial MRO distributor serving the Midwest.", connection_status: "trading_pair" },
-  { id: "p-cascade-001", company_name: "Cascade Chemicals", location: "Portland, OR", industry: "Chemical Manufacturing", description: "Specialty chemical formulations for industrial applications.", connection_status: "trading_pair" },
-  { id: "p-delta-001", company_name: "Delta Packaging Solutions", location: "Atlanta, GA", industry: "Packaging", description: "Custom packaging and shipping solutions for manufacturers.", connection_status: "none" },
-  { id: "p-evergreen-001", company_name: "Evergreen Building Materials", location: "Seattle, WA", industry: "Building Materials", description: "Sustainable building materials and construction supplies.", connection_status: "none" },
-  { id: "p-falcon-001", company_name: "Falcon Electronics", location: "Austin, TX", industry: "Electronics Manufacturing", description: "PCB assemblies, connectors, and electronic control systems.", connection_status: "approved" },
-  { id: "p-global-001", company_name: "Global Steel Corp", location: "Pittsburgh, PA", industry: "Steel Manufacturing", description: "Structural steel, sheet metal, and specialty alloys.", connection_status: "approved" },
-  { id: "p-harbor-001", company_name: "Harbor Logistics Inc", location: "Long Beach, CA", industry: "Logistics & Freight", description: "Port-to-door freight forwarding and warehousing.", connection_status: "pending" },
-  { id: "p-ironbridge-001", company_name: "IronBridge Fabrication", location: "Cleveland, OH", industry: "Metal Fabrication", description: "Custom metal fabrication and welding services.", connection_status: "pending" },
-  { id: "p-novatech-001", company_name: "NovaTech Systems", location: "San Jose, CA", industry: "Industrial Automation", description: "Robotics integration and industrial control systems.", connection_status: "pending" },
-  { id: "p-summit-001", company_name: "Summit Precision Tools", location: "Milwaukee, WI", industry: "Tooling & Fixtures", description: "CNC tooling, custom jigs, and precision fixtures.", connection_status: "none" },
-  { id: "p-trident-001", company_name: "Trident Fluid Power", location: "Minneapolis, MN", industry: "Hydraulics & Pneumatics", description: "Hydraulic systems, pneumatic components, and fluid power solutions.", connection_status: "none" },
-  { id: "p-vertex-001", company_name: "Vertex Coatings", location: "Houston, TX", industry: "Surface Treatment", description: "Industrial coating, plating, and surface finishing services.", connection_status: "none" },
+  { id: "11111111-1111-1111-1111-111111111111", company_name: "Apex Manufacturing", location: "Cleveland, OH", industry: "Precision Manufacturing", description: "Precision-machined industrial components and assemblies for automotive, aerospace, and heavy equipment.", connection_status: "trading_pair" },
+  { id: "22222222-2222-2222-2222-222222222222", company_name: "MidWest Fastener Corp", location: "Chicago, IL", industry: "Fastener Manufacturing", description: "Full-line fastener manufacturer — bolts, nuts, screws, rivets, and specialty hardware.", connection_status: "trading_pair" },
+  { id: "33333333-3333-3333-3333-333333333333", company_name: "Great Lakes Hardware", location: "Detroit, MI", industry: "Hardware Distribution", description: "Regional distributor of industrial hardware, fasteners, and assembly components.", connection_status: "trading_pair" },
+  { id: "44444444-4444-4444-4444-444444444444", company_name: "Delta Flow Systems", location: "Milwaukee, WI", industry: "Flow Systems Manufacturing", description: "Industrial flow control systems, valves, and fluid handling equipment.", connection_status: "pending" },
+  { id: "55555555-5555-5555-5555-555555555555", company_name: "Precision Plastics Inc", location: "Fort Wayne, IN", industry: "Plastics Manufacturing", description: "Injection molded plastic components, nylon fasteners, and specialty polymers.", connection_status: "approved" },
+  { id: "66666666-6666-6666-6666-666666666666", company_name: "National Industrial Supply", location: "Columbus, OH", industry: "Industrial Distribution", description: "National MRO distributor with 12 regional warehouses across the US.", connection_status: "trading_pair" },
+  { id: "77777777-7777-7777-7777-777777777777", company_name: "Summit Electrical Components", location: "Indianapolis, IN", industry: "Electrical Components", description: "Connectors, terminals, wire harnesses, and electrical panel assemblies.", connection_status: "approved" },
+  { id: "88888888-8888-8888-8888-888888888888", company_name: "Pacific Safety Products", location: "Portland, OR", industry: "Safety Equipment", description: "PPE, safety signage, lockout/tagout kits, and workplace safety solutions.", connection_status: "trading_pair" },
+  { id: "99999999-9999-9999-9999-999999999999", company_name: "W.M. Gore Advanced Materials", location: "Newark, DE", industry: "Advanced Materials", description: "PTFE, expanded PTFE membranes, sealants, gaskets, and cable assemblies.", connection_status: "pending" },
+  { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", company_name: "Lyn-Tron Inc", location: "Spokane, WA", industry: "Electronic Hardware", description: "Precision spacers, standoffs, shoulder screws, and NAS hardware for electronics and aerospace.", connection_status: "none" },
 ];
 
 // ─── Mock Invoices ───────────────────────────────────────────
@@ -475,11 +429,11 @@ export const MOCK_PRICING_DEFAULTS = {
 // ─── Mock Admin Stats ────────────────────────────────────────
 
 export const MOCK_ADMIN_STATS = {
-  participants: { active: 9, pending_payment: 2, suspended: 1, total: 12 },
-  trading_pairs: 14,
-  outstanding_invoices: 3,
-  outstanding_amount: 15400,
-  agent_health: { active: 15, jailed: 2, probation: 3, offline: 4 },
+  participants: { active: 10, pending_payment: 0, suspended: 0, total: 10 },
+  trading_pairs: 24,
+  outstanding_invoices: 1,
+  outstanding_amount: 2400,
+  agent_health: { active: 10, jailed: 0, probation: 0, offline: 0 },
 };
 
 // ─── Mock Audit Events ────────────────────────────────────
@@ -497,10 +451,10 @@ export interface MockAuditEvent {
 
 export const MOCK_AUDIT_EVENTS: MockAuditEvent[] = [
   { id: "ae-001", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: null, action: "auto_approved_bulk_criteria", timestamp: "2026-02-13T10:00:00Z", retention_class: "standard" },
-  { id: "ae-002", event_type: "admin.suspend", actor_id: "admin-001", actor_type: "admin", participant_id: "p-trident-001", action: "suspended_account", timestamp: "2026-02-12T08:30:00Z", retention_class: "critical" },
-  { id: "ae-003", event_type: "connection.blocked", actor_id: "p-apex-001", actor_type: "participant", participant_id: "p-vertex-001", action: "blocked_participant", timestamp: "2026-02-11T15:45:00Z", retention_class: "standard" },
-  { id: "ae-004", event_type: "pricing.updated", actor_id: "p-bolt-001", actor_type: "participant", participant_id: "p-bolt-001", action: "updated_pricing_manifest", timestamp: "2026-02-10T12:00:00Z", retention_class: "standard" },
-  { id: "ae-005", event_type: "order.placed", actor_id: "p-apex-001", actor_type: "participant", participant_id: "p-bolt-001", action: "placed_order", timestamp: "2026-02-09T16:30:00Z", retention_class: "standard" },
+  { id: "ae-002", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", action: "auto_approved_new_participant", timestamp: "2026-02-15T08:30:00Z", retention_class: "standard" },
+  { id: "ae-003", event_type: "pricing.updated", actor_id: "66666666-6666-6666-6666-666666666666", actor_type: "participant", participant_id: "66666666-6666-6666-6666-666666666666", action: "updated_pricing_manifest", timestamp: "2026-02-11T15:45:00Z", retention_class: "standard" },
+  { id: "ae-004", event_type: "pricing.updated", actor_id: "22222222-2222-2222-2222-222222222222", actor_type: "participant", participant_id: "22222222-2222-2222-2222-222222222222", action: "updated_pricing_manifest", timestamp: "2026-02-10T12:00:00Z", retention_class: "standard" },
+  { id: "ae-005", event_type: "order.placed", actor_id: "11111111-1111-1111-1111-111111111111", actor_type: "participant", participant_id: "66666666-6666-6666-6666-666666666666", action: "placed_order", timestamp: "2026-02-09T16:30:00Z", retention_class: "standard" },
 ];
 
 // ─── Mock Admin Analytics ─────────────────────────────────
@@ -512,9 +466,9 @@ export const MOCK_ADMIN_ANALYTICS = {
     auto_approval_rate: 62.3,
     requests_30d: 47,
     top_requesters: [
-      { participant_id: "p-novatech-001", name: "NovaTech Systems", request_count: 8 },
-      { participant_id: "p-harbor-001", name: "Harbor Logistics Inc", request_count: 6 },
-      { participant_id: "p-ironbridge-001", name: "IronBridge Fabrication", request_count: 5 },
+      { participant_id: "44444444-4444-4444-4444-444444444444", name: "Delta Flow Systems", request_count: 8 },
+      { participant_id: "99999999-9999-9999-9999-999999999999", name: "W.M. Gore Advanced Materials", request_count: 6 },
+      { participant_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Lyn-Tron Inc", request_count: 5 },
     ],
   },
   abuse: {
@@ -543,9 +497,7 @@ export interface MockBlockedCompany {
   reason: string;
 }
 
-export const MOCK_BLOCKED_COMPANIES: MockBlockedCompany[] = [
-  { participant_id: "p-vertex-001", company_name: "Vertex Coatings", blocked_at: "2026-02-11T15:45:00Z", reason: "Repeated pricing manipulation" },
-];
+export const MOCK_BLOCKED_COMPANIES: MockBlockedCompany[] = [];
 
 // ─── Mock Pricing Hierarchy ──────────────────────────────
 
@@ -566,7 +518,7 @@ export const MOCK_PRICING_HIERARCHY: MockPricingNode[] = [
     id: "pm-company",
     level: "company",
     label: "Company Default",
-    pricing: { base_unit_price: null, currency: "USD", unit_of_measure: "EA", volume_tiers: [], aged_inventory_rules: [] },
+    pricing: { currency: "USD", unit_of_measure: "EA", volume_tiers: [], aged_inventory_rules: [] },
     terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin", minimum_order_value: 500 },
     children: [
       {
@@ -575,9 +527,28 @@ export const MOCK_PRICING_HIERARCHY: MockPricingNode[] = [
         label: "Fasteners",
         scope: { product_line: "Fasteners" },
         inherited_from: "Company Default",
-        pricing: { base_unit_price: 0.85, currency: "USD", unit_of_measure: "EA" },
+        pricing: { currency: "USD", unit_of_measure: "EA" },
         terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin", minimum_order_quantity: 100 },
-        children: [],
+        children: [
+          {
+            id: "pm-fas-hex-m6",
+            level: "sku",
+            label: "Hex Bolt M6x20 SS304",
+            scope: { product_line: "Fasteners", product_id: "APX-HB-M6-20-SS304" },
+            inherited_from: "Fasteners",
+            pricing: { base_unit_price: 0.65, currency: "USD", unit_of_measure: "EA" },
+            terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin" },
+          },
+          {
+            id: "pm-fas-hex-m8",
+            level: "sku",
+            label: "Hex Bolt M8x30 SS304",
+            scope: { product_line: "Fasteners", product_id: "APX-HB-M8-30-SS304" },
+            inherited_from: "Fasteners",
+            pricing: { base_unit_price: 0.89, currency: "USD", unit_of_measure: "EA" },
+            terms: { default_payment_terms: "Net 30", default_shipping_terms: "FOB Origin" },
+          },
+        ],
       },
       {
         id: "pm-bearings",
@@ -585,25 +556,33 @@ export const MOCK_PRICING_HIERARCHY: MockPricingNode[] = [
         label: "Bearings",
         scope: { product_line: "Bearings" },
         inherited_from: "Company Default",
-        pricing: { base_unit_price: 4.50, currency: "USD", unit_of_measure: "EA" },
+        pricing: { currency: "USD", unit_of_measure: "EA" },
         terms: { default_payment_terms: "Net 45", default_shipping_terms: "FOB Origin" },
-        children: [],
+        children: [
+          {
+            id: "pm-brg-6205",
+            level: "sku",
+            label: "Ball Bearing 6205-2RS",
+            scope: { product_line: "Bearings", product_id: "BRG-6205-2RS" },
+            inherited_from: "Bearings",
+            pricing: { base_unit_price: 4.50, currency: "USD", unit_of_measure: "EA" },
+            terms: { default_payment_terms: "Net 45", default_shipping_terms: "FOB Origin" },
+          },
+        ],
       },
     ],
   },
 ];
 
 export const MOCK_ADMIN_PARTICIPANTS: MockParticipant[] = [
-  { id: "p-apex-001", company_name: "Apex Manufacturing", status: "active", location: "Detroit, MI", registered_at: "2025-10-01T00:00:00Z", agent_count: 2, trading_pairs: 4 },
-  { id: "p-bolt-001", company_name: "Bolt Industrial Supply", status: "active", location: "Chicago, IL", registered_at: "2025-10-05T00:00:00Z", agent_count: 2, trading_pairs: 3 },
-  { id: "p-cascade-001", company_name: "Cascade Chemicals", status: "active", location: "Portland, OR", registered_at: "2025-10-10T00:00:00Z", agent_count: 1, trading_pairs: 2 },
-  { id: "p-delta-001", company_name: "Delta Packaging Solutions", status: "active", location: "Atlanta, GA", registered_at: "2025-10-15T00:00:00Z", agent_count: 1, trading_pairs: 1 },
-  { id: "p-evergreen-001", company_name: "Evergreen Building Materials", status: "active", location: "Seattle, WA", registered_at: "2025-11-01T00:00:00Z", agent_count: 1, trading_pairs: 1 },
-  { id: "p-falcon-001", company_name: "Falcon Electronics", status: "active", location: "Austin, TX", registered_at: "2025-11-10T00:00:00Z", agent_count: 2, trading_pairs: 2 },
-  { id: "p-global-001", company_name: "Global Steel Corp", status: "active", location: "Pittsburgh, PA", registered_at: "2025-11-15T00:00:00Z", agent_count: 1, trading_pairs: 1 },
-  { id: "p-harbor-001", company_name: "Harbor Logistics Inc", status: "active", location: "Long Beach, CA", registered_at: "2025-12-01T00:00:00Z", agent_count: 1, trading_pairs: 0 },
-  { id: "p-ironbridge-001", company_name: "IronBridge Fabrication", status: "active", location: "Cleveland, OH", registered_at: "2025-12-10T00:00:00Z", agent_count: 1, trading_pairs: 0 },
-  { id: "p-novatech-001", company_name: "NovaTech Systems", status: "pending_payment", location: "San Jose, CA", registered_at: "2026-01-20T00:00:00Z", agent_count: 0, trading_pairs: 0 },
-  { id: "p-summit-001", company_name: "Summit Precision Tools", status: "pending_payment", location: "Milwaukee, WI", registered_at: "2026-02-01T00:00:00Z", agent_count: 0, trading_pairs: 0 },
-  { id: "p-trident-001", company_name: "Trident Fluid Power", status: "suspended", location: "Minneapolis, MN", registered_at: "2025-10-20T00:00:00Z", agent_count: 1, trading_pairs: 0, suspension_reason: "Non-payment: invoice past due > 60 days" },
+  { id: "11111111-1111-1111-1111-111111111111", company_name: "Apex Manufacturing", status: "active", location: "Cleveland, OH", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 6 },
+  { id: "22222222-2222-2222-2222-222222222222", company_name: "MidWest Fastener Corp", status: "active", location: "Chicago, IL", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 5 },
+  { id: "33333333-3333-3333-3333-333333333333", company_name: "Great Lakes Hardware", status: "active", location: "Detroit, MI", registered_at: "2025-06-15T00:00:00Z", agent_count: 1, trading_pairs: 5 },
+  { id: "44444444-4444-4444-4444-444444444444", company_name: "Delta Flow Systems", status: "active", location: "Milwaukee, WI", registered_at: "2025-07-01T00:00:00Z", agent_count: 1, trading_pairs: 4 },
+  { id: "55555555-5555-5555-5555-555555555555", company_name: "Precision Plastics Inc", status: "active", location: "Fort Wayne, IN", registered_at: "2025-07-15T00:00:00Z", agent_count: 1, trading_pairs: 3 },
+  { id: "66666666-6666-6666-6666-666666666666", company_name: "National Industrial Supply", status: "active", location: "Columbus, OH", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 7 },
+  { id: "77777777-7777-7777-7777-777777777777", company_name: "Summit Electrical Components", status: "active", location: "Indianapolis, IN", registered_at: "2025-08-01T00:00:00Z", agent_count: 1, trading_pairs: 4 },
+  { id: "88888888-8888-8888-8888-888888888888", company_name: "Pacific Safety Products", status: "active", location: "Portland, OR", registered_at: "2025-08-15T00:00:00Z", agent_count: 1, trading_pairs: 5 },
+  { id: "99999999-9999-9999-9999-999999999999", company_name: "W.M. Gore Advanced Materials", status: "active", location: "Newark, DE", registered_at: "2025-09-01T00:00:00Z", agent_count: 1, trading_pairs: 3 },
+  { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", company_name: "Lyn-Tron Inc", status: "active", location: "Spokane, WA", registered_at: "2026-02-15T00:00:00Z", agent_count: 1, trading_pairs: 9 },
 ];

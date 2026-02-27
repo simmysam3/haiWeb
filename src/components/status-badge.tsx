@@ -19,6 +19,15 @@ const STATUS_STYLES: Record<string, string> = {
   offline: "bg-slate/10 text-slate",
   none: "bg-slate/10 text-slate",
   void: "bg-slate/10 text-slate",
+
+  account_owner: "bg-navy/10 text-navy",
+  procurement_transact: "bg-teal/10 text-teal-dark",
+  buyer_full_transact: "bg-teal/10 text-teal-dark",
+  inside_sales_transact: "bg-teal/10 text-teal-dark",
+  buyer_request_quote: "bg-warning/10 text-warning",
+  procurement_read_only: "bg-slate/10 text-slate",
+  buyer_view_only: "bg-slate/10 text-slate",
+  inside_sales_read_only: "bg-slate/10 text-slate",
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -26,8 +35,13 @@ const LABEL_MAP: Record<string, string> = {
   pending_payment: "Pending Payment",
   past_due: "Past Due",
   account_owner: "Owner",
-  account_admin: "Admin",
-  account_viewer: "Viewer",
+  procurement_read_only: "Procurement Read Only",
+  procurement_transact: "Procurement Transact",
+  buyer_view_only: "Buyer View Only",
+  buyer_request_quote: "Buyer Request Quote",
+  buyer_full_transact: "Buyer Full Transact",
+  inside_sales_read_only: "Inside Sales Read Only",
+  inside_sales_transact: "Inside Sales Transact",
 };
 
 interface StatusBadgeProps {
