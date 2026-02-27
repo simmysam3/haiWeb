@@ -54,14 +54,25 @@ export function PartnersPanel() {
   const [queueTypeFilter, setQueueTypeFilter] = useState<"all" | "approved" | "trading_pair">("all");
   const [queueInviteFilter, setQueueInviteFilter] = useState<"all" | "with_invite" | "without_invite">("all");
 
-  // ─── BFF API Integration ──────────────────────────────────
-  const directoryApi = useApi<MockDirectoryCompany[]>({ url: `/api/account/directory?q=${encodeURIComponent(search)}`, fallback: MOCK_DIRECTORY });
-  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: MOCK_ACCESS_REQUESTS });
-  const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: MOCK_PARTNERS });
+  // ─── BFF API Integration (initial load only) ─────────────
+  // Directory loads once — search filtering is done client-side.
+  // After initial load, local state is the source of truth so that
+  // optimistic updates from actions (approve, connect, etc.) persist.
+  const [initialLoaded, setInitialLoaded] = useState(false);
+  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: MOCK_DIRECTORY, enabled: !initialLoaded });
+  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: MOCK_ACCESS_REQUESTS, enabled: !initialLoaded });
+  const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: MOCK_PARTNERS, enabled: !initialLoaded });
 
-  useEffect(() => { if (!directoryApi.loading) setDirectory(directoryApi.data); }, [directoryApi.data, directoryApi.loading]);
-  useEffect(() => { if (!connectionsApi.loading && connectionsApi.data !== requests) setRequests(connectionsApi.data); }, [connectionsApi.data, connectionsApi.loading]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!partnersApi.loading) setPartners(partnersApi.data); }, [partnersApi.data, partnersApi.loading]);
+  useEffect(() => {
+    if (initialLoaded) return;
+    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading;
+    if (allDone) {
+      setDirectory(directoryApi.data);
+      setRequests(connectionsApi.data);
+      setPartners(partnersApi.data);
+      setInitialLoaded(true);
+    }
+  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
 
   function showToast(msg: string) {
     setToast(msg);
