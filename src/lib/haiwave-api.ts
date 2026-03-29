@@ -125,6 +125,22 @@ export interface HaiwaveClient {
   getPaymentStatus(orderId: string): Promise<{ status: string }>;
   approvePayment(orderId: string, approverEmail: string): Promise<{ success: boolean }>;
   rejectPayment(orderId: string, reason: string): Promise<{ success: boolean }>;
+  // Orders (v1.15)
+  getSellSideOrders(statusFilter?: string): Promise<Record<string, unknown>[]>;
+  acceptInvoice(orderId: string, invoiceId: string): Promise<Record<string, unknown>>;
+  processOrder(sellSideOrderId: string): Promise<{ status: string; erp_order_reference?: string }>;
+  completeOrder(sellSideOrderId: string): Promise<{ status: string }>;
+  // Provenance (v1.15)
+  getOriginManifests(): Promise<Record<string, unknown>>;
+  getOriginManifest(productId: string): Promise<Record<string, unknown>>;
+  getCertifications(filters?: Record<string, string>): Promise<Record<string, unknown>>;
+  getProvenanceChain(chainId: string): Promise<Record<string, unknown>>;
+  // Compliance (v1.15)
+  getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
+  triggerSelfAudit(): Promise<Record<string, unknown>>;
+  // Phantom Demand (v1.15)
+  getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
+  getPhantomDemandForecast(): Promise<Record<string, unknown>>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -324,6 +340,54 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     rejectPayment(orderId: string, reason: string) {
       return request<{ success: boolean }>("POST", `/payments/${orderId}/reject`, { reason });
+    },
+
+    // ─── Orders (v1.15) ───────────────────────────────────
+    getSellSideOrders(statusFilter?: string) {
+      const qs = statusFilter ? `?status=${statusFilter}` : "";
+      return request<Record<string, unknown>[]>("GET", `/orders/sell-side${qs}`);
+    },
+    acceptInvoice(orderId: string, invoiceId: string) {
+      return request<Record<string, unknown>>("POST", `/orders/${orderId}/invoice/accept`, { invoice_id: invoiceId });
+    },
+    processOrder(sellSideOrderId: string) {
+      return request<{ status: string; erp_order_reference?: string }>("POST", `/orders/sell-side/${sellSideOrderId}/process`);
+    },
+    completeOrder(sellSideOrderId: string) {
+      return request<{ status: string }>("POST", `/orders/sell-side/${sellSideOrderId}/complete`);
+    },
+
+    // ─── Provenance (v1.15) ──────────────────────────────
+    getOriginManifests() {
+      return request<Record<string, unknown>>("GET", "/provenance/manifest");
+    },
+    getOriginManifest(productId: string) {
+      return request<Record<string, unknown>>("GET", `/provenance/manifest?product_id=${productId}`);
+    },
+    getCertifications(filters?: Record<string, string>) {
+      const qs = filters ? `?${new URLSearchParams(filters)}` : "";
+      return request<Record<string, unknown>>("GET", `/provenance/certifications${qs}`);
+    },
+    getProvenanceChain(chainId: string) {
+      return request<Record<string, unknown>>("GET", `/provenance/chain/${chainId}`);
+    },
+
+    // ─── Compliance (v1.15) ──────────────────────────────
+    getComplianceReport(filters?: Record<string, string>) {
+      const qs = filters ? `?${new URLSearchParams(filters)}` : "";
+      return request<Record<string, unknown>>("GET", `/noncompliance/report${qs}`);
+    },
+    triggerSelfAudit() {
+      return request<Record<string, unknown>>("POST", "/noncompliance/self-audit");
+    },
+
+    // ─── Phantom Demand (v1.15) ──────────────────────────
+    getPhantomDemandUsage(billingMonth?: string) {
+      const qs = billingMonth ? `?billing_month=${billingMonth}` : "";
+      return request<Record<string, unknown>>("GET", `/phantom-demand/usage${qs}`);
+    },
+    getPhantomDemandForecast() {
+      return request<Record<string, unknown>>("GET", "/phantom-demand/forecast");
     },
   };
 }

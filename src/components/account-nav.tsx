@@ -10,10 +10,14 @@ const navItems = [
   { href: "/account/agents", label: "Agents" },
   { href: "/account/manifests", label: "Manifests" },
   { href: "/account/pricing", label: "Pricing" },
+  { href: "/account/orders", label: "Orders" },
   { href: "/account/partners", label: "Trading Partners" },
   { href: "/account/partners/blocked", label: "Blocked Companies" },
   { href: "/account/scores", label: "Behavioral Scores" },
   { href: "/account/payments", label: "Payments" },
+  { href: "/account/provenance", label: "Provenance" },
+  { href: "/account/compliance", label: "Compliance" },
+  { href: "/account/phantom-demand", label: "Phantom Demand" },
   { href: "/account/billing", label: "Billing" },
 ];
 
