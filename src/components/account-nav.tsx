@@ -18,6 +18,7 @@ const navItems = [
   { href: "/account/provenance", label: "Provenance" },
   { href: "/account/compliance", label: "Compliance" },
   { href: "/account/phantom-demand", label: "Phantom Demand" },
+  { href: "/account/source-audit", label: "Source Audit" },
   { href: "/account/billing", label: "Billing" },
 ];
 

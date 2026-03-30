@@ -40,7 +40,7 @@ function statusBadge(status: string) {
 
 export function PaymentHistoryTable() {
   const { data, loading } = useApi<PaymentHistoryResponse>({
-    path: "/payments/history",
+    url: "/api/account/payments/history",
     fallback: { payments: [], total: 0 },
   });
 

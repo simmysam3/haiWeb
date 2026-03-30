@@ -9,14 +9,17 @@ import {
   MOCK_INBOUND_REQUIREMENTS,
   MOCK_OUTBOUND_POSTURES,
   MOCK_PRICING_DEFAULTS,
+  MOCK_LEAD_TIME_TREND_SHARING,
   MockRequirement,
   MockPosture,
+  LeadTimeTrendSharingPosture,
 } from "@/lib/mock-data";
 
 interface ManifestData {
   inbound_requirements: MockRequirement[];
   outbound_postures: MockPosture[];
   pricing_defaults: typeof MOCK_PRICING_DEFAULTS;
+  lead_time_trend_sharing: LeadTimeTrendSharingPosture;
 }
 
 export function CounterpartyManifest() {
@@ -26,11 +29,13 @@ export function CounterpartyManifest() {
       inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
       outbound_postures: MOCK_OUTBOUND_POSTURES,
       pricing_defaults: MOCK_PRICING_DEFAULTS,
+      lead_time_trend_sharing: MOCK_LEAD_TIME_TREND_SHARING,
     },
   });
 
   const [requirements, setRequirements] = useState(MOCK_INBOUND_REQUIREMENTS);
   const [postures, setPostures] = useState(MOCK_OUTBOUND_POSTURES);
+  const [leadTimeTrendSharing, setLeadTimeTrendSharing] = useState<LeadTimeTrendSharingPosture>(MOCK_LEAD_TIME_TREND_SHARING);
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -40,6 +45,9 @@ export function CounterpartyManifest() {
     }
     if (data.outbound_postures) {
       setPostures(data.outbound_postures);
+    }
+    if (data.lead_time_trend_sharing) {
+      setLeadTimeTrendSharing(data.lead_time_trend_sharing);
     }
   }, [data]);
 
@@ -90,6 +98,7 @@ export function CounterpartyManifest() {
           data: {
             inbound_requirements: requirements,
             outbound_postures: postures,
+            lead_time_trend_sharing: leadTimeTrendSharing,
           },
         }),
       });
@@ -233,6 +242,32 @@ export function CounterpartyManifest() {
               )}
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Lead Time Trend Sharing */}
+      <Card title="Lead Time Intelligence">
+        <p className="text-sm text-slate mb-4">
+          Control whether you require vendors to share lead time trend data in GoFish responses.
+        </p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 p-3 rounded-lg border border-slate/15">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-charcoal">Lead Time Trend Sharing</p>
+              <p className="text-xs text-slate">
+                When set to Require, GoFish results will exclude vendors who do not provide trend data.
+              </p>
+            </div>
+            <select
+              value={leadTimeTrendSharing}
+              onChange={(e) => setLeadTimeTrendSharing(e.target.value as LeadTimeTrendSharingPosture)}
+              className="px-3 py-1.5 border border-slate/20 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal bg-white"
+            >
+              <option value="not_required">Not Required</option>
+              <option value="prefer">Prefer</option>
+              <option value="require">Require</option>
+            </select>
+          </div>
         </div>
       </Card>
 

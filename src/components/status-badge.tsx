@@ -16,6 +16,13 @@ const STATUS_STYLES: Record<string, string> = {
   banned: "bg-problem/10 text-problem",
   disabled: "bg-problem/10 text-problem",
 
+  processed: "bg-teal/10 text-teal-dark",
+  completed: "bg-success/10 text-success",
+  failed: "bg-problem/10 text-problem",
+  cancelled: "bg-slate/10 text-slate",
+  quoted: "bg-teal/10 text-teal-dark",
+  accepted: "bg-success/10 text-success",
+
   offline: "bg-slate/10 text-slate",
   none: "bg-slate/10 text-slate",
   void: "bg-slate/10 text-slate",

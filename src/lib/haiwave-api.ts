@@ -141,12 +141,15 @@ export interface HaiwaveClient {
   // Phantom Demand (v1.15)
   getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
   getPhantomDemandForecast(): Promise<Record<string, unknown>>;
+  // Source Audit (v1.16)
+  runEntityAudit(vendorId: string, productId: string, locationParameter: boolean): Promise<Record<string, unknown>>;
+  runRegulatoryAudit(guideKeyId: string, jurisdiction: string): Promise<Record<string, unknown>>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
-    "x-participant-id": participantId,
+    "x-haiwave-participant-id": participantId,
     "X-HaiWave-Protocol-Version": "1.0.0",
     "Content-Type": "application/json",
   };
@@ -388,6 +391,21 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     getPhantomDemandForecast() {
       return request<Record<string, unknown>>("GET", "/phantom-demand/forecast");
+    },
+
+    // ─── Source Audit (v1.16) ─────────────────────────────
+    runEntityAudit(vendorId: string, productId: string, locationParameter: boolean) {
+      return request<Record<string, unknown>>("POST", "/source-audit/entity", {
+        vendor_participant_id: vendorId,
+        external_product_id: productId,
+        location_parameter: locationParameter,
+      });
+    },
+    runRegulatoryAudit(guideKeyId: string, jurisdiction: string) {
+      return request<Record<string, unknown>>("POST", "/source-audit/regulatory", {
+        guide_key_id: guideKeyId,
+        jurisdiction,
+      });
     },
   };
 }

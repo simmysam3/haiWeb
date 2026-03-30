@@ -22,7 +22,7 @@ export async function GET() {
     }
 
     const client = createHaiwaveClient(token, session.participant.id);
-    const result = (await client.listActiveConnections()) as {
+    const result = (await client.listActiveConnections()) as unknown as {
       connections: Array<{
         connection_id: string;
         partner_participant_id: string;

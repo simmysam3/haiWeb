@@ -14,8 +14,8 @@ export function PaymentManifestForm() {
   const [saved, setSaved] = useState(false);
 
   const { data: manifest, loading } = useApi<Record<string, unknown>>({
-    path: `/payments/manifests/current?type=${manifestType}`,
-    fallback: null,
+    url: `/api/account/payments/manifests?type=${manifestType}`,
+    fallback: {} as Record<string, unknown>,
   });
 
   if (loading) {

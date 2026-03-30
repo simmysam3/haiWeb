@@ -24,8 +24,8 @@ export function PaymentsDashboard() {
     <div className="space-y-6">
       <Tabs
         tabs={SECTION_TABS}
-        activeKey={activeTab}
-        onTabChange={setActiveTab}
+        active={activeTab}
+        onChange={setActiveTab}
       />
 
       {activeTab === "wallet" && <WalletStatusCard />}

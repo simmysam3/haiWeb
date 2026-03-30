@@ -18,7 +18,7 @@ export function PaymentApprovalQueue() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const { data, loading, refetch } = useApi<{ payments: PendingPayment[] }>({
-    path: "/payments/pending-approvals",
+    url: "/api/account/payments/pending-approvals",
     fallback: { payments: [] },
   });
 

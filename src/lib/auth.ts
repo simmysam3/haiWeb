@@ -103,14 +103,64 @@ export async function getSession(): Promise<Session | null> {
 export async function getToken(): Promise<string | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("haiwave_session");
-  return sessionCookie?.value ?? null;
+  const value = sessionCookie?.value ?? null;
+
+  // If the cookie is a real JWT, use it directly
+  if (value && value.includes(".")) {
+    return value;
+  }
+
+  // Dev mode: fetch a real Keycloak token via client credentials
+  // so BFF routes can call haiCore instead of returning mock data
+  if (process.env.NODE_ENV === "development" || process.env.DEV_KEYCLOAK_TOKEN === "true") {
+    return getDevKeycloakToken();
+  }
+
+  return value;
+}
+
+let cachedDevToken: { token: string; expiresAt: number } | null = null;
+
+async function getDevKeycloakToken(): Promise<string | null> {
+  // Return cached token if still valid (with 60s buffer)
+  if (cachedDevToken && cachedDevToken.expiresAt > Date.now() + 60_000) {
+    return cachedDevToken.token;
+  }
+
+  const tokenUrl = process.env.KEYCLOAK_TOKEN_ENDPOINT
+    ?? "http://localhost:8080/realms/haiwave-network/protocol/openid-connect/token";
+  const clientId = process.env.DEV_KEYCLOAK_CLIENT_ID ?? "demo-agent";
+  const clientSecret = process.env.DEV_KEYCLOAK_CLIENT_SECRET ?? "demo-secret";
+
+  try {
+    const res = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = await res.json() as { access_token: string; expires_in: number };
+    cachedDevToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
+    return cachedDevToken.token;
+  } catch {
+    return null;
+  }
 }
 
 export function hasRole(userRole: UserRole, requiredRole: UserRole): boolean {
   if (userRole === "account_owner") return true;
 
   if (requiredRole === "account_owner") {
-    return userRole === "account_owner";
+    return false; // already handled above
   }
 
   if (requiredRole === "account_admin") {

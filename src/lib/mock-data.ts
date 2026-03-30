@@ -98,6 +98,8 @@ export interface MockPosture {
   notification_email: string;
 }
 
+export type LeadTimeTrendSharingPosture = "require" | "prefer" | "not_required";
+
 export interface MockParticipant {
   id: string;
   company_name: string;
@@ -409,6 +411,8 @@ export const MOCK_OUTBOUND_POSTURES: MockPosture[] = [
 ];
 
 // ─── Mock Pricing Defaults ───────────────────────────────────
+
+export const MOCK_LEAD_TIME_TREND_SHARING: LeadTimeTrendSharingPosture = "not_required";
 
 export const MOCK_PRICING_DEFAULTS = {
   default_currency: "USD",
