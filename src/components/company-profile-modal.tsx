@@ -3,6 +3,7 @@
 import { Modal } from "./modal";
 import { ScoreBar } from "./score-bar";
 import { StatusBadge } from "./status-badge";
+import { scoreTextClass } from "@/lib/score-tier";
 
 interface CompanyProfileData {
   company_name: string;
@@ -71,10 +72,7 @@ export function CompanyProfileModal({ open, onClose, company }: CompanyProfileMo
           {company.behavioral_score !== null ? (
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className={`text-2xl font-bold ${
-                  company.behavioral_score >= 90 ? "text-success" :
-                  company.behavioral_score >= 70 ? "text-teal" : "text-problem"
-                }`}>
+                <span className={`text-2xl font-bold ${scoreTextClass(company.behavioral_score)}`}>
                   {company.behavioral_score}
                 </span>
                 <span className="text-sm text-slate">/ 100</span>

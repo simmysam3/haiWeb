@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
  * POST /api/account/connections/:id
@@ -9,22 +8,8 @@ import { createHaiwaveClient } from "@/lib/haiwave-api";
  * Body: { action: "approve" | "deny" }
  * Requires account_admin or higher.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { id } = await params;
-
-  try {
+export const POST = withHaiCore<{ id: string }>(
+  async ({ client, request, params }) => {
     const body = await request.json();
     const { action } = body;
 
@@ -35,24 +20,17 @@ export async function POST(
       );
     }
 
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ success: true, id, action });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-
-    if (action === "approve") {
-      const result = await client.approveRequest(id);
-      return NextResponse.json(result);
-    } else {
-      const result = await client.denyRequest(id);
-      return NextResponse.json(result);
-    }
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to process connection request" },
-      { status: 500 },
-    );
-  }
-}
+    return action === "approve"
+      ? client.approveRequest(params.id)
+      : client.denyRequest(params.id);
+  },
+  {
+    role: "account_admin",
+    fallback: async (request: NextRequest) => {
+      const segments = request.nextUrl.pathname.split("/");
+      const id = segments[segments.indexOf("connections") + 1] ?? "";
+      const body = await request.json();
+      return { success: true, id, action: body.action };
+    },
+  },
+);

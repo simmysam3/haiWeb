@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getSession, getToken } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
  * GET /api/account/phantom-demand
@@ -8,32 +6,18 @@ import { createHaiwaveClient } from "@/lib/haiwave-api";
  * Returns phantom demand usage and forecast from haiCore.
  * Falls back to empty data on error.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({
-        usage: { entries: [], total_requests: 0 },
-        forecast: { entries: [] },
-      });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
+export const GET = withHaiCore(
+  async ({ client }) => {
     const [usage, forecast] = await Promise.all([
       client.getPhantomDemandUsage(),
       client.getPhantomDemandForecast(),
     ]);
-
-    return NextResponse.json({ usage, forecast });
-  } catch {
-    return NextResponse.json({
+    return { usage, forecast };
+  },
+  {
+    fallback: {
       usage: { entries: [], total_requests: 0 },
       forecast: { entries: [] },
-    });
-  }
-}
+    },
+  },
+);

@@ -1,47 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
  * POST /api/account/source-audit
  *
- * Runs an entity audit against haiCore's source-audit endpoint.
- * Falls back to mock data on error.
+ * Runs an entity audit. Supports:
+ * - vendor_id: direct UUID
+ * - vendor_search: partial name match (resolved via participant search)
+ * - neither: self-audit (uses session participant ID)
  */
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = withHaiCore(
+  async ({ client, session, request }) => {
+    const body = await request.json();
 
-  try {
-    const body = await req.json();
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      console.warn("[source-audit] No valid token — returning mock data");
-      return NextResponse.json({
-        audit_id: "mock",
-        nodes: [],
-        audited_at: new Date().toISOString(),
-        _debug: "no_token",
-      });
+    // Resolve vendor ID: direct, by search, or fall back to self
+    let resolvedVendorId = body.vendor_id as string | undefined;
+
+    if (!resolvedVendorId && body.vendor_search) {
+      try {
+        const searchResults = await client.searchParticipants(body.vendor_search, { limit: 1 });
+        if (searchResults && searchResults.length > 0) {
+          const first = searchResults[0] as Record<string, unknown>;
+          resolvedVendorId = (first.id as string) ?? (first.participant_id as string);
+        }
+      } catch {
+        // Fall through to self-audit
+      }
     }
 
-    const client = createHaiwaveClient(token, session.participant.id);
-    const result = await client.runEntityAudit(
-      body.vendor_id,
+    if (!resolvedVendorId) {
+      resolvedVendorId = session.participant.id;
+    }
+
+    return client.runEntityAudit(
+      resolvedVendorId,
       body.product_id,
       body.location_parameter ?? false,
     );
-
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error("[source-audit] Error:", err instanceof Error ? err.message : err);
-    return NextResponse.json({
+  },
+  {
+    fallback: {
       audit_id: "mock",
       nodes: [],
       audited_at: new Date().toISOString(),
-      _debug: err instanceof Error ? err.message : "unknown_error",
-    });
-  }
-}
+      _debug: "no_token_or_error",
+    },
+  },
+);

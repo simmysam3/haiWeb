@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
+import { useApi } from "@/lib/use-api";
+import { useToast } from "@/lib/use-toast";
 import { MOCK_ADMIN_STATS, MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
 
 interface AdminOverview {
@@ -16,22 +17,13 @@ interface AdminOverview {
 }
 
 export function AdminDashboard() {
-  const [stats, setStats] = useState<AdminOverview>(MOCK_ADMIN_STATS);
+  const { data: stats } = useApi<AdminOverview>({
+    url: "/api/admin/dashboard?type=overview",
+    fallback: MOCK_ADMIN_STATS,
+  });
   const recentRegistrations = MOCK_ADMIN_PARTICIPANTS.slice(-5).reverse();
   const suspended = MOCK_ADMIN_PARTICIPANTS.filter((p) => p.status === "suspended");
-  const [toast, setToast] = useState("");
-
-  useEffect(() => {
-    fetch("/api/admin/dashboard?type=overview")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setStats(d); })
-      .catch(() => {});
-  }, []);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   const agentTotal = stats.agent_health.active + stats.agent_health.jailed + stats.agent_health.probation + stats.agent_health.offline;
   const healthSegments = [

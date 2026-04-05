@@ -4,9 +4,7 @@ const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("haiwave_session")?.value;
-  const body = await request.json();
-  const action = body.action as string;
-  delete body.action;
+  const { action, ...rest } = (await request.json()) as { action: string; [key: string]: unknown };
 
   try {
     const res = await fetch(`${API_URL}/api/v1/admin/actions/${action}`, {
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         "X-HaiWave-Protocol-Version": "1.0.0",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(rest),
     });
 
     if (!res.ok) {

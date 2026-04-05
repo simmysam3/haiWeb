@@ -1,13 +1,9 @@
+import { scoreBgClass } from "@/lib/score-tier";
+
 interface ScoreBarProps {
   label: string;
   value: number;
   maxValue?: number;
-}
-
-function scoreColor(value: number): string {
-  if (value >= 90) return "bg-success";
-  if (value >= 70) return "bg-teal";
-  return "bg-problem";
 }
 
 export function ScoreBar({ label, value, maxValue = 100 }: ScoreBarProps) {
@@ -20,7 +16,7 @@ export function ScoreBar({ label, value, maxValue = 100 }: ScoreBarProps) {
       </div>
       <div className="w-full h-2 bg-slate/10 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${scoreColor(value)}`}
+          className={`h-full rounded-full transition-all ${scoreBgClass(value)}`}
           style={{ width: `${pct}%` }}
         />
       </div>

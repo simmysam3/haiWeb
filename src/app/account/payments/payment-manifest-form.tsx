@@ -14,7 +14,7 @@ export function PaymentManifestForm() {
   const [saved, setSaved] = useState(false);
 
   const { data: manifest, loading } = useApi<Record<string, unknown>>({
-    url: `/api/account/payments/manifests?type=${manifestType}`,
+    url: `/api/account/payments?type=manifest&manifest_type=${manifestType}`,
     fallback: {} as Record<string, unknown>,
   });
 
@@ -26,7 +26,7 @@ export function PaymentManifestForm() {
     setSaving(true);
     setSaved(false);
     try {
-      await fetch("/api/account/manifest", {
+      await fetch("/api/account/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

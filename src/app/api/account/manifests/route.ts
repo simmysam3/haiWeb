@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 import {
   MOCK_INBOUND_REQUIREMENTS,
   MOCK_OUTBOUND_POSTURES,
   MOCK_PRICING_DEFAULTS,
 } from "@/lib/mock-data";
+
+const MOCK_MANIFEST_BUNDLE = {
+  inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
+  outbound_postures: MOCK_OUTBOUND_POSTURES,
+  pricing_defaults: MOCK_PRICING_DEFAULTS,
+};
 
 /**
  * GET /api/account/manifests
@@ -13,33 +18,10 @@ import {
  * Returns counterparty and pricing manifest data from haiCore.
  * Falls back to mock manifests.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({
-        inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
-        outbound_postures: MOCK_OUTBOUND_POSTURES,
-        pricing_defaults: MOCK_PRICING_DEFAULTS,
-      });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-    const manifest = await client.getCounterpartyManifest(session.participant.id);
-    return NextResponse.json(manifest);
-  } catch {
-    return NextResponse.json({
-      inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
-      outbound_postures: MOCK_OUTBOUND_POSTURES,
-      pricing_defaults: MOCK_PRICING_DEFAULTS,
-    });
-  }
-}
+export const GET = withHaiCore(
+  ({ client, session }) => client.getCounterpartyManifest(session.participant.id),
+  { fallback: MOCK_MANIFEST_BUNDLE },
+);
 
 /**
  * PUT /api/account/manifests
@@ -48,17 +30,8 @@ export async function GET() {
  * Body: { type: "counterparty" | "pricing", data: {...} }
  * Requires account_admin or higher.
  */
-export async function PUT(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
+export const PUT = withHaiCore(
+  async ({ client, request }) => {
     const body = await request.json();
     const { type, data } = body;
 
@@ -69,24 +42,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ success: true, type, ...data });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-
     if (type === "counterparty") {
-      const result = await client.updateCounterpartyManifest(data);
-      return NextResponse.json(result);
-    } else {
-      const result = await client.updatePricingManifest(data);
-      return NextResponse.json(result);
+      return client.updateCounterpartyManifest(data);
     }
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update manifest" },
-      { status: 500 },
-    );
-  }
-}
+    return client.updatePricingManifest(data);
+  },
+  {
+    role: "account_admin",
+    fallback: async (request: NextRequest) => {
+      const body = await request.json();
+      return { success: true, type: body.type, ...body.data };
+    },
+  },
+);

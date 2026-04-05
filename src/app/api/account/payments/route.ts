@@ -1,62 +1,27 @@
-import { NextResponse } from "next/server";
-import { getSession, getToken } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 
-export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ payments: [], total: 0 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") ?? "history";
-
-    const client = createHaiwaveClient(token, session.participant.id);
+export const GET = withHaiCore(
+  async ({ client, session, request }) => {
+    const type = request.nextUrl.searchParams.get("type") ?? "history";
 
     if (type === "manifest") {
-      const manifestType = searchParams.get("manifest_type") ?? "vendor";
-      const manifest = await client.getPaymentManifest(session.participant.id, manifestType);
-      return NextResponse.json(manifest);
+      const manifestType = request.nextUrl.searchParams.get("manifest_type") ?? "vendor";
+      return client.getPaymentManifest(session.participant.id, manifestType);
     }
 
     // Default: payment history
-    const wallet = await client.getWallet(session.participant.id) as Record<string, unknown> | null;
-    const address = wallet?.address as string ?? "";
-    const history = await client.getPaymentHistory(address);
-    return NextResponse.json(history);
-  } catch {
-    return NextResponse.json({ payments: [], total: 0 });
-  }
-}
+    const wallet = (await client.getWallet(session.participant.id)) as Record<string, unknown> | null;
+    const address = (wallet?.address as string) ?? "";
+    return client.getPaymentHistory(address);
+  },
+  { fallback: { payments: [], total: 0 } },
+);
 
-export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ error: "No token" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const client = createHaiwaveClient(token, session.participant.id);
-    const result = await client.updatePaymentManifest({
-      participant_id: session.participant.id,
-      effective_date: new Date().toISOString(),
-      ...body,
-    });
-    return NextResponse.json(result);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed";
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-}
+export const POST = withHaiCore(async ({ client, session, request }) => {
+  const body = await request.json();
+  return client.updatePaymentManifest({
+    participant_id: session.participant.id,
+    effective_date: new Date().toISOString(),
+    ...body,
+  });
+});

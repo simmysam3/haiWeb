@@ -40,8 +40,6 @@ export default function RegisterPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -122,8 +120,6 @@ export default function RegisterPage() {
           first_name: firstName,
           last_name: lastName,
           email,
-          job_title: jobTitle,
-          phone,
           password,
           company: {
             name: companyName,
@@ -187,14 +183,6 @@ export default function RegisterPage() {
               <div>
                 <label className="block text-sm font-medium text-charcoal mb-1">Email *</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@company.com" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-charcoal mb-1">Job Title</label>
-                <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-charcoal mb-1">Phone</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-charcoal mb-1">Password *</label>

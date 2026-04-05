@@ -3,7 +3,28 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/card";
 import { Button } from "@/components/button";
-import { MOCK_APPROVAL_RULES, MockApprovalRules } from "@/lib/mock-data";
+import { useApi } from "@/lib/use-api";
+import { useToast } from "@/lib/use-toast";
+import type { MockApprovalRules } from "@/lib/mock-types";
+
+const EMPTY_RULES: MockApprovalRules = {
+  bulk: {
+    publicly_traded: false,
+    duns_verified: false,
+    min_months_on_network: 0,
+    min_score: 0,
+    min_active_trading_pairs: 0,
+    allowlist_ids: [],
+  },
+  per_request: {
+    min_score: 0,
+    allowed_business_types: [],
+    allowed_regions: [],
+    blocklist_ids: [],
+    default_posture: "manual_only",
+  },
+  contact: { email: "", phone: "" },
+};
 
 const BUSINESS_TYPES = ["Corporation", "LLC", "Partnership", "Sole Proprietorship", "Government", "Nonprofit"];
 const REGIONS = ["Midwest", "West Coast", "East Coast", "Southeast", "Southwest", "Mountain West", "Pacific Northwest"];
@@ -15,8 +36,9 @@ interface TestResult {
 }
 
 export function ApprovalRules() {
-  const [rules, setRules] = useState<MockApprovalRules>(MOCK_APPROVAL_RULES);
-  const [toast, setToast] = useState("");
+  const rulesApi = useApi<MockApprovalRules>({ url: "/api/account/rules", fallback: EMPTY_RULES });
+  const [rules, setRules] = useState<MockApprovalRules>(EMPTY_RULES);
+  const { toast, showToast } = useToast();
   const [newRegion, setNewRegion] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [newBlocklistId, setNewBlocklistId] = useState("");
@@ -28,16 +50,8 @@ export function ApprovalRules() {
   const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
-    fetch("/api/account/rules")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setRules(d); })
-      .catch(() => {});
-  }, []);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
+    if (!rulesApi.loading) setRules(rulesApi.data);
+  }, [rulesApi.data, rulesApi.loading]);
 
   const inputClass = "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
 

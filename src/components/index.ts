@@ -6,7 +6,6 @@ export { DataTable } from "./data-table";
 export type { Column } from "./data-table";
 export { Modal } from "./modal";
 export { Tabs } from "./tabs";
-export { FormField } from "./form-field";
 export { Button } from "./button";
 export { ProgressSteps } from "./progress-steps";
 export { ScoreBar } from "./score-bar";

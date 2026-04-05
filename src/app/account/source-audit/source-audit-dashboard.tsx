@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/card";
 
 interface AuditNode {
@@ -22,13 +22,89 @@ interface AuditResult {
   audited_at: string;
 }
 
+interface VendorSuggestion {
+  id: string;
+  name: string;
+}
+
 export function SourceAuditDashboard() {
+  const [vendorSearch, setVendorSearch] = useState("");
   const [vendorId, setVendorId] = useState("");
+  const [vendorDisplayName, setVendorDisplayName] = useState("");
   const [productId, setProductId] = useState("");
   const [locationParameter, setLocationParameter] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<VendorSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Debounced vendor search
+  useEffect(() => {
+    if (!vendorSearch || vendorSearch.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    // If it looks like a UUID, don't search
+    if (/^[0-9a-f]{8}-/.test(vendorSearch)) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/account/directory?q=${encodeURIComponent(vendorSearch)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const companies = (data.companies ?? data ?? []) as Array<Record<string, unknown>>;
+          setSuggestions(
+            companies.slice(0, 8).map((c) => ({
+              id: (c.id ?? c.participant_id ?? "") as string,
+              name: (c.company_name ?? c.dba_name ?? c.legal_name ?? c.name ?? "") as string,
+            }))
+          );
+          setShowSuggestions(true);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [vendorSearch]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function selectVendor(suggestion: VendorSuggestion) {
+    setVendorId(suggestion.id);
+    setVendorSearch(suggestion.name);
+    setVendorDisplayName(suggestion.name);
+    setShowSuggestions(false);
+  }
+
+  function handleVendorInputChange(value: string) {
+    setVendorSearch(value);
+    // If user types a UUID directly, set it as vendor ID
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      setVendorId(value);
+      setVendorDisplayName("");
+    } else {
+      // Clear the resolved ID when typing a name — will resolve on selection
+      setVendorId("");
+      setVendorDisplayName("");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +116,8 @@ export function SourceAuditDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          vendor_id: vendorId,
+          vendor_id: vendorId || undefined, // empty = self-audit
+          vendor_search: !vendorId && vendorSearch ? vendorSearch : undefined,
           product_id: productId,
           location_parameter: locationParameter,
         }),
@@ -64,19 +141,44 @@ export function SourceAuditDashboard() {
       <Card>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="vendor-id" className="block text-sm font-medium text-navy mb-1">
-                Vendor ID
+            <div className="relative" ref={suggestionsRef}>
+              <label htmlFor="vendor-search" className="block text-sm font-medium text-navy mb-1">
+                Vendor <span className="text-slate font-normal">(optional — defaults to your company)</span>
               </label>
               <input
-                id="vendor-id"
+                id="vendor-search"
                 type="text"
-                value={vendorId}
-                onChange={(e) => setVendorId(e.target.value)}
-                placeholder="Enter vendor ID"
+                value={vendorSearch}
+                onChange={(e) => handleVendorInputChange(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder="Leave blank for your own products, or search a vendor"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50 focus:border-teal"
-                required
               />
+              {vendorDisplayName && (
+                <p className="text-xs text-teal mt-1">
+                  Resolved: {vendorDisplayName} ({vendorId.slice(0, 8)}...)
+                </p>
+              )}
+              {!vendorSearch && !vendorId && (
+                <p className="text-xs text-slate mt-1">
+                  Leave blank to audit your own products
+                </p>
+              )}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => selectVendor(s)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                    >
+                      <span className="font-medium text-navy">{s.name}</span>
+                      <span className="text-xs text-slate ml-2">{s.id.slice(0, 8)}...</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label htmlFor="product-id" className="block text-sm font-medium text-navy mb-1">
@@ -87,24 +189,26 @@ export function SourceAuditDashboard() {
                 type="text"
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
-                placeholder="Enter product ID"
+                placeholder="Enter product ID or SKU"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/50 focus:border-teal"
                 required
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              id="location-parameter"
-              type="checkbox"
-              checked={locationParameter}
-              onChange={(e) => setLocationParameter(e.target.checked)}
-              className="rounded border-gray-300 text-teal focus:ring-teal/50"
-            />
-            <label htmlFor="location-parameter" className="text-sm text-charcoal">
-              Location Parameter
-            </label>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                id="location-parameter"
+                type="checkbox"
+                checked={locationParameter}
+                onChange={(e) => setLocationParameter(e.target.checked)}
+                className="rounded border-gray-300 text-teal focus:ring-teal/50"
+              />
+              <label htmlFor="location-parameter" className="text-sm text-charcoal">
+                Mask vendor identities (location parameter mode)
+              </label>
+            </div>
           </div>
 
           <div>
@@ -128,7 +232,7 @@ export function SourceAuditDashboard() {
       <Card>
         {!result && !loading && (
           <p className="text-sm text-slate py-8 text-center">
-            Enter a vendor and product ID to run a supply chain audit
+            Enter a product ID to run a supply chain audit. Leave vendor blank to audit your own products.
           </p>
         )}
 
@@ -143,13 +247,13 @@ export function SourceAuditDashboard() {
                 Audit Results
               </h2>
               <span className="text-xs text-slate">
-                {result.audit_id} &middot; {result.audited_at}
+                {result.audited_at}
               </span>
             </div>
 
             {result.nodes.length === 0 ? (
               <p className="text-sm text-slate py-4 text-center">
-                No audit nodes returned.
+                No audit nodes returned. Check that the product ID exists and has origin manifest data.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -159,7 +263,7 @@ export function SourceAuditDashboard() {
                       <th className="pb-3 font-medium">Entity</th>
                       <th className="pb-3 font-medium">Plant Location</th>
                       <th className="pb-3 font-medium">Country</th>
-                      <th className="pb-3 font-medium">Depth</th>
+                      <th className="pb-3 font-medium">Tier</th>
                       <th className="pb-3 font-medium">Status</th>
                     </tr>
                   </thead>
@@ -171,13 +275,17 @@ export function SourceAuditDashboard() {
                       >
                         <td className="py-3 text-navy font-medium">
                           <span
-                            style={{ paddingLeft: `${node.depth_level * 16}px` }}
-                            title={node.guid}
+                            style={{ paddingLeft: `${node.depth_level * 20}px` }}
+                            title={`GUID: ${node.guid}`}
                             className="cursor-help"
                           >
                             {node.vendor_name
                               ? node.vendor_name
-                              : <span className="text-slate italic">Tier {node.depth_level} (Hidden)</span>
+                              : node.depth_level === 0
+                                ? <span className="text-slate">{node.external_product_id ?? "Product"} <span className="italic">(no origin data)</span></span>
+                                : node.gap
+                                  ? <span className="text-slate">{node.gap_reason === "vendor_not_on_network" ? "Off-Network Supplier" : "Unresolved"}</span>
+                                  : <span className="text-slate italic">Tier {node.depth_level} (Undisclosed)</span>
                             }
                           </span>
                         </td>

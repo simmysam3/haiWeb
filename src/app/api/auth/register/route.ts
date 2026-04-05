@@ -9,8 +9,6 @@ const registerSchema = z.object({
   password: z.string().min(12),
   first_name: z.string().min(1),
   last_name: z.string().min(1),
-  job_title: z.string().optional(),
-  phone: z.string().optional(),
   company: z.object({
     name: z.string().min(1),
     dba_name: z.string().optional(),

@@ -7,17 +7,18 @@ import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { DataTable, Column } from "@/components/data-table";
 import { useApi } from "@/lib/use-api";
-import { MOCK_BLOCKED_COMPANIES, MockBlockedCompany } from "@/lib/mock-data";
+import { useToast } from "@/lib/use-toast";
+import type { MockBlockedCompany } from "@/lib/mock-types";
 
 export default function BlockedCompaniesPage() {
-  const [blocked, setBlocked] = useState<MockBlockedCompany[]>(MOCK_BLOCKED_COMPANIES);
+  const [blocked, setBlocked] = useState<MockBlockedCompany[]>([]);
   const [unblockTarget, setUnblockTarget] = useState<MockBlockedCompany | null>(null);
-  const [toast, setToast] = useState("");
+  const { toast, showToast } = useToast();
   const [processing, setProcessing] = useState(false);
 
   const blockedApi = useApi<MockBlockedCompany[]>({
     url: "/api/account/connections/blocked",
-    fallback: MOCK_BLOCKED_COMPANIES,
+    fallback: [],
   });
 
   useEffect(() => {
@@ -25,11 +26,6 @@ export default function BlockedCompaniesPage() {
       setBlocked(blockedApi.data);
     }
   }, [blockedApi.data, blockedApi.loading]);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   async function handleUnblock() {
     if (!unblockTarget) return;

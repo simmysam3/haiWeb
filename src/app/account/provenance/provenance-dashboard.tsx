@@ -107,7 +107,7 @@ export function ProvenanceDashboard() {
                         <td className="py-3 text-navy font-medium">{c.product_name}</td>
                         <td className="py-3 text-charcoal">{c.level}</td>
                         <td className="py-3">
-                          <StatusBadge status={c.result === "pass" ? "approved" : "failed"} />
+                          <StatusBadge status={c.result} />
                         </td>
                         <td className="py-3 text-slate">{c.certified_at}</td>
                         <td className="py-3 text-slate">{c.expires_at}</td>

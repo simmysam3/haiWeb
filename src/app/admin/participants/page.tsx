@@ -6,7 +6,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { DataTable, Column } from "@/components/data-table";
-import { MOCK_ADMIN_PARTICIPANTS, MockParticipant } from "@/lib/mock-data";
+import { useToast } from "@/lib/use-toast";
+import { MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
+import type { MockParticipant } from "@/lib/mock-types";
 
 export default function ParticipantsPage() {
   const [participants, setParticipants] = useState(MOCK_ADMIN_PARTICIPANTS);
@@ -14,12 +16,7 @@ export default function ParticipantsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [suspendTarget, setSuspendTarget] = useState<MockParticipant | null>(null);
   const [suspendReason, setSuspendReason] = useState("");
-  const [toast, setToast] = useState("");
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   function handleSuspend() {
     if (!suspendTarget || !suspendReason) return;

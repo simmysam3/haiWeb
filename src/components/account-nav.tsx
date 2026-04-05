@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const navItems = [
@@ -34,7 +35,13 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
     <aside className="w-64 bg-navy text-white flex flex-col shrink-0">
       <div className="bg-white px-6 py-5">
         <Link href="/">
-          <img src="/img/haiwave-logo.png" alt="HAIWAVE" className="h-8 w-auto" />
+          <Image
+            src="/img/haiwave-logo.png"
+            alt="HAIWAVE"
+            width={120}
+            height={32}
+            className="h-8 w-auto"
+          />
         </Link>
         <p className="text-xs text-slate mt-1.5">Account Portal</p>
       </div>

@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-import { getSession, getToken } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_PARTNERS } from "@/lib/mock-data";
 
 /**
@@ -9,19 +7,8 @@ import { MOCK_PARTNERS } from "@/lib/mock-data";
  * Lists active connections (approved + trading_pair) from haiCore.
  * Falls back to mock data when haiCore is unreachable.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json(MOCK_PARTNERS);
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
+export const GET = withHaiCore(
+  async ({ client }) => {
     const result = (await client.listActiveConnections()) as unknown as {
       connections: Array<{
         connection_id: string;
@@ -37,7 +24,7 @@ export async function GET() {
     };
 
     // Map haiCore response to the shape the UI expects
-    const partners = result.connections.map((c) => ({
+    return result.connections.map((c) => ({
       id: c.partner_participant_id,
       company_name: c.partner_name,
       status: c.relationship_state,
@@ -49,9 +36,6 @@ export async function GET() {
       invite_theirs: c.invite_theirs,
       connection_id: c.connection_id,
     }));
-
-    return NextResponse.json(partners);
-  } catch {
-    return NextResponse.json(MOCK_PARTNERS);
-  }
-}
+  },
+  { fallback: MOCK_PARTNERS },
+);

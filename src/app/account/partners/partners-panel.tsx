@@ -8,19 +8,17 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { ScoreBar } from "@/components/score-bar";
+import { scoreTextClass } from "@/lib/score-tier";
+import { useToast } from "@/lib/use-toast";
 import { DataTable, Column } from "@/components/data-table";
 import { CompanyProfileModal } from "@/components/company-profile-modal";
 import { ApprovalRules } from "./approval-rules";
 import { useApi } from "@/lib/use-api";
-import {
-  MOCK_DIRECTORY,
-  MOCK_ACCESS_REQUESTS,
-  MOCK_PARTNERS,
-  MOCK_SESSION,
+import type {
   MockDirectoryCompany,
   MockAccessRequest,
   MockPartner,
-} from "@/lib/mock-data";
+} from "@/lib/mock-types";
 
 type SortKey = "newest" | "score" | "age";
 
@@ -35,9 +33,9 @@ export function PartnersPanel() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "directory";
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [directory, setDirectory] = useState(MOCK_DIRECTORY);
-  const [requests, setRequests] = useState(MOCK_ACCESS_REQUESTS);
-  const [partners, setPartners] = useState(MOCK_PARTNERS);
+  const [directory, setDirectory] = useState<MockDirectoryCompany[]>([]);
+  const [requests, setRequests] = useState<MockAccessRequest[]>([]);
+  const [partners, setPartners] = useState<MockPartner[]>([]);
   const [search, setSearch] = useState("");
   const [connectCompany, setConnectCompany] = useState<MockDirectoryCompany | null>(null);
   const [connectMessage, setConnectMessage] = useState("");
@@ -46,7 +44,7 @@ export function PartnersPanel() {
   const [invitePartner, setInvitePartner] = useState<MockPartner | null>(null);
   const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
-  const [toast, setToast] = useState("");
+  const { toast, showToast } = useToast();
 
   // Queue filters & sort
   const [queueSort, setQueueSort] = useState<SortKey>("newest");
@@ -59,9 +57,9 @@ export function PartnersPanel() {
   // After initial load, local state is the source of truth so that
   // optimistic updates from actions (approve, connect, etc.) persist.
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: MOCK_DIRECTORY, enabled: !initialLoaded });
-  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: MOCK_ACCESS_REQUESTS, enabled: !initialLoaded });
-  const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: MOCK_PARTNERS, enabled: !initialLoaded });
+  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: [], enabled: !initialLoaded });
+  const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: [], enabled: !initialLoaded });
+  const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: [], enabled: !initialLoaded });
 
   useEffect(() => {
     if (initialLoaded) return;
@@ -73,11 +71,6 @@ export function PartnersPanel() {
       setInitialLoaded(true);
     }
   }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   // ─── Queue Actions ──────────────────────────────────────────
 
@@ -237,11 +230,9 @@ export function PartnersPanel() {
   // ─── Directory ──────────────────────────────────────────────
 
   const filteredDirectory = directory.filter((c) =>
-    c.id !== MOCK_SESSION.participant.id && (
-      c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.industry.toLowerCase().includes(search.toLowerCase()) ||
-      c.location.toLowerCase().includes(search.toLowerCase())
-    )
+    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
+    c.industry.toLowerCase().includes(search.toLowerCase()) ||
+    c.location.toLowerCase().includes(search.toLowerCase())
   );
 
   // ─── Tabs ───────────────────────────────────────────────────
@@ -474,10 +465,7 @@ export function PartnersPanel() {
                         <p className="text-xs font-medium uppercase tracking-wider text-slate mb-1">Behavioral Score</p>
                         {req.behavioral_score !== null ? (
                           <div className="space-y-1">
-                            <span className={`text-lg font-bold ${
-                              req.behavioral_score >= 90 ? "text-success" :
-                              req.behavioral_score >= 70 ? "text-teal" : "text-problem"
-                            }`}>
+                            <span className={`text-lg font-bold ${scoreTextClass(req.behavioral_score)}`}>
                               {req.behavioral_score}
                             </span>
                             <span className="text-xs text-slate ml-1">/ 100</span>

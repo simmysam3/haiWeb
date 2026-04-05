@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
  * PATCH /api/account/connections/:id/invite
@@ -9,44 +8,25 @@ import { createHaiwaveClient } from "@/lib/haiwave-api";
  * Body: { invite: boolean }
  * Requires account_admin or higher.
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const { id } = await params;
-
-  try {
+export const PATCH = withHaiCore<{ id: string }>(
+  async ({ client, request, params }) => {
     const body = await request.json();
-    const { invite } = body;
-
-    if (typeof invite !== "boolean") {
+    if (typeof body.invite !== "boolean") {
       return NextResponse.json(
         { error: "invite must be a boolean" },
         { status: 400 },
       );
     }
-
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ success: true, id, invite });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-    const result = await client.updateInvite(id, invite);
-    return NextResponse.json(result);
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update invite status" },
-      { status: 500 },
-    );
-  }
-}
+    return client.updateInvite(params.id, body.invite);
+  },
+  {
+    role: "account_admin",
+    fallback: async (request: NextRequest) => {
+      // Extract ID from pathname since params aren't passed to fallback
+      const segments = request.nextUrl.pathname.split("/");
+      const id = segments[segments.indexOf("connections") + 1] ?? "";
+      const body = await request.json();
+      return { success: true, id, invite: body.invite };
+    },
+  },
+);
