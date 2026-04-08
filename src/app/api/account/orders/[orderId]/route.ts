@@ -22,4 +22,5 @@ export const POST = withHaiCore<{ orderId: string }>(
         );
     }
   },
+  { role: "account_admin" },
 );

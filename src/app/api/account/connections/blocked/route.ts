@@ -78,9 +78,5 @@ export const DELETE = withHaiCore(
   },
   {
     role: "account_admin",
-    fallback: (request: NextRequest) => {
-      const id = request.nextUrl.searchParams.get("blocked_participant_id") ?? "";
-      return { success: true, unblocked: id };
-    },
   },
 );

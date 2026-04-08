@@ -18,5 +18,5 @@ export const GET = withHaiCore(
  */
 export const POST = withHaiCore(
   ({ client }) => client.triggerSelfAudit(),
-  { fallback: { success: false } },
+  { role: "account_admin" },
 );

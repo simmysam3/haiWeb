@@ -38,11 +38,10 @@ export const POST = withHaiCore(
     );
   },
   {
-    fallback: {
+    fallback: () => ({
       audit_id: "mock",
       nodes: [],
       audited_at: new Date().toISOString(),
-      _debug: "no_token_or_error",
-    },
+    }),
   },
 );

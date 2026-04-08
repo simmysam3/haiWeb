@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_PRICING_HIERARCHY } from "@/lib/mock-data";
 
@@ -38,7 +38,6 @@ export const PUT = withHaiCore(
 export const DELETE = withHaiCore(async ({ client, request }) => {
   const manifestId = request.nextUrl.searchParams.get("manifest_id");
   if (!manifestId) {
-    const { NextResponse } = await import("next/server");
     return NextResponse.json(
       { error: "manifest_id query parameter is required" },
       { status: 400 },

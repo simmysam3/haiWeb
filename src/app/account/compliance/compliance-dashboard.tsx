@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { useApi } from "@/lib/use-api";
+import { useToast } from "@/lib/use-toast";
 
 interface ComplianceFlag {
   vendor_name: string;
@@ -32,6 +33,7 @@ export function ComplianceDashboard() {
   });
 
   const [auditing, setAuditing] = useState(false);
+  const { toast, showToast } = useToast();
 
   async function handleSelfAudit() {
     setAuditing(true);
@@ -43,7 +45,12 @@ export function ComplianceDashboard() {
       });
       if (res.ok) {
         refetch();
+      } else {
+        const body = await res.json().catch(() => null);
+        showToast(body?.error ?? `Self-audit failed (${res.status})`);
       }
+    } catch {
+      showToast("Network error: could not reach the server");
     } finally {
       setAuditing(false);
     }
@@ -51,6 +58,11 @@ export function ComplianceDashboard() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          {toast}
+        </div>
+      )}
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4">
         <Card>

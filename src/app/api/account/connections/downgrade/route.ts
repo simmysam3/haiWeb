@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
@@ -21,13 +21,5 @@ export const POST = withHaiCore(
   },
   {
     role: "account_admin",
-    fallback: async (request: NextRequest) => {
-      const body = await request.json();
-      return {
-        success: true,
-        connection_id: body.connection_id,
-        new_state: body.target_state ?? "approved",
-      };
-    },
   },
 );

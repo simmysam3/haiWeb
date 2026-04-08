@@ -111,8 +111,9 @@ export async function getToken(): Promise<string | null> {
   }
 
   // Dev mode: fetch a real Keycloak token via client credentials
-  // so BFF routes can call haiCore instead of returning mock data
-  if (process.env.NODE_ENV === "development" || process.env.DEV_KEYCLOAK_TOKEN === "true") {
+  // so BFF routes can call haiCore instead of returning mock data.
+  // Requires explicit opt-in via DEV_KEYCLOAK_TOKEN=true.
+  if (process.env.DEV_KEYCLOAK_TOKEN === "true") {
     return getDevKeycloakToken();
   }
 

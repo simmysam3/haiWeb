@@ -15,6 +15,8 @@ interface HandlerCtx<P> {
   session: Session;
   request: NextRequest;
   params: P;
+  /** Pre-parsed request body (for POST/PUT/PATCH/DELETE). Avoids double-consuming the stream. */
+  body: unknown;
 }
 
 interface WithHaiCoreOptions {
@@ -63,6 +65,18 @@ export function withHaiCore<P extends Record<string, string> = Record<string, ne
 
     const params = (await routeCtx.params) as P;
 
+    // Pre-parse the body once for methods that have one, so handlers and
+    // fallbacks never double-consume the readable stream.
+    const method = request.method.toUpperCase();
+    let parsedBody: unknown = undefined;
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      try {
+        parsedBody = await request.json();
+      } catch {
+        // No body or invalid JSON -- leave as undefined
+      }
+    }
+
     const resolveFallback = async (): Promise<unknown> => {
       if (typeof options.fallback === "function") {
         return await (options.fallback as (req: NextRequest) => unknown | Promise<unknown>)(request);
@@ -80,12 +94,13 @@ export function withHaiCore<P extends Record<string, string> = Record<string, ne
       }
 
       const client = createHaiwaveClient(token, session.participant.id);
-      const result = await handler({ client, session, request, params });
+      const result = await handler({ client, session, request, params, body: parsedBody });
       // Handlers may return a NextResponse directly to set custom status codes
       if (result instanceof NextResponse) return result;
       return NextResponse.json(result);
     } catch (err) {
       if (options.fallback !== undefined) {
+        console.error("[withHaiCore] Handler failed, returning fallback:", err);
         return NextResponse.json(await resolveFallback());
       }
       return NextResponse.json(

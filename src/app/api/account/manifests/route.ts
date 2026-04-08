@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import {
   MOCK_INBOUND_REQUIREMENTS,
@@ -49,9 +49,5 @@ export const PUT = withHaiCore(
   },
   {
     role: "account_admin",
-    fallback: async (request: NextRequest) => {
-      const body = await request.json();
-      return { success: true, type: body.type, ...body.data };
-    },
   },
 );
