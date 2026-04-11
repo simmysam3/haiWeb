@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
@@ -24,13 +24,5 @@ export const POST = withHaiCore<{ id: string }>(
       ? client.approveRequest(params.id)
       : client.denyRequest(params.id);
   },
-  {
-    role: "account_admin",
-    fallback: async (request: NextRequest) => {
-      const segments = request.nextUrl.pathname.split("/");
-      const id = segments[segments.indexOf("connections") + 1] ?? "";
-      const body = await request.json();
-      return { success: true, id, action: body.action };
-    },
-  },
+  { role: "account_admin" },
 );

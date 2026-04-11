@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
@@ -19,14 +19,5 @@ export const PATCH = withHaiCore<{ id: string }>(
     }
     return client.updateInvite(params.id, body.invite);
   },
-  {
-    role: "account_admin",
-    fallback: async (request: NextRequest) => {
-      // Extract ID from pathname since params aren't passed to fallback
-      const segments = request.nextUrl.pathname.split("/");
-      const id = segments[segments.indexOf("connections") + 1] ?? "";
-      const body = await request.json();
-      return { success: true, id, invite: body.invite };
-    },
-  },
+  { role: "account_admin" },
 );

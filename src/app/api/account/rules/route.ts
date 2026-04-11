@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_APPROVAL_RULES } from "@/lib/mock-data";
 
@@ -47,11 +47,5 @@ export const PUT = withHaiCore(
         );
     }
   },
-  {
-    role: "account_admin",
-    fallback: async (request: NextRequest) => {
-      const body = await request.json();
-      return { success: true, ...body };
-    },
-  },
+  { role: "account_admin" },
 );

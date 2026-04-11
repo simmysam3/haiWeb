@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_PRICING_HIERARCHY } from "@/lib/mock-data";
 
@@ -17,18 +17,10 @@ export const GET = withHaiCore(
  *
  * Upserts a pricing level via haiCore. Body is forwarded directly.
  */
-export const PUT = withHaiCore(
-  async ({ client, request }) => {
-    const body = await request.json();
-    return client.upsertPricingLevel(body);
-  },
-  {
-    fallback: async (request: NextRequest) => {
-      const body = await request.json();
-      return { success: true, ...body };
-    },
-  },
-);
+export const PUT = withHaiCore(async ({ client, request }) => {
+  const body = await request.json();
+  return client.upsertPricingLevel(body);
+});
 
 /**
  * DELETE /api/account/pricing?manifest_id=xxx
