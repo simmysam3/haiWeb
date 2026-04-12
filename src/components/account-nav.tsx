@@ -9,6 +9,7 @@ const navItems = [
   { href: "/account/profile", label: "Company Profile" },
   { href: "/account/users", label: "Users" },
   { href: "/account/agents", label: "Agents" },
+  { href: "/account/data-cleansing", label: "Data Cleansing" },
   { href: "/account/manifests", label: "Manifests" },
   { href: "/account/pricing", label: "Pricing" },
   { href: "/account/orders", label: "Orders" },
