@@ -72,6 +72,39 @@ export interface ScoreData {
   components: Array<{ label: string; value: number }>;
 }
 
+export interface ClassificationResult {
+  product_id: string;
+  status: 'classified' | 'unclassifiable' | 'dismissed' | 'non_product' | 'source_deleted';
+  assigned_node_ids: string[];
+  primary_node_id: string | null;
+  classifier_confidence: number;
+  match_confidence: number;
+  unclassifiable_reason: string | null;
+  raw_classifier_response: unknown;
+  classifier_model: string;
+  classified_at: string;
+  assignment_source: string;
+}
+
+export interface ConceptNodeSummary {
+  node_id: string;
+  slug: string;
+  master_label: string;
+  description: string;
+  status: string;
+  taxonomy_version: number;
+  created_at: string;
+}
+
+export interface ClassificationOverrideInput {
+  product_id: string;
+  action: 'reassign' | 'new_node_request' | 'non_product' | 'dismiss';
+  to_node_ids?: string[];
+  proposed_label?: string;
+  proposed_desc?: string;
+  reason?: string;
+}
+
 export interface HaiwaveClient {
   searchParticipants(query: string, options?: { limit?: number }): Promise<ParticipantProfile[]>;
   getCompanyProfile(id: string): Promise<ParticipantProfile>;
@@ -144,6 +177,10 @@ export interface HaiwaveClient {
   // Source Audit (v1.16)
   runEntityAudit(vendorId: string, productId: string, locationParameter: boolean): Promise<Record<string, unknown>>;
   runRegulatoryAudit(guideKeyId: string, jurisdiction: string): Promise<Record<string, unknown>>;
+  // Classification Review Queue (v1.20)
+  listClassificationResults(participantId: string, status?: string): Promise<{ results: ClassificationResult[]; total: number }>;
+  submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
+  listConceptNodes(): Promise<{ nodes: ConceptNodeSummary[]; total_count: number }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -406,6 +443,20 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         guide_key_id: guideKeyId,
         jurisdiction,
       });
+    },
+
+    // ─── Classification Review Queue (v1.20) ────────────────
+    async listClassificationResults(participantId, status) {
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return request<{ results: ClassificationResult[]; total: number }>('GET', `/classify/results/${participantId}${query}`);
+    },
+    async submitClassificationOverride(input) {
+      return request<{ success: boolean }>('POST', '/classify/override', input);
+    },
+    async listConceptNodes() {
+      return request<{ nodes: ConceptNodeSummary[]; total_count: number }>('GET', '/taxonomy/classes');
     },
   };
 }
