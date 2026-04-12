@@ -28,6 +28,11 @@ interface WithHaiCoreOptions {
    * Required role. If set and the session's role doesn't satisfy it, returns 403.
    */
   role?: UserRole;
+  /**
+   * If true, rejects requests whose session is not flagged is_admin.
+   * Use on HAIWAVE internal admin console routes (/api/admin/*).
+   */
+  requireAdmin?: boolean;
 }
 
 /**
@@ -71,6 +76,10 @@ export function withHaiCore<P extends Record<string, string> = Record<string, ne
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    if (options.requireAdmin && !session.is_admin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const params = (await routeCtx.params) as P;
 
     const resolveFallback = async (): Promise<unknown> => {
@@ -84,8 +93,12 @@ export function withHaiCore<P extends Record<string, string> = Record<string, ne
       const token = await getToken();
       if (!isJwtLike(token)) {
         // No real token: this is dev stand-alone mode (no Keycloak). Serve
-        // the fallback if one is configured so the portal stays usable.
-        if (options.fallback !== undefined) {
+        // the fallback only in development — in production a non-JWT cookie
+        // indicates poisoning or a misconfigured edge, and we must 401.
+        if (
+          options.fallback !== undefined &&
+          process.env.NODE_ENV !== "production"
+        ) {
           return fallbackResponse(await resolveFallback());
         }
         return NextResponse.json({ error: "No token" }, { status: 401 });

@@ -1,6 +1,29 @@
 import { cookies } from "next/headers";
-import { decodeJwt } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { MOCK_SESSION } from "./mock-data";
+
+// JWKS for Keycloak realm. `createRemoteJWKSet` memoizes the remote key set
+// internally, so this only fetches keys on cold start and on key rotation.
+const KEYCLOAK_URL = process.env.KEYCLOAK_URL ?? "http://localhost:8080";
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM ?? "haiwave-network";
+const KEYCLOAK_JWKS_URI =
+  process.env.KEYCLOAK_JWKS_URI ??
+  `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`;
+const JWKS = createRemoteJWKSet(new URL(KEYCLOAK_JWKS_URI));
+
+async function verifySessionJwt(token: string): Promise<JWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      // Reject `alg: none` and similar tampering
+      algorithms: ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"],
+      issuer: process.env.KEYCLOAK_ISSUER ??
+        `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
+    });
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export type UserRole =
   | "account_owner"
@@ -48,44 +71,40 @@ export async function getSession(): Promise<Session | null> {
 
   const value = sessionCookie.value;
 
-  // If the cookie looks like a JWT (contains dots), decode it
+  // If the cookie looks like a JWT (contains dots), verify its signature
+  // against the Keycloak JWKS. An unverified decode would accept
+  // caller-forged tokens including `alg: none`.
   if (value.includes(".")) {
-    try {
-      // NOTE: For full security, we should verify the signature here using jose.jwtVerify 
-      // and the Keycloak public key (JWKS) rather than just decoding.
-      const payload = decodeJwt(value);
-      if (payload) {
-        const roles = (payload.realm_access as { roles?: string[] })?.roles ?? [];
-        const isAdmin = roles.includes("haiwave_admin");
-        
-        let role: UserRole = "buyer_view_only";
-        if (isAdmin) {
-          role = "account_owner";
-        } else {
-          const foundRole = PRIORITIZED_ROLES.find(r => roles.includes(r));
-          if (foundRole) role = foundRole;
-        }
+    const payload = await verifySessionJwt(value);
+    if (!payload) return null;
 
-        return {
-          user: {
-            id: (payload.sub as string) ?? "",
-            email: (payload.email as string) ?? "",
-            first_name: (payload.given_name as string) ?? "",
-            last_name: (payload.family_name as string) ?? "",
-            role,
-            job_title: "",
-          },
-          participant: {
-            id: (payload.participant_id as string) ?? "",
-            company_name: (payload.company_name as string) ?? "",
-            status: "active",
-          },
-          is_admin: isAdmin,
-        };
-      }
-    } catch {
-      return null;
+    const roles = (payload.realm_access as { roles?: string[] })?.roles ?? [];
+    const isAdmin = roles.includes("haiwave_admin");
+
+    let role: UserRole = "buyer_view_only";
+    if (isAdmin) {
+      role = "account_owner";
+    } else {
+      const foundRole = PRIORITIZED_ROLES.find(r => roles.includes(r));
+      if (foundRole) role = foundRole;
     }
+
+    return {
+      user: {
+        id: (payload.sub as string) ?? "",
+        email: (payload.email as string) ?? "",
+        first_name: (payload.given_name as string) ?? "",
+        last_name: (payload.family_name as string) ?? "",
+        role,
+        job_title: "",
+      },
+      participant: {
+        id: (payload.participant_id as string) ?? "",
+        company_name: (payload.company_name as string) ?? "",
+        status: "active",
+      },
+      is_admin: isAdmin,
+    };
   }
 
   // Fallback to mock session for development

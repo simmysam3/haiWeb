@@ -22,4 +22,5 @@ export const POST = withHaiCore(
 
     return client.submitClassificationOverride(body);
   },
+  { role: "account_admin" },
 );

@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession, getToken } from "@/lib/auth";
+import { isJwtLike } from "@/lib/with-hai-core";
 
 const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get("haiwave_session")?.value;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const token = await getToken();
+  if (!isJwtLike(token)) return NextResponse.json({ error: "No token" }, { status: 401 });
+
   const params = request.nextUrl.searchParams.toString();
 
   try {
@@ -13,11 +21,9 @@ export async function GET(request: NextRequest) {
         "X-HaiWave-Protocol-Version": "1.0.0",
       },
     });
-
     if (!res.ok) {
       return NextResponse.json({ error: `haiCore ${res.status}` }, { status: res.status });
     }
-
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Failed to reach haiCore" }, { status: 502 });
