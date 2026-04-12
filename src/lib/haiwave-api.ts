@@ -72,6 +72,14 @@ export interface ScoreData {
   components: Array<{ label: string; value: number }>;
 }
 
+export const CLASSIFICATION_OVERRIDE_ACTIONS = [
+  'reassign',
+  'new_node_request',
+  'non_product',
+  'dismiss',
+] as const;
+export type ClassificationOverrideAction = typeof CLASSIFICATION_OVERRIDE_ACTIONS[number];
+
 export interface ClassificationResult {
   product_id: string;
   status: 'classified' | 'unclassifiable' | 'dismissed' | 'non_product' | 'source_deleted';
@@ -80,7 +88,6 @@ export interface ClassificationResult {
   classifier_confidence: number;
   match_confidence: number;
   unclassifiable_reason: string | null;
-  raw_classifier_response: unknown;
   classifier_model: string;
   classified_at: string;
   assignment_source: string;
@@ -98,7 +105,7 @@ export interface ConceptNodeSummary {
 
 export interface ClassificationOverrideInput {
   product_id: string;
-  action: 'reassign' | 'new_node_request' | 'non_product' | 'dismiss';
+  action: ClassificationOverrideAction;
   to_node_ids?: string[];
   proposed_label?: string;
   proposed_desc?: string;
@@ -178,7 +185,7 @@ export interface HaiwaveClient {
   runEntityAudit(vendorId: string, productId: string, locationParameter: boolean): Promise<Record<string, unknown>>;
   runRegulatoryAudit(guideKeyId: string, jurisdiction: string): Promise<Record<string, unknown>>;
   // Classification Review Queue (v1.20)
-  listClassificationResults(participantId: string, status?: string): Promise<{ results: ClassificationResult[]; total: number }>;
+  listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
   listConceptNodes(): Promise<{ nodes: ConceptNodeSummary[]; total_count: number }>;
 }
@@ -446,9 +453,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Classification Review Queue (v1.20) ────────────────
-    async listClassificationResults(participantId, status) {
+    async listClassificationResults(participantId, options) {
       const params = new URLSearchParams();
-      if (status) params.set('status', status);
+      if (options?.status) params.set('status', options.status);
+      if (options?.limit !== undefined) params.set('limit', String(options.limit));
+      if (options?.offset !== undefined) params.set('offset', String(options.offset));
       const query = params.toString() ? `?${params.toString()}` : '';
       return request<{ results: ClassificationResult[]; total: number }>('GET', `/classify/results/${participantId}${query}`);
     },

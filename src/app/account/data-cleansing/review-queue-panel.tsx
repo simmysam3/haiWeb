@@ -7,9 +7,11 @@ import { Modal } from "@/components/modal";
 import { DataTable, type Column } from "@/components/data-table";
 import { useToast } from "@/lib/use-toast";
 import { useApi } from "@/lib/use-api";
-import type { ClassificationResult, ConceptNodeSummary } from "@/lib/haiwave-api";
-
-type ActionType = 'reassign' | 'new_node_request' | 'non_product' | 'dismiss';
+import type {
+  ClassificationResult,
+  ClassificationOverrideAction,
+  ConceptNodeSummary,
+} from "@/lib/haiwave-api";
 
 interface ResultsResponse {
   results: ClassificationResult[];
@@ -21,15 +23,26 @@ interface TaxonomyResponse {
   total_count: number;
 }
 
+interface ActionForm {
+  reason: string;
+  selectedNodeId: string;
+  proposedLabel: string;
+  proposedDesc: string;
+}
+
+const EMPTY_FORM: ActionForm = {
+  reason: "",
+  selectedNodeId: "",
+  proposedLabel: "",
+  proposedDesc: "",
+};
+
 export function ReviewQueuePanel() {
   const { toast, showToast } = useToast();
   const [items, setItems] = useState<ClassificationResult[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [activeAction, setActiveAction] = useState<{ product: ClassificationResult; action: ActionType } | null>(null);
-  const [reason, setReason] = useState("");
-  const [selectedNodeId, setSelectedNodeId] = useState<string>("");
-  const [proposedLabel, setProposedLabel] = useState("");
-  const [proposedDesc, setProposedDesc] = useState("");
+  const [activeAction, setActiveAction] = useState<{ product: ClassificationResult; action: ClassificationOverrideAction } | null>(null);
+  const [form, setForm] = useState<ActionForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
 
   const itemsApi = useApi<ResultsResponse>({
@@ -42,21 +55,18 @@ export function ReviewQueuePanel() {
     fallback: { nodes: [], total_count: 0 },
   });
 
-  // Load items once into local state so optimistic removals persist
+  // Copy API data into local state once the initial fetch completes so that
+  // optimistic removals after each action survive without a refetch.
   useEffect(() => {
-    if (loaded) return;
-    if (!itemsApi.loading) {
+    if (!loaded && !itemsApi.loading) {
       setItems(itemsApi.data.results);
       setLoaded(true);
     }
-  }, [itemsApi.data, itemsApi.loading, loaded]);
+  }, [itemsApi.loading, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function openAction(product: ClassificationResult, action: ActionType) {
+  function openAction(product: ClassificationResult, action: ClassificationOverrideAction) {
     setActiveAction({ product, action });
-    setReason("");
-    setSelectedNodeId("");
-    setProposedLabel("");
-    setProposedDesc("");
+    setForm(EMPTY_FORM);
   }
 
   function closeAction() {
@@ -71,13 +81,13 @@ export function ReviewQueuePanel() {
       product_id: activeAction.product.product_id,
       action: activeAction.action,
     };
-    if (reason) body.reason = reason;
-    if (activeAction.action === 'reassign' && selectedNodeId) {
-      body.to_node_ids = [selectedNodeId];
+    if (form.reason) body.reason = form.reason;
+    if (activeAction.action === 'reassign' && form.selectedNodeId) {
+      body.to_node_ids = [form.selectedNodeId];
     }
     if (activeAction.action === 'new_node_request') {
-      body.proposed_label = proposedLabel;
-      body.proposed_desc = proposedDesc;
+      body.proposed_label = form.proposedLabel;
+      body.proposed_desc = form.proposedDesc;
     }
 
     try {
@@ -161,8 +171,8 @@ export function ReviewQueuePanel() {
               <div>
                 <label className="block text-sm font-medium mb-1">Select concept node</label>
                 <select
-                  value={selectedNodeId}
-                  onChange={(e) => setSelectedNodeId(e.target.value)}
+                  value={form.selectedNodeId}
+                  onChange={(e) => setForm((f) => ({ ...f, selectedNodeId: e.target.value }))}
                   className="w-full border border-slate/20 rounded px-3 py-2"
                 >
                   <option value="">-- choose --</option>
@@ -179,8 +189,8 @@ export function ReviewQueuePanel() {
                   <label className="block text-sm font-medium mb-1">Proposed label</label>
                   <input
                     type="text"
-                    value={proposedLabel}
-                    onChange={(e) => setProposedLabel(e.target.value)}
+                    value={form.proposedLabel}
+                    onChange={(e) => setForm((f) => ({ ...f, proposedLabel: e.target.value }))}
                     className="w-full border border-slate/20 rounded px-3 py-2"
                     placeholder="e.g., Precision Bearings"
                   />
@@ -188,8 +198,8 @@ export function ReviewQueuePanel() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Description</label>
                   <textarea
-                    value={proposedDesc}
-                    onChange={(e) => setProposedDesc(e.target.value)}
+                    value={form.proposedDesc}
+                    onChange={(e) => setForm((f) => ({ ...f, proposedDesc: e.target.value }))}
                     rows={3}
                     className="w-full border border-slate/20 rounded px-3 py-2"
                     placeholder="What kind of products belong in this node?"
@@ -202,8 +212,8 @@ export function ReviewQueuePanel() {
               <label className="block text-sm font-medium mb-1">Reason (optional)</label>
               <input
                 type="text"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                value={form.reason}
+                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 className="w-full border border-slate/20 rounded px-3 py-2"
                 placeholder="Why this override?"
               />
@@ -213,7 +223,7 @@ export function ReviewQueuePanel() {
               <Button variant="ghost" onClick={closeAction} disabled={submitting}>Cancel</Button>
               <Button
                 onClick={submitAction}
-                disabled={submitting || (activeAction.action === 'reassign' && !selectedNodeId) || (activeAction.action === 'new_node_request' && !proposedLabel)}
+                disabled={submitting || (activeAction.action === 'reassign' && !form.selectedNodeId) || (activeAction.action === 'new_node_request' && !form.proposedLabel)}
               >
                 {submitting ? 'Applying…' : 'Apply'}
               </Button>
@@ -225,7 +235,7 @@ export function ReviewQueuePanel() {
   );
 }
 
-function modalTitle(action: ActionType): string {
+function modalTitle(action: ClassificationOverrideAction): string {
   switch (action) {
     case 'reassign': return 'Force-assign to concept node';
     case 'new_node_request': return 'Request new concept node';

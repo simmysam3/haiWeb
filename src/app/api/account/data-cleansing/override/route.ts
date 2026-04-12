@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
-import type { ClassificationOverrideInput } from "@/lib/haiwave-api";
+import {
+  CLASSIFICATION_OVERRIDE_ACTIONS,
+  type ClassificationOverrideInput,
+  type ClassificationOverrideAction,
+} from "@/lib/haiwave-api";
 
-/**
- * POST /api/account/data-cleansing/override
- *
- * Applies a vendor override to an unclassifiable product.
- * Actions: reassign, new_node_request, non_product, dismiss.
- */
 export const POST = withHaiCore(
   async ({ client, request }) => {
     const body = (await request.json()) as ClassificationOverrideInput;
@@ -15,9 +13,11 @@ export const POST = withHaiCore(
     if (!body.product_id || typeof body.product_id !== 'string') {
       return NextResponse.json({ error: 'product_id is required' }, { status: 400 });
     }
-    const validActions = ['reassign', 'new_node_request', 'non_product', 'dismiss'];
-    if (!validActions.includes(body.action)) {
-      return NextResponse.json({ error: `action must be one of ${validActions.join(', ')}` }, { status: 400 });
+    if (!CLASSIFICATION_OVERRIDE_ACTIONS.includes(body.action as ClassificationOverrideAction)) {
+      return NextResponse.json(
+        { error: `action must be one of ${CLASSIFICATION_OVERRIDE_ACTIONS.join(', ')}` },
+        { status: 400 },
+      );
     }
 
     return client.submitClassificationOverride(body);

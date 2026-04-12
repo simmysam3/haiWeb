@@ -8,7 +8,7 @@ import { withHaiCore } from "@/lib/with-hai-core";
  */
 export const GET = withHaiCore(
   async ({ client, session }) => {
-    return client.listClassificationResults(session.participant.id, 'unclassifiable');
+    return client.listClassificationResults(session.participant.id, { status: 'unclassifiable' });
   },
   { fallback: { results: [], total: 0 } },
 );
