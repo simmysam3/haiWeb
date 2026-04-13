@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUser, authenticateUser, deleteUser } from "@/lib/keycloak";
 import { createCustomer } from "@/lib/stripe";
 import { registerParticipant } from "@/lib/haiwave-api";
+import { createRateLimiter, clientIp } from "@/lib/rate-limit";
 import { z } from "zod";
+
+// 5 registrations per IP per hour. Module-level so the limiter survives
+// across requests in a single Cloud Run instance; stateless across instances
+// (acceptable for a first-pass DoS deterrent).
+const registerLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -32,6 +38,17 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // Rate-limit before hitting Keycloak / Stripe / haiCore. Prevents an
+  // unauthenticated caller from exhausting downstream API quotas or
+  // creating a flood of participant rows.
+  const rl = registerLimiter.check(clientIp(request));
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many registration attempts. Try again later." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+    );
+  }
+
   try {
     const body = await request.json();
     const result = registerSchema.safeParse(body);
