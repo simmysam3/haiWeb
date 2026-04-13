@@ -30,6 +30,17 @@ export function createRateLimiter(options: {
       const bucket = buckets.get(key) ?? { hits: [] };
       bucket.hits = bucket.hits.filter((t) => t > cutoff);
 
+      // Opportunistic GC runs on every call (including the rate-limited
+      // path) so long-blocked buckets don't accumulate unchecked. The sweep
+      // only walks the map past 10k keys so normal traffic stays cheap.
+      if (buckets.size > 10_000) {
+        for (const [k, b] of buckets) {
+          if (b.hits.length === 0 || b.hits[b.hits.length - 1] < cutoff) {
+            buckets.delete(k);
+          }
+        }
+      }
+
       if (bucket.hits.length >= max) {
         const oldest = bucket.hits[0];
         const retryAfterSeconds = Math.max(1, Math.ceil((oldest + windowMs - now) / 1000));
@@ -40,25 +51,28 @@ export function createRateLimiter(options: {
       bucket.hits.push(now);
       buckets.set(key, bucket);
 
-      // Opportunistic GC: drop buckets with no recent hits when the map
-      // gets large. Bounds memory in pathological bot-traffic scenarios.
-      if (buckets.size > 10_000) {
-        for (const [k, b] of buckets) {
-          if (b.hits.length === 0 || b.hits[b.hits.length - 1] < cutoff) {
-            buckets.delete(k);
-          }
-        }
-      }
-
       return { allowed: true, retryAfterSeconds: 0 };
     },
   };
 }
 
-/** Extract the client IP, preferring X-Forwarded-For from a trusted proxy. */
+/**
+ * Extract the client IP from X-Forwarded-For, taking the RIGHTMOST entry.
+ *
+ * On Cloud Run the Google Front End appends the real client IP to the right
+ * of any client-supplied header. Taking the leftmost value would use the
+ * attacker-controlled string — a trivial spoof. The rightmost entry is the
+ * one Google Frontend added and cannot be forged by the request originator.
+ *
+ * If HaiWeb is ever deployed behind a different proxy chain (e.g., direct
+ * Kubernetes ingress with no IP-appending trusted proxy), revisit this.
+ */
 export function clientIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
+  if (fwd) {
+    const parts = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
   const real = request.headers.get("x-real-ip");
   if (real) return real.trim();
   return "unknown";
