@@ -13,6 +13,21 @@
  * All data flows through the haiCore API.
  */
 
+import type {
+  ProvenanceKey,
+  ProvenanceKeyWithCounts,
+  ProvenanceKeyCreationRequest,
+  ProvenanceKeyCreationResponse,
+  ProvenanceKeyInstallation,
+  ProvenanceKeyPatch,
+  InstallationCreationRequest,
+  InstallationPatch,
+  InstallationPreview,
+  SharingPolicy,
+  SharingPolicyUpdateRequest,
+  SharingPolicyUpdateResponse,
+} from '@haiwave/protocol';
+
 const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
 export const haiwaveApiUrl = `${API_URL}/api/v1`;
@@ -188,6 +203,20 @@ export interface HaiwaveClient {
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
   listConceptNodes(): Promise<{ nodes: ConceptNodeSummary[]; total_count: number }>;
+  // Provenance Keys (v1.21)
+  listGeneratedKeys(): Promise<ProvenanceKeyWithCounts[]>;
+  generateKey(body: ProvenanceKeyCreationRequest): Promise<ProvenanceKeyCreationResponse>;
+  updateKey(keyId: string, patch: ProvenanceKeyPatch): Promise<ProvenanceKey>;
+  revokeKey(keyId: string): Promise<ProvenanceKey>;
+  revealKeyValue(keyId: string): Promise<{ key_value: string }>;
+  listInstallationsForKey(keyId: string): Promise<{ installations: ProvenanceKeyInstallation[] }>;
+  previewInstallation(body: { key_hash: string }): Promise<InstallationPreview>;
+  installKey(body: InstallationCreationRequest): Promise<ProvenanceKeyInstallation>;
+  listMyInstallations(includeRemoved?: boolean): Promise<ProvenanceKeyInstallation[]>;
+  updateInstallation(installationId: string, patch: InstallationPatch): Promise<ProvenanceKeyInstallation>;
+  removeInstallation(installationId: string): Promise<ProvenanceKeyInstallation>;
+  getSharingPolicy(): Promise<SharingPolicy>;
+  upsertSharingPolicy(body: SharingPolicyUpdateRequest): Promise<SharingPolicyUpdateResponse>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -466,6 +495,48 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     async listConceptNodes() {
       return request<{ nodes: ConceptNodeSummary[]; total_count: number }>('GET', '/taxonomy/classes');
+    },
+
+    // ─── Provenance Keys (v1.21) ──────────────────────────────
+    listGeneratedKeys() {
+      return request<ProvenanceKeyWithCounts[]>('GET', '/provenance-keys/generated');
+    },
+    generateKey(body) {
+      return request<ProvenanceKeyCreationResponse>('POST', '/provenance-keys/', body);
+    },
+    updateKey(keyId, patch) {
+      return request<ProvenanceKey>('PATCH', `/provenance-keys/${keyId}`, patch);
+    },
+    revokeKey(keyId) {
+      return request<ProvenanceKey>('DELETE', `/provenance-keys/${keyId}`);
+    },
+    revealKeyValue(keyId) {
+      return request<{ key_value: string }>('GET', `/provenance-keys/${keyId}/value`);
+    },
+    listInstallationsForKey(keyId) {
+      return request<{ installations: ProvenanceKeyInstallation[] }>('GET', `/provenance-keys/${keyId}/installations`);
+    },
+    previewInstallation(body) {
+      return request<InstallationPreview>('POST', '/provenance-keys/installations/preview', body);
+    },
+    installKey(body) {
+      return request<ProvenanceKeyInstallation>('POST', '/provenance-keys/installations', body);
+    },
+    listMyInstallations(includeRemoved = false) {
+      const suffix = includeRemoved ? '?include_removed=true' : '';
+      return request<ProvenanceKeyInstallation[]>('GET', `/provenance-keys/installations${suffix}`);
+    },
+    updateInstallation(installationId, patch) {
+      return request<ProvenanceKeyInstallation>('PATCH', `/provenance-keys/installations/${installationId}`, patch);
+    },
+    removeInstallation(installationId) {
+      return request<ProvenanceKeyInstallation>('DELETE', `/provenance-keys/installations/${installationId}`);
+    },
+    getSharingPolicy() {
+      return request<SharingPolicy>('GET', '/sharing-policy/');
+    },
+    upsertSharingPolicy(body) {
+      return request<SharingPolicyUpdateResponse>('PUT', '/sharing-policy/', body);
     },
   };
 }
