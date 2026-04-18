@@ -9,11 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@haiwave/protocol": "file:../haiCore/packages/protocol",
     "jose": "^6.1.3",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "zod": "^4.3.6"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
