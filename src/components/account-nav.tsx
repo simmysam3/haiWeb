@@ -18,6 +18,7 @@ const navItems = [
   { href: "/account/scores", label: "Behavioral Scores" },
   { href: "/account/payments", label: "Payments" },
   { href: "/account/provenance", label: "Provenance" },
+  { href: "/account/provenance-keys", label: "Provenance Keys" },
   { href: "/account/compliance", label: "Compliance" },
   { href: "/account/phantom-demand", label: "Phantom Demand" },
   { href: "/account/source-audit", label: "Source Audit" },
