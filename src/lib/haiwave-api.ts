@@ -32,6 +32,30 @@ import type {
   SharingPolicyUpdateResponse,
 } from '@haiwave/protocol';
 
+// Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
+// Turbopack on Windows can't resolve value-or-type imports through `file:` symlinks
+// reliably in the BFF route. Keep in sync with packages/protocol/src/audit/index.ts.
+type AuditEventMirror = {
+  id: string;
+  event_type: string;
+  actor_id: string;
+  actor_type: string;
+  participant_id?: string | null;
+  target_entity_type?: string | null;
+  target_entity_id?: string | null;
+  action: string;
+  details?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  retention_class: 'critical' | 'standard' | 'ephemeral';
+  timestamp: string;
+};
+type AuditEventResponseMirror = {
+  events: AuditEventMirror[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
 export const haiwaveApiUrl = `${API_URL}/api/v1`;
@@ -214,6 +238,10 @@ export interface HaiwaveClient {
   revokeKey(keyId: string): Promise<ProvenanceKey>;
   revealKeyValue(keyId: string): Promise<{ key_value: string }>;
   listInstallationsForKey(keyId: string): Promise<{ installations: ProvenanceKeyInstallation[] }>;
+  listKeyAudit(
+    keyId: string,
+    params?: { page?: number; page_size?: number; event_type?: string },
+  ): Promise<AuditEventResponseMirror>;
   previewInstallation(body: { key_hash: string }): Promise<InstallationPreview>;
   installKey(body: InstallationCreationRequest): Promise<ProvenanceKeyInstallation>;
   listMyInstallations(includeRemoved?: boolean): Promise<ProvenanceKeyInstallation[]>;
@@ -519,6 +547,14 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     listInstallationsForKey(keyId) {
       return request<{ installations: ProvenanceKeyInstallation[] }>('GET', `/provenance-keys/${keyId}/installations`);
+    },
+    listKeyAudit(keyId, params) {
+      const qs = new URLSearchParams();
+      if (params?.page !== undefined) qs.set('page', String(params.page));
+      if (params?.page_size !== undefined) qs.set('page_size', String(params.page_size));
+      if (params?.event_type) qs.set('event_type', params.event_type);
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request<AuditEventResponseMirror>('GET', `/provenance-keys/${keyId}/audit${suffix}`);
     },
     previewInstallation(body) {
       return request<InstallationPreview>('POST', '/provenance-keys/installations/preview', body);
