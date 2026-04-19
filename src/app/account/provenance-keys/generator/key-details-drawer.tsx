@@ -197,7 +197,10 @@ export function KeyDetailsDrawer({ keyRow, open, onClose, onKeyChanged }: KeyDet
           <button
             type="button"
             className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate hover:text-charcoal"
-            onClick={() => setAuditOpen((v) => !v)}
+            onClick={() => setAuditOpen((v) => {
+              if (v) setAuditPage(1);
+              return !v;
+            })}
           >
             <span>
               Audit trail{auditData ? ` (${auditData.total})` : ''}
