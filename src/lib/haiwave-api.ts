@@ -13,6 +13,10 @@
  * All data flows through the haiCore API.
  */
 
+// Mirrors PROTOCOL_VERSION from @haiwave/protocol. Inlined because Turbopack on
+// Windows can't resolve value imports through `file:` symlinks. Keep in sync
+// with packages/protocol/src/version.ts.
+const PROTOCOL_VERSION = '3.0.0';
 import type {
   ProvenanceKey,
   ProvenanceKeyWithCounts,
@@ -53,7 +57,7 @@ export async function registerParticipant(data: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-HaiWave-Protocol-Version": "1.0.0",
+      "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
     },
     body: JSON.stringify(data),
   });
@@ -223,7 +227,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     "x-haiwave-participant-id": participantId,
-    "X-HaiWave-Protocol-Version": "1.0.0",
+    "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
     "Content-Type": "application/json",
   };
 
