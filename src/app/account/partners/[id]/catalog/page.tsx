@@ -1,4 +1,5 @@
 import { CatalogTree } from './catalog-tree';
+import { KeyNudgeBanner } from './key-nudge-banner';
 
 export default async function PartnerCatalogPage({
   params,
@@ -12,6 +13,7 @@ export default async function PartnerCatalogPage({
       <p className="text-sm text-slate mb-6">
         Pick what to audit from this vendor. Scope can be company-wide, specific product classes, or individual products.
       </p>
+      <KeyNudgeBanner vendorId={id} />
       <CatalogTree vendorId={id} />
     </div>
   );
