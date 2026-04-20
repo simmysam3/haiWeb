@@ -13,6 +13,49 @@
  * All data flows through the haiCore API.
  */
 
+// Mirrors PROTOCOL_VERSION from @haiwave/protocol. Inlined because Turbopack on
+// Windows can't resolve value imports through `file:` symlinks. Keep in sync
+// with packages/protocol/src/version.ts.
+const PROTOCOL_VERSION = '3.0.0';
+import type {
+  ProvenanceKey,
+  ProvenanceKeyWithCounts,
+  ProvenanceKeyCreationRequest,
+  ProvenanceKeyCreationResponse,
+  ProvenanceKeyInstallation,
+  ProvenanceKeyPatch,
+  InstallationCreationRequest,
+  InstallationPatch,
+  InstallationPreview,
+  SharingPolicy,
+  SharingPolicyUpdateRequest,
+  SharingPolicyUpdateResponse,
+} from '@haiwave/protocol';
+
+// Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
+// Turbopack on Windows can't resolve value-or-type imports through `file:` symlinks
+// reliably in the BFF route. Keep in sync with packages/protocol/src/audit/index.ts.
+type AuditEventMirror = {
+  id: string;
+  event_type: string;
+  actor_id: string;
+  actor_type: string;
+  participant_id?: string | null;
+  target_entity_type?: string | null;
+  target_entity_id?: string | null;
+  action: string;
+  details?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  retention_class: 'critical' | 'standard' | 'ephemeral';
+  timestamp: string;
+};
+type AuditEventResponseMirror = {
+  events: AuditEventMirror[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
 export const haiwaveApiUrl = `${API_URL}/api/v1`;
@@ -38,7 +81,7 @@ export async function registerParticipant(data: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-HaiWave-Protocol-Version": "1.0.0",
+      "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
     },
     body: JSON.stringify(data),
   });
@@ -188,13 +231,31 @@ export interface HaiwaveClient {
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
   listConceptNodes(): Promise<{ nodes: ConceptNodeSummary[]; total_count: number }>;
+  // Provenance Keys (v1.21)
+  listGeneratedKeys(): Promise<ProvenanceKeyWithCounts[]>;
+  generateKey(body: ProvenanceKeyCreationRequest): Promise<ProvenanceKeyCreationResponse>;
+  updateKey(keyId: string, patch: ProvenanceKeyPatch): Promise<ProvenanceKey>;
+  revokeKey(keyId: string): Promise<ProvenanceKey>;
+  revealKeyValue(keyId: string): Promise<{ key_value: string }>;
+  listInstallationsForKey(keyId: string): Promise<{ installations: ProvenanceKeyInstallation[] }>;
+  listKeyAudit(
+    keyId: string,
+    params?: { page?: number; page_size?: number; event_type?: string },
+  ): Promise<AuditEventResponseMirror>;
+  previewInstallation(body: { key_hash: string }): Promise<InstallationPreview>;
+  installKey(body: InstallationCreationRequest): Promise<ProvenanceKeyInstallation>;
+  listMyInstallations(includeRemoved?: boolean): Promise<ProvenanceKeyInstallation[]>;
+  updateInstallation(installationId: string, patch: InstallationPatch): Promise<ProvenanceKeyInstallation>;
+  removeInstallation(installationId: string): Promise<ProvenanceKeyInstallation>;
+  getSharingPolicy(): Promise<SharingPolicy>;
+  upsertSharingPolicy(body: SharingPolicyUpdateRequest): Promise<SharingPolicyUpdateResponse>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     "x-haiwave-participant-id": participantId,
-    "X-HaiWave-Protocol-Version": "1.0.0",
+    "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
     "Content-Type": "application/json",
   };
 
@@ -466,6 +527,56 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     async listConceptNodes() {
       return request<{ nodes: ConceptNodeSummary[]; total_count: number }>('GET', '/taxonomy/classes');
+    },
+
+    // ─── Provenance Keys (v1.21) ──────────────────────────────
+    listGeneratedKeys() {
+      return request<ProvenanceKeyWithCounts[]>('GET', '/provenance-keys/generated');
+    },
+    generateKey(body) {
+      return request<ProvenanceKeyCreationResponse>('POST', '/provenance-keys/', body);
+    },
+    updateKey(keyId, patch) {
+      return request<ProvenanceKey>('PATCH', `/provenance-keys/${keyId}`, patch);
+    },
+    revokeKey(keyId) {
+      return request<ProvenanceKey>('DELETE', `/provenance-keys/${keyId}`);
+    },
+    revealKeyValue(keyId) {
+      return request<{ key_value: string }>('GET', `/provenance-keys/${keyId}/value`);
+    },
+    listInstallationsForKey(keyId) {
+      return request<{ installations: ProvenanceKeyInstallation[] }>('GET', `/provenance-keys/${keyId}/installations`);
+    },
+    listKeyAudit(keyId, params) {
+      const qs = new URLSearchParams();
+      if (params?.page !== undefined) qs.set('page', String(params.page));
+      if (params?.page_size !== undefined) qs.set('page_size', String(params.page_size));
+      if (params?.event_type) qs.set('event_type', params.event_type);
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request<AuditEventResponseMirror>('GET', `/provenance-keys/${keyId}/audit${suffix}`);
+    },
+    previewInstallation(body) {
+      return request<InstallationPreview>('POST', '/provenance-keys/installations/preview', body);
+    },
+    installKey(body) {
+      return request<ProvenanceKeyInstallation>('POST', '/provenance-keys/installations', body);
+    },
+    listMyInstallations(includeRemoved = false) {
+      const suffix = includeRemoved ? '?include_removed=true' : '';
+      return request<ProvenanceKeyInstallation[]>('GET', `/provenance-keys/installations${suffix}`);
+    },
+    updateInstallation(installationId, patch) {
+      return request<ProvenanceKeyInstallation>('PATCH', `/provenance-keys/installations/${installationId}`, patch);
+    },
+    removeInstallation(installationId) {
+      return request<ProvenanceKeyInstallation>('DELETE', `/provenance-keys/installations/${installationId}`);
+    },
+    getSharingPolicy() {
+      return request<SharingPolicy>('GET', '/sharing-policy/');
+    },
+    upsertSharingPolicy(body) {
+      return request<SharingPolicyUpdateResponse>('PUT', '/sharing-policy/', body);
     },
   };
 }

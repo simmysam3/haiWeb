@@ -6,7 +6,7 @@ export default function AgentsPage() {
     <div>
       <PageHeader
         title="Agents"
-        description="Provision and monitor your HAIWAVE agent deployments."
+        description="Provision HAIWAVE agent deployments and manage their keys. Runtime health lives under Monitoring → Agent Health."
       />
       <AgentsPanel />
     </div>

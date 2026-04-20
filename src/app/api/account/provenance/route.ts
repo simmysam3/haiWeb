@@ -8,11 +8,14 @@ import { withHaiCore } from "@/lib/with-hai-core";
  */
 export const GET = withHaiCore(
   async ({ client }) => {
-    const [manifests, certifications] = await Promise.all([
-      client.getOriginManifests(),
-      client.getCertifications(),
+    const [manifestsEnvelope, certificationsEnvelope] = await Promise.all([
+      client.getOriginManifests() as Promise<{ manifests?: unknown[] }>,
+      client.getCertifications() as Promise<{ certifications?: unknown[] }>,
     ]);
-    return { manifests, certifications };
+    return {
+      manifests: manifestsEnvelope.manifests ?? [],
+      certifications: certificationsEnvelope.certifications ?? [],
+    };
   },
   { fallback: { manifests: [], certifications: [] } },
 );
