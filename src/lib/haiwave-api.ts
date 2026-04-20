@@ -30,7 +30,25 @@ import type {
   SharingPolicy,
   SharingPolicyUpdateRequest,
   SharingPolicyUpdateResponse,
+  AuditScope,
+  AuditScopeCreationRequest,
+  AuditScopeCoverage,
 } from '@haiwave/protocol';
+
+// Catalog types — not exported from @haiwave/protocol (CatalogService lives in
+// haiCore only). Defined locally to match the haiCore route response shapes.
+export interface CatalogClass {
+  class_id: string;
+  class_slug: string;
+  class_name: string;
+  product_count: number;
+}
+
+export interface CatalogProduct {
+  external_product_id: string;
+  product_name: string | null;
+  primary_class_slug: string | null;
+}
 
 // Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
 // Turbopack on Windows can't resolve value-or-type imports through `file:` symlinks
@@ -249,6 +267,21 @@ export interface HaiwaveClient {
   removeInstallation(installationId: string): Promise<ProvenanceKeyInstallation>;
   getSharingPolicy(): Promise<SharingPolicy>;
   upsertSharingPolicy(body: SharingPolicyUpdateRequest): Promise<SharingPolicyUpdateResponse>;
+  // Catalog (v1.25)
+  listCatalogClasses(vendorId: string): Promise<{ classes: CatalogClass[] }>;
+  listCatalogProducts(
+    vendorId: string,
+    opts?: { classId?: string; page?: number; size?: number },
+  ): Promise<{ products: CatalogProduct[]; total: number }>;
+  // Audit Scopes (v1.25)
+  createAuditScope(body: AuditScopeCreationRequest): Promise<AuditScope>;
+  listAuditScopes(opts?: {
+    vendorId?: string;
+    scopeType?: string;
+    activeOnly?: boolean;
+  }): Promise<{ scopes: AuditScope[] }>;
+  deleteAuditScope(scopeId: string): Promise<void>;
+  getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -577,6 +610,50 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     upsertSharingPolicy(body) {
       return request<SharingPolicyUpdateResponse>('PUT', '/sharing-policy/', body);
+    },
+
+    // ─── Catalog (v1.25) ─────────────────────────────────────
+    listCatalogClasses(vendorId) {
+      return request<{ classes: CatalogClass[] }>(
+        'GET',
+        `/participants/${vendorId}/catalog-classes`,
+      );
+    },
+    listCatalogProducts(vendorId, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.classId) params.set('class_id', opts.classId);
+      if (opts.page !== undefined) params.set('page', String(opts.page));
+      if (opts.size !== undefined) params.set('size', String(opts.size));
+      const q = params.toString();
+      return request<{ products: CatalogProduct[]; total: number }>(
+        'GET',
+        `/participants/${vendorId}/catalog-products${q ? `?${q}` : ''}`,
+      );
+    },
+
+    // ─── Audit Scopes (v1.25) ────────────────────────────────
+    createAuditScope(body) {
+      return request<AuditScope>('POST', '/audit-scopes', body);
+    },
+    listAuditScopes(opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.vendorId) params.set('vendor_id', opts.vendorId);
+      if (opts.scopeType) params.set('scope_type', opts.scopeType);
+      if (opts.activeOnly === false) params.set('active_only', 'false');
+      const q = params.toString();
+      return request<{ scopes: AuditScope[] }>(
+        'GET',
+        `/audit-scopes${q ? `?${q}` : ''}`,
+      );
+    },
+    async deleteAuditScope(scopeId) {
+      await request<void>('DELETE', `/audit-scopes/${scopeId}`);
+    },
+    getAuditCoverage(vendorId) {
+      return request<AuditScopeCoverage>(
+        'GET',
+        `/audit-coverage?vendor_id=${encodeURIComponent(vendorId)}`,
+      );
     },
   };
 }
