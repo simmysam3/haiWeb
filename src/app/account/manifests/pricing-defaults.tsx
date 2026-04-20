@@ -4,13 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useApi } from "@/lib/use-api";
-import {
-  MOCK_INBOUND_REQUIREMENTS,
-  MOCK_OUTBOUND_POSTURES,
-  MOCK_PRICING_DEFAULTS,
-  MockRequirement,
-  MockPosture,
-} from "@/lib/mock-data";
+import { useToast } from "@/lib/use-toast";
+import type { MockRequirement, MockPosture } from "@/lib/mock-types";
 
 interface VolumeTier {
   min_qty: number;
@@ -18,32 +13,56 @@ interface VolumeTier {
   discount_pct: number;
 }
 
+interface PricingDefaultsData {
+  default_currency: string;
+  default_payment_terms: string;
+  default_freight_terms: string;
+  minimum_order_value: number;
+  quote_validity_days: number;
+  volume_discount_tiers: VolumeTier[];
+  aged_inventory_discount_enabled: boolean;
+  aged_inventory_threshold_days: number;
+  aged_inventory_discount_pct: number;
+}
+
 interface ManifestData {
   inbound_requirements: MockRequirement[];
   outbound_postures: MockPosture[];
-  pricing_defaults: typeof MOCK_PRICING_DEFAULTS;
+  pricing_defaults: PricingDefaultsData;
 }
+
+const EMPTY_MANIFEST: ManifestData = {
+  inbound_requirements: [],
+  outbound_postures: [],
+  pricing_defaults: {
+    default_currency: "USD",
+    default_payment_terms: "Net 30",
+    default_freight_terms: "FOB Origin",
+    minimum_order_value: 0,
+    quote_validity_days: 0,
+    volume_discount_tiers: [],
+    aged_inventory_discount_enabled: false,
+    aged_inventory_threshold_days: 0,
+    aged_inventory_discount_pct: 0,
+  },
+};
 
 export function PricingDefaults() {
   const { data, loading } = useApi<ManifestData>({
     url: "/api/account/manifests",
-    fallback: {
-      inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
-      outbound_postures: MOCK_OUTBOUND_POSTURES,
-      pricing_defaults: MOCK_PRICING_DEFAULTS,
-    },
+    fallback: EMPTY_MANIFEST,
   });
 
-  const [currency, setCurrency] = useState(MOCK_PRICING_DEFAULTS.default_currency);
-  const [paymentTerms, setPaymentTerms] = useState(MOCK_PRICING_DEFAULTS.default_payment_terms);
-  const [freightTerms, setFreightTerms] = useState(MOCK_PRICING_DEFAULTS.default_freight_terms);
-  const [mov, setMov] = useState(MOCK_PRICING_DEFAULTS.minimum_order_value.toString());
-  const [quoteValidity, setQuoteValidity] = useState(MOCK_PRICING_DEFAULTS.quote_validity_days.toString());
-  const [tiers, setTiers] = useState<VolumeTier[]>(MOCK_PRICING_DEFAULTS.volume_discount_tiers);
-  const [agedEnabled, setAgedEnabled] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_discount_enabled);
-  const [agedThreshold, setAgedThreshold] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_threshold_days.toString());
-  const [agedDiscount, setAgedDiscount] = useState(MOCK_PRICING_DEFAULTS.aged_inventory_discount_pct.toString());
-  const [toast, setToast] = useState("");
+  const [currency, setCurrency] = useState("USD");
+  const [paymentTerms, setPaymentTerms] = useState("Net 30");
+  const [freightTerms, setFreightTerms] = useState("FOB Origin");
+  const [mov, setMov] = useState("0");
+  const [quoteValidity, setQuoteValidity] = useState("0");
+  const [tiers, setTiers] = useState<VolumeTier[]>([]);
+  const [agedEnabled, setAgedEnabled] = useState(false);
+  const [agedThreshold, setAgedThreshold] = useState("0");
+  const [agedDiscount, setAgedDiscount] = useState("0");
+  const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -62,11 +81,6 @@ export function PricingDefaults() {
   }, [data]);
 
   const inputClass = "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   function updateTier(index: number, field: keyof VolumeTier, value: string) {
     setTiers(tiers.map((t, i) => {

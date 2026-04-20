@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { NextResponse } from "next/server";
+import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_APPROVAL_RULES } from "@/lib/mock-data";
 
 /**
@@ -8,25 +7,10 @@ import { MOCK_APPROVAL_RULES } from "@/lib/mock-data";
  *
  * Returns approval rules from haiCore. Falls back to mock data.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json(MOCK_APPROVAL_RULES);
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-    const rules = await client.getApprovalRules();
-    return NextResponse.json(rules);
-  } catch {
-    return NextResponse.json(MOCK_APPROVAL_RULES);
-  }
-}
+export const GET = withHaiCore(
+  ({ client }) => client.getApprovalRules(),
+  { fallback: MOCK_APPROVAL_RULES },
+);
 
 /**
  * PUT /api/account/rules
@@ -36,17 +20,8 @@ export async function GET() {
  * Body: { section: "bulk_criteria" | "per_request" | "contact_route", ...data }
  * Requires account_admin or higher.
  */
-export async function PUT(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
+export const PUT = withHaiCore(
+  async ({ client, request }) => {
     const body = await request.json();
     const { section, ...data } = body;
 
@@ -57,37 +32,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ success: true, section, ...data });
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-
     switch (section) {
-      case "bulk_criteria": {
-        const result = await client.updateBulkCriteria(data);
-        return NextResponse.json(result);
-      }
-      case "per_request": {
-        const result = await client.updatePerRequestRules(data);
-        return NextResponse.json(result);
-      }
-      case "contact_route": {
+      case "bulk_criteria":
+        return client.updateBulkCriteria(data);
+      case "per_request":
+        return client.updatePerRequestRules(data);
+      case "contact_route":
         // Contact route updates go through bulk criteria endpoint with contact data
-        const result = await client.updateBulkCriteria({ contact: data });
-        return NextResponse.json(result);
-      }
+        return client.updateBulkCriteria({ contact: data });
       default:
         return NextResponse.json(
           { error: `Unknown section: ${section}` },
           { status: 400 },
         );
     }
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update approval rules" },
-      { status: 500 },
-    );
-  }
-}
+  },
+  { role: "account_admin" },
+);

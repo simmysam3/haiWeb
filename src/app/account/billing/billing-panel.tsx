@@ -6,20 +6,15 @@
 // haiCore connections endpoint respectively. The BFF route will be
 // /api/account/billing backed by Stripe webhooks + haiCore subscription state.
 
-import { useState } from "react";
 import { Card } from "@/components/card";
+import { useToast } from "@/lib/use-toast";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { DataTable, Column } from "@/components/data-table";
 import { MOCK_INVOICES, MOCK_PARTNERS, MockInvoice } from "@/lib/mock-data";
 
 export function BillingPanel() {
-  const [toast, setToast] = useState("");
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   const tradingPairs = MOCK_PARTNERS.filter((p) => p.status === "trading_pair");
   const pairCount = tradingPairs.length;
@@ -27,6 +22,13 @@ export function BillingPanel() {
   const tier2 = Math.min(Math.max(pairCount - 20, 0), 80);
   const tier3 = Math.max(pairCount - 100, 0);
   const monthlyConnection = tier1 * 100 + tier2 * 80 + tier3 * 50;
+
+  // Tiered connection fee by pair index: $100/mo (1–20), $80/mo (21–100), $50/mo (101+)
+  function tierRate(index: number): number {
+    if (index < 20) return 100;
+    if (index < 100) return 80;
+    return 50;
+  }
 
   const invoiceColumns: Column<MockInvoice>[] = [
     {
@@ -138,12 +140,8 @@ export function BillingPanel() {
                 <tr key={p.id} className="border-b border-slate/10">
                   <td className="py-3 px-4 text-charcoal">{p.company_name}</td>
                   <td className="py-3 px-4"><StatusBadge status="trading_pair" /></td>
-                  <td className="py-3 px-4 text-slate">
-                    {i < 20 ? "$100" : i < 100 ? "$80" : "$50"}/mo
-                  </td>
-                  <td className="py-3 px-4 font-medium text-charcoal">
-                    ${i < 20 ? "100" : i < 100 ? "80" : "50"}
-                  </td>
+                  <td className="py-3 px-4 text-slate">${tierRate(i)}/mo</td>
+                  <td className="py-3 px-4 font-medium text-charcoal">${tierRate(i)}</td>
                 </tr>
               ))}
             </tbody>

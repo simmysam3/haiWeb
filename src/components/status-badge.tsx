@@ -4,6 +4,7 @@ const STATUS_STYLES: Record<string, string> = {
   approved: "bg-teal/10 text-teal-dark",
   paid: "bg-success/10 text-success",
   online: "bg-success/10 text-success",
+  pass: "bg-success/10 text-success",
 
   pending: "bg-warning/10 text-warning",
   pending_payment: "bg-warning/10 text-warning",
@@ -15,19 +16,43 @@ const STATUS_STYLES: Record<string, string> = {
   past_due: "bg-problem/10 text-problem",
   banned: "bg-problem/10 text-problem",
   disabled: "bg-problem/10 text-problem",
+  fail: "bg-problem/10 text-problem",
+
+  processed: "bg-teal/10 text-teal-dark",
+  completed: "bg-success/10 text-success",
+  failed: "bg-problem/10 text-problem",
+  cancelled: "bg-slate/10 text-slate",
+  quoted: "bg-teal/10 text-teal-dark",
+  accepted: "bg-success/10 text-success",
 
   offline: "bg-slate/10 text-slate",
   none: "bg-slate/10 text-slate",
   void: "bg-slate/10 text-slate",
+
+  account_owner: "bg-navy/10 text-navy",
+  procurement_transact: "bg-teal/10 text-teal-dark",
+  buyer_full_transact: "bg-teal/10 text-teal-dark",
+  inside_sales_transact: "bg-teal/10 text-teal-dark",
+  buyer_request_quote: "bg-warning/10 text-warning",
+  procurement_read_only: "bg-slate/10 text-slate",
+  buyer_view_only: "bg-slate/10 text-slate",
+  inside_sales_read_only: "bg-slate/10 text-slate",
 };
 
-const LABEL_MAP: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   trading_pair: "Trading Pair",
   pending_payment: "Pending Payment",
   past_due: "Past Due",
   account_owner: "Owner",
-  account_admin: "Admin",
-  account_viewer: "Viewer",
+  procurement_read_only: "Procurement Read Only",
+  procurement_transact: "Procurement Transact",
+  buyer_view_only: "Buyer View Only",
+  buyer_request_quote: "Buyer Request Quote",
+  buyer_full_transact: "Buyer Full Transact",
+  inside_sales_read_only: "Inside Sales Read Only",
+  inside_sales_transact: "Inside Sales Transact",
+  pass: "Pass",
+  fail: "Fail",
 };
 
 interface StatusBadgeProps {
@@ -37,7 +62,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
   const style = STATUS_STYLES[status] || "bg-slate/10 text-slate";
-  const label = LABEL_MAP[status] || status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+  const label = STATUS_LABELS[status] || status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style} ${className}`}>
       {label}

@@ -23,8 +23,11 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({ success: true });
 
+    const isProd = process.env.NODE_ENV === "production";
+
     response.cookies.set("haiwave_session", tokens.access_token, {
       httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: tokens.expires_in,
       path: "/",
@@ -32,6 +35,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set("haiwave_refresh", tokens.refresh_token, {
       httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: 86400, // 24 hours
       path: "/",

@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession, getToken } from "@/lib/auth";
+import { isJwtLike } from "@/lib/with-hai-core";
 
 const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
 
+// Allowlist: the only admin action slugs the BFF is allowed to relay.
+// Anything else is a path-injection attempt and must be rejected.
+const ACTION_SLUGS = new Set([
+  "suspend",
+  "reactivate",
+  "clear-ban",
+  "override-tier",
+  "override-score",
+]);
+
 export async function POST(request: NextRequest) {
-  const token = request.cookies.get("haiwave_session")?.value;
-  const body = await request.json();
-  const action = body.action as string;
-  delete body.action;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const token = await getToken();
+  if (!isJwtLike(token)) return NextResponse.json({ error: "No token" }, { status: 401 });
+
+  const { action, ...rest } = (await request.json()) as { action?: unknown; [key: string]: unknown };
+  if (typeof action !== "string" || !ACTION_SLUGS.has(action)) {
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  }
 
   try {
     const res = await fetch(`${API_URL}/api/v1/admin/actions/${action}`, {
@@ -16,13 +35,11 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         "X-HaiWave-Protocol-Version": "1.0.0",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(rest),
     });
-
     if (!res.ok) {
       return NextResponse.json({ error: `haiCore ${res.status}` }, { status: res.status });
     }
-
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Failed to reach haiCore" }, { status: 502 });

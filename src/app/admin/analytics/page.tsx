@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { StatCard } from "@/components/stat-card";
-import { TrendSparkline } from "@/components/trend-sparkline";
+import { useApi } from "@/lib/use-api";
 
 interface ConnectionAnalytics {
   approval_rate_30d: number;
@@ -27,14 +26,10 @@ const MOCK_ANALYTICS: ConnectionAnalytics = {
 };
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<ConnectionAnalytics>(MOCK_ANALYTICS);
-
-  useEffect(() => {
-    fetch("/api/admin/dashboard?type=connections")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setData(d); })
-      .catch(() => {});
-  }, []);
+  const { data } = useApi<ConnectionAnalytics>({
+    url: "/api/admin/dashboard?type=connections",
+    fallback: MOCK_ANALYTICS,
+  });
 
   return (
     <div className="space-y-8">

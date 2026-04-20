@@ -2,33 +2,38 @@
 
 import { useState, useEffect } from "react";
 import { DataTable, Column } from "@/components/data-table";
-import { StatusBadge } from "@/components/status-badge";
+import { StatusBadge, STATUS_LABELS } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
-import { MOCK_USERS, MockUser } from "@/lib/mock-data";
+import type { MockUser } from "@/lib/mock-types";
 import { useApi } from "@/lib/use-api";
+import { useToast } from "@/lib/use-toast";
 
-const ROLES = ["account_admin", "account_viewer"] as const;
+const ROLES = [
+  "procurement_read_only",
+  "procurement_transact",
+  "buyer_view_only",
+  "buyer_request_quote",
+  "buyer_full_transact",
+  "inside_sales_read_only",
+  "inside_sales_transact",
+] as const;
+
 
 export function UsersTable() {
-  const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: MOCK_USERS });
+  const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
   const [users, setUsers] = useState<MockUser[]>(apiUsers);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<string>("account_viewer");
+  const [inviteRole, setInviteRole] = useState<string>("buyer_view_only");
   const [editRole, setEditRole] = useState<string>("");
-  const [toast, setToast] = useState("");
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
     setUsers(apiUsers);
   }, [apiUsers]);
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   function handleInvite() {
     if (!inviteEmail) return;
@@ -162,7 +167,7 @@ export function UsersTable() {
               className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
             >
               {ROLES.map((r) => (
-                <option key={r} value={r}>{r === "account_admin" ? "Admin" : "Viewer"}</option>
+                <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
               ))}
             </select>
           </div>
@@ -185,7 +190,7 @@ export function UsersTable() {
             className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
           >
             {ROLES.map((r) => (
-              <option key={r} value={r}>{r === "account_admin" ? "Admin" : "Viewer"}</option>
+              <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
             ))}
           </select>
           <div className="flex gap-3 justify-end">

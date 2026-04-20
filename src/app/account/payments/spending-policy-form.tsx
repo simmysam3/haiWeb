@@ -24,8 +24,8 @@ export function SpendingPolicyForm() {
   const [saved, setSaved] = useState(false);
 
   const { data: policy, loading } = useApi<SpendingPolicyData>({
-    path: "/policies/spending/current",
-    fallback: null,
+    url: "/api/account/policies",
+    fallback: null as unknown as SpendingPolicyData,
   });
 
   if (loading) {

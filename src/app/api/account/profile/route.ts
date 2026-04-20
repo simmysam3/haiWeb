@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_SESSION } from "@/lib/mock-data";
 
 /**
@@ -8,30 +8,17 @@ import { MOCK_SESSION } from "@/lib/mock-data";
  *
  * Returns company profile from haiCore. Falls back to mock session participant.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json(MOCK_SESSION.participant);
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-    const profile = await client.getCompanyProfile(session.participant.id);
-    return NextResponse.json(profile);
-  } catch {
-    return NextResponse.json(MOCK_SESSION.participant);
-  }
-}
+export const GET = withHaiCore(
+  ({ client, session }) => client.getCompanyProfile(session.participant.id),
+  { fallback: MOCK_SESSION.participant },
+);
 
 /**
  * PUT /api/account/profile
  *
  * Updates company profile via haiCore. Requires account_admin or higher.
+ * NOTE: This handler bypasses createHaiwaveClient to hit the v1 company profile
+ * endpoint directly because the client does not currently expose it.
  */
 export async function PUT(request: NextRequest) {
   const session = await getSession();

@@ -7,7 +7,8 @@ import { Button } from "@/components/button";
 import { PricingTree, PricingNode } from "@/components/pricing-tree";
 import { PricingLevelEditor } from "@/components/pricing-level-editor";
 import { useApi } from "@/lib/use-api";
-import { MOCK_PRICING_HIERARCHY, MockPricingNode } from "@/lib/mock-data";
+import { useToast } from "@/lib/use-toast";
+import type { MockPricingNode } from "@/lib/mock-types";
 
 function convertMockNodes(nodes: MockPricingNode[]): PricingNode[] {
   return nodes.map((n) => ({
@@ -56,15 +57,13 @@ function updateNodeInTree(nodes: PricingNode[], id: string, updater: (n: Pricing
 }
 
 export default function PricingPage() {
-  const [hierarchy, setHierarchy] = useState<PricingNode[]>(() =>
-    convertMockNodes(MOCK_PRICING_HIERARCHY),
-  );
+  const [hierarchy, setHierarchy] = useState<PricingNode[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [toast, setToast] = useState("");
+  const { toast, showToast } = useToast();
 
   const pricingApi = useApi<MockPricingNode[]>({
     url: "/api/account/pricing",
-    fallback: MOCK_PRICING_HIERARCHY,
+    fallback: [],
   });
 
   useEffect(() => {
@@ -86,11 +85,6 @@ export default function PricingPage() {
   }, [hierarchy, selectedId]);
 
   const selectedNode = selectedId ? findNode(hierarchy, selectedId) : null;
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
 
   const handleSave = useCallback(async (data: Record<string, unknown>) => {
     // Optimistic update

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getToken, hasRole } from "@/lib/auth";
 import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_ACCESS_REQUESTS } from "@/lib/mock-data";
 
 /**
@@ -8,30 +9,55 @@ import { MOCK_ACCESS_REQUESTS } from "@/lib/mock-data";
  *
  * Lists pending connection requests from haiCore. Falls back to mock data.
  */
-export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withHaiCore(
+  async ({ client }) => {
+    const result = (await client.listPendingRequests()) as unknown as Array<{
+      id: string;
+      company_name?: string;
+      contact_name?: string;
+      message?: string;
+      requested_at?: string;
+      industry?: string;
+      location?: string;
+      business_type?: string;
+      company_description?: string;
+      behavioral_score?: number | null;
+      product_lines?: string[];
+      region?: string;
+      network_member_since?: string | null;
+      request_type?: "approved" | "trading_pair";
+      invite?: boolean;
+      age_days?: number;
+    }>;
 
-  try {
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json(MOCK_ACCESS_REQUESTS);
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
-    const requests = await client.listPendingRequests();
-    return NextResponse.json(requests);
-  } catch {
-    return NextResponse.json(MOCK_ACCESS_REQUESTS);
-  }
-}
+    // Map haiCore response to the shape the UI expects (MockAccessRequest)
+    return result.map((r) => ({
+      id: r.id,
+      company_name: r.company_name ?? "",
+      contact_name: r.contact_name ?? "",
+      message: r.message ?? "",
+      requested_at: r.requested_at ?? new Date().toISOString(),
+      industry: r.industry ?? "",
+      location: r.location ?? "",
+      business_type: r.business_type ?? "",
+      company_description: r.company_description ?? "",
+      behavioral_score: r.behavioral_score ?? null,
+      product_lines: r.product_lines ?? [],
+      region: r.region ?? "",
+      network_member_since: r.network_member_since ?? null,
+      request_type: r.request_type ?? "approved",
+      invite: r.invite ?? false,
+      age_days: r.age_days ?? 0,
+    }));
+  },
+  { fallback: MOCK_ACCESS_REQUESTS },
+);
 
 /**
  * POST /api/account/connections
  *
  * Requests a new connection via haiCore. Requires account_admin or higher.
+ * Returns 201 on success, so kept outside withHaiCore to preserve semantics.
  */
 export async function POST(request: NextRequest) {
   const session = await getSession();

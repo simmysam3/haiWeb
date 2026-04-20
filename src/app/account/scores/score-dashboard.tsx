@@ -5,38 +5,33 @@ import { Card } from "@/components/card";
 import { ScoreBar } from "@/components/score-bar";
 import { Tabs } from "@/components/tabs";
 import { useApi } from "@/lib/use-api";
+import { scoreTextClass, scoreRingClass } from "@/lib/score-tier";
 import {
-  MOCK_SCORES,
-  MOCK_SCORE_COMPOSITE,
-  MOCK_SCORE_HISTORY,
   MOCK_VENDOR_SCORES,
   MOCK_BUYER_SCORES,
-  type MockScore,
 } from "@/lib/mock-data";
+import type { MockScore } from "@/lib/mock-types";
+
+interface ScoreHistory {
+  "30d": number[];
+  "60d": number[];
+  "90d": number[];
+}
 
 interface ScoresApiResponse {
   composite: number;
   components: MockScore[];
-  history: typeof MOCK_SCORE_HISTORY;
+  history: ScoreHistory;
 }
 
 const SCORES_FALLBACK: ScoresApiResponse = {
-  composite: MOCK_SCORE_COMPOSITE,
-  components: MOCK_SCORES,
-  history: MOCK_SCORE_HISTORY,
+  composite: 0,
+  components: [],
+  history: { "30d": [], "60d": [], "90d": [] },
 };
 
-function compositeColor(score: number): string {
-  if (score >= 90) return "text-success";
-  if (score >= 70) return "text-teal";
-  return "text-problem";
-}
-
-function compositeRingColor(score: number): string {
-  if (score >= 90) return "border-success";
-  if (score >= 70) return "border-teal";
-  return "border-problem";
-}
+const compositeColor = scoreTextClass;
+const compositeRingColor = scoreRingClass;
 
 const TREND_TABS = [
   { key: "30d", label: "30 Days" },
@@ -127,7 +122,7 @@ export function ScoreDashboard() {
             <div className={`text-2xl font-bold ${compositeColor(MOCK_BUYER_SCORES.composite)}`}>
               {MOCK_BUYER_SCORES.composite}
             </div>
-            <p className="text-sm text-slate">Overall buyer performance</p>
+            <p className="text-sm text-slate">Network activity decile based on active trading pairs</p>
           </div>
           <div className="space-y-3">
             {MOCK_BUYER_SCORES.components.map((c) => (

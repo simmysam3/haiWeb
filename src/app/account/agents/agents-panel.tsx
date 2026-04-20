@@ -5,12 +5,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { Card } from "@/components/card";
-import { MOCK_AGENTS, MockAgent } from "@/lib/mock-data";
-// BFF route available for individual agent status: /api/account/agents/[agentId]
-// No list endpoint exists yet, so agents are loaded from mock data.
-// When a list endpoint is added, wire it with:
-//   import { useApi } from "@/lib/use-api";
-//   const { data: agents } = useApi({ url: "/api/account/agents", fallback: MOCK_AGENTS });
+import { MOCK_AGENTS } from "@/lib/mock-data";
+import type { MockAgent } from "@/lib/mock-types";
+import { useToast } from "@/lib/use-toast";
 
 function keyAgeColor(days: number): string {
   if (days === 0) return "bg-slate/10 text-slate";
@@ -32,16 +29,11 @@ export function AgentsPanel() {
   const [newAgentId] = useState(() => crypto.randomUUID());
   const [newTypes, setNewTypes] = useState({ cs: true, sales: true, procurement: true });
   const [decommissionAgent, setDecommissionAgent] = useState<MockAgent | null>(null);
-  const [toast, setToast] = useState("");
-
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  }
+  const { toast, showToast } = useToast();
 
   function handleRegister() {
     const newAgent: MockAgent = {
-      id: `a-${newAgentId.slice(0, 8)}-${newAgentId.slice(9, 13)}-${newAgentId.slice(14, 18)}-${newAgentId.slice(19, 23)}-${newAgentId.slice(24)}`,
+      id: `a-${newAgentId}`,
       status: "offline",
       types: [
         { key: "cs_agent_key", label: "Customer Service", enabled: newTypes.cs, age_days: newTypes.cs ? 0 : 0 },

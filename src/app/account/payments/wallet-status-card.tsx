@@ -38,13 +38,14 @@ export function WalletStatusCard() {
   const [registering, setRegistering] = useState(false);
 
   const { data: wallet, loading, error, refetch } = useApi<WalletData>({
-    path: "/wallets/current",
-    fallback: null,
+    url: "/api/account/wallet",
+    fallback: null as unknown as WalletData,
   });
 
   const { data: balance } = useApi<BalanceData>({
-    path: wallet ? `/wallets/${wallet.id}/balance` : null,
-    fallback: null,
+    url: wallet ? `/api/account/wallet/${wallet.id}/balance` : "/api/account/wallet",
+    fallback: null as unknown as BalanceData,
+    enabled: !!wallet,
   });
 
   if (loading) {
