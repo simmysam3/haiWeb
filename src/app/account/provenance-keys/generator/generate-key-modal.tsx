@@ -14,9 +14,10 @@ export interface GenerateKeyModalProps {
 
 export function GenerateKeyModal({ open, onClose, onGenerated }: GenerateKeyModalProps) {
   const [friendlyName, setFriendlyName] = useState('');
-  const [required, setRequired] = useState<PermissionField[]>([]);
+  const [required, setRequired] = useState<PermissionField[]>(['state_province', 'vendor_name']);
   const [requested, setRequested] = useState<PermissionField[]>([]);
   const [purpose, setPurpose] = useState('');
+  const [policyUrl, setPolicyUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export function GenerateKeyModal({ open, onClose, onGenerated }: GenerateKeyModa
           required_fields: required,
           requested_fields: requested,
           purpose: purpose || undefined,
+          policy_url: policyUrl.trim() || undefined,
         }),
       });
       if (!res.ok) {
@@ -77,6 +79,22 @@ export function GenerateKeyModal({ open, onClose, onGenerated }: GenerateKeyModa
             onChange={(e) => setPurpose(e.target.value)}
             className="w-full rounded border border-slate/30 px-3 py-2 text-sm"
           />
+        </div>
+        <div>
+          <label htmlFor="gen-policy-url" className="block text-sm font-medium text-charcoal mb-1">
+            Vendor policy URL (optional)
+          </label>
+          <input
+            id="gen-policy-url"
+            type="url"
+            placeholder="https://example.com/defense-supply-chain-policy.pdf"
+            value={policyUrl}
+            onChange={(e) => setPolicyUrl(e.target.value)}
+            className="w-full rounded border border-slate/30 px-3 py-2 text-sm"
+          />
+          <p className="text-xs text-slate mt-1">
+            Link to the compliance document or regulation this key enforces (DFARS, FDA, UFLPA, internal policy, etc.).
+          </p>
         </div>
         <div>
           <h4 className="text-sm font-medium text-charcoal mb-2">Required fields</h4>
