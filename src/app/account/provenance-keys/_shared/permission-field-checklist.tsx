@@ -2,48 +2,17 @@
 
 import type { PermissionField } from '@haiwave/protocol';
 
-/**
- * Inlined from @haiwave/protocol to avoid Turbopack Windows symlink resolution
- * failure when importing CJS runtime values from a file: package. Remove this
- * inline once the symlink limitation is resolved and restore the protocol import.
- */
+// Turbopack + file: symlink: inline mirror of @haiwave/protocol (sync-comment required).
+// Source of truth: packages/protocol/src/provenance/permission-fields.ts (v3.1.0 — Step 1).
 const CANONICAL_PERMISSION_FIELDS = [
-  // Location
-  'facility_country',
-  'facility_region',
-  'facility_id',
-  'facility_name',
-  'facility_type',
-  // Process
-  'entry_type',
-  // Compliance
-  'verification_method',
-  'verification_date',
-  'domestic_context',
-  // Chain depth
-  'subcomponent_origins',
-  // Traceability
-  'batch_number',
-  'manufacturing_date',
-  // Metadata
-  'provenance_depth',
-] as const satisfies readonly PermissionField[];
+  'state_province',
+  'city',
+  'plant_address',
+  'plant_identifier',
+  'vendor_name',
+] as const;
 
-const PERMISSION_FIELD_CATEGORIES: Record<PermissionField, string> = {
-  facility_country: 'location',
-  facility_region: 'location',
-  facility_id: 'location',
-  facility_name: 'location',
-  facility_type: 'location',
-  entry_type: 'process',
-  verification_method: 'compliance',
-  verification_date: 'compliance',
-  domestic_context: 'compliance',
-  subcomponent_origins: 'chain_depth',
-  batch_number: 'traceability',
-  manufacturing_date: 'traceability',
-  provenance_depth: 'metadata',
-};
+// PERMISSION_FIELD_CATEGORIES removed — redundant at 5 fields.
 
 export interface PermissionFieldChecklistProps {
   value: readonly PermissionField[];
@@ -80,9 +49,6 @@ export function PermissionFieldChecklist({
           />
           <label htmlFor={`field-${field}`} className="text-sm text-charcoal">
             <span className="font-mono">{field}</span>
-            <span className="ml-2 text-xs text-slate">
-              ({PERMISSION_FIELD_CATEGORIES[field]})
-            </span>
             {disabledReasons?.[field] && (
               <span className="ml-2 text-xs text-slate italic">
                 — {disabledReasons[field]}
