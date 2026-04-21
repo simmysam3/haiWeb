@@ -1,4 +1,6 @@
-// Placeholder stub — full implementation lands in Task 22.
+'use client';
+import Link from 'next/link';
+
 export function GapsPanel({
   totalGaps,
   latestAt,
@@ -6,9 +8,29 @@ export function GapsPanel({
   totalGaps: number | null;
   latestAt: string | null;
 }) {
+  if (latestAt === null) {
+    return (
+      <div className="rounded border border-slate/10 bg-layer-1 p-4">
+        <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
+        <p className="text-sm text-slate">No audit has been run yet.</p>
+      </div>
+    );
+  }
   return (
-    <div className="p-4 rounded border border-slate/10">
-      Gaps: {totalGaps ?? 0} (as of {latestAt ?? 'never'})
+    <div className="rounded border border-slate/10 bg-layer-1 p-4">
+      <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
+      <p className="text-sm text-charcoal">{totalGaps ?? 0} gap nodes in the latest audit.</p>
+      <p className="text-xs text-slate mt-2">
+        Typical causes: non-participant suppliers, missing keys, depth-limited branches. Drill into a specific run for per-node detail.
+      </p>
+      <div className="mt-3 rounded bg-teal/5 border border-teal/30 p-2">
+        <Link href="/account/provenance-keys" className="text-teal text-sm font-medium underline">
+          Manage provenance keys →
+        </Link>
+        <p className="text-xs text-slate mt-1">
+          Install keys with vendors to reduce <em>unauthorized</em> gaps.
+        </p>
+      </div>
     </div>
   );
 }
