@@ -33,6 +33,10 @@ import type {
   AuditScope,
   AuditScopeCreationRequest,
   AuditScopeCoverage,
+  AuditRun,
+  AuditRunResult,
+  RunTriggerRequest,
+  RefreshVendorRequest,
 } from '@haiwave/protocol';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
@@ -282,6 +286,15 @@ export interface HaiwaveClient {
   }): Promise<{ scopes: AuditScope[] }>;
   deleteAuditScope(scopeId: string): Promise<void>;
   getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
+  // Audit Runs (v1.25)
+  triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
+  refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
+  listAuditRuns(opts?: { status?: string; limit?: number }): Promise<{ runs: AuditRun[] }>;
+  getAuditRun(runId: string): Promise<AuditRun>;
+  getAuditRunResults(
+    runId: string,
+    opts?: { vendorId?: string; productId?: string },
+  ): Promise<{ results: AuditRunResult[] }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -653,6 +666,45 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<AuditScopeCoverage>(
         'GET',
         `/audit-coverage?vendor_id=${encodeURIComponent(vendorId)}`,
+      );
+    },
+
+    // ─── Audit Runs (v1.25) ──────────────────────────────────
+    triggerAuditRun(body = {}) {
+      return request<{ run_id: string; status: string }>(
+        'POST',
+        '/source-audit/runs',
+        body,
+      );
+    },
+    refreshVendorAudit(body) {
+      return request<{ run_id: string; status: string }>(
+        'POST',
+        '/source-audit/runs/refresh-vendor',
+        body,
+      );
+    },
+    listAuditRuns(opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.status) params.set('status', opts.status);
+      if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      const q = params.toString();
+      return request<{ runs: AuditRun[] }>(
+        'GET',
+        `/source-audit/runs${q ? `?${q}` : ''}`,
+      );
+    },
+    getAuditRun(runId) {
+      return request<AuditRun>('GET', `/source-audit/runs/${runId}`);
+    },
+    getAuditRunResults(runId, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.vendorId) params.set('vendor_id', opts.vendorId);
+      if (opts.productId) params.set('product_id', opts.productId);
+      const q = params.toString();
+      return request<{ results: AuditRunResult[] }>(
+        'GET',
+        `/source-audit/runs/${runId}/results${q ? `?${q}` : ''}`,
       );
     },
   };
