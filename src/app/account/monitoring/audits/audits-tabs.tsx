@@ -11,7 +11,7 @@ interface Tab {
 
 const tabs: Tab[] = [
   { segment: "dashboard", label: "Dashboard", href: "/account/monitoring/audits/dashboard" },
-  { segment: "scopes", label: "Scope library", href: "/account/monitoring/audits/scopes" },
+  { segment: "scope-library", label: "Scope library", href: "/account/monitoring/audits/scope-library" },
   { segment: "runs", label: "Runs", href: "/account/monitoring/audits/runs" },
 ];
 
