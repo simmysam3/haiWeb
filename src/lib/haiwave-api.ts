@@ -339,12 +339,22 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       });
     },
 
-    listPendingRequests() {
-      return request<ConnectionRecord[]>("GET", "/connections/pending");
+    async listPendingRequests() {
+      // haiCore envelopes as { requests: [...] }; unwrap so callers get a plain array.
+      const envelope = await request<{ requests?: ConnectionRecord[] }>(
+        "GET",
+        "/connections/pending",
+      );
+      return envelope.requests ?? [];
     },
 
-    listActiveConnections() {
-      return request<ConnectionRecord[]>("GET", "/connections/active");
+    async listActiveConnections() {
+      // haiCore envelopes as { connections: [...] }; unwrap so callers get a plain array.
+      const envelope = await request<{ connections?: ConnectionRecord[] }>(
+        "GET",
+        "/connections/active",
+      );
+      return envelope.connections ?? [];
     },
 
     approveRequest(requestId) {
