@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { AuditScope } from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
 
 export function ScopeTable({
   initialScopes,
+  emptyMessage,
 }: {
   initialScopes: AuditScope[];
+  emptyMessage?: ReactNode;
 }) {
   const [scopes, setScopes] = useState<AuditScope[]>(initialScopes);
 
@@ -71,14 +73,18 @@ export function ScopeTable({
         {scopes.length === 0 && (
           <tr>
             <td colSpan={5} className="py-4 text-slate text-center">
-              No scopes yet. Configure from a{' '}
-              <Link
-                href="/account/partners"
-                className="text-teal underline hover:text-navy"
-              >
-                Partner&apos;s Catalog
-              </Link>{' '}
-              tab.
+              {emptyMessage ?? (
+                <>
+                  No scopes yet. Configure from a{' '}
+                  <Link
+                    href="/account/partners"
+                    className="text-teal underline hover:text-navy"
+                  >
+                    Partner&apos;s Catalog
+                  </Link>{' '}
+                  tab.
+                </>
+              )}
             </td>
           </tr>
         )}
