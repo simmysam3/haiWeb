@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
 import { ScopeTable } from './scope-table';
@@ -36,6 +37,24 @@ export default async function ScopeLibraryPage() {
         All your audit scopes across vendors. Disable removes from active
         coverage.
       </p>
+
+      <div className="mb-6 rounded border border-slate/15 bg-layer-1 p-3 text-xs text-slate">
+        <p className="text-charcoal font-medium mb-1">About disclosure keys</p>
+        <p>
+          Scopes above define <em>what</em> you audit. To unlock fields beyond
+          country-of-origin — state, city, vendor identity — issue a{' '}
+          <strong>provenance key</strong> and share it out-of-band with your
+          vendors. Each vendor installs your key to opt into disclosure. One
+          key can be distributed to any number of vendors.
+        </p>
+        <Link
+          href="/account/provenance-keys"
+          className="mt-2 inline-block text-teal hover:text-navy font-medium"
+        >
+          Generate a disclosure key &rarr;
+        </Link>
+      </div>
+
       <ScopeTable initialScopes={scopes} />
     </div>
   );

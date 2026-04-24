@@ -39,12 +39,11 @@ export function KeyNudgeBanner({ vendorId }: { vendorId: string }) {
   if (!show) return null;
 
   return (
-    <div className="mb-4 rounded border border-orange/40 bg-orange/5 p-3 text-sm text-charcoal">
-      You have no provenance key installed with this vendor. Audits will return country-of-origin and operational status only.{' '}
-      <Link href="/account/provenance-keys" className="text-teal underline">
-        Install a key
-      </Link>{' '}
-      for state, city, and vendor-identity detail.
+    <div className="mb-4 border-l-2 border-l-orange pl-3 py-1.5 text-xs text-slate">
+      Only country-of-origin is unlocked for this vendor. For state, city, and vendor-identity detail, issue a provenance key and have this vendor install it.{' '}
+      <Link href="/account/provenance-keys" className="text-teal hover:text-navy">
+        Generate a key &rarr;
+      </Link>
     </div>
   );
 }
