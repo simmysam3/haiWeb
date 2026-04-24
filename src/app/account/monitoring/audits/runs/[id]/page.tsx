@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { TreeView } from './tree-view';
 import { RollupPanel } from './rollup-panel';
+import { IdChip } from '@/components/id-chip';
 
 async function load(
   runId: string,
@@ -68,8 +69,19 @@ export default async function RunDetailPage({
               key={r.result_id}
               className="rounded border border-slate/10 bg-layer-1 p-3"
             >
-              <div className="text-sm font-mono text-slate">
-                {r.product_id} @ {r.vendor_participant_id}
+              <div className="mb-3 flex items-baseline gap-4 flex-wrap pb-2 border-b border-slate/10">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate">Product</div>
+                  <div className="text-sm font-mono text-charcoal">{r.product_id}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate">Vendor</div>
+                  {r.tree.vendor_legal_name ? (
+                    <div className="text-sm text-charcoal">{r.tree.vendor_legal_name}</div>
+                  ) : (
+                    <IdChip id={r.vendor_participant_id} />
+                  )}
+                </div>
               </div>
               <TreeView node={r.tree} />
             </div>

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { AuditScope } from '@haiwave/protocol';
+import { IdChip } from '@/components/id-chip';
 
 export function ScopeTable({
   initialScopes,
@@ -39,8 +41,8 @@ export function ScopeTable({
       <tbody>
         {scopes.map((s) => (
           <tr key={s.scope_id} className="border-b border-slate/5">
-            <td className="py-2 font-mono text-xs">
-              {s.vendor_participant_id}
+            <td className="py-2" title={s.vendor_participant_id}>
+              {s.vendor_legal_name ?? <IdChip id={s.vendor_participant_id} />}
             </td>
             <td>
               {s.scope_type}
@@ -69,7 +71,14 @@ export function ScopeTable({
         {scopes.length === 0 && (
           <tr>
             <td colSpan={5} className="py-4 text-slate text-center">
-              No scopes yet. Configure from a Partner&apos;s Catalog tab.
+              No scopes yet. Configure from a{' '}
+              <Link
+                href="/account/partners"
+                className="text-teal underline hover:text-navy"
+              >
+                Partner&apos;s Catalog
+              </Link>{' '}
+              tab.
             </td>
           </tr>
         )}

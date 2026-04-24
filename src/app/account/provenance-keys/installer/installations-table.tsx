@@ -5,6 +5,7 @@ import type { ProvenanceKeyInstallation, SharingPolicy } from '@haiwave/protocol
 import { ComplianceChip } from '../_shared/compliance-chip';
 import { InstallationDetailsDrawer } from './installation-details-drawer';
 import { InstallKeyModal } from './install-key-modal';
+import { IdChip } from '@/components/id-chip';
 
 export interface InstallationsTableProps {
   installations: ProvenanceKeyInstallation[];
@@ -55,7 +56,7 @@ export function InstallationsTable({
                 className="border-b border-slate/10 cursor-pointer hover:bg-navy/5"
                 onClick={() => setSelected(i)}
               >
-                <td className="py-3 font-mono text-xs text-charcoal">{i.key_id.slice(0, 8)}&hellip;</td>
+                <td className="py-3"><IdChip id={i.key_id} /></td>
                 <td className="py-3 text-slate">
                   {new Date(i.installed_at).toLocaleDateString()}
                 </td>

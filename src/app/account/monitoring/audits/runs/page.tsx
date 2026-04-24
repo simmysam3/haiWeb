@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditRun } from '@haiwave/protocol';
+import { getActiveScopes } from '../_lib/scopes';
+import { NoScopesCTA } from '../_shared/no-scopes-cta';
 
 async function loadRuns(): Promise<AuditRun[]> {
   const cookieHeader = (await cookies()).toString();
@@ -23,6 +25,14 @@ async function loadRuns(): Promise<AuditRun[]> {
 }
 
 export default async function RunsPage() {
+  const scopes = await getActiveScopes();
+  if (scopes.length === 0) {
+    return (
+      <div className="p-6">
+        <NoScopesCTA context="runs" />
+      </div>
+    );
+  }
   const runs = await loadRuns();
   return (
     <div className="p-6">

@@ -9,12 +9,12 @@ export function GeoChart({ data }: { data: GeoRollupEntry[] }) {
       {data.length === 0 ? (
         <p className="text-sm text-slate">No audit data yet. Run an audit to populate the dashboard.</p>
       ) : (
-        <ResponsiveContainer width="100%" height={Math.max(200, data.length * 28)}>
+        <ResponsiveContainer width="100%" height={Math.max(140, data.length * 36)}>
           <BarChart data={data} layout="vertical" margin={{ left: 40 }}>
             <XAxis type="number" tickLine={false} axisLine={false} />
             <YAxis type="category" dataKey="country_of_origin" tickLine={false} axisLine={false} width={80} />
             <Tooltip formatter={(v) => `${v ?? 0} components`} />
-            <Bar dataKey="component_count" radius={[0, 4, 4, 0]}>
+            <Bar dataKey="component_count" radius={[0, 4, 4, 0]} maxBarSize={28}>
               {data.map((e, i) => (
                 <Cell
                   key={i}

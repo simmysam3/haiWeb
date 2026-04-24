@@ -5,6 +5,7 @@ import { Card } from "@/components/card";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { DataTable, type Column } from "@/components/data-table";
+import { IdChip } from "@/components/id-chip";
 import { useToast } from "@/lib/use-toast";
 import { useApi } from "@/lib/use-api";
 import type {
@@ -111,7 +112,7 @@ export function ReviewQueuePanel() {
     {
       key: 'product_id',
       label: 'Product ID',
-      render: (r) => <span className="font-mono text-sm">{r.product_id}</span>,
+      render: (r) => <IdChip id={r.product_id} className="text-sm" />,
     },
     {
       key: 'unclassifiable_reason',
@@ -164,7 +165,7 @@ export function ReviewQueuePanel() {
         {activeAction && (
           <div className="space-y-4">
             <div className="text-sm text-slate">
-              Product: <span className="font-mono">{activeAction.product.product_id}</span>
+              Product: <IdChip id={activeAction.product.product_id} />
             </div>
 
             {activeAction.action === 'reassign' && (

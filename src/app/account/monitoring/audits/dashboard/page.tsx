@@ -3,6 +3,8 @@ import type { AuditRun, AuditRunResult, GeoRollupEntry } from '@haiwave/protocol
 import { GeoChart } from './geo-chart';
 import { GapsPanel } from './gaps-panel';
 import { RunControls } from './run-controls';
+import { getActiveScopes } from '../_lib/scopes';
+import { NoScopesCTA } from '../_shared/no-scopes-cta';
 
 interface DashboardData {
   rollup: GeoRollupEntry[];
@@ -79,6 +81,14 @@ async function loadDashboard(): Promise<DashboardData> {
 }
 
 export default async function DashboardPage() {
+  const scopes = await getActiveScopes();
+  if (scopes.length === 0) {
+    return (
+      <div className="p-6">
+        <NoScopesCTA context="dashboard" />
+      </div>
+    );
+  }
   const data = await loadDashboard();
   return (
     <div className="p-6 space-y-6">

@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { Card } from "@/components/card";
+import { IdChip } from "@/components/id-chip";
 import { MOCK_AGENTS } from "@/lib/mock-data";
 import type { MockAgent } from "@/lib/mock-types";
 import { useToast } from "@/lib/use-toast";
@@ -91,7 +92,7 @@ ${newTypes.procurement ? `HAIWAVE_PROCUREMENT_AGENT_KEY=proc-key-${newAgentId.sl
               <div className="flex items-center gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-charcoal">{agent.id.slice(0, 16)}...</span>
+                    <IdChip id={agent.id} className="text-sm" />
                     <button onClick={() => copyToClipboard(agent.id)} className="text-xs text-teal-dark hover:underline">
                       Copy
                     </button>
@@ -206,7 +207,7 @@ ${newTypes.procurement ? `HAIWAVE_PROCUREMENT_AGENT_KEY=proc-key-${newAgentId.sl
       <Modal open={!!decommissionAgent} onClose={() => setDecommissionAgent(null)} title="Decommission Agent">
         <div className="space-y-4">
           <p className="text-sm text-charcoal">
-            Are you sure you want to decommission agent <strong className="font-mono">{decommissionAgent?.id.slice(0, 16)}...</strong>?
+            Are you sure you want to decommission agent {decommissionAgent && <IdChip id={decommissionAgent.id} />}?
           </p>
           <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
             This agent will have a 24-hour grace period before credentials are revoked. After that, it cannot reconnect.

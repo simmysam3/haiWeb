@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/card";
+import { IdChip } from "@/components/id-chip";
 import { useApi } from "@/lib/use-api";
 
 interface PaymentRecord {
@@ -79,10 +80,10 @@ export function PaymentHistoryTable() {
             <tbody>
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-gray-100">
-                  <td className="py-2 pr-4 font-mono text-xs">{p.order_id.slice(0, 8)}...</td>
+                  <td className="py-2 pr-4"><IdChip id={p.order_id} /></td>
                   <td className="py-2 pr-4 font-medium text-teal">${p.amount_usdc.toLocaleString()}</td>
                   <td className="py-2 pr-4">{statusBadge(p.payment_status)}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{p.vendor_address.slice(0, 10)}...</td>
+                  <td className="py-2 pr-4"><IdChip id={p.vendor_address} chars={10} /></td>
                   <td className="py-2 pr-4">
                     {p.settlement_tx_hash ? (
                       <a
