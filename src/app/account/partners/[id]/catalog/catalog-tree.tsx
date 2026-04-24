@@ -20,6 +20,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
   const [products, setProducts] = useState<Record<string, ProductsState>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [mutating, setMutating] = useState(false);
 
   const refreshCoverage = useCallback(async () => {
@@ -54,6 +55,15 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
             `/api/account/audit-scopes?vendor_id=${encodeURIComponent(vendorId)}&active_only=true`,
           ),
         ]);
+        // 403 from any of these means the caller has no trading relationship
+        // with the vendor — surface a dedicated access-denied state rather
+        // than a generic failure message.
+        if (classesRes.status === 403 || covRes.status === 403 || scopesRes.status === 403) {
+          if (cancelled) return;
+          setAccessDenied(true);
+          setLoading(false);
+          return;
+        }
         if (!classesRes.ok) throw new Error(`Failed to load classes (${classesRes.status})`);
         if (!covRes.ok) throw new Error(`Failed to load coverage (${covRes.status})`);
         if (!scopesRes.ok) throw new Error(`Failed to load scopes (${scopesRes.status})`);
@@ -256,6 +266,27 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
 
   if (loading) {
     return <div className="text-sm text-slate italic">Loading catalog&hellip;</div>;
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="rounded-lg border border-slate/20 bg-layer-1 p-6 text-center">
+        <h3 className="text-base font-semibold text-charcoal mb-2">
+          No access to this vendor&apos;s catalog
+        </h3>
+        <p className="text-sm text-slate max-w-md mx-auto mb-4">
+          Auditing a vendor requires an active trading relationship or an
+          installed provenance key. This may also be your own participant
+          record — you can&apos;t audit yourself.
+        </p>
+        <a
+          href="/account/partners"
+          className="inline-block text-sm text-teal hover:text-navy font-medium"
+        >
+          &larr; Back to Partners
+        </a>
+      </div>
+    );
   }
 
   return (

@@ -311,7 +311,16 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`haiCore ${method} ${path}: ${res.status} ${text}`);
+      // Surface status + parsed error body on the thrown error so the BFF
+      // wrapper can propagate 4xx codes (e.g. 403 NO_VENDOR_ACCESS) to the
+      // client verbatim instead of masking everything as 500.
+      const err = new Error(`haiCore ${method} ${path}: ${res.status} ${text}`) as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = res.status;
+      try { err.haiCoreBody = JSON.parse(text); } catch { /* non-JSON body */ }
+      throw err;
     }
 
     const contentType = res.headers.get("content-type") ?? "";
