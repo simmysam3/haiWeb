@@ -66,6 +66,15 @@ export function buildPartnerCompliance(
     }
   }
 
+  rows.sort((a, b) => {
+    if (b.non_compliant_count !== a.non_compliant_count) {
+      return b.non_compliant_count - a.non_compliant_count;
+    }
+    const an = a.vendor_legal_name ?? '';
+    const bn = b.vendor_legal_name ?? '';
+    return an.localeCompare(bn);
+  });
+
   const allCounts: number[] = [];
   for (const vendorId of vendorIdsInScope) {
     const v = byVendor.get(vendorId);

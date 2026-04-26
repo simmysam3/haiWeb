@@ -200,4 +200,30 @@ describe('buildPartnerCompliance', () => {
     // Sorted [0, 6] -> median (0 + 6) / 2 = 3
     expect(data.median_per_vendor).toBe(3);
   });
+
+  it('sorts rows descending by non_compliant_count, then ascending by vendor_legal_name on ties', () => {
+    const run = makeRun([VENDOR_A, VENDOR_B, VENDOR_C]);
+    const data = buildPartnerCompliance(run, [
+      makeResult({
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: 'Zeta',
+        rollup: makeRollup([['CN', 5]]),
+      }),
+      makeResult({
+        vendor_participant_id: VENDOR_B,
+        vendor_legal_name: 'Alpha',
+        rollup: makeRollup([['DE', 5]]),
+      }),
+      makeResult({
+        vendor_participant_id: VENDOR_C,
+        vendor_legal_name: 'Beta',
+        rollup: makeRollup([['CN', 10]]),
+      }),
+    ]);
+    expect(data.rows.map((r) => r.vendor_legal_name)).toEqual([
+      'Beta',  // 10
+      'Alpha', // 5 (ties resolved by name asc)
+      'Zeta',  // 5
+    ]);
+  });
 });
