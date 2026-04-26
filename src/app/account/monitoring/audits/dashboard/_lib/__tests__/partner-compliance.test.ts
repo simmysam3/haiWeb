@@ -226,4 +226,20 @@ describe('buildPartnerCompliance', () => {
       'Zeta',  // 5
     ]);
   });
+
+  it('keeps vendor_legal_name as null in the row when no result provided one', () => {
+    const run = makeRun([VENDOR_A]);
+    const data = buildPartnerCompliance(run, [
+      makeResult({
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: null,
+        rollup: makeRollup([['CN', 2]]),
+      }),
+    ]);
+    expect(data.rows[0]).toEqual({
+      vendor_participant_id: VENDOR_A,
+      vendor_legal_name: null,
+      non_compliant_count: 2,
+    });
+  });
 });
