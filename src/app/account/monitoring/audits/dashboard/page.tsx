@@ -5,11 +5,14 @@ import { GapsPanel } from './gaps-panel';
 import { RunControls } from './run-controls';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
+import { PartnersChart } from './partners-chart';
+import { buildPartnerCompliance, type PartnerComplianceData } from './_lib/partner-compliance';
 
 interface DashboardData {
   rollup: GeoRollupEntry[];
   gaps: number | null;
   latestAt: string | null;
+  partnerCompliance: PartnerComplianceData | null;
 }
 
 async function loadDashboard(): Promise<DashboardData> {
@@ -35,12 +38,12 @@ async function loadDashboard(): Promise<DashboardData> {
   const runsRes = await fetchJson<{ runs: AuditRun[] }>(
     '/api/account/audit-runs?limit=25',
   );
-  if (!runsRes) return { rollup: [], gaps: null, latestAt: null };
+  if (!runsRes) return { rollup: [], gaps: null, latestAt: null, partnerCompliance: null };
 
   const latest = runsRes.runs.find(
     (r) => r.status === 'complete' || r.status === 'partial',
   );
-  if (!latest) return { rollup: [], gaps: null, latestAt: null };
+  if (!latest) return { rollup: [], gaps: null, latestAt: null, partnerCompliance: null };
 
   const resultsRes = await fetchJson<{ results: AuditRunResult[] }>(
     `/api/account/audit-runs/${latest.run_id}/results`,
@@ -50,6 +53,7 @@ async function loadDashboard(): Promise<DashboardData> {
       rollup: [],
       gaps: latest.gap_count ?? 0,
       latestAt: latest.triggered_at,
+      partnerCompliance: null,
     };
   }
 
@@ -77,6 +81,7 @@ async function loadDashboard(): Promise<DashboardData> {
     ),
     gaps: latest.gap_count ?? 0,
     latestAt: latest.triggered_at,
+    partnerCompliance: buildPartnerCompliance(latest, resultsRes.results),
   };
 }
 
@@ -107,6 +112,7 @@ export default async function DashboardPage() {
         <GeoChart data={data.rollup} />
         <GapsPanel totalGaps={data.gaps} latestAt={data.latestAt} />
       </div>
+      <PartnersChart data={data.partnerCompliance} />
     </div>
   );
 }
