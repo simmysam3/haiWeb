@@ -21,7 +21,10 @@ interface UseApiResult<T> {
  */
 export function useApi<T>({ url, fallback, enabled = true }: UseApiOptions<T>): UseApiResult<T> {
   const [data, setData] = useState<T>(fallback);
-  const [loading, setLoading] = useState(false);
+  // Start in "loading" state when enabled so callers that gate on
+  // `!loading` across multiple hooks don't mis-read the initial render
+  // as "already done" and snapshot the empty fallback.
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [trigger, setTrigger] = useState(0);
 

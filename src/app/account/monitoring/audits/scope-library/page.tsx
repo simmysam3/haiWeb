@@ -1,0 +1,62 @@
+import Link from 'next/link';
+import { cookies, headers } from 'next/headers';
+import type { AuditScope } from '@haiwave/protocol';
+import { Panel } from '@/components';
+import { ScopeTable } from './scope-table';
+
+async function loadScopes(): Promise<AuditScope[]> {
+  const cookieHeader = (await cookies()).toString();
+  const reqHeaders = await headers();
+  const host = reqHeaders.get('host') ?? 'localhost:3001';
+  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
+  const baseUrl = `${proto}://${host}`;
+
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/account/audit-scopes?active_only=false`,
+      {
+        headers: { cookie: cookieHeader },
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as { scopes?: AuditScope[] };
+    return data.scopes ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function ScopeLibraryPage() {
+  const scopes = await loadScopes();
+  return (
+    <div className="p-6">
+      <h1 className="text-xl font-semibold text-charcoal mb-4">
+        Scope library
+      </h1>
+      <p className="text-sm text-slate mb-6">
+        All your audit scopes across vendors. Disable removes from active
+        coverage.
+      </p>
+
+      <Panel className="mb-6 p-3 text-xs text-slate">
+        <p className="text-charcoal font-medium mb-1">About disclosure keys</p>
+        <p>
+          Scopes above define <em>what</em> you audit. To unlock fields beyond
+          country-of-origin — state, city, vendor identity — issue a{' '}
+          <strong>provenance key</strong> and share it out-of-band with your
+          vendors. Each vendor installs your key to opt into disclosure. One
+          key can be distributed to any number of vendors.
+        </p>
+        <Link
+          href="/account/provenance-keys"
+          className="mt-2 inline-block text-teal hover:text-navy font-medium"
+        >
+          Generate a disclosure key &rarr;
+        </Link>
+      </Panel>
+
+      <ScopeTable initialScopes={scopes} />
+    </div>
+  );
+}

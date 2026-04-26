@@ -38,3 +38,6 @@ next-env.d.ts
 # legacy static site assets (moved to public/)
 /img/
 haiwave-site.zip
+
+# Superpowers brainstorm session artifacts
+.superpowers/

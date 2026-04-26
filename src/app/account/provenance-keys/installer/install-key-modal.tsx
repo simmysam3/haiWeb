@@ -5,6 +5,14 @@ import { Modal } from '@/components/modal';
 import { mapProvenanceError } from '@/lib/provenance-key-errors';
 import type { InstallationPreview } from '@haiwave/protocol';
 
+// Local extension: the generator-side ProvenanceKey carries policy_url (Task 9),
+// but InstallationPreview in the protocol does not surface it yet. Read it
+// defensively so the install UI renders the link when the BFF/core starts
+// propagating it.
+type InstallationPreviewWithPolicy = InstallationPreview & {
+  policy_url?: string | null;
+};
+
 export interface InstallKeyModalProps {
   open: boolean;
   onClose: () => void;
@@ -21,7 +29,7 @@ async function sha256Hex(value: string): Promise<string> {
 
 export function InstallKeyModal({ open, onClose, onInstalled }: InstallKeyModalProps) {
   const [pasted, setPasted] = useState('');
-  const [preview, setPreview] = useState<InstallationPreview | null>(null);
+  const [preview, setPreview] = useState<InstallationPreviewWithPolicy | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +50,7 @@ export function InstallKeyModal({ open, onClose, onInstalled }: InstallKeyModalP
         setError(mapProvenanceError(err));
         return;
       }
-      setPreview((await res.json()) as InstallationPreview);
+      setPreview((await res.json()) as InstallationPreviewWithPolicy);
     } finally {
       setPreviewing(false);
     }
@@ -110,6 +118,21 @@ export function InstallKeyModal({ open, onClose, onInstalled }: InstallKeyModalP
             <p className="text-sm text-charcoal">
               <strong>{preview.generator_legal_name}</strong> — {preview.friendly_name}
             </p>
+            {preview.policy_url && (
+              <div className="mb-3 rounded bg-slate/5 p-3">
+                <a
+                  href={preview.policy_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal font-medium underline"
+                >
+                  View vendor policy →
+                </a>
+                <p className="text-xs text-slate mt-1">
+                  Review the policy document before accepting — installing this key binds you to its disclosure terms.
+                </p>
+              </div>
+            )}
             <ul className="text-sm">
               {preview.required_fields.map((f) => (
                 <li key={f.field} className="font-mono text-xs">

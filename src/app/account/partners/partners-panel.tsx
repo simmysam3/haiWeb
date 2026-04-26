@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Tabs } from "@/components/tabs";
 import { Card } from "@/components/card";
@@ -60,17 +61,26 @@ export function PartnersPanel() {
   const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: [], enabled: !initialLoaded });
   const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: [], enabled: !initialLoaded });
   const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: [], enabled: !initialLoaded });
+  // Self-id so we can exclude the logged-in participant from the directory in
+  // the fallback path (the server handler already does this when haiCore is
+  // reachable, but the fallback path doesn't have session context).
+  const profileApi = useApi<{ id?: string }>({ url: '/api/account/profile', fallback: {}, enabled: !initialLoaded });
 
   useEffect(() => {
     if (initialLoaded) return;
-    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading;
+    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading && !profileApi.loading;
     if (allDone) {
-      setDirectory(directoryApi.data);
+      const selfId = profileApi.data?.id;
+      setDirectory(
+        selfId
+          ? directoryApi.data.filter((c) => c.id !== selfId)
+          : directoryApi.data,
+      );
       setRequests(connectionsApi.data);
       setPartners(partnersApi.data);
       setInitialLoaded(true);
     }
-  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
+  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, profileApi.data, profileApi.loading, initialLoaded]);
 
   // ─── Queue Actions ──────────────────────────────────────────
 
@@ -304,7 +314,13 @@ export function PartnersPanel() {
       key: "actions",
       label: "",
       render: (p) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Link
+            href={`/account/partners/${p.id}/catalog`}
+            className="text-xs text-teal hover:text-navy font-medium"
+          >
+            View Catalog &rarr;
+          </Link>
           <Button
             size="sm"
             variant={p.invite_yours ? "ghost" : "secondary"}
@@ -354,13 +370,22 @@ export function PartnersPanel() {
                     <p className="text-xs text-slate mt-2">{company.description}</p>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-3 flex items-center justify-between gap-2">
                   {company.connection_status === "none" ? (
                     <Button size="sm" onClick={() => setConnectCompany(company)}>
                       Request Connection
                     </Button>
                   ) : (
                     <StatusBadge status={company.connection_status} />
+                  )}
+                  {(company.connection_status === "approved" ||
+                    company.connection_status === "trading_pair") && (
+                    <Link
+                      href={`/account/partners/${company.id}/catalog`}
+                      className="text-xs text-teal hover:text-navy font-medium"
+                    >
+                      View Catalog &rarr;
+                    </Link>
                   )}
                 </div>
               </Card>

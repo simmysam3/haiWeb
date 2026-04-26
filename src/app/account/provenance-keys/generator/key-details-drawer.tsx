@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Drawer } from '@/components/drawer';
+import { IdChip } from '@/components/id-chip';
 import { ComplianceChip } from '../_shared/compliance-chip';
 import type { ProvenanceKeyWithCounts, ProvenanceKeyInstallation } from '@haiwave/protocol';
 import { EditPermissionsModal } from './edit-permissions-modal';
@@ -183,9 +184,7 @@ export function KeyDetailsDrawer({ keyRow, open, onClose, onKeyChanged }: KeyDet
                   key={i.installation_id}
                   className="flex items-center justify-between border-b border-slate/10 py-2"
                 >
-                  <span className="font-mono text-xs text-charcoal">
-                    {i.installer_participant_id.slice(0, 16)}…
-                  </span>
+                  <IdChip id={i.installer_participant_id} />
                   <ComplianceChip compliance={i.compliance} />
                 </li>
               ))}
@@ -230,7 +229,7 @@ export function KeyDetailsDrawer({ keyRow, open, onClose, onKeyChanged }: KeyDet
                         </span>
                       </div>
                       <div className="mt-1 text-slate">
-                        actor <span className="font-mono">{e.actor_id.slice(0, 8)}…</span>
+                        actor <IdChip id={e.actor_id} />
                         {renderAuditDetail(e)}
                       </div>
                     </li>

@@ -9,22 +9,20 @@ import { MOCK_PARTNERS } from "@/lib/mock-data";
  */
 export const GET = withHaiCore(
   async ({ client }) => {
-    const result = (await client.listActiveConnections()) as unknown as {
-      connections: Array<{
-        connection_id: string;
-        partner_participant_id: string;
-        partner_name: string;
-        partner_location: string;
-        partner_industry: string;
-        relationship_state: string;
-        invite_yours: boolean;
-        invite_theirs: boolean;
-        established_at: string;
-      }>;
-    };
+    const result = (await client.listActiveConnections()) as unknown as Array<{
+      connection_id: string;
+      partner_participant_id: string;
+      partner_name: string;
+      partner_location: string;
+      partner_industry: string;
+      relationship_state: string;
+      invite_yours: boolean;
+      invite_theirs: boolean;
+      established_at: string;
+    }>;
 
     // Map haiCore response to the shape the UI expects
-    return result.connections.map((c) => ({
+    return result.map((c) => ({
       id: c.partner_participant_id,
       company_name: c.partner_name,
       status: c.relationship_state,

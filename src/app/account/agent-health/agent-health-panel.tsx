@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
+import { IdChip } from "@/components/id-chip";
 import { MOCK_AGENTS } from "@/lib/mock-data";
 import type { MockAgent } from "@/lib/mock-types";
 
@@ -61,7 +62,7 @@ export function AgentHealthPanel() {
             <Card key={agent.id}>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-mono text-sm text-charcoal">{agent.id.slice(0, 24)}...</p>
+                  <IdChip id={agent.id} className="text-sm" />
                   <p className="text-xs text-slate mt-0.5">
                     {enabledTypes.length > 0
                       ? enabledTypes.map((t) => t.label).join(" · ")

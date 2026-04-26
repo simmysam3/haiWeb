@@ -30,7 +30,29 @@ import type {
   SharingPolicy,
   SharingPolicyUpdateRequest,
   SharingPolicyUpdateResponse,
+  AuditScope,
+  AuditScopeCreationRequest,
+  AuditScopeCoverage,
+  AuditRun,
+  AuditRunResult,
+  RunTriggerRequest,
+  RefreshVendorRequest,
 } from '@haiwave/protocol';
+
+// Catalog types — not exported from @haiwave/protocol (CatalogService lives in
+// haiCore only). Defined locally to match the haiCore route response shapes.
+export interface CatalogClass {
+  class_id: string;
+  class_slug: string;
+  class_name: string;
+  product_count: number;
+}
+
+export interface CatalogProduct {
+  external_product_id: string;
+  product_name: string | null;
+  primary_class_slug: string | null;
+}
 
 // Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
 // Turbopack on Windows can't resolve value-or-type imports through `file:` symlinks
@@ -224,9 +246,6 @@ export interface HaiwaveClient {
   // Phantom Demand (v1.15)
   getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
   getPhantomDemandForecast(): Promise<Record<string, unknown>>;
-  // Source Audit (v1.16)
-  runEntityAudit(vendorId: string, productId: string, locationParameter: boolean): Promise<Record<string, unknown>>;
-  runRegulatoryAudit(guideKeyId: string, jurisdiction: string): Promise<Record<string, unknown>>;
   // Classification Review Queue (v1.20)
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
@@ -249,26 +268,60 @@ export interface HaiwaveClient {
   removeInstallation(installationId: string): Promise<ProvenanceKeyInstallation>;
   getSharingPolicy(): Promise<SharingPolicy>;
   upsertSharingPolicy(body: SharingPolicyUpdateRequest): Promise<SharingPolicyUpdateResponse>;
+  // Catalog (v1.25)
+  listCatalogClasses(vendorId: string): Promise<{ classes: CatalogClass[] }>;
+  listCatalogProducts(
+    vendorId: string,
+    opts?: { classId?: string; page?: number; size?: number },
+  ): Promise<{ products: CatalogProduct[]; total: number }>;
+  // Audit Scopes (v1.25)
+  createAuditScope(body: AuditScopeCreationRequest): Promise<AuditScope>;
+  listAuditScopes(opts?: {
+    vendorId?: string;
+    scopeType?: string;
+    activeOnly?: boolean;
+  }): Promise<{ scopes: AuditScope[] }>;
+  deleteAuditScope(scopeId: string): Promise<void>;
+  getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
+  // Audit Runs (v1.25)
+  triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
+  refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
+  listAuditRuns(opts?: { status?: string; limit?: number }): Promise<{ runs: AuditRun[] }>;
+  getAuditRun(runId: string): Promise<AuditRun>;
+  getAuditRunResults(
+    runId: string,
+    opts?: { vendorId?: string; productId?: string },
+  ): Promise<{ results: AuditRunResult[] }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     "x-haiwave-participant-id": participantId,
     "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
-    "Content-Type": "application/json",
   };
 
   async function request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+    const headers: Record<string, string> = { ...baseHeaders };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${haiwaveApiUrl}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`haiCore ${method} ${path}: ${res.status} ${text}`);
+      // Surface status + parsed error body on the thrown error so the BFF
+      // wrapper can propagate 4xx codes (e.g. 403 NO_VENDOR_ACCESS) to the
+      // client verbatim instead of masking everything as 500.
+      const err = new Error(`haiCore ${method} ${path}: ${res.status} ${text}`) as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = res.status;
+      try { err.haiCoreBody = JSON.parse(text); } catch { /* non-JSON body */ }
+      throw err;
     }
 
     const contentType = res.headers.get("content-type") ?? "";
@@ -296,12 +349,22 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       });
     },
 
-    listPendingRequests() {
-      return request<ConnectionRecord[]>("GET", "/connections/pending");
+    async listPendingRequests() {
+      // haiCore envelopes as { requests: [...] }; unwrap so callers get a plain array.
+      const envelope = await request<{ requests?: ConnectionRecord[] }>(
+        "GET",
+        "/connections/pending",
+      );
+      return envelope.requests ?? [];
     },
 
-    listActiveConnections() {
-      return request<ConnectionRecord[]>("GET", "/connections/active");
+    async listActiveConnections() {
+      // haiCore envelopes as { connections: [...] }; unwrap so callers get a plain array.
+      const envelope = await request<{ connections?: ConnectionRecord[] }>(
+        "GET",
+        "/connections/active",
+      );
+      return envelope.connections ?? [];
     },
 
     approveRequest(requestId) {
@@ -498,21 +561,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("GET", "/phantom-demand/forecast");
     },
 
-    // ─── Source Audit (v1.16) ─────────────────────────────
-    runEntityAudit(vendorId: string, productId: string, locationParameter: boolean) {
-      return request<Record<string, unknown>>("POST", "/source-audit/entity", {
-        vendor_participant_id: vendorId,
-        external_product_id: productId,
-        location_parameter: locationParameter,
-      });
-    },
-    runRegulatoryAudit(guideKeyId: string, jurisdiction: string) {
-      return request<Record<string, unknown>>("POST", "/source-audit/regulatory", {
-        guide_key_id: guideKeyId,
-        jurisdiction,
-      });
-    },
-
     // ─── Classification Review Queue (v1.20) ────────────────
     async listClassificationResults(participantId, options) {
       const params = new URLSearchParams();
@@ -577,6 +625,89 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     upsertSharingPolicy(body) {
       return request<SharingPolicyUpdateResponse>('PUT', '/sharing-policy/', body);
+    },
+
+    // ─── Catalog (v1.25) ─────────────────────────────────────
+    listCatalogClasses(vendorId) {
+      return request<{ classes: CatalogClass[] }>(
+        'GET',
+        `/participants/${vendorId}/catalog-classes`,
+      );
+    },
+    listCatalogProducts(vendorId, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.classId) params.set('class_id', opts.classId);
+      if (opts.page !== undefined) params.set('page', String(opts.page));
+      if (opts.size !== undefined) params.set('size', String(opts.size));
+      const q = params.toString();
+      return request<{ products: CatalogProduct[]; total: number }>(
+        'GET',
+        `/participants/${vendorId}/catalog-products${q ? `?${q}` : ''}`,
+      );
+    },
+
+    // ─── Audit Scopes (v1.25) ────────────────────────────────
+    createAuditScope(body) {
+      return request<AuditScope>('POST', '/audit-scopes', body);
+    },
+    listAuditScopes(opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.vendorId) params.set('vendor_id', opts.vendorId);
+      if (opts.scopeType) params.set('scope_type', opts.scopeType);
+      if (opts.activeOnly === false) params.set('active_only', 'false');
+      const q = params.toString();
+      return request<{ scopes: AuditScope[] }>(
+        'GET',
+        `/audit-scopes${q ? `?${q}` : ''}`,
+      );
+    },
+    async deleteAuditScope(scopeId) {
+      await request<void>('DELETE', `/audit-scopes/${scopeId}`);
+    },
+    getAuditCoverage(vendorId) {
+      return request<AuditScopeCoverage>(
+        'GET',
+        `/audit-coverage?vendor_id=${encodeURIComponent(vendorId)}`,
+      );
+    },
+
+    // ─── Audit Runs (v1.25) ──────────────────────────────────
+    triggerAuditRun(body = {}) {
+      return request<{ run_id: string; status: string }>(
+        'POST',
+        '/source-audit/runs',
+        body,
+      );
+    },
+    refreshVendorAudit(body) {
+      return request<{ run_id: string; status: string }>(
+        'POST',
+        '/source-audit/runs/refresh-vendor',
+        body,
+      );
+    },
+    listAuditRuns(opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.status) params.set('status', opts.status);
+      if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      const q = params.toString();
+      return request<{ runs: AuditRun[] }>(
+        'GET',
+        `/source-audit/runs${q ? `?${q}` : ''}`,
+      );
+    },
+    getAuditRun(runId) {
+      return request<AuditRun>('GET', `/source-audit/runs/${runId}`);
+    },
+    getAuditRunResults(runId, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.vendorId) params.set('vendor_id', opts.vendorId);
+      if (opts.productId) params.set('product_id', opts.productId);
+      const q = params.toString();
+      return request<{ results: AuditRunResult[] }>(
+        'GET',
+        `/source-audit/runs/${runId}/results${q ? `?${q}` : ''}`,
+      );
     },
   };
 }

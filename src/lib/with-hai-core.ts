@@ -111,6 +111,15 @@ export function withHaiCore<P extends Record<string, string> = Record<string, ne
       return NextResponse.json(result);
     } catch (err) {
       console.error("[withHaiCore] Handler failed:", err);
+      // If haiCore returned a 4xx, propagate it verbatim — the client needs
+      // to distinguish e.g. 403 NO_VENDOR_ACCESS from a server outage.
+      // Fallback (in dev) still fires for non-4xx so offline haiCore doesn't
+      // block local UI work.
+      const status = (err as { status?: number })?.status;
+      const haiCoreBody = (err as { haiCoreBody?: unknown })?.haiCoreBody;
+      if (typeof status === "number" && status >= 400 && status < 500) {
+        return NextResponse.json(haiCoreBody ?? { error: (err as Error).message }, { status });
+      }
       // In production, a real haiCore failure must surface — returning mock
       // data would silently mask outages on security-critical routes. Only
       // serve the fallback in development (e.g. haiCore running locally but
