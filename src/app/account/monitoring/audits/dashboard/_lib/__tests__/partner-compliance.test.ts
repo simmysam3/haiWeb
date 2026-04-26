@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import type { AuditRun, AuditRunResult, AuditTraversalNode, GeoRollupEntry } from '@haiwave/protocol';
+import { buildPartnerCompliance } from '../partner-compliance';
+
+const VENDOR_A = '11111111-1111-1111-1111-111111111111';
+const VENDOR_B = '22222222-2222-2222-2222-222222222222';
+const VENDOR_C = '33333333-3333-3333-3333-333333333333';
+const RUN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const AUDITOR_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+function makeRun(vendorIds: string[]): AuditRun {
+  return {
+    run_id: RUN_ID,
+    auditor_participant_id: AUDITOR_ID,
+    triggered_at: '2026-04-26T00:00:00.000Z',
+    triggered_by_user_id: null,
+    scope_snapshot: {
+      scope_ids: [],
+      resolved_products: vendorIds.map((vendor_id, i) => ({
+        vendor_id,
+        product_id: `prod-${i}`,
+      })),
+    },
+    status: 'complete',
+    completed_at: '2026-04-26T00:01:00.000Z',
+    depth_limit: 5,
+    hop_count: 1,
+    gap_count: 0,
+    error_message: null,
+  };
+}
+
+function makeRollup(entries: Array<[string, number]>): GeoRollupEntry[] {
+  return entries.map(([country_of_origin, component_count]) => ({
+    country_of_origin,
+    component_count,
+    depth_distribution: {},
+  }));
+}
+
+function makeTree(vendorLegalName: string | null): AuditTraversalNode {
+  return {
+    participant_id: null,
+    vendor_legal_name: vendorLegalName,
+    product_id: null,
+    component_ref: null,
+    internally_manufactured: true,
+    origin: {
+      country_of_origin: 'US',
+      state_province: null,
+      city: null,
+      plant_address: null,
+      plant_identifier: null,
+      vendor_name: null,
+    },
+    operational_status: {
+      lead_time_meets: null,
+      capacity: null,
+      delivery_state: null,
+    },
+    depth_level: 0,
+    components: [],
+    gap: null,
+  };
+}
+
+function makeResult(args: {
+  vendor_participant_id: string;
+  product_id?: string;
+  vendor_legal_name: string | null;
+  rollup: GeoRollupEntry[];
+}): AuditRunResult {
+  return {
+    result_id: `${args.vendor_participant_id}-${args.product_id ?? 'p'}`,
+    run_id: RUN_ID,
+    vendor_participant_id: args.vendor_participant_id,
+    product_id: args.product_id ?? 'prod-x',
+    tree: makeTree(args.vendor_legal_name),
+    geo_rollup: args.rollup,
+  };
+}
+
+describe('buildPartnerCompliance', () => {
+  it('returns empty data shape for an empty run', () => {
+    const run = makeRun([]);
+    const data = buildPartnerCompliance(run, []);
+    expect(data).toEqual({
+      rows: [],
+      total_vendors_in_scope: 0,
+      total_non_compliant: 0,
+      median_per_vendor: 0,
+    });
+  });
+});
