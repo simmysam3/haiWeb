@@ -136,4 +136,15 @@ describe('buildPartnerCompliance', () => {
       non_compliant_count: 9, // 5 + 3 + 1
     });
   });
+
+  it('total_vendors_in_scope counts distinct vendors from scope_snapshot, not from results', () => {
+    const run = makeRun([VENDOR_A, VENDOR_B, VENDOR_C, VENDOR_C]); // duplicate vendor in scope (different products)
+    const result = makeResult({
+      vendor_participant_id: VENDOR_A,
+      vendor_legal_name: 'Acme Corp.',
+      rollup: makeRollup([['CN', 1]]),
+    });
+    const data = buildPartnerCompliance(run, [result]);
+    expect(data.total_vendors_in_scope).toBe(3); // A, B, C — duplicates collapse
+  });
 });
