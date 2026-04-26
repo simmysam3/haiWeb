@@ -13,6 +13,14 @@ export interface PartnerComplianceData {
   median_per_vendor: number;
 }
 
+function computeMedian(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[mid];
+  return (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 export function buildPartnerCompliance(
   latestRun: AuditRun,
   results: AuditRunResult[],
@@ -58,10 +66,16 @@ export function buildPartnerCompliance(
     }
   }
 
+  const allCounts: number[] = [];
+  for (const vendorId of vendorIdsInScope) {
+    const v = byVendor.get(vendorId);
+    allCounts.push(v ? v.non_compliant_count : 0);
+  }
+
   return {
     rows,
     total_vendors_in_scope: vendorIdsInScope.size,
     total_non_compliant,
-    median_per_vendor: 0,
+    median_per_vendor: computeMedian(allCounts),
   };
 }

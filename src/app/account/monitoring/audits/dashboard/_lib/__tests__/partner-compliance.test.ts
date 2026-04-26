@@ -147,4 +147,57 @@ describe('buildPartnerCompliance', () => {
     const data = buildPartnerCompliance(run, [result]);
     expect(data.total_vendors_in_scope).toBe(3); // A, B, C — duplicates collapse
   });
+
+  it('median (odd in-scope count) is the middle value across all in-scope vendors, zeros included', () => {
+    const run = makeRun([VENDOR_A, VENDOR_B, VENDOR_C]);
+    // A: 10 non-compliant, B: 4 non-compliant, C: no result -> 0
+    const data = buildPartnerCompliance(run, [
+      makeResult({
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: 'A',
+        rollup: makeRollup([['CN', 10]]),
+      }),
+      makeResult({
+        vendor_participant_id: VENDOR_B,
+        vendor_legal_name: 'B',
+        rollup: makeRollup([['DE', 4]]),
+      }),
+    ]);
+    // Sorted [0, 4, 10] -> median 4
+    expect(data.median_per_vendor).toBe(4);
+  });
+
+  it('median (even in-scope count) is the average of the two middle values', () => {
+    const run = makeRun([VENDOR_A, VENDOR_B, VENDOR_C, '44444444-4444-4444-4444-444444444444']);
+    const data = buildPartnerCompliance(run, [
+      makeResult({
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: 'A',
+        rollup: makeRollup([['CN', 8]]),
+      }),
+      makeResult({
+        vendor_participant_id: VENDOR_B,
+        vendor_legal_name: 'B',
+        rollup: makeRollup([['DE', 4]]),
+      }),
+      // C, D: no results -> 0, 0
+    ]);
+    // Sorted [0, 0, 4, 8] -> median (0 + 4) / 2 = 2
+    expect(data.median_per_vendor).toBe(2);
+  });
+
+  it('vendors in scope without a result are excluded from rows but contribute 0 to the median set', () => {
+    const run = makeRun([VENDOR_A, VENDOR_B]);
+    const data = buildPartnerCompliance(run, [
+      makeResult({
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: 'A',
+        rollup: makeRollup([['CN', 6]]),
+      }),
+    ]);
+    expect(data.rows).toHaveLength(1);
+    expect(data.rows[0].vendor_participant_id).toBe(VENDOR_A);
+    // Sorted [0, 6] -> median (0 + 6) / 2 = 3
+    expect(data.median_per_vendor).toBe(3);
+  });
 });
