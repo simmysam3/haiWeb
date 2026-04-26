@@ -91,4 +91,27 @@ describe('buildPartnerCompliance', () => {
       median_per_vendor: 0,
     });
   });
+
+  it('counts non-US components and excludes US (unknown counts as non-compliant)', () => {
+    const run = makeRun([VENDOR_A]);
+    const result = makeResult({
+      vendor_participant_id: VENDOR_A,
+      vendor_legal_name: 'Acme Corp.',
+      rollup: makeRollup([
+        ['US', 10],
+        ['CN', 4],
+        ['DE', 2],
+        ['<unknown>', 3],
+      ]),
+    });
+    const data = buildPartnerCompliance(run, [result]);
+    expect(data.rows).toEqual([
+      {
+        vendor_participant_id: VENDOR_A,
+        vendor_legal_name: 'Acme Corp.',
+        non_compliant_count: 9,
+      },
+    ]);
+    expect(data.total_non_compliant).toBe(9);
+  });
 });
