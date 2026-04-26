@@ -6,7 +6,7 @@ import { Panel } from '@/components';
 export function GeoChart({ data }: { data: GeoRollupEntry[] }) {
   return (
     <Panel className="p-4">
-      <h2 className="text-sm font-medium text-charcoal mb-3">Components by country</h2>
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Components by country</h2>
       {data.length === 0 ? (
         <p className="text-sm text-slate">No audit data yet. Run an audit to populate the dashboard.</p>
       ) : (

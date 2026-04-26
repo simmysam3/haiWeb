@@ -12,14 +12,14 @@ export function GapsPanel({
   if (latestAt === null) {
     return (
       <Panel className="p-4">
-        <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Gaps</h2>
         <p className="text-sm text-slate">No audit has been run yet.</p>
       </Panel>
     );
   }
   return (
     <Panel className="p-4">
-      <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Gaps</h2>
       <p className="text-sm text-charcoal">{totalGaps ?? 0} gap nodes in the latest audit.</p>
       <p className="text-xs text-slate mt-2">
         Typical causes: non-participant suppliers, missing keys, depth-limited branches. Drill into a specific run for per-node detail.
