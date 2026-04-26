@@ -1,5 +1,6 @@
 export { PageHeader } from "./page-header";
 export { Card } from "./card";
+export { Panel } from "./panel";
 export { StatCard } from "./stat-card";
 export { StatusBadge } from "./status-badge";
 export { DataTable } from "./data-table";

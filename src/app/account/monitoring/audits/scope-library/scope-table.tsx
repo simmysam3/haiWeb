@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { AuditScope } from '@haiwave/protocol';
+import { DataTable, type Column } from '@/components';
 import { IdChip } from '@/components/id-chip';
 
 export function ScopeTable({
@@ -13,6 +14,10 @@ export function ScopeTable({
   emptyMessage?: ReactNode;
 }) {
   const [scopes, setScopes] = useState<AuditScope[]>(initialScopes);
+  const [showDisabled, setShowDisabled] = useState(false);
+
+  const disabledCount = scopes.filter((s) => s.disabled_at).length;
+  const visibleScopes = showDisabled ? scopes : scopes.filter((s) => !s.disabled_at);
 
   async function disable(id: string) {
     const res = await fetch(`/api/account/audit-scopes/${id}`, {
@@ -29,66 +34,99 @@ export function ScopeTable({
     }
   }
 
+  const columns: Column<AuditScope>[] = [
+    {
+      key: 'vendor',
+      label: 'Vendor',
+      render: (s) =>
+        s.vendor_legal_name ? (
+          <span title={s.vendor_participant_id}>{s.vendor_legal_name}</span>
+        ) : (
+          <IdChip id={s.vendor_participant_id} />
+        ),
+    },
+    {
+      key: 'scope',
+      label: 'Scope',
+      render: (s) => (
+        <>
+          {s.scope_type}
+          {s.scope_ref ? ` / ${s.scope_ref}` : ''}
+        </>
+      ),
+    },
+    {
+      key: 'created',
+      label: 'Created',
+      nowrap: true,
+      render: (s) => new Date(s.created_at).toLocaleDateString(),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      nowrap: true,
+      render: (s) =>
+        s.disabled_at ? (
+          <span className="text-slate">disabled</span>
+        ) : (
+          <span className="text-teal">active</span>
+        ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      nowrap: true,
+      render: (s) =>
+        s.disabled_at ? null : (
+          <button
+            onClick={() => disable(s.scope_id)}
+            className="text-xs text-[var(--color-problem)] hover:underline"
+          >
+            Disable
+          </button>
+        ),
+    },
+  ];
+
+  const toolbar =
+    disabledCount > 0 ? (
+      <button
+        type="button"
+        onClick={() => setShowDisabled((v) => !v)}
+        className="text-xs text-teal hover:text-navy"
+      >
+        {showDisabled ? 'Hide' : 'Show'} disabled ({disabledCount})
+      </button>
+    ) : null;
+
+  const filteredEmpty =
+    scopes.length > 0 && !showDisabled ? (
+      <>
+        Only disabled scopes here. Toggle <em>Show disabled</em> to view them.
+      </>
+    ) : (
+      emptyMessage ?? (
+        <>
+          No scopes yet. Configure from a{' '}
+          <Link
+            href="/account/partners"
+            className="text-teal underline hover:text-navy"
+          >
+            Partner&apos;s Catalog
+          </Link>{' '}
+          tab.
+        </>
+      )
+    );
+
   return (
-    <table className="w-full text-sm">
-      <thead className="text-left text-slate border-b border-slate/10">
-        <tr>
-          <th className="pb-2">Vendor</th>
-          <th>Scope</th>
-          <th>Created</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {scopes.map((s) => (
-          <tr key={s.scope_id} className="border-b border-slate/5">
-            <td className="py-2" title={s.vendor_participant_id}>
-              {s.vendor_legal_name ?? <IdChip id={s.vendor_participant_id} />}
-            </td>
-            <td>
-              {s.scope_type}
-              {s.scope_ref ? ` / ${s.scope_ref}` : ''}
-            </td>
-            <td>{new Date(s.created_at).toLocaleDateString()}</td>
-            <td>
-              {s.disabled_at ? (
-                <span className="text-slate">disabled</span>
-              ) : (
-                <span className="text-teal">active</span>
-              )}
-            </td>
-            <td>
-              {!s.disabled_at && (
-                <button
-                  onClick={() => disable(s.scope_id)}
-                  className="text-xs text-[var(--color-problem)] underline"
-                >
-                  Disable
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-        {scopes.length === 0 && (
-          <tr>
-            <td colSpan={5} className="py-4 text-slate text-center">
-              {emptyMessage ?? (
-                <>
-                  No scopes yet. Configure from a{' '}
-                  <Link
-                    href="/account/partners"
-                    className="text-teal underline hover:text-navy"
-                  >
-                    Partner&apos;s Catalog
-                  </Link>{' '}
-                  tab.
-                </>
-              )}
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <DataTable
+      columns={columns}
+      data={visibleScopes}
+      keyFn={(s) => s.scope_id}
+      emptyMessage={filteredEmpty}
+      toolbar={toolbar}
+    />
   );
 }

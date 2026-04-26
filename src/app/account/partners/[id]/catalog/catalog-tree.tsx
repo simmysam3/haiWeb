@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuditScope, AuditScopeCoverage } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
+import { Panel } from '@/components';
 
 interface ProductsState {
   loading: boolean;
@@ -270,7 +271,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
 
   if (accessDenied) {
     return (
-      <div className="rounded-lg border border-slate/20 bg-layer-1 p-6 text-center">
+      <Panel className="p-6 text-center">
         <h3 className="text-base font-semibold text-charcoal mb-2">
           No access to this vendor&apos;s catalog
         </h3>
@@ -285,7 +286,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
         >
           &larr; Back to Partners
         </a>
-      </div>
+      </Panel>
     );
   }
 

@@ -295,18 +295,19 @@ export interface HaiwaveClient {
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     "x-haiwave-participant-id": participantId,
     "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
-    "Content-Type": "application/json",
   };
 
   async function request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+    const headers: Record<string, string> = { ...baseHeaders };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await fetch(`${haiwaveApiUrl}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
     if (!res.ok) {

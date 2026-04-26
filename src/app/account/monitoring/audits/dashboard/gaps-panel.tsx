@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { Panel } from '@/components';
 
 export function GapsPanel({
   totalGaps,
@@ -10,14 +11,14 @@ export function GapsPanel({
 }) {
   if (latestAt === null) {
     return (
-      <div className="rounded border border-slate/10 bg-layer-1 p-4">
+      <Panel className="p-4">
         <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
         <p className="text-sm text-slate">No audit has been run yet.</p>
-      </div>
+      </Panel>
     );
   }
   return (
-    <div className="rounded border border-slate/10 bg-layer-1 p-4">
+    <Panel className="p-4">
       <h2 className="text-sm font-medium text-charcoal mb-3">Gaps</h2>
       <p className="text-sm text-charcoal">{totalGaps ?? 0} gap nodes in the latest audit.</p>
       <p className="text-xs text-slate mt-2">
@@ -31,6 +32,6 @@ export function GapsPanel({
           Install keys with vendors to reduce <em>unauthorized</em> gaps.
         </p>
       </div>
-    </div>
+    </Panel>
   );
 }

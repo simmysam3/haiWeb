@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
-import { TreeView } from './tree-view';
 import { RollupPanel } from './rollup-panel';
-import { IdChip } from '@/components/id-chip';
+import { ProductsGrid } from './products-grid';
 
 async function load(
   runId: string,
@@ -48,48 +47,26 @@ export default async function RunDetailPage({
   const { id } = await params;
   const data = await load(id);
   if (!data) notFound();
+
   return (
     <div className="p-6 space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-charcoal">Run {id}</h1>
+        <h1 className="text-xl font-semibold text-charcoal">
+          Run {data.run.run_id.slice(0, 8)}
+        </h1>
         <p className="text-sm text-slate">
           {new Date(data.run.triggered_at).toLocaleString()} · status{' '}
-          {data.run.status} · {data.results.length} products ·{' '}
+          {data.run.status} · {data.results.length}{' '}
+          {data.results.length === 1 ? 'product' : 'products'} ·{' '}
           {data.run.gap_count ?? 0} gaps
         </p>
       </header>
+
       <RollupPanel results={data.results} />
+
       <section>
-        <h2 className="text-sm font-medium text-charcoal mb-2">
-          Per-product trees
-        </h2>
-        <div className="space-y-2">
-          {data.results.map((r) => (
-            <div
-              key={r.result_id}
-              className="rounded border border-slate/10 bg-layer-1 p-3"
-            >
-              <div className="mb-3 flex items-baseline gap-4 flex-wrap pb-2 border-b border-slate/10">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate">Product</div>
-                  <div className="text-sm font-mono text-charcoal">{r.product_id}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wide text-slate">Vendor</div>
-                  {r.tree.vendor_legal_name ? (
-                    <div className="text-sm text-charcoal">{r.tree.vendor_legal_name}</div>
-                  ) : (
-                    <IdChip id={r.vendor_participant_id} />
-                  )}
-                </div>
-              </div>
-              <TreeView node={r.tree} />
-            </div>
-          ))}
-          {data.results.length === 0 && (
-            <p className="text-sm text-slate">No results for this run.</p>
-          )}
-        </div>
+        <h2 className="text-sm font-medium text-charcoal mb-2">Products</h2>
+        <ProductsGrid results={data.results} />
       </section>
     </div>
   );

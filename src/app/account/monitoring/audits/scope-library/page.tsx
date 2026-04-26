@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
+import { Panel } from '@/components';
 import { ScopeTable } from './scope-table';
 
 async function loadScopes(): Promise<AuditScope[]> {
@@ -38,7 +39,7 @@ export default async function ScopeLibraryPage() {
         coverage.
       </p>
 
-      <div className="mb-6 rounded border border-slate/15 bg-layer-1 p-3 text-xs text-slate">
+      <Panel className="mb-6 p-3 text-xs text-slate">
         <p className="text-charcoal font-medium mb-1">About disclosure keys</p>
         <p>
           Scopes above define <em>what</em> you audit. To unlock fields beyond
@@ -53,7 +54,7 @@ export default async function ScopeLibraryPage() {
         >
           Generate a disclosure key &rarr;
         </Link>
-      </div>
+      </Panel>
 
       <ScopeTable initialScopes={scopes} />
     </div>
