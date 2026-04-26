@@ -114,4 +114,26 @@ describe('buildPartnerCompliance', () => {
     ]);
     expect(data.total_non_compliant).toBe(9);
   });
+
+  it('sums non-compliant counts when one vendor has multiple results', () => {
+    const run = makeRun([VENDOR_A]);
+    const r1 = makeResult({
+      vendor_participant_id: VENDOR_A,
+      product_id: 'prod-1',
+      vendor_legal_name: 'Acme Corp.',
+      rollup: makeRollup([['CN', 5], ['US', 2]]),
+    });
+    const r2 = makeResult({
+      vendor_participant_id: VENDOR_A,
+      product_id: 'prod-2',
+      vendor_legal_name: 'Acme Corp.',
+      rollup: makeRollup([['DE', 3], ['<unknown>', 1]]),
+    });
+    const data = buildPartnerCompliance(run, [r1, r2]);
+    expect(data.rows).toHaveLength(1);
+    expect(data.rows[0]).toMatchObject({
+      vendor_participant_id: VENDOR_A,
+      non_compliant_count: 9, // 5 + 3 + 1
+    });
+  });
 });
