@@ -11,7 +11,7 @@ const AUDITOR_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 function makeRun(vendorIds: string[]): AuditRun {
   return {
     run_id: RUN_ID,
-    auditor_participant_id: AUDITOR_ID,
+    initiator_participant_id: AUDITOR_ID,
     triggered_at: '2026-04-26T00:00:00.000Z',
     triggered_by_user_id: null,
     scope_snapshot: {
