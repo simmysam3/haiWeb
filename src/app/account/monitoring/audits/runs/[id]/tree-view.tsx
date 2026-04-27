@@ -1,12 +1,12 @@
 'use client';
-import type { AuditTraversalNode } from '@haiwave/protocol';
+import type { ObservationNode } from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
 
 export function TreeView({
   node,
   depth = 0,
 }: {
-  node: AuditTraversalNode;
+  node: ObservationNode;
   depth?: number;
 }) {
   const isParticipant = !!node.participant_id;

@@ -1,14 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { AuditRunResult, AuditTraversalNode } from '@haiwave/protocol';
+import type { AuditRunResult, ObservationNode } from '@haiwave/protocol';
 import { DataTable, type Column, Drawer } from '@/components';
 import { IdChip } from '@/components/id-chip';
 import { TreeView } from './tree-view';
 
 const PAGE_SIZE = 100;
 
-function countGaps(node: AuditTraversalNode): number {
+function countGaps(node: ObservationNode): number {
   let n = node.gap ? 1 : 0;
   for (const c of node.components) n += countGaps(c);
   return n;

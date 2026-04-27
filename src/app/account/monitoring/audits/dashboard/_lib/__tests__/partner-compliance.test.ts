@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { AuditRun, AuditRunResult, AuditTraversalNode, GeoRollupEntry } from '@haiwave/protocol';
+import type { AuditRun, AuditRunResult, ObservationNode, GeoRollupEntry } from '@haiwave/protocol';
 import { buildPartnerCompliance } from '../partner-compliance';
 
 const VENDOR_A = '11111111-1111-1111-1111-111111111111';
@@ -38,7 +38,7 @@ function makeRollup(entries: Array<[string, number]>): GeoRollupEntry[] {
   }));
 }
 
-function makeTree(vendorLegalName: string | null): AuditTraversalNode {
+function makeTree(vendorLegalName: string | null): ObservationNode {
   return {
     participant_id: null,
     vendor_legal_name: vendorLegalName,
