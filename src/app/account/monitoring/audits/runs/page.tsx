@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 import type { AuditRun } from '@haiwave/protocol';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
+import { RunControls } from '../dashboard/run-controls';
 import { RunsTable } from './runs-table';
 
 async function loadRuns(): Promise<AuditRun[]> {
@@ -35,8 +36,11 @@ export default async function RunsPage() {
   }
   const runs = await loadRuns();
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold text-charcoal mb-4">Runs</h1>
+    <div className="p-6 space-y-4">
+      <header className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-charcoal">Runs</h1>
+        <RunControls />
+      </header>
       <RunsTable runs={runs} />
     </div>
   );
