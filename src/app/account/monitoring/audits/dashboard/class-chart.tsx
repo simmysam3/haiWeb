@@ -15,7 +15,7 @@ export function ClassChart({ data }: { data: ClassRollupEntry[] }) {
 
   return (
     <Panel className="p-4">
-      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Components by product class</h2>
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Component Compliance Issues by Product Class</h2>
       {enriched.length === 0 ? (
         <p className="text-sm text-slate">No classification data yet. Run an audit to populate the dashboard.</p>
       ) : (
