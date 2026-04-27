@@ -35,6 +35,7 @@ import type {
   AuditScopeCoverage,
   AuditRun,
   AuditRunResult,
+  ClassRollupEntry,
   RunTriggerRequest,
   RefreshVendorRequest,
 } from '@haiwave/protocol';
@@ -292,6 +293,7 @@ export interface HaiwaveClient {
     runId: string,
     opts?: { vendorId?: string; productId?: string },
   ): Promise<{ results: AuditRunResult[] }>;
+  getAuditRunClassRollup(runId: string): Promise<{ rollup: ClassRollupEntry[] }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -707,6 +709,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ results: AuditRunResult[] }>(
         'GET',
         `/source-audit/runs/${runId}/results${q ? `?${q}` : ''}`,
+      );
+    },
+    getAuditRunClassRollup(runId) {
+      return request<{ rollup: ClassRollupEntry[] }>(
+        'GET',
+        `/source-audit/runs/${runId}/class-rollup`,
       );
     },
   };
