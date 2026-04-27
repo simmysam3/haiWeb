@@ -112,9 +112,9 @@ export default async function DashboardPage() {
       </header>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GeoChart data={data.rollup} />
-        <ClassChart data={data.classRollup} />
         <GapsPanel totalGaps={data.gaps} latestAt={data.latestAt} />
       </div>
+      <ClassChart data={data.classRollup} />
       <PartnersChart data={data.partnerCompliance} />
     </div>
   );
