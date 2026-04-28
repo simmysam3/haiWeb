@@ -1,7 +1,7 @@
 import { withHaiCore } from "@/lib/with-hai-core";
 
 /**
- * GET /api/account/phantom-demand
+ * GET /api/account/sonar/phantom-demand
  *
  * Returns phantom demand usage and forecast from haiCore.
  * Falls back to empty data on error.

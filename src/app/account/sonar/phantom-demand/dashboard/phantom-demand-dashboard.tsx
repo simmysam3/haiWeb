@@ -45,7 +45,7 @@ export function PhantomDemandDashboard() {
   const [activeTab, setActiveTab] = useState("usage");
 
   const { data, loading } = useApi<PhantomDemandApiResponse>({
-    url: "/api/account/phantom-demand",
+    url: "/api/account/sonar/phantom-demand",
     fallback: PHANTOM_DEMAND_FALLBACK,
   });
 
