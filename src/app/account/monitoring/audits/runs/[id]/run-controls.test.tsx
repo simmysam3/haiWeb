@@ -85,6 +85,38 @@ describe('RunControls', () => {
     });
   });
 
+  it('omits hop and gap counters when the hook returns null even though SSR provided a value', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'running',
+        hop_count: null,
+        gap_count: null,
+        results_available_count: 2,
+      }),
+    });
+    render(
+      <RunControls
+        runId="r-4"
+        initialStatus="running"
+        initialHopCount={5}
+        initialGapCount={3}
+        initialResultsCount={2}
+      />,
+    );
+    // Wait for the hook's first fetch.
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    // After the hook resolves with null, the counter must omit hops/gaps.
+    await waitFor(() => {
+      const text = screen.getByText(/2 results/);
+      expect(text.textContent).toBe('2 results');
+      expect(text.textContent).not.toContain('hops');
+      expect(text.textContent).not.toContain('gaps');
+    });
+  });
+
   it('hides the Cancel button on a terminal status', () => {
     fetchMock.mockResolvedValue({
       ok: true,

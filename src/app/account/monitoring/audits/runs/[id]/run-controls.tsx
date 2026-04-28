@@ -30,8 +30,12 @@ export function RunControls({
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const effectiveStatus = status ?? initialStatus;
-  const effectiveHop = hopCount ?? initialHopCount;
-  const effectiveGap = gapCount ?? initialGapCount;
+  // Use === undefined (not ??) so a fresh `null` from the API isn't masked
+  // by a stale SSR value. `undefined` means "hook hasn't resolved its first
+  // poll yet" → fall back to SSR. `null` means "API says no value yet" and
+  // must propagate so the counter line below omits hops/gaps.
+  const effectiveHop = hopCount === undefined ? initialHopCount : hopCount;
+  const effectiveGap = gapCount === undefined ? initialGapCount : gapCount;
   const effectiveResults = resultsAvailableCount ?? initialResultsCount;
 
   // When status transitions out of running, refresh server data so the
