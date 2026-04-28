@@ -23,6 +23,7 @@ function makeRun(vendorIds: string[]): AuditRun {
     },
     status: 'complete',
     completed_at: '2026-04-26T00:01:00.000Z',
+    cancelled_at: null,
     depth_limit: 5,
     hop_count: 1,
     gap_count: 0,
