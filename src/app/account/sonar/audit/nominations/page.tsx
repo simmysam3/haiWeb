@@ -27,16 +27,16 @@ async function loadScopes(): Promise<AuditScope[]> {
   }
 }
 
-export default async function ScopeLibraryPage() {
+export default async function NominationsPage() {
   const scopes = await loadScopes();
   return (
     <div className="p-6">
       <h1 className="text-xl font-semibold text-charcoal mb-4">
-        Scope library
+        My nominations
       </h1>
       <p className="text-sm text-slate mb-6">
-        All your audit scopes across vendors. Disable removes from active
-        coverage.
+        All SKUs you have nominated for audit coverage. Disabling removes a SKU
+        from active coverage.
       </p>
 
       <Panel className="mb-6 p-3 text-xs text-slate">

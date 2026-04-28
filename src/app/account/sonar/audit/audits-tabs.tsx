@@ -10,9 +10,9 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { segment: "dashboard", label: "Dashboard", href: "/account/monitoring/audits/dashboard" },
-  { segment: "scope-library", label: "Scope library", href: "/account/monitoring/audits/scope-library" },
-  { segment: "runs", label: "Runs", href: "/account/monitoring/audits/runs" },
+  { segment: "dashboard", label: "Dashboard", href: "/account/sonar/audit/dashboard" },
+  { segment: "nominations", label: "My nominations", href: "/account/sonar/audit/nominations" },
+  { segment: "runs", label: "Runs", href: "/account/sonar/audit/runs" },
 ];
 
 export function AuditsTabs({ hasScopes }: { hasScopes: boolean }) {
@@ -22,7 +22,7 @@ export function AuditsTabs({ hasScopes }: { hasScopes: boolean }) {
     <div className="flex border-b border-slate/15 mb-6">
       {tabs.map((tab) => {
         const isActive = active === tab.segment;
-        const showStartHere = !hasScopes && tab.segment === "scope-library";
+        const showStartHere = !hasScopes && tab.segment === "nominations";
         return (
           <Link
             key={tab.segment}

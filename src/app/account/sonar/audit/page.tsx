@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getActiveScopes } from "./_lib/scopes";
 
-export default async function AuditsLanding() {
+export default async function AuditLanding() {
   const scopes = await getActiveScopes();
   if (scopes.length === 0) {
-    redirect("/account/monitoring/audits/scope-library");
+    redirect("/account/sonar/audit/nominations");
   }
-  redirect("/account/monitoring/audits/dashboard");
+  redirect("/account/sonar/audit/dashboard");
 }
