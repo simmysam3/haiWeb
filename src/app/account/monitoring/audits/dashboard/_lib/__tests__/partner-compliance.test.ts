@@ -61,6 +61,7 @@ function makeTree(vendorLegalName: string | null): ObservationNode {
     depth_level: 0,
     components: [],
     gap: null,
+    synthesis_mode: 'direct',
   };
 }
 

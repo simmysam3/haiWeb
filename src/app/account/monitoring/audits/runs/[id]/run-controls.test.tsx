@@ -139,4 +139,51 @@ describe('RunControls', () => {
     expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull();
     expect(screen.getByText('Complete')).toBeInTheDocument();
   });
+
+  it('clears the Cancelling indicator and shows an error message when the cancel POST fails', async () => {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && url.endsWith('/cancel')) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          text: async () => 'Internal Server Error',
+          json: async () => ({}),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          status: 'running',
+          hop_count: 1,
+          gap_count: 0,
+          results_available_count: 0,
+        }),
+      });
+    });
+    render(
+      <RunControls
+        runId="r-error"
+        initialStatus="running"
+        initialHopCount={null}
+        initialGapCount={null}
+        initialResultsCount={0}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    // Cancelling… indicator appears optimistically.
+    expect(await screen.findByText(/cancelling/i)).toBeInTheDocument();
+
+    // After the failed POST resolves, the indicator clears and the error renders.
+    await waitFor(() => {
+      expect(screen.queryByText(/cancelling/i)).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/internal server error/i)).toBeInTheDocument();
+    });
+
+    // Cancel button is back (still running, no longer cancelling).
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
 });

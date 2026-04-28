@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { RunStatus } from '@haiwave/protocol';
 import { useRunStatus } from './use-run-status';
@@ -41,9 +41,14 @@ export function RunControls({
   // When status transitions out of running, refresh server data so the
   // products grid (rendered by the parent SSR) re-fetches its results.
   // Section 13.2.1 item 2 — cache invalidation on terminal state.
+  // Guarded by `wasNonTerminal` so SSR mounts of already-terminal runs
+  // don't fire a wasted RSC round-trip — only real running → terminal
+  // transitions during the client session trigger the refresh.
   const isTerminal = TERMINAL.includes(effectiveStatus);
+  const wasNonTerminal = useRef(!TERMINAL.includes(initialStatus));
   useEffect(() => {
-    if (isTerminal) {
+    if (isTerminal && wasNonTerminal.current) {
+      wasNonTerminal.current = false;
       router.refresh();
     }
   }, [isTerminal, router]);
