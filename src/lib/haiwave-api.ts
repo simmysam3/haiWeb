@@ -38,6 +38,8 @@ import type {
   ClassRollupEntry,
   RunTriggerRequest,
   RefreshVendorRequest,
+  RunStatusResponse,
+  CancelRunResponse,
 } from '@haiwave/protocol';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
@@ -294,6 +296,9 @@ export interface HaiwaveClient {
     opts?: { vendorId?: string; productId?: string },
   ): Promise<{ results: AuditRunResult[] }>;
   getAuditRunClassRollup(runId: string): Promise<{ rollup: ClassRollupEntry[] }>;
+  // Audit Runs (v1.27 Phase 2)
+  getAuditRunStatus(runId: string): Promise<RunStatusResponse>;
+  cancelAuditRun(runId: string): Promise<CancelRunResponse>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -716,6 +721,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         `/source-audit/runs/${runId}/class-rollup`,
       );
+    },
+    getAuditRunStatus(runId) {
+      return request<RunStatusResponse>('GET', `/source-audit/runs/${runId}/status`);
+    },
+    cancelAuditRun(runId) {
+      return request<CancelRunResponse>('POST', `/source-audit/runs/${runId}/cancel`);
     },
   };
 }
