@@ -679,7 +679,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Audit Runs (v1.25) ──────────────────────────────────
-    triggerAuditRun(body = {}) {
+    triggerAuditRun(body: RunTriggerRequest = { scope_type: 'company' }) {
       return request<{ run_id: string; status: string }>(
         'POST',
         '/source-audit/runs',
