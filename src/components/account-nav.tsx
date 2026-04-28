@@ -24,9 +24,18 @@ const navSections: NavSection[] = [
       { href: "/account/scores", label: "Behavioral Scores" },
       { href: "/account/provenance", label: "Provenance" },
       { href: "/account/compliance", label: "Compliance" },
-      { href: "/account/phantom-demand", label: "Phantom Demand" },
-      { href: "/account/monitoring/audits/dashboard", label: "Audits" },
       { href: "/account/agent-health", label: "Agent Health" },
+    ],
+  },
+  {
+    label: "Sonar",
+    items: [
+      { href: "/account/sonar/audit/dashboard", label: "Audit Dashboard" },
+      { href: "/account/sonar/audit/runs", label: "Audit Runs" },
+      { href: "/account/sonar/audit/nominations", label: "My Nominations" },
+      { href: "/account/sonar/audit/downstream-gaps", label: "My Downstream Gaps" },
+      { href: "/account/sonar/audit/reports", label: "Audit Reports" },
+      { href: "/account/sonar/phantom-demand/dashboard", label: "Phantom Demand" },
     ],
   },
   {
