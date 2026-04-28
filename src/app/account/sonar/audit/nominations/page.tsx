@@ -42,7 +42,7 @@ export default async function NominationsPage() {
       <Panel className="mb-6 p-3 text-xs text-slate">
         <p className="text-charcoal font-medium mb-1">About disclosure keys</p>
         <p>
-          Scopes above define <em>what</em> you audit. To unlock fields beyond
+          Nominations above define <em>what</em> you audit. To unlock fields beyond
           country-of-origin — state, city, vendor identity — issue a{' '}
           <strong>provenance key</strong> and share it out-of-band with your
           vendors. Each vendor installs your key to opt into disclosure. One
