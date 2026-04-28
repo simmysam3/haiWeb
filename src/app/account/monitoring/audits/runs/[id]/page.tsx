@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { RollupPanel } from './rollup-panel';
 import { ProductsGrid } from './products-grid';
+import { RunControls } from './run-controls';
 
 async function load(
   runId: string,
@@ -50,16 +51,20 @@ export default async function RunDetailPage({
 
   return (
     <div className="p-6 space-y-6">
-      <header>
+      <header className="space-y-2">
         <h1 className="text-xl font-semibold text-charcoal">
           Run {data.run.run_id.slice(0, 8)}
         </h1>
         <p className="text-sm text-slate">
-          {new Date(data.run.triggered_at).toLocaleString()} · status{' '}
-          {data.run.status} · {data.results.length}{' '}
-          {data.results.length === 1 ? 'product' : 'products'} ·{' '}
-          {data.run.gap_count ?? 0} gaps
+          Triggered {new Date(data.run.triggered_at).toLocaleString()}
         </p>
+        <RunControls
+          runId={data.run.run_id}
+          initialStatus={data.run.status}
+          initialHopCount={data.run.hop_count}
+          initialGapCount={data.run.gap_count}
+          initialResultsCount={data.results.length}
+        />
       </header>
 
       <RollupPanel results={data.results} />

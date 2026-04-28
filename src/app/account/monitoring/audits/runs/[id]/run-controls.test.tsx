@@ -1,0 +1,110 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { RunControls } from './run-controls';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+describe('RunControls', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders the initial running pill and the Cancel button', () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'running',
+        hop_count: 0,
+        gap_count: 0,
+        results_available_count: 0,
+      }),
+    });
+    render(
+      <RunControls
+        runId="r-1"
+        initialStatus="running"
+        initialHopCount={null}
+        initialGapCount={null}
+        initialResultsCount={0}
+      />,
+    );
+    expect(screen.getByText('Running')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it('shows Cancelling… optimistically and fires the cancel POST', async () => {
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST' && url.endsWith('/cancel')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ok: true, status: 'running' }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          status: 'running',
+          hop_count: 1,
+          gap_count: 0,
+          results_available_count: 0,
+        }),
+      });
+    });
+    render(
+      <RunControls
+        runId="r-2"
+        initialStatus="running"
+        initialHopCount={null}
+        initialGapCount={null}
+        initialResultsCount={0}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+    // Cancelling… indicator appears immediately.
+    expect(await screen.findByText(/cancelling/i)).toBeInTheDocument();
+    // POST was issued.
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([url, init]) =>
+            (url as string).endsWith('/cancel') &&
+            (init as RequestInit | undefined)?.method === 'POST',
+        ),
+      ).toBe(true);
+    });
+  });
+
+  it('hides the Cancel button on a terminal status', () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'complete',
+        hop_count: 5,
+        gap_count: 0,
+        results_available_count: 1,
+      }),
+    });
+    render(
+      <RunControls
+        runId="r-3"
+        initialStatus="complete"
+        initialHopCount={5}
+        initialGapCount={0}
+        initialResultsCount={1}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull();
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+  });
+});
