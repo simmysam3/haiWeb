@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import type { InboundNominationGroup } from './_lib/types';
 import { NominationsTable } from './nominations-table';
+import { FilterPills } from './filter-pills';
 
 interface SearchParams {
   status?: string | string[];
@@ -51,6 +52,23 @@ export default async function AuditNominationsPage({ searchParams }: PageProps) 
           </p>
         </div>
       </header>
+
+      <FilterPills
+        observers={
+          result.kind === 'ok'
+            ? Array.from(
+                new Map(
+                  result.groups.flatMap((g) =>
+                    g.observers.map((o) => [
+                      o.observer_participant_id,
+                      { id: o.observer_participant_id, name: o.observer_display_name },
+                    ]),
+                  ),
+                ).values(),
+              )
+            : []
+        }
+      />
 
       {result.kind === 'error' ? (
         <div className="rounded-lg border border-red-300 bg-red-50 p-12 text-center">
