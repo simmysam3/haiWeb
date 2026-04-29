@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import type { InboundNominationGroup } from './_lib/types';
 import { NominationsTable } from './nominations-table';
 import { FilterPills } from './filter-pills';
+import { RefreshButton } from '@/components/refresh-button';
 
 interface SearchParams {
   status?: string | string[];
@@ -51,6 +52,7 @@ export default async function AuditNominationsPage({ searchParams }: PageProps) 
             Incoming nomination requests from upstream observers.
           </p>
         </div>
+        <RefreshButton />
       </header>
 
       <FilterPills

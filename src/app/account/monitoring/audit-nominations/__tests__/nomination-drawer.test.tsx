@@ -32,7 +32,6 @@ beforeEach(() => {
 
 describe('NominationDrawer', () => {
   it('renders obligation context from the row', () => {
-    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
     render(<NominationDrawer row={row} onClose={() => {}} />);
     expect(screen.getByText(/Acme/)).toBeInTheDocument();
     expect(screen.getByText(/WIDGET-7/)).toBeInTheDocument();
@@ -41,7 +40,6 @@ describe('NominationDrawer', () => {
 
   it('POSTs acknowledge and triggers refresh on Accept', async () => {
     fetchMock
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ status: 'acknowledged' }) });
 
     const onClose = vi.fn();
@@ -61,7 +59,6 @@ describe('NominationDrawer', () => {
 
   it('shows inline error on 4xx and keeps drawer open', async () => {
     fetchMock
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
       .mockResolvedValueOnce({
         ok: false,
         status: 409,
@@ -82,7 +79,6 @@ describe('NominationDrawer', () => {
 describe('NominationDrawer Decline', () => {
   it('opens modal with informational copy and posts decline with notes', async () => {
     fetchMock
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
 
     const user = userEvent.setup();
@@ -108,7 +104,6 @@ describe('NominationDrawer Decline', () => {
 describe('NominationDrawer Defer', () => {
   it('posts defer with empty body when no notes provided', async () => {
     fetchMock
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
 
     const user = userEvent.setup();

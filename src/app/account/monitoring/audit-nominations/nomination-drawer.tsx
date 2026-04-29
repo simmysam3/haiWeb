@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InboundNominationRow } from './_lib/types';
 import { NotesModal } from './notes-modal';
@@ -25,12 +25,6 @@ export function NominationDrawer({ row, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [modal, setModal] = useState<'defer' | 'decline' | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/account/sku-obligations/${row.obligation_id}`).catch(() => {
-      // Best-effort fresh fetch; row data is the synchronous fallback.
-    });
-  }, [row.obligation_id]);
 
   async function performAction(action: 'acknowledge' | 'decline' | 'defer', notes?: string) {
     setBusy(true);

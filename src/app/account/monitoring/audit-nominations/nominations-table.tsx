@@ -126,20 +126,21 @@ function GroupRows({
       {expanded &&
         group.observers.map((o) => (
           <tr key={o.obligation_id} className="border-b border-slate/5">
-            <td></td>
-            <td className="py-2 pl-8 pr-4 text-slate">↳ <span>{o.observer_display_name}</span></td>
-            <td className="py-2 px-4 text-slate">{o.status}</td>
-            <td className="py-2 px-4 text-slate">{new Date(o.arrival_time).toLocaleString()}</td>
-            <td className="py-2 px-4 text-slate">{o.resolution_class}</td>
-            <td className="py-2 px-4 text-right">
-              <button
-                type="button"
-                aria-label={`Open detail for ${o.observer_display_name} on ${o.sku_label}`}
-                onClick={() => onObserverClick(o)}
-                className="text-teal hover:underline"
-              >
-                Review →
-              </button>
+            <td colSpan={6} className="py-2 px-4 pl-12">
+              <div className="flex items-center gap-6 text-sm">
+                <span className="text-slate flex-1">↳ <span>{o.observer_display_name}</span></span>
+                <span className="text-slate">{o.status}</span>
+                <span className="text-slate">{new Date(o.arrival_time).toLocaleString()}</span>
+                <span className="text-slate">{o.resolution_class}</span>
+                <button
+                  type="button"
+                  aria-label={`Open detail for ${o.observer_display_name} on ${o.sku_label}`}
+                  onClick={() => onObserverClick(o)}
+                  className="text-teal hover:underline"
+                >
+                  Review →
+                </button>
+              </div>
             </td>
           </tr>
         ))}
