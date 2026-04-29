@@ -43,8 +43,6 @@ import type {
   SkuObligation,
   SkuObligationListQuery,
   DownstreamGapEntry,
-} from '@haiwave/protocol';
-import type {
   AggregateReport,
   PerVendorReport,
   AggregateReportHeader,
