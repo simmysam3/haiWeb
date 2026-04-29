@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
-import { ScopeTable } from '../../../monitoring/audits/scope-library/scope-table';
+import { ScopeTable } from '../../../sonar/audit/nominations/scope-table';
 
 async function loadScopes(vendorId: string): Promise<AuditScope[]> {
   const cookieHeader = (await cookies()).toString();
@@ -31,6 +31,15 @@ export default async function PartnerAuditPage({
   const scopes = await loadScopes(id);
   return (
     <div className="space-y-6">
+      <section>
+        <Link
+          href={`/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(id)}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-teal hover:text-navy"
+        >
+          Nominate components for audit coverage →
+        </Link>
+      </section>
+
       <section>
         <div className="flex items-baseline justify-between mb-2">
           <h2 className="text-sm font-semibold text-charcoal">Active audit scopes</h2>
@@ -68,10 +77,10 @@ export default async function PartnerAuditPage({
           Audit runs cover all active scopes across vendors. View the full run
           history in{' '}
           <Link
-            href="/account/monitoring/audits/runs"
+            href="/account/sonar/audit/runs"
             className="text-teal underline hover:text-navy"
           >
-            Monitoring &rarr; Audits &rarr; Runs
+            Sonar &rarr; Audit &rarr; Runs
           </Link>
           .
         </p>

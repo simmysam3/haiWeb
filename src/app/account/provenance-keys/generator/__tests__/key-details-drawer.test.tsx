@@ -64,8 +64,13 @@ describe('KeyDetailsDrawer', () => {
 
     render(<KeyDetailsDrawer keyRow={SAMPLE} open={true} onClose={() => {}} onKeyChanged={() => {}} />);
 
+    // IdChip renders the first 6 chars of installer_participant_id followed
+    // by "…" and exposes the full id via the title attribute. Earlier the
+    // test asserted on the regex /installer-abc/i, which only worked when
+    // IdChip rendered the full id. Use the title attribute now that
+    // truncation is the default.
     await waitFor(() => {
-      expect(screen.getByText(/installer-abc/i)).toBeInTheDocument();
+      expect(screen.getByTitle('installer-abc-def')).toBeInTheDocument();
     });
   });
 

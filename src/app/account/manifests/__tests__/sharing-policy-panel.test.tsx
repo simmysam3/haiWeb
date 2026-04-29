@@ -8,12 +8,18 @@ describe('SharingPolicyPanel', () => {
     globalThis.fetch = vi.fn() as unknown as typeof fetch;
   });
 
+  // Canonical permission fields per protocol v3.1.0 (5-field reduction):
+  // state_province, city, plant_address, plant_identifier, vendor_name.
+  // Earlier versions of this test referenced facility_country and
+  // manufacturing_date — both removed when the field set was reduced.
+  // Tests now narrow by toggling plant_identifier off.
+
   it('on Save with narrowing, first does dry_run and shows confirm modal with warning count', async () => {
     // initial GET — current policy
     (globalThis.fetch as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ shared_fields: ['facility_country', 'manufacturing_date'] }),
+          JSON.stringify({ shared_fields: ['plant_address', 'plant_identifier'] }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
       )
@@ -21,10 +27,10 @@ describe('SharingPolicyPanel', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            policy: { shared_fields: ['facility_country'] },
+            policy: { shared_fields: ['plant_address'] },
             warnings: [
-              { installation_id: 'i1', key_id: 'k1', missing_fields: ['manufacturing_date'] },
-              { installation_id: 'i2', key_id: 'k2', missing_fields: ['manufacturing_date'] },
+              { installation_id: 'i1', key_id: 'k1', missing_fields: ['plant_identifier'] },
+              { installation_id: 'i2', key_id: 'k2', missing_fields: ['plant_identifier'] },
             ],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
@@ -33,10 +39,10 @@ describe('SharingPolicyPanel', () => {
 
     render(<SharingPolicyPanel />);
     await waitFor(() => {
-      expect(screen.getByLabelText(/manufacturing_date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/plant_identifier/i)).toBeInTheDocument();
     });
-    // Toggle manufacturing_date off (narrow)
-    await userEvent.click(screen.getByLabelText(/manufacturing_date/i));
+    // Toggle plant_identifier off (narrow)
+    await userEvent.click(screen.getByLabelText(/plant_identifier/i));
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => {
@@ -49,7 +55,7 @@ describe('SharingPolicyPanel', () => {
   it('on Confirm, commits the narrowing (dry_run=false)', async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ shared_fields: ['facility_country', 'manufacturing_date'] }), {
+        new Response(JSON.stringify({ shared_fields: ['plant_address', 'plant_identifier'] }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         }),
@@ -57,8 +63,8 @@ describe('SharingPolicyPanel', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            policy: { shared_fields: ['facility_country'] },
-            warnings: [{ installation_id: 'i1', key_id: 'k1', missing_fields: ['manufacturing_date'] }],
+            policy: { shared_fields: ['plant_address'] },
+            warnings: [{ installation_id: 'i1', key_id: 'k1', missing_fields: ['plant_identifier'] }],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
@@ -66,16 +72,16 @@ describe('SharingPolicyPanel', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            policy: { shared_fields: ['facility_country'] },
-            warnings: [{ installation_id: 'i1', key_id: 'k1', missing_fields: ['manufacturing_date'] }],
+            policy: { shared_fields: ['plant_address'] },
+            warnings: [{ installation_id: 'i1', key_id: 'k1', missing_fields: ['plant_identifier'] }],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
       );
 
     render(<SharingPolicyPanel />);
-    await waitFor(() => screen.getByLabelText(/manufacturing_date/i));
-    await userEvent.click(screen.getByLabelText(/manufacturing_date/i));
+    await waitFor(() => screen.getByLabelText(/plant_identifier/i));
+    await userEvent.click(screen.getByLabelText(/plant_identifier/i));
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
     await waitFor(() => screen.getByRole('button', { name: /confirm/i }));
     await userEvent.click(screen.getByRole('button', { name: /confirm/i }));

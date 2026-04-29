@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AuditScope, AuditScopeCoverage } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import { Panel } from '@/components';
@@ -12,6 +13,12 @@ interface ProductsState {
   total: number;
   error?: string;
 }
+
+type PillState =
+  | { kind: 'inherited-company' }
+  | { kind: 'inherited-class' }
+  | { kind: 'direct'; scopeId: string }
+  | { kind: 'uncovered' };
 
 export function CatalogTree({ vendorId }: { vendorId: string }) {
   const [classes, setClasses] = useState<CatalogClass[]>([]);
@@ -56,9 +63,6 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
             `/api/account/audit-scopes?vendor_id=${encodeURIComponent(vendorId)}&active_only=true`,
           ),
         ]);
-        // 403 from any of these means the caller has no trading relationship
-        // with the vendor — surface a dedicated access-denied state rather
-        // than a generic failure message.
         if (classesRes.status === 403 || covRes.status === 403 || scopesRes.status === 403) {
           if (cancelled) return;
           setAccessDenied(true);
@@ -101,30 +105,23 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
     [scopes],
   );
 
-  const createScope = useCallback(
-    async (body: {
-      vendor_participant_id: string;
-      scope_type: 'company' | 'class' | 'product';
-      scope_ref?: string;
-    }) => {
-      setMutating(true);
-      setError(null);
-      try {
-        const res = await fetch('/api/account/audit-scopes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(`Failed to create scope (${res.status})`);
-        await refreshCoverage();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to create scope');
-      } finally {
-        setMutating(false);
-      }
-    },
-    [refreshCoverage],
-  );
+  const createCompanyScope = useCallback(async () => {
+    setMutating(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/account/audit-scopes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendor_participant_id: vendorId, scope_type: 'company' }),
+      });
+      if (!res.ok) throw new Error(`Failed to create scope (${res.status})`);
+      await refreshCoverage();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create scope');
+    } finally {
+      setMutating(false);
+    }
+  }, [vendorId, refreshCoverage]);
 
   const deleteScope = useCallback(
     async (scopeId: string) => {
@@ -153,48 +150,9 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
       const scope = findScope('company', null);
       if (scope) await deleteScope(scope.scope_id);
     } else {
-      await createScope({
-        vendor_participant_id: vendorId,
-        scope_type: 'company',
-      });
+      await createCompanyScope();
     }
-  }, [coverage, findScope, deleteScope, createScope, vendorId]);
-
-  const onToggleClass = useCallback(
-    async (klass: CatalogClass) => {
-      if (!coverage) return;
-      const current = coverage.classes[klass.class_id] ?? false;
-      if (current) {
-        const scope = findScope('class', klass.class_id);
-        if (scope) await deleteScope(scope.scope_id);
-      } else {
-        await createScope({
-          vendor_participant_id: vendorId,
-          scope_type: 'class',
-          scope_ref: klass.class_id,
-        });
-      }
-    },
-    [coverage, findScope, deleteScope, createScope, vendorId],
-  );
-
-  const onToggleProduct = useCallback(
-    async (product: CatalogProduct) => {
-      if (!coverage) return;
-      const current = coverage.products[product.external_product_id] ?? false;
-      if (current) {
-        const scope = findScope('product', product.external_product_id);
-        if (scope) await deleteScope(scope.scope_id);
-      } else {
-        await createScope({
-          vendor_participant_id: vendorId,
-          scope_type: 'product',
-          scope_ref: product.external_product_id,
-        });
-      }
-    },
-    [coverage, findScope, deleteScope, createScope, vendorId],
-  );
+  }, [coverage, findScope, deleteScope, createCompanyScope]);
 
   const loadProductsForClass = useCallback(
     async (klass: CatalogClass) => {
@@ -251,6 +209,54 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
     [expanded, products, loadProductsForClass],
   );
 
+  function classPillState(klass: CatalogClass): PillState {
+    if (coverage?.company) return { kind: 'inherited-company' };
+    if (coverage?.classes[klass.class_id]) {
+      const scope = findScope('class', klass.class_id);
+      return scope ? { kind: 'direct', scopeId: scope.scope_id } : { kind: 'uncovered' };
+    }
+    return { kind: 'uncovered' };
+  }
+
+  function productPillState(product: CatalogProduct, klass: CatalogClass): PillState {
+    if (coverage?.company) return { kind: 'inherited-company' };
+    if (coverage?.classes[klass.class_id]) return { kind: 'inherited-class' };
+    if (coverage?.products[product.external_product_id]) {
+      const scope = findScope('product', product.external_product_id);
+      return scope ? { kind: 'direct', scopeId: scope.scope_id } : { kind: 'uncovered' };
+    }
+    return { kind: 'uncovered' };
+  }
+
+  function PillRow({ state, deepLink }: { state: PillState; deepLink: string }) {
+    if (state.kind === 'uncovered') {
+      return (
+        <Link href={deepLink} className="text-xs text-teal hover:text-navy font-medium">
+          Nominate →
+        </Link>
+      );
+    }
+    if (state.kind === 'inherited-company') {
+      return <span className="text-xs text-slate italic">Covered by company-wide scope</span>;
+    }
+    if (state.kind === 'inherited-class') {
+      return <span className="text-xs text-slate italic">Covered by class scope</span>;
+    }
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-teal font-medium">Active</span>
+        <button
+          type="button"
+          onClick={() => deleteScope(state.scopeId)}
+          disabled={mutating}
+          className="text-xs text-[var(--color-problem)] hover:underline"
+        >
+          Disable
+        </button>
+      </div>
+    );
+  }
+
   const companyChecked = coverage?.company ?? false;
 
   const summary = useMemo(() => {
@@ -266,7 +272,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
   }, [coverage]);
 
   if (loading) {
-    return <div className="text-sm text-slate italic">Loading catalog&hellip;</div>;
+    return <div className="text-sm text-slate italic">Loading catalog…</div>;
   }
 
   if (accessDenied) {
@@ -276,16 +282,16 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
           No access to this vendor&apos;s catalog
         </h3>
         <p className="text-sm text-slate max-w-md mx-auto mb-4">
-          Auditing a vendor requires an active trading relationship or an
-          installed provenance key. This may also be your own participant
-          record — you can&apos;t audit yourself.
+          Auditing a vendor requires an active trading relationship or an installed
+          provenance key. This may also be your own participant record — you can&apos;t
+          audit yourself.
         </p>
-        <a
+        <Link
           href="/account/partners"
           className="inline-block text-sm text-teal hover:text-navy font-medium"
         >
-          &larr; Back to Partners
-        </a>
+          ← Back to Partners
+        </Link>
       </Panel>
     );
   }
@@ -302,7 +308,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
         <div className="text-xs text-slate uppercase tracking-wider">{summary}</div>
       )}
 
-      {/* Company-level row */}
+      {/* Company-level row — write toggle preserved */}
       <div className="rounded border border-slate/20 bg-white">
         <label className="flex items-center gap-3 px-4 py-3 cursor-pointer">
           <input
@@ -321,7 +327,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
         </label>
       </div>
 
-      {/* Classes */}
+      {/* Classes — write toggles retired; pill drives nav or inline disable */}
       {classes.length === 0 ? (
         <div className="rounded border border-slate/20 bg-light-gray px-4 py-6 text-sm text-slate text-center">
           No classes found for this vendor.
@@ -329,42 +335,25 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
       ) : (
         <div className="rounded border border-slate/20 bg-white divide-y divide-slate/10">
           {classes.map((klass) => {
-            const inheritFromCompany = companyChecked;
-            const classChecked = inheritFromCompany
-              ? true
-              : coverage?.classes[klass.class_id] ?? false;
-            const classDisabled = mutating || inheritFromCompany;
             const isExpanded = !!expanded[klass.class_id];
             const productsState = products[klass.class_id];
-
+            const pill = classPillState(klass);
+            const classDeepLink = `/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(vendorId)}&class_id=${encodeURIComponent(klass.class_id)}`;
             return (
               <div key={klass.class_id}>
-                <div
-                  className={`flex items-center gap-3 px-4 py-3 ${
-                    inheritFromCompany ? 'opacity-60' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={classChecked}
-                    disabled={classDisabled}
-                    onChange={() => onToggleClass(klass)}
-                    className="h-4 w-4 accent-teal"
-                  />
+                <div className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-charcoal">
-                      {klass.class_name}
-                    </p>
+                    <p className="text-sm font-medium text-charcoal">{klass.class_name}</p>
                     <p className="text-xs text-slate">
-                      {klass.class_slug} &middot; {klass.product_count} product
+                      {klass.class_slug} · {klass.product_count} product
                       {klass.product_count === 1 ? '' : 's'}
-                      {inheritFromCompany && ' — covered by company scope'}
                     </p>
                   </div>
+                  <PillRow state={pill} deepLink={classDeepLink} />
                   <button
                     type="button"
                     onClick={() => onToggleExpand(klass)}
-                    className="text-xs text-teal hover:text-teal-dark font-medium"
+                    className="text-xs text-teal hover:text-navy font-medium"
                   >
                     {isExpanded ? 'Hide products' : 'Show products'}
                   </button>
@@ -373,7 +362,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
                 {isExpanded && (
                   <div className="bg-light-gray px-4 py-3 border-t border-slate/10">
                     {productsState?.loading && (
-                      <p className="text-xs text-slate italic">Loading products&hellip;</p>
+                      <p className="text-xs text-slate italic">Loading products…</p>
                     )}
                     {productsState?.error && (
                       <p className="text-xs text-problem">{productsState.error}</p>
@@ -384,27 +373,13 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
                     {productsState?.loaded && productsState.products.length > 0 && (
                       <ul className="space-y-1">
                         {productsState.products.map((product) => {
-                          const inheritFromClass =
-                            inheritFromCompany ||
-                            (coverage?.classes[klass.class_id] ?? false);
-                          const productChecked = inheritFromClass
-                            ? true
-                            : coverage?.products[product.external_product_id] ?? false;
-                          const productDisabled = mutating || inheritFromClass;
+                          const productPill = productPillState(product, klass);
+                          const productDeepLink = `/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(vendorId)}&product=${encodeURIComponent(product.external_product_id)}`;
                           return (
                             <li
                               key={product.external_product_id}
-                              className={`flex items-center gap-3 pl-6 py-1.5 ${
-                                inheritFromClass ? 'opacity-60' : ''
-                              }`}
+                              className="flex items-center gap-3 pl-6 py-1.5"
                             >
-                              <input
-                                type="checkbox"
-                                checked={productChecked}
-                                disabled={productDisabled}
-                                onChange={() => onToggleProduct(product)}
-                                className="h-4 w-4 accent-teal"
-                              />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm text-charcoal truncate">
                                   {product.product_name ?? product.external_product_id}
@@ -415,6 +390,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
                                   </p>
                                 )}
                               </div>
+                              <PillRow state={productPill} deepLink={productDeepLink} />
                             </li>
                           );
                         })}

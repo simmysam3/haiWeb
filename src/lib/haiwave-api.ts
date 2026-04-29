@@ -38,7 +38,23 @@ import type {
   ClassRollupEntry,
   RunTriggerRequest,
   RefreshVendorRequest,
+  RunStatusResponse,
+  CancelRunResponse,
+  SkuObligation,
+  SkuObligationListQuery,
+  DownstreamGapEntry,
+  AggregateReport,
+  PerVendorReport,
 } from '@haiwave/protocol';
+
+import type {
+  InboundNominationGroup,
+  ResponderQueueFilters,
+} from '@/app/account/monitoring/audit-nominations/_lib/types';
+
+import type {
+  DownstreamGapFilters,
+} from '@/app/account/sonar/audit/downstream-gaps/_lib/types';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
@@ -294,6 +310,24 @@ export interface HaiwaveClient {
     opts?: { vendorId?: string; productId?: string },
   ): Promise<{ results: AuditRunResult[] }>;
   getAuditRunClassRollup(runId: string): Promise<{ rollup: ClassRollupEntry[] }>;
+  // Audit Runs (v1.27 Phase 2)
+  getAuditRunStatus(runId: string): Promise<RunStatusResponse>;
+  cancelAuditRun(runId: string): Promise<CancelRunResponse>;
+  // ─── SKU obligations (v1.27 Phase 4 routes; consumed by Phase 7) ─────
+  listObligations(query: SkuObligationListQuery): Promise<SkuObligation[]>;
+  getResponderQueue(filters?: ResponderQueueFilters): Promise<InboundNominationGroup[]>;
+  getDownstreamGaps(filters?: DownstreamGapFilters): Promise<DownstreamGapEntry[]>;
+  getObligation(id: string): Promise<SkuObligation>;
+  acknowledgeObligation(id: string): Promise<SkuObligation>;
+  declineObligation(id: string, notes?: string): Promise<SkuObligation>;
+  deferObligation(id: string, notes?: string): Promise<SkuObligation>;
+  // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
+  getAggregateReport(runId: string): Promise<AggregateReport>;
+  getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
+  /** Direct passthrough to haiCore. Used for non-JSON content negotiation
+   * (CSV reports). Returns the raw Response so callers can inspect status,
+   * forward content-type, and stream the body verbatim. */
+  fetchRaw(path: string, init?: RequestInit): Promise<Response>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -674,7 +708,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Audit Runs (v1.25) ──────────────────────────────────
-    triggerAuditRun(body = {}) {
+    triggerAuditRun(body: RunTriggerRequest = { scope_type: 'company' }) {
       return request<{ run_id: string; status: string }>(
         'POST',
         '/source-audit/runs',
@@ -717,5 +751,148 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/source-audit/runs/${runId}/class-rollup`,
       );
     },
+    getAuditRunStatus(runId) {
+      return request<RunStatusResponse>('GET', `/source-audit/runs/${runId}/status`);
+    },
+    cancelAuditRun(runId) {
+      return request<CancelRunResponse>('POST', `/source-audit/runs/${runId}/cancel`);
+    },
+
+    // ─── SKU obligations ────────────────────────────────────────
+    async listObligations(query) {
+      const params = new URLSearchParams();
+      if (query.observer_participant_id) params.set('observer_participant_id', query.observer_participant_id);
+      if (query.responder_participant_id) params.set('responder_participant_id', query.responder_participant_id);
+      if (query.product_id) params.set('product_id', query.product_id);
+      if (query.status) params.set('status', query.status);
+      if (query.limit !== undefined) params.set('limit', String(query.limit));
+      const envelope = await request<{ obligations: SkuObligation[] }>(
+        'GET',
+        `/sku-obligations?${params}`,
+      );
+      return envelope.obligations;
+    },
+
+    async getResponderQueue(filters) {
+      // Composed: flat list + connections join + grouping. Called by the
+      // BFF /api/account/sku-obligations/responder-queue route.
+      const obligations = await this.listObligations({
+        responder_participant_id: participantId,
+        // All status filtering happens client-side because haiCore's
+        // SkuObligationListQuery.status accepts only a single string —
+        // passing the first of N selected statuses would silently drop the rest.
+        // TODO: widen SkuObligationListQuery.status to string[] in v1.28+
+        // and remove the client-side filter.
+      });
+      const connections = (await this.listActiveConnections()) as unknown as Array<{
+        partner_participant_id: string;
+        partner_name: string;
+      }>;
+      const partnerName = new Map<string, string>();
+      for (const c of connections) partnerName.set(c.partner_participant_id, c.partner_name);
+
+      const filtered = obligations.filter((o) => {
+        if (filters?.status && !filters.status.includes(o.status)) return false;
+        if (filters?.observer_id && !filters.observer_id.includes(o.observer_participant_id)) return false;
+        return true;
+      });
+
+      const rows = filtered.map((o) => ({
+        obligation_id: o.obligation_id,
+        observer_participant_id: o.observer_participant_id,
+        observer_display_name:
+          partnerName.get(o.observer_participant_id) ??
+          `Unknown (${o.observer_participant_id.slice(0, 8)})`,
+        product_id: o.product_id,
+        sku_label: o.sku_label,
+        status: o.status,
+        arrival_time: o.created_at,
+        resolution_class: o.resolution_class,
+        unresolved_subtier_count: o.unresolved_subtier_count,
+      }));
+
+      const { groupNominations } = await import(
+        '@/app/account/monitoring/audit-nominations/_lib/group-nominations'
+      );
+      return groupNominations(rows);
+    },
+
+    async getDownstreamGaps(filters) {
+      const envelope = await request<{ entries: DownstreamGapEntry[] }>(
+        'GET',
+        '/sku-obligations/downstream-gaps',
+      );
+      const entries = envelope.entries;
+      // haiCore's downstream-gaps endpoint doesn't accept filter query params,
+      // so we filter client-side in the BFF after fetch. The result set is small.
+      return entries.filter((e) => {
+        if (filters?.resolution_class && !filters.resolution_class.includes(e.resolution_class)) return false;
+        if (filters?.on_network_status && !filters.on_network_status.includes(e.on_network_status)) return false;
+        if (filters?.min_request_count !== undefined && e.request_count < filters.min_request_count) return false;
+        return true;
+      });
+    },
+
+    getObligation(id) {
+      return request<SkuObligation>('GET', `/sku-obligations/${id}`);
+    },
+
+    acknowledgeObligation(id) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/acknowledge`, {});
+    },
+
+    declineObligation(id, notes) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/decline`, notes ? { notes } : {});
+    },
+
+    deferObligation(id, notes) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/defer`, notes ? { notes } : {});
+    },
+
+    // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
+    getAggregateReport(runId) {
+      return request<AggregateReport>(
+        'GET',
+        `/sonar/audit/reports/${runId}/aggregate`,
+      );
+    },
+    getPerVendorReport(runId, vendorId) {
+      return request<PerVendorReport>(
+        'GET',
+        `/sonar/audit/reports/${runId}/company/${vendorId}`,
+      );
+    },
+    // INVARIANT: returns the raw Response and does NOT throw on non-OK
+    // status (unlike request<T>()). Callers — see sonar/audit/reports/*
+    // route.ts — rely on this to manually decide JSON vs error fallthrough,
+    // typically forwarding 4xx body verbatim and converting unexpected
+    // network failures to 500.
+    fetchRaw(path, init) {
+      return fetch(`${haiwaveApiUrl}${path}`, {
+        ...init,
+        headers: { ...baseHeaders, ...(init?.headers ?? {}) },
+      });
+    },
   };
 }
+
+export type {
+  SkuObligation,
+  SkuObligationStatus,
+  ResolutionClass,
+  DownstreamGapEntry,
+  AggregateReport,
+  PerVendorReport,
+  AggregateReportHeader,
+  PerVendorReportHeader,
+  PostureSummary,
+  CoverageSummary,
+  GeographicRollupRow,
+  GapInventoryEntry,
+  PerVendorSummaryRow,
+  SkuTableRow,
+  GapDetailEntry,
+  ReportFooter,
+  ResolutionStatus,
+  ClassRollupEntry,
+} from '@haiwave/protocol';
