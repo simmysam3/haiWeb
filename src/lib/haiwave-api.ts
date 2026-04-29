@@ -765,7 +765,9 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       // BFF /api/account/sku-obligations/responder-queue route.
       const obligations = await this.listObligations({
         responder_participant_id: participantId,
-        status: filters?.status?.[0], // single-select on haiCore; multi handled client-side below
+        // All status filtering happens client-side because haiCore's
+        // SkuObligationListQuery.status accepts only a single string —
+        // passing the first of N selected statuses would silently drop the rest.
       });
       const connections = (await this.listActiveConnections()) as unknown as Array<{
         partner_participant_id: string;
