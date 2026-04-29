@@ -22,9 +22,9 @@ describe('GapsTable', () => {
     render(
       <GapsTable
         entries={[
-          entry({ sku_label: 'A', request_count: 2 }),
-          entry({ sku_label: 'B', request_count: 5 }),
-          entry({ sku_label: 'C', request_count: 3 }),
+          entry({ sku_label: 'A', request_count: 2, product_id: 'p1' }),
+          entry({ sku_label: 'B', request_count: 5, product_id: 'p2' }),
+          entry({ sku_label: 'C', request_count: 3, product_id: 'p3' }),
         ]}
       />,
     );
