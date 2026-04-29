@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { cookies, headers } from 'next/headers';
+import Link from 'next/link';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { RollupPanel } from './rollup-panel';
 import { ProductsGrid } from './products-grid';
@@ -58,13 +59,23 @@ export default async function RunDetailPage({
         <p className="text-sm text-slate">
           Triggered {new Date(data.run.triggered_at).toLocaleString()}
         </p>
-        <RunControls
-          runId={data.run.run_id}
-          initialStatus={data.run.status}
-          initialHopCount={data.run.hop_count}
-          initialGapCount={data.run.gap_count}
-          initialResultsCount={data.results.length}
-        />
+        <div className="flex items-center gap-3">
+          <RunControls
+            runId={data.run.run_id}
+            initialStatus={data.run.status}
+            initialHopCount={data.run.hop_count}
+            initialGapCount={data.run.gap_count}
+            initialResultsCount={data.results.length}
+          />
+          {data.run.status === 'complete' && (
+            <Link
+              href={`/account/sonar/audit/reports/${data.run.run_id}`}
+              className="text-teal hover:text-navy text-sm"
+            >
+              View Aggregate Report →
+            </Link>
+          )}
+        </div>
       </header>
 
       <RollupPanel results={data.results} />
