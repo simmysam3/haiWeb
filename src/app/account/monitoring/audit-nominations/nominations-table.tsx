@@ -5,6 +5,7 @@ import type { InboundNominationGroup } from './_lib/types';
 import { formatStatusMix } from './_lib/format-status-mix';
 import { NominationDrawer } from './nomination-drawer';
 import type { InboundNominationRow } from './_lib/types';
+import { BulkActionModal } from './bulk-action-modal';
 
 interface Props {
   groups: InboundNominationGroup[];
@@ -13,6 +14,7 @@ interface Props {
 export function NominationsTable({ groups }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [drawerRow, setDrawerRow] = useState<InboundNominationRow | null>(null);
+  const [bulk, setBulk] = useState<{ action: 'acknowledge' | 'defer' | 'decline'; group: InboundNominationGroup } | null>(null);
 
   function toggle(productId: string) {
     setExpanded((prev) => {
@@ -44,11 +46,23 @@ export function NominationsTable({ groups }: Props) {
               expanded={expanded.has(g.product_id)}
               onToggle={() => toggle(g.product_id)}
               onObserverClick={setDrawerRow}
+              onBulkAction={(action) => setBulk({ action, group: g })}
             />
           ))}
         </tbody>
       </table>
       {drawerRow && <NominationDrawer row={drawerRow} onClose={() => setDrawerRow(null)} />}
+      {bulk && (
+        <BulkActionModal
+          action={bulk.action}
+          sku_label={bulk.group.sku_label}
+          observers={bulk.group.observers.map((o) => ({
+            obligation_id: o.obligation_id,
+            display_name: o.observer_display_name,
+          }))}
+          onClose={() => setBulk(null)}
+        />
+      )}
     </>
   );
 }
@@ -58,11 +72,13 @@ function GroupRows({
   expanded,
   onToggle,
   onObserverClick,
+  onBulkAction,
 }: {
   group: InboundNominationGroup;
   expanded: boolean;
   onToggle: () => void;
   onObserverClick: (row: InboundNominationRow) => void;
+  onBulkAction: (action: 'acknowledge' | 'defer' | 'decline') => void;
 }) {
   return (
     <>
@@ -81,7 +97,31 @@ function GroupRows({
         <td className="py-3 px-4">{group.request_count}</td>
         <td className="py-3 px-4">{formatStatusMix(group.status_mix)}</td>
         <td className="py-3 px-4">{new Date(group.earliest_arrival).toLocaleString()}</td>
-        <td className="py-3 px-4 text-right text-slate">—</td>
+        <td className="py-3 px-4 text-right">
+          <div className="inline-flex gap-2">
+            <button
+              type="button"
+              onClick={() => onBulkAction('acknowledge')}
+              className="rounded border border-teal px-2 py-1 text-xs text-teal hover:bg-teal/10"
+            >
+              Accept all
+            </button>
+            <button
+              type="button"
+              onClick={() => onBulkAction('defer')}
+              className="rounded border border-slate/30 px-2 py-1 text-xs text-slate hover:bg-light-gray/40"
+            >
+              Defer all
+            </button>
+            <button
+              type="button"
+              onClick={() => onBulkAction('decline')}
+              className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+            >
+              Decline all
+            </button>
+          </div>
+        </td>
       </tr>
       {expanded &&
         group.observers.map((o) => (
