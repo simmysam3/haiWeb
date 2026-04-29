@@ -64,4 +64,27 @@ describe('GET /api/account/sku-obligations/responder-queue', () => {
     );
     expect(await res.json()).toEqual(groups);
   });
+
+  it('propagates 4xx body verbatim from haiCore', async () => {
+    const haiCoreErr = Object.assign(new Error('haiCore 403'), {
+      status: 403,
+      haiCoreBody: { error: { code: 'NO_VENDOR_ACCESS', message: 'forbidden' } },
+    });
+    getResponderQueue.mockRejectedValueOnce(haiCoreErr);
+    const res = await GET(
+      new NextRequest('http://localhost/api/account/sku-obligations/responder-queue'),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: { code: 'NO_VENDOR_ACCESS', message: 'forbidden' } });
+  });
+
+  it('returns 500 when haiCore raises a non-4xx error', async () => {
+    getResponderQueue.mockRejectedValueOnce(new Error('boom'));
+    const res = await GET(
+      new NextRequest('http://localhost/api/account/sku-obligations/responder-queue'),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(500);
+  });
 });
