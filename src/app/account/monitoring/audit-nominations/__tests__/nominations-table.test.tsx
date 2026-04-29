@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NominationsTable } from '../nominations-table';
 import type { InboundNominationGroup } from '../_lib/types';
 
@@ -38,5 +39,20 @@ describe('NominationsTable', () => {
     expect(screen.getByText('WIDGET-7')).toBeInTheDocument();
     expect(screen.getByText('GASKET-2')).toBeInTheDocument();
     expect(screen.getByText('1 acknowledged')).toBeInTheDocument();
+  });
+});
+
+describe('NominationsTable expand/collapse', () => {
+  it('hides observer rows by default and shows them after clicking the chevron', async () => {
+    const user = userEvent.setup();
+    render(<NominationsTable groups={[group({})]} />);
+
+    expect(screen.queryByText('Acme')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /expand widget-7/i }));
+
+    expect(screen.getByText('Acme')).toBeInTheDocument();
+    expect(screen.getByText('Globex')).toBeInTheDocument();
+    expect(screen.getByText('Initech')).toBeInTheDocument();
   });
 });
