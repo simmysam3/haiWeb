@@ -23,7 +23,7 @@ export default async function AggregateReportPage({
     notFound();
   }
 
-  if (result.kind === 'error') {
+  if (result.kind === 'error' || result.kind === 'network-error') {
     return (
       <div className="px-8 py-10">
         <div className="rounded-md border border-problem/20 bg-problem/5 p-6 text-sm text-problem">
