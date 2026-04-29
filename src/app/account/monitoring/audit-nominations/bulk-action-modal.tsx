@@ -12,6 +12,12 @@ const TITLES: Record<BulkAction, string> = {
   decline: 'Decline',
 };
 
+const PAST_TENSE: Record<BulkAction, string> = {
+  acknowledge: 'Accepted',
+  defer: 'Deferred',
+  decline: 'Declined',
+};
+
 interface Props {
   action: BulkAction;
   sku_label: string;
@@ -58,7 +64,7 @@ export function BulkActionModal({ action, sku_label, observers, onClose }: Props
       return;
     }
     setResultMessage(
-      `${TITLES[action]}ed ${successes.length} of ${results.length}; failed: ${failures.map((f) => f.name).join(', ')}.`,
+      `${PAST_TENSE[action]} ${successes.length} of ${results.length}; failed: ${failures.map((f) => f.name).join(', ')}.`,
     );
     router.refresh();
     onClose();

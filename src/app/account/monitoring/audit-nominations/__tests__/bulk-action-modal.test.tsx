@@ -84,4 +84,41 @@ describe('BulkActionModal', () => {
     );
     expect(screen.getByText(/informational/i)).toBeInTheDocument();
   });
+
+  it('keeps modal open and shows error when all requests fail', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: () => Promise.resolve({}) });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <BulkActionModal
+        action="acknowledge"
+        sku_label="WIDGET-7"
+        observers={observers}
+        onClose={onClose}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+
+    expect(await screen.findByText(/Couldn't accept any/i)).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('uses correct past-tense verb in partial-failure message for defer', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+      .mockResolvedValueOnce({ ok: false, status: 500, json: () => Promise.resolve({}) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    const user = userEvent.setup();
+    render(
+      <BulkActionModal
+        action="defer"
+        sku_label="WIDGET-7"
+        observers={observers}
+        onClose={() => {}}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+    expect(await screen.findByText(/Deferred 2 of 3/)).toBeInTheDocument();
+  });
 });
