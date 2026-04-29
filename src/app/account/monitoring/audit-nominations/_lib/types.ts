@@ -20,3 +20,9 @@ export interface InboundNominationGroup {
   status_mix: Partial<Record<SkuObligationStatus, number>>;
   observers: InboundNominationRow[];
 }
+
+export interface ResponderQueueFilters {
+  status?: SkuObligationStatus[];
+  observer_id?: string[];
+  product_class?: string[];
+}

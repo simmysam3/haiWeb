@@ -40,7 +40,15 @@ import type {
   RefreshVendorRequest,
   RunStatusResponse,
   CancelRunResponse,
+  SkuObligation,
+  SkuObligationListQuery,
+  DownstreamGapEntry,
 } from '@haiwave/protocol';
+
+import type {
+  InboundNominationGroup,
+  ResponderQueueFilters,
+} from '@/app/account/monitoring/audit-nominations/_lib/types';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
@@ -299,6 +307,14 @@ export interface HaiwaveClient {
   // Audit Runs (v1.27 Phase 2)
   getAuditRunStatus(runId: string): Promise<RunStatusResponse>;
   cancelAuditRun(runId: string): Promise<CancelRunResponse>;
+  // ─── SKU obligations (v1.27 Phase 4 routes; consumed by Phase 7) ─────
+  listObligations(query: SkuObligationListQuery): Promise<SkuObligation[]>;
+  getResponderQueue(filters?: ResponderQueueFilters): Promise<InboundNominationGroup[]>;
+  getDownstreamGaps(): Promise<DownstreamGapEntry[]>;
+  getObligation(id: string): Promise<SkuObligation>;
+  acknowledgeObligation(id: string): Promise<SkuObligation>;
+  declineObligation(id: string, notes?: string): Promise<SkuObligation>;
+  deferObligation(id: string, notes?: string): Promise<SkuObligation>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -728,5 +744,86 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     cancelAuditRun(runId) {
       return request<CancelRunResponse>('POST', `/source-audit/runs/${runId}/cancel`);
     },
+
+    // ─── SKU obligations ────────────────────────────────────────
+    async listObligations(query) {
+      const params = new URLSearchParams();
+      if (query.observer_participant_id) params.set('observer_participant_id', query.observer_participant_id);
+      if (query.responder_participant_id) params.set('responder_participant_id', query.responder_participant_id);
+      if (query.product_id) params.set('product_id', query.product_id);
+      if (query.status) params.set('status', query.status);
+      if (query.limit !== undefined) params.set('limit', String(query.limit));
+      const envelope = await request<{ obligations: SkuObligation[] }>(
+        'GET',
+        `/sku-obligations?${params}`,
+      );
+      return envelope.obligations;
+    },
+
+    async getResponderQueue(filters) {
+      // Composed: flat list + connections join + grouping. Called by the
+      // BFF /api/account/sku-obligations/responder-queue route.
+      const obligations = await this.listObligations({
+        responder_participant_id: participantId,
+        status: filters?.status?.[0], // single-select on haiCore; multi handled client-side below
+      });
+      const connections = (await this.listActiveConnections()) as unknown as Array<{
+        partner_participant_id: string;
+        partner_name: string;
+      }>;
+      const partnerName = new Map<string, string>();
+      for (const c of connections) partnerName.set(c.partner_participant_id, c.partner_name);
+
+      const filtered = obligations.filter((o) => {
+        if (filters?.status && !filters.status.includes(o.status)) return false;
+        if (filters?.observer_id && !filters.observer_id.includes(o.observer_participant_id)) return false;
+        return true;
+      });
+
+      const rows = filtered.map((o) => ({
+        obligation_id: o.obligation_id,
+        observer_participant_id: o.observer_participant_id,
+        observer_display_name:
+          partnerName.get(o.observer_participant_id) ??
+          `Unknown (${o.observer_participant_id.slice(0, 8)})`,
+        product_id: o.product_id,
+        sku_label: o.sku_label,
+        status: o.status,
+        arrival_time: o.created_at,
+        resolution_class: o.resolution_class,
+        unresolved_subtier_count: o.unresolved_subtier_count,
+      }));
+
+      const { groupNominations } = await import(
+        '@/app/account/monitoring/audit-nominations/_lib/group-nominations'
+      );
+      return groupNominations(rows);
+    },
+
+    async getDownstreamGaps() {
+      const envelope = await request<{ entries: DownstreamGapEntry[] }>(
+        'GET',
+        '/sku-obligations/downstream-gaps',
+      );
+      return envelope.entries;
+    },
+
+    getObligation(id) {
+      return request<SkuObligation>('GET', `/sku-obligations/${id}`);
+    },
+
+    acknowledgeObligation(id) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/acknowledge`, {});
+    },
+
+    declineObligation(id, notes) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/decline`, notes ? { notes } : {});
+    },
+
+    deferObligation(id, notes) {
+      return request<SkuObligation>('POST', `/sku-obligations/${id}/defer`, notes ? { notes } : {});
+    },
   };
 }
+
+export type { SkuObligation, SkuObligationStatus, ResolutionClass, DownstreamGapEntry } from '@haiwave/protocol';
