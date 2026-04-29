@@ -2,19 +2,21 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-let getObligation: ReturnType<typeof vi.fn>;
-let getSession: ReturnType<typeof vi.fn>;
-let getToken: ReturnType<typeof vi.fn>;
+const { getObligation, getSession, getToken } = vi.hoisted(() => ({
+  getObligation: vi.fn(),
+  getSession: vi.fn(),
+  getToken: vi.fn(),
+}));
 
 vi.mock('@/lib/auth', () => ({
-  getSession: (...args: unknown[]) => getSession(...args),
-  getToken: (...args: unknown[]) => getToken(...args),
+  getSession,
+  getToken,
   hasRole: () => true,
 }));
 
 vi.mock('@/lib/haiwave-api', () => ({
   createHaiwaveClient: () => ({
-    getObligation: (...args: unknown[]) => getObligation(...args),
+    getObligation,
   }),
 }));
 
@@ -23,9 +25,8 @@ import { GET } from '../[id]/route';
 describe('GET /api/account/sku-obligations/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getObligation = vi.fn();
-    getSession = vi.fn().mockResolvedValue({ user: { role: 'owner' }, participant: { id: 'p-self' } });
-    getToken = vi.fn().mockResolvedValue('header.payload.signature');
+    getSession.mockResolvedValue({ user: { role: 'owner' }, participant: { id: 'p-self' } });
+    getToken.mockResolvedValue('header.payload.signature');
   });
 
   it('returns 401 when no session', async () => {

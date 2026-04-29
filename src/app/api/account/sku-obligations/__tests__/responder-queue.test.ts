@@ -2,13 +2,15 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-let getResponderQueue = vi.fn();
-let getSession = vi.fn();
-let getToken = vi.fn();
+const { getResponderQueue, getSession, getToken } = vi.hoisted(() => ({
+  getResponderQueue: vi.fn(),
+  getSession: vi.fn(),
+  getToken: vi.fn(),
+}));
 
 vi.mock('@/lib/auth', () => ({
-  getSession: (...args: unknown[]) => getSession(...args),
-  getToken: (...args: unknown[]) => getToken(...args),
+  getSession,
+  getToken,
   hasRole: () => true,
 }));
 

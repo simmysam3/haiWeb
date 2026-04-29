@@ -2,23 +2,25 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-let acknowledgeObligation: ReturnType<typeof vi.fn>;
-let declineObligation: ReturnType<typeof vi.fn>;
-let deferObligation: ReturnType<typeof vi.fn>;
-let getSession: ReturnType<typeof vi.fn>;
-let getToken: ReturnType<typeof vi.fn>;
+const { acknowledgeObligation, declineObligation, deferObligation, getSession, getToken } = vi.hoisted(() => ({
+  acknowledgeObligation: vi.fn(),
+  declineObligation: vi.fn(),
+  deferObligation: vi.fn(),
+  getSession: vi.fn(),
+  getToken: vi.fn(),
+}));
 
 vi.mock('@/lib/auth', () => ({
-  getSession: (...args: unknown[]) => getSession(...args),
-  getToken: (...args: unknown[]) => getToken(...args),
+  getSession,
+  getToken,
   hasRole: () => true,
 }));
 
 vi.mock('@/lib/haiwave-api', () => ({
   createHaiwaveClient: () => ({
-    acknowledgeObligation: (...args: unknown[]) => acknowledgeObligation(...args),
-    declineObligation: (...args: unknown[]) => declineObligation(...args),
-    deferObligation: (...args: unknown[]) => deferObligation(...args),
+    acknowledgeObligation,
+    declineObligation,
+    deferObligation,
   }),
 }));
 
@@ -28,11 +30,8 @@ import { POST as defer } from '../[id]/defer/route';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  acknowledgeObligation = vi.fn();
-  declineObligation = vi.fn();
-  deferObligation = vi.fn();
-  getSession = vi.fn().mockResolvedValue({ user: { role: 'owner' }, participant: { id: 'p-self' } });
-  getToken = vi.fn().mockResolvedValue('header.payload.signature');
+  getSession.mockResolvedValue({ user: { role: 'owner' }, participant: { id: 'p-self' } });
+  getToken.mockResolvedValue('header.payload.signature');
 });
 
 describe('POST /sku-obligations/[id]/acknowledge', () => {
