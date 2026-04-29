@@ -45,6 +45,11 @@ import type {
   DownstreamGapEntry,
   AggregateReport,
   PerVendorReport,
+  TrustBypassConfig,
+  TrustClass,
+  TrustBypassActivationRequest,
+  TrustBypassDeactivationRequest,
+  TrustBypassAffectedCounterparty,
 } from '@haiwave/protocol';
 
 import type {
@@ -194,6 +199,28 @@ export interface ClassificationOverrideInput {
   reason?: string;
 }
 
+/**
+ * Activation response shape returned by POST /sonar/audit/trust-bypass/activate.
+ * Mirrors the haiCore route handler — the server emits a stripped config
+ * (config_id, trust_class, enabled, enabled_at) plus an optional dissolution
+ * payload populated only on retroactive activation. The full TrustBypassConfig
+ * schema is overkill here; the dissolution arrays drive the post-activation
+ * toast (preserved decline count) and the modal-close handler.
+ */
+export interface TrustBypassActivationResponse {
+  config: {
+    config_id: string;
+    trust_class: TrustClass;
+    enabled: boolean;
+    enabled_at: string | null;
+  };
+  dissolution: {
+    affected_counterparty_ids: string[];
+    affected_obligation_ids: string[];
+    preserved_decline_ids: string[];
+  } | null;
+}
+
 export interface HaiwaveClient {
   searchParticipants(query: string, options?: { limit?: number }): Promise<ParticipantProfile[]>;
   getCompanyProfile(id: string): Promise<ParticipantProfile>;
@@ -324,6 +351,13 @@ export interface HaiwaveClient {
   // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
   getAggregateReport(runId: string): Promise<AggregateReport>;
   getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
+  // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
+  listTrustBypassConfigs(): Promise<{ configs: TrustBypassConfig[] }>;
+  getTrustBypassAffectedCounterparties(
+    trustClass: TrustClass,
+  ): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }>;
+  activateTrustBypass(body: TrustBypassActivationRequest): Promise<TrustBypassActivationResponse>;
+  deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -862,6 +896,31 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/sonar/audit/reports/${runId}/company/${vendorId}`,
       );
     },
+
+    // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
+    listTrustBypassConfigs() {
+      return request<{ configs: TrustBypassConfig[] }>(
+        'GET',
+        '/sonar/audit/trust-bypass/configs',
+      );
+    },
+    getTrustBypassAffectedCounterparties(trustClass) {
+      return request<{ counterparties: TrustBypassAffectedCounterparty[] }>(
+        'GET',
+        `/sonar/audit/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
+      );
+    },
+    activateTrustBypass(body) {
+      return request<TrustBypassActivationResponse>(
+        'POST',
+        '/sonar/audit/trust-bypass/activate',
+        body,
+      );
+    },
+    deactivateTrustBypass(body) {
+      // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
+      return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
+    },
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
     // status (unlike request<T>()). Callers — see sonar/audit/reports/*
     // route.ts — rely on this to manually decide JSON vs error fallthrough,
@@ -895,4 +954,10 @@ export type {
   ReportFooter,
   ResolutionStatus,
   ClassRollupEntry,
+  TrustBypassConfig,
+  TrustClass,
+  TrustBypassActivationRequest,
+  TrustBypassDeactivationRequest,
+  TrustBypassAffectedCounterparty,
+  TrustBypassActivationMode,
 } from '@haiwave/protocol';
