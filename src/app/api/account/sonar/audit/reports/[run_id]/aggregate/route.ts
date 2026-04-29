@@ -3,6 +3,7 @@ import { withHaiCore } from '@/lib/with-hai-core';
 
 export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, params }) => {
   const format = request.nextUrl.searchParams.get('format');
+  const filename = `aggregate-${params.run_id}`;
 
   if (format === 'csv') {
     // CSV passthrough: bypass HaiwaveClient.request<T>() (JSON-only).
@@ -27,7 +28,7 @@ export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, par
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="aggregate-${params.run_id}.csv"`,
+        'Content-Disposition': `attachment; filename="${filename}.csv"`,
       },
     });
   }
@@ -40,7 +41,7 @@ export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, par
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Content-Disposition': `attachment; filename="aggregate-${params.run_id}.json"`,
+        'Content-Disposition': `attachment; filename="${filename}.json"`,
       },
     });
   }

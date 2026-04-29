@@ -79,6 +79,7 @@ describe('GET /api/account/sonar/audit/reports/[run_id]/vendor/[vendor_id]', () 
     expect(res.headers.get('Content-Disposition')).toBe(
       `attachment; filename="per-vendor-${RUN_ID}-${VENDOR_ID}.json"`,
     );
+    expect(JSON.parse(await res.text())).toEqual(report);
   });
 
   it('returns CSV download via fetchRaw with /company/ URL rewrite', async () => {
