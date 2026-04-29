@@ -10,11 +10,17 @@ export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, par
       `/sonar/audit/reports/${params.run_id}/aggregate`,
       { headers: { Accept: 'text/csv' } },
     );
+    // fetchRaw returns the raw Response and does not throw on non-OK status,
+    // unlike request<T>() in the JSON path. Check ok manually here.
     if (!haiCoreRes.ok) {
-      return NextResponse.json(
-        { error: `haiCore returned ${haiCoreRes.status}` },
-        { status: haiCoreRes.status },
-      );
+      const text = await haiCoreRes.text();
+      let body: unknown;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = { error: `haiCore returned ${haiCoreRes.status}` };
+      }
+      return NextResponse.json(body, { status: haiCoreRes.status });
     }
     const body = await haiCoreRes.text();
     return new NextResponse(body, {

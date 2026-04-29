@@ -91,6 +91,36 @@ describe('GET /api/account/sonar/audit/reports/[run_id]/aggregate', () => {
     );
   });
 
+  it('propagates haiCore 4xx body verbatim on the csv path when JSON-parseable', async () => {
+    fetchRaw.mockResolvedValue(
+      new Response(
+        JSON.stringify({ error: { code: 'REPORT_NOT_FOUND', message: 'Report not found' } }),
+        { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8' } },
+      ),
+    );
+    const res = await GET(makeRequest('?format=csv'), {
+      params: Promise.resolve({ run_id: RUN_ID }),
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({
+      error: { code: 'REPORT_NOT_FOUND', message: 'Report not found' },
+    });
+  });
+
+  it('falls back to opaque error on the csv path when haiCore body is not JSON', async () => {
+    fetchRaw.mockResolvedValue(
+      new Response('Internal Server Error\n', {
+        status: 502,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      }),
+    );
+    const res = await GET(makeRequest('?format=csv'), {
+      params: Promise.resolve({ run_id: RUN_ID }),
+    });
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: 'haiCore returned 502' });
+  });
+
   it('propagates haiCore 4xx body verbatim', async () => {
     const haiCoreErr = Object.assign(new Error('haiCore 404'), {
       status: 404,
