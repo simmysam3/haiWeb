@@ -2,18 +2,33 @@ import { headers } from 'next/headers';
 import type { DownstreamGapEntry } from '@haiwave/protocol';
 import { GapsTable } from './gaps-table';
 import { LeastCompliantPanel } from './least-compliant-panel';
+import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
+
+interface SearchParams {
+  resolution_class?: string | string[];
+  on_network_status?: string | string[];
+  min_request_count?: string;
+}
 
 type FetchResult =
   | { kind: 'ok'; entries: DownstreamGapEntry[] }
   | { kind: 'error'; status: number };
 
-async function fetchGaps(): Promise<FetchResult> {
+async function fetchGaps(searchParams: SearchParams): Promise<FetchResult> {
+  const sp = new URLSearchParams();
+  for (const key of ['resolution_class', 'on_network_status'] as const) {
+    const v = searchParams[key];
+    if (Array.isArray(v)) v.forEach((x) => sp.append(key, x));
+    else if (v) sp.append(key, v);
+  }
+  if (searchParams.min_request_count) sp.set('min_request_count', searchParams.min_request_count);
+
   const h = await headers();
   const cookie = h.get('cookie') ?? '';
   const protocol = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('host') ?? 'localhost:3000';
-  const url = `${protocol}://${host}/api/account/sku-obligations/downstream-gaps`;
+  const url = `${protocol}://${host}/api/account/sku-obligations/downstream-gaps?${sp}`;
   try {
     const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
     if (!res.ok) return { kind: 'error', status: res.status };
@@ -23,8 +38,13 @@ async function fetchGaps(): Promise<FetchResult> {
   }
 }
 
-export default async function DownstreamGapsPage() {
-  const result = await fetchGaps();
+interface PageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export default async function DownstreamGapsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const result = await fetchGaps(params);
 
   return (
     <div className="px-8 py-10">
@@ -38,6 +58,8 @@ export default async function DownstreamGapsPage() {
         </div>
         <RefreshButton />
       </header>
+
+      <FilterPills />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="rounded-lg border border-slate/20 bg-white">

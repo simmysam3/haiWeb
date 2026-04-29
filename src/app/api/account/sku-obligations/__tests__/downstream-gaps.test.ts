@@ -58,7 +58,40 @@ describe('GET /api/account/sku-obligations/downstream-gaps', () => {
       { params: Promise.resolve({}) },
     );
     expect(res.status).toBe(200);
+    expect(getDownstreamGaps).toHaveBeenCalled();
     expect(await res.json()).toEqual(entries);
+  });
+
+  it('forwards resolution_class and on_network_status filters', async () => {
+    getDownstreamGaps.mockResolvedValue([]);
+    const res = await GET(
+      new NextRequest(
+        'http://localhost/api/account/sku-obligations/downstream-gaps?resolution_class=pending&resolution_class=agentic_eligible&on_network_status=invited',
+      ),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(200);
+    expect(getDownstreamGaps).toHaveBeenCalledWith({
+      resolution_class: ['pending', 'agentic_eligible'],
+      on_network_status: ['invited'],
+      min_request_count: undefined,
+    });
+  });
+
+  it('parses min_request_count as integer', async () => {
+    getDownstreamGaps.mockResolvedValue([]);
+    const res = await GET(
+      new NextRequest(
+        'http://localhost/api/account/sku-obligations/downstream-gaps?min_request_count=3',
+      ),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(200);
+    expect(getDownstreamGaps).toHaveBeenCalledWith({
+      resolution_class: undefined,
+      on_network_status: undefined,
+      min_request_count: 3,
+    });
   });
 
   it('propagates 4xx body verbatim from haiCore', async () => {

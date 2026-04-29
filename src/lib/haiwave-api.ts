@@ -50,6 +50,10 @@ import type {
   ResponderQueueFilters,
 } from '@/app/account/monitoring/audit-nominations/_lib/types';
 
+import type {
+  DownstreamGapFilters,
+} from '@/app/account/sonar/audit/downstream-gaps/_lib/types';
+
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
 export interface CatalogClass {
@@ -310,7 +314,7 @@ export interface HaiwaveClient {
   // ─── SKU obligations (v1.27 Phase 4 routes; consumed by Phase 7) ─────
   listObligations(query: SkuObligationListQuery): Promise<SkuObligation[]>;
   getResponderQueue(filters?: ResponderQueueFilters): Promise<InboundNominationGroup[]>;
-  getDownstreamGaps(): Promise<DownstreamGapEntry[]>;
+  getDownstreamGaps(filters?: DownstreamGapFilters): Promise<DownstreamGapEntry[]>;
   getObligation(id: string): Promise<SkuObligation>;
   acknowledgeObligation(id: string): Promise<SkuObligation>;
   declineObligation(id: string, notes?: string): Promise<SkuObligation>;
@@ -802,12 +806,20 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return groupNominations(rows);
     },
 
-    async getDownstreamGaps() {
+    async getDownstreamGaps(filters) {
       const envelope = await request<{ entries: DownstreamGapEntry[] }>(
         'GET',
         '/sku-obligations/downstream-gaps',
       );
-      return envelope.entries;
+      const entries = envelope.entries;
+      // haiCore's downstream-gaps endpoint doesn't accept filter query params,
+      // so we filter client-side in the BFF after fetch. The result set is small.
+      return entries.filter((e) => {
+        if (filters?.resolution_class && !filters.resolution_class.includes(e.resolution_class)) return false;
+        if (filters?.on_network_status && !filters.on_network_status.includes(e.on_network_status)) return false;
+        if (filters?.min_request_count !== undefined && e.request_count < filters.min_request_count) return false;
+        return true;
+      });
     },
 
     getObligation(id) {
