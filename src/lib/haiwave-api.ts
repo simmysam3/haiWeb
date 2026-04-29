@@ -44,6 +44,21 @@ import type {
   SkuObligationListQuery,
   DownstreamGapEntry,
 } from '@haiwave/protocol';
+import type {
+  AggregateReport,
+  PerVendorReport,
+  AggregateReportHeader,
+  PerVendorReportHeader,
+  PostureSummary,
+  CoverageSummary,
+  GeographicRollupRow,
+  GapInventoryEntry,
+  PerVendorSummaryRow,
+  SkuTableRow,
+  GapDetailEntry,
+  ReportFooter,
+  ResolutionStatus,
+} from '@haiwave/protocol';
 
 import type {
   InboundNominationGroup,
@@ -319,6 +334,13 @@ export interface HaiwaveClient {
   acknowledgeObligation(id: string): Promise<SkuObligation>;
   declineObligation(id: string, notes?: string): Promise<SkuObligation>;
   deferObligation(id: string, notes?: string): Promise<SkuObligation>;
+  // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
+  getAggregateReport(runId: string): Promise<AggregateReport>;
+  getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
+  /** Direct passthrough to haiCore. Used for non-JSON content negotiation
+   * (CSV reports). Returns the raw Response so callers can inspect status,
+   * forward content-type, and stream the body verbatim. */
+  fetchRaw(path: string, init?: RequestInit): Promise<Response>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -837,7 +859,46 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     deferObligation(id, notes) {
       return request<SkuObligation>('POST', `/sku-obligations/${id}/defer`, notes ? { notes } : {});
     },
+
+    // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
+    getAggregateReport(runId) {
+      return request<AggregateReport>(
+        'GET',
+        `/sonar/audit/reports/${runId}/aggregate`,
+      );
+    },
+    getPerVendorReport(runId, vendorId) {
+      return request<PerVendorReport>(
+        'GET',
+        `/sonar/audit/reports/${runId}/company/${vendorId}`,
+      );
+    },
+    fetchRaw(path, init) {
+      return fetch(`${haiwaveApiUrl}${path}`, {
+        ...init,
+        headers: { ...baseHeaders, ...(init?.headers ?? {}) },
+      });
+    },
   };
 }
 
-export type { SkuObligation, SkuObligationStatus, ResolutionClass, DownstreamGapEntry } from '@haiwave/protocol';
+export type {
+  SkuObligation,
+  SkuObligationStatus,
+  ResolutionClass,
+  DownstreamGapEntry,
+  AggregateReport,
+  PerVendorReport,
+  AggregateReportHeader,
+  PerVendorReportHeader,
+  PostureSummary,
+  CoverageSummary,
+  GeographicRollupRow,
+  GapInventoryEntry,
+  PerVendorSummaryRow,
+  SkuTableRow,
+  GapDetailEntry,
+  ReportFooter,
+  ResolutionStatus,
+  ClassRollupEntry,
+} from '@haiwave/protocol';
