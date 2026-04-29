@@ -33,3 +33,23 @@ describe('ReportHeader (aggregate)', () => {
     expect(screen.getByText(/Completed/i)).toBeInTheDocument();
   });
 });
+
+const perVendorHeader = {
+  ...aggregateHeader,
+  vendor_participant_id: '33333333-3333-3333-3333-333333333333',
+  vendor_legal_name: 'Vendor A',
+};
+
+describe('ReportHeader (per-vendor)', () => {
+  it('renders the vendor legal name', () => {
+    render(<ReportHeader variant="per_vendor" header={perVendorHeader} runId={aggregateHeader.run_id} />);
+    expect(screen.getByText('Vendor A')).toBeInTheDocument();
+  });
+
+  it('renders a back-to-aggregate breadcrumb link to /account/sonar/audit/reports/{runId}', () => {
+    render(<ReportHeader variant="per_vendor" header={perVendorHeader} runId={aggregateHeader.run_id} />);
+    const link = screen.getByRole('link', { name: /Back to aggregate/i }) as HTMLAnchorElement;
+    expect(link).toBeInTheDocument();
+    expect(link.getAttribute('href')).toBe(`/account/sonar/audit/reports/${aggregateHeader.run_id}`);
+  });
+});

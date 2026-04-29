@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { AggregateReportHeader, PerVendorReportHeader } from '@/lib/haiwave-api';
 
 type Props =
@@ -8,6 +9,14 @@ export function ReportHeader(props: Props) {
   const { header } = props;
   return (
     <header className="space-y-3">
+      {props.variant === 'per_vendor' && (
+        <Link
+          href={`/account/sonar/audit/reports/${props.runId}`}
+          className="inline-block text-xs text-teal hover:text-navy"
+        >
+          ← Back to aggregate
+        </Link>
+      )}
       <div className="flex items-center gap-3">
         <h1 className="font-display text-3xl text-navy">
           {props.variant === 'aggregate' ? 'Aggregate report' : 'Per-vendor report'}
@@ -23,6 +32,12 @@ export function ReportHeader(props: Props) {
         <dd>{header.scope_label}</dd>
         <dt className="font-medium text-charcoal">Initiator</dt>
         <dd>{header.initiator_legal_name}</dd>
+        {props.variant === 'per_vendor' && (
+          <>
+            <dt className="font-medium text-charcoal">Vendor</dt>
+            <dd>{props.header.vendor_legal_name}</dd>
+          </>
+        )}
         <dt className="font-medium text-charcoal">Triggered</dt>
         <dd>{new Date(header.triggered_at).toLocaleString()}</dd>
         <dt className="font-medium text-charcoal">Completed</dt>
