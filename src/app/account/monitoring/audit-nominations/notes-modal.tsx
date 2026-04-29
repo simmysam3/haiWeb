@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Modal } from '@/components/modal';
 
 interface Props {
   action: 'defer' | 'decline';
@@ -14,26 +15,26 @@ const TITLES = { defer: 'Defer nomination', decline: 'Decline nomination' };
 
 export function NotesModal({ action, context, onConfirm, onCancel, busy }: Props) {
   const [notes, setNotes] = useState('');
+  const trimmed = notes.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[440px] rounded-lg bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-display text-navy">{TITLES[action]}</h3>
-        <p className="mt-2 text-sm text-slate">{context}</p>
+    <Modal open onClose={onCancel} title={TITLES[action]} width="max-w-md">
+      <div className="space-y-4">
+        <p className="text-sm text-slate">{context}</p>
         {action === 'decline' && (
-          <p className="mt-3 rounded-md bg-light-gray/60 p-3 text-xs text-slate">
+          <p className="rounded-md bg-light-gray/60 p-3 text-xs text-slate">
             This is informational. The observer sees the obligation status update;
             this is not a contractual rejection.
           </p>
         )}
         <textarea
-          className="mt-4 w-full rounded-md border border-slate/30 p-2 text-sm"
+          className="w-full rounded-md border border-slate/30 p-2 text-sm"
           rows={3}
           placeholder="Optional notes…"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
@@ -44,13 +45,13 @@ export function NotesModal({ action, context, onConfirm, onCancel, busy }: Props
           <button
             type="button"
             disabled={busy}
-            onClick={() => onConfirm(notes.trim() ? notes.trim() : undefined)}
+            onClick={() => onConfirm(trimmed ? trimmed : undefined)}
             className="rounded-md bg-navy px-4 py-2 text-sm text-white hover:bg-navy/90 disabled:opacity-50"
           >
             {busy ? 'Working…' : 'Confirm'}
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
