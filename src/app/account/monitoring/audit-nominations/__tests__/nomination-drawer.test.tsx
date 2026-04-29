@@ -78,3 +78,49 @@ describe('NominationDrawer', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe('NominationDrawer Decline', () => {
+  it('opens modal with informational copy and posts decline with notes', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+
+    const user = userEvent.setup();
+    render(<NominationDrawer row={row} onClose={() => {}} />);
+    await user.click(screen.getByRole('button', { name: /^decline$/i }));
+
+    expect(screen.getByText(/informational/i)).toBeInTheDocument();
+    await user.type(screen.getByRole('textbox'), 'wrong product');
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/account/sku-obligations/obl-1/decline',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ notes: 'wrong product' }),
+        }),
+      );
+    });
+  });
+});
+
+describe('NominationDrawer Defer', () => {
+  it('posts defer with empty body when no notes provided', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+
+    const user = userEvent.setup();
+    render(<NominationDrawer row={row} onClose={() => {}} />);
+    await user.click(screen.getByRole('button', { name: /^defer$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/account/sku-obligations/obl-1/defer',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({}) }),
+      );
+    });
+  });
+});
