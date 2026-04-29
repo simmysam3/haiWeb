@@ -16,7 +16,10 @@ describe('GenerateKeyModal', () => {
     const onGenerated = vi.fn();
     render(<GenerateKeyModal open={true} onClose={() => {}} onGenerated={onGenerated} />);
     await userEvent.type(screen.getByLabelText(/friendly name/i), 'Test Key');
-    await userEvent.click(screen.getByLabelText(/facility_country/i));
+    // Toggle plant_address into the required set. Per protocol v3.1.0,
+    // canonical fields are state_province, city, plant_address,
+    // plant_identifier, vendor_name (5-field reduction).
+    await userEvent.click(screen.getByLabelText(/plant_address/i));
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
     expect(onGenerated).toHaveBeenCalledWith(generated);
   });
