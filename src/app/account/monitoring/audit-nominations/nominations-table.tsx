@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { InboundNominationGroup } from './_lib/types';
 import { formatStatusMix } from './_lib/format-status-mix';
+import { NominationDrawer } from './nomination-drawer';
+import type { InboundNominationRow } from './_lib/types';
 
 interface Props {
   groups: InboundNominationGroup[];
@@ -10,6 +12,7 @@ interface Props {
 
 export function NominationsTable({ groups }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [drawerRow, setDrawerRow] = useState<InboundNominationRow | null>(null);
 
   function toggle(productId: string) {
     setExpanded((prev) => {
@@ -21,23 +24,32 @@ export function NominationsTable({ groups }: Props) {
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead className="border-b border-slate/30 text-left text-slate">
-        <tr>
-          <th className="py-3 px-4 w-10"></th>
-          <th className="py-3 px-4">SKU</th>
-          <th className="py-3 px-4">Requests</th>
-          <th className="py-3 px-4">Status</th>
-          <th className="py-3 px-4">Earliest</th>
-          <th className="py-3 px-4 text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {groups.map((g) => (
-          <GroupRows key={g.product_id} group={g} expanded={expanded.has(g.product_id)} onToggle={() => toggle(g.product_id)} />
-        ))}
-      </tbody>
-    </table>
+    <>
+      <table className="w-full text-sm">
+        <thead className="border-b border-slate/30 text-left text-slate">
+          <tr>
+            <th className="py-3 px-4 w-10"></th>
+            <th className="py-3 px-4">SKU</th>
+            <th className="py-3 px-4">Requests</th>
+            <th className="py-3 px-4">Status</th>
+            <th className="py-3 px-4">Earliest</th>
+            <th className="py-3 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => (
+            <GroupRows
+              key={g.product_id}
+              group={g}
+              expanded={expanded.has(g.product_id)}
+              onToggle={() => toggle(g.product_id)}
+              onObserverClick={setDrawerRow}
+            />
+          ))}
+        </tbody>
+      </table>
+      {drawerRow && <NominationDrawer row={drawerRow} onClose={() => setDrawerRow(null)} />}
+    </>
   );
 }
 
@@ -45,10 +57,12 @@ function GroupRows({
   group,
   expanded,
   onToggle,
+  onObserverClick,
 }: {
   group: InboundNominationGroup;
   expanded: boolean;
   onToggle: () => void;
+  onObserverClick: (row: InboundNominationRow) => void;
 }) {
   return (
     <>
@@ -77,7 +91,16 @@ function GroupRows({
             <td className="py-2 px-4 text-slate">{o.status}</td>
             <td className="py-2 px-4 text-slate">{new Date(o.arrival_time).toLocaleString()}</td>
             <td className="py-2 px-4 text-slate">{o.resolution_class}</td>
-            <td className="py-2 px-4 text-right text-slate">—</td>
+            <td className="py-2 px-4 text-right">
+              <button
+                type="button"
+                aria-label={`Open detail for ${o.observer_display_name} on ${o.sku_label}`}
+                onClick={() => onObserverClick(o)}
+                className="text-teal hover:underline"
+              >
+                Review →
+              </button>
+            </td>
           </tr>
         ))}
     </>
