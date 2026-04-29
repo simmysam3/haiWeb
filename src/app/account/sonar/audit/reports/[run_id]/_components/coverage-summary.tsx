@@ -19,7 +19,7 @@ export function CoverageSummary({ summary }: { summary: CoverageSummaryType }) {
     <section>
       <h2 className="font-display text-lg text-navy mb-3">Coverage summary</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="SKUs" value={summary.total_skus} />
+        <Stat label="Total SKUs" value={summary.total_skus} />
         <Stat label="Compliant" value={summary.compliant_count} tone="compliant" />
         <Stat label="Partially compliant" value={summary.partially_compliant_count} tone="partial" />
         <Stat label="Non-compliant" value={summary.non_compliant_count} tone="noncompliant" />
