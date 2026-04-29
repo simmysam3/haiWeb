@@ -45,17 +45,6 @@ import type {
   DownstreamGapEntry,
   AggregateReport,
   PerVendorReport,
-  AggregateReportHeader,
-  PerVendorReportHeader,
-  PostureSummary,
-  CoverageSummary,
-  GeographicRollupRow,
-  GapInventoryEntry,
-  PerVendorSummaryRow,
-  SkuTableRow,
-  GapDetailEntry,
-  ReportFooter,
-  ResolutionStatus,
 } from '@haiwave/protocol';
 
 import type {
