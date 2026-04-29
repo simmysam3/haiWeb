@@ -24,6 +24,7 @@ const navSections: NavSection[] = [
       { href: "/account/scores", label: "Behavioral Scores" },
       { href: "/account/provenance", label: "Provenance" },
       { href: "/account/compliance", label: "Compliance" },
+      { href: "/account/monitoring/audit-nominations", label: "Audit Nominations" },
       { href: "/account/agent-health", label: "Agent Health" },
     ],
   },
