@@ -45,6 +45,8 @@ export function DownloadMenu(props: Props) {
     <div ref={containerRef} className="relative inline-block">
       <button
         type="button"
+        aria-haspopup="true"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="rounded-md border border-teal text-teal px-3 py-1.5 text-sm hover:bg-teal/5"
       >
