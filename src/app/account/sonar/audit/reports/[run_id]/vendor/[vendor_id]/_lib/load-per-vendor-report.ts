@@ -23,7 +23,8 @@ export async function loadPerVendorReport(
     // HaiwaveClient.getPerVendorReport. No runtime parse needed.
     const report = (await res.json()) as PerVendorReport;
     return { kind: 'ok', report };
-  } catch {
+  } catch (err) {
+    console.error('[loadPerVendorReport] network failure', { runId, vendorId, err });
     return { kind: 'network-error' };
   }
 }

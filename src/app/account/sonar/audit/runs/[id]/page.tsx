@@ -6,9 +6,13 @@ import { RollupPanel } from './rollup-panel';
 import { ProductsGrid } from './products-grid';
 import { RunControls } from './run-controls';
 
-async function load(
-  runId: string,
-): Promise<{ run: AuditRun; results: AuditRunResult[] } | null> {
+interface LoadOk {
+  run: AuditRun;
+  results: AuditRunResult[];
+  resultsError: { status: number } | null;
+}
+
+async function load(runId: string): Promise<LoadOk | null> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
@@ -31,12 +35,18 @@ async function load(
         cache: 'no-store',
       },
     );
-    const resultsData = resultsRes.ok
-      ? ((await resultsRes.json()) as { results?: AuditRunResult[] })
-      : { results: [] };
 
-    return { run, results: resultsData.results ?? [] };
-  } catch {
+    // Distinguish "results not yet available" (200 with empty list) from a
+    // real upstream failure (4xx/5xx). The latter must surface to the user
+    // as a banner rather than silently rendering an empty grid that looks
+    // like a successful "no results" response.
+    if (resultsRes.ok) {
+      const resultsData = (await resultsRes.json()) as { results?: AuditRunResult[] };
+      return { run, results: resultsData.results ?? [], resultsError: null };
+    }
+    return { run, results: [], resultsError: { status: resultsRes.status } };
+  } catch (err) {
+    console.error('[runs/[id] load] network failure', { runId, err });
     return null;
   }
 }
@@ -77,6 +87,20 @@ export default async function RunDetailPage({
           )}
         </div>
       </header>
+
+      {data.resultsError && (
+        <div
+          role="alert"
+          className="rounded-md border border-problem/20 bg-problem/5 p-4 text-sm text-problem"
+        >
+          Couldn&apos;t load this run&apos;s results
+          {data.resultsError.status >= 500
+            ? ' — the audit service is temporarily unavailable.'
+            : data.resultsError.status === 403
+            ? ' — you do not have permission to view this run.'
+            : ` — server returned ${data.resultsError.status}.`}
+        </div>
+      )}
 
       <RollupPanel results={data.results} />
 

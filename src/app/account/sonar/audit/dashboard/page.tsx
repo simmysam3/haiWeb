@@ -6,6 +6,7 @@ import { GapsPanel } from './gaps-panel';
 import { RunControls } from './run-controls';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
+import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { PartnersChart } from './partners-chart';
 import { buildPartnerCompliance, type PartnerComplianceData } from './_lib/partner-compliance';
 
@@ -32,7 +33,8 @@ async function loadDashboard(): Promise<DashboardData> {
       });
       if (!res.ok) return null;
       return (await res.json()) as T;
-    } catch {
+    } catch (err) {
+      console.error('[loadDashboard] network failure', { path, err });
       return null;
     }
   };
@@ -88,8 +90,15 @@ async function loadDashboard(): Promise<DashboardData> {
 }
 
 export default async function DashboardPage() {
-  const scopes = await getActiveScopes();
-  if (scopes.length === 0) {
+  const scopesResult = await getActiveScopes();
+  if (scopesResult.kind === 'error') {
+    return (
+      <div className="p-6">
+        <ScopesErrorBanner status={scopesResult.status} />
+      </div>
+    );
+  }
+  if (scopesResult.scopes.length === 0) {
     return (
       <div className="p-6">
         <NoScopesCTA context="dashboard" />

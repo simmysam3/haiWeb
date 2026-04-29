@@ -22,7 +22,8 @@ async function loadScopes(): Promise<AuditScope[]> {
     if (!res.ok) return [];
     const data = (await res.json()) as { scopes?: AuditScope[] };
     return data.scopes ?? [];
-  } catch {
+  } catch (err) {
+    console.error('[nominations.loadScopes] network failure', { err });
     return [];
   }
 }

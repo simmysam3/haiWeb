@@ -20,7 +20,8 @@ export async function loadAggregateReport(runId: string): Promise<LoadReportResu
     // which is typed end-to-end via HaiwaveClient.getAggregateReport. No runtime parse needed.
     const report = (await res.json()) as AggregateReport;
     return { kind: 'ok', report };
-  } catch {
+  } catch (err) {
+    console.error('[loadAggregateReport] network failure', { runId, err });
     return { kind: 'network-error' };
   }
 }

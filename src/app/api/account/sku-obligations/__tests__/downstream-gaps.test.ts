@@ -78,6 +78,21 @@ describe('GET /api/account/sku-obligations/downstream-gaps', () => {
     });
   });
 
+  it('returns 400 when min_request_count is not a non-negative integer', async () => {
+    for (const bad of ['foo', '1.5', '-3']) {
+      const res = await GET(
+        new NextRequest(
+          `http://localhost/api/account/sku-obligations/downstream-gaps?min_request_count=${bad}`,
+        ),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: { code?: string } };
+      expect(body.error?.code).toBe('VALIDATION_ERROR');
+    }
+    expect(getDownstreamGaps).not.toHaveBeenCalled();
+  });
+
   it('parses min_request_count as integer', async () => {
     getDownstreamGaps.mockResolvedValue([]);
     const res = await GET(

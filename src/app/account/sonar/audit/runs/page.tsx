@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 import type { AuditRun } from '@haiwave/protocol';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
+import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { RunControls } from '../dashboard/run-controls';
 import { RunsTable } from './runs-table';
 
@@ -20,14 +21,22 @@ async function loadRuns(): Promise<AuditRun[]> {
     if (!res.ok) return [];
     const data = (await res.json()) as { runs?: AuditRun[] };
     return data.runs ?? [];
-  } catch {
+  } catch (err) {
+    console.error('[runs.loadRuns] network failure', { err });
     return [];
   }
 }
 
 export default async function RunsPage() {
-  const scopes = await getActiveScopes();
-  if (scopes.length === 0) {
+  const scopesResult = await getActiveScopes();
+  if (scopesResult.kind === 'error') {
+    return (
+      <div className="p-6">
+        <ScopesErrorBanner status={scopesResult.status} />
+      </div>
+    );
+  }
+  if (scopesResult.scopes.length === 0) {
     return (
       <div className="p-6">
         <NoScopesCTA context="runs" />

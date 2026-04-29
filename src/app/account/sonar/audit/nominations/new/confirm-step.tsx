@@ -118,7 +118,8 @@ export function ConfirmStep({
       {result && result.failed > 0 && (
         <div className="rounded border border-problem/30 bg-problem/5 px-3 py-2 text-sm text-problem">
           {result.ok} of {result.totalAttempted} nominations created. {result.failed} failed —
-          click Submit again to retry the remaining.
+          click Submit again to retry. Already-created scopes are detected via
+          409 and treated as success on retry.
         </div>
       )}
 
