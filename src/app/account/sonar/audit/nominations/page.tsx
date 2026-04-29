@@ -31,9 +31,15 @@ export default async function NominationsPage() {
   const scopes = await loadScopes();
   return (
     <div className="p-6">
-      <h1 className="text-xl font-semibold text-charcoal mb-4">
-        My nominations
-      </h1>
+      <div className="flex items-baseline justify-between mb-4">
+        <h1 className="text-xl font-semibold text-charcoal">My nominations</h1>
+        <Link
+          href="/account/sonar/audit/nominations/new"
+          className="text-sm text-teal hover:text-navy font-medium"
+        >
+          + New nomination
+        </Link>
+      </div>
       <p className="text-sm text-slate mb-6">
         All SKUs you have nominated for audit coverage. Disabling removes a SKU
         from active coverage.

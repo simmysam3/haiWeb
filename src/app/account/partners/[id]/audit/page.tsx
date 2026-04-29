@@ -32,6 +32,15 @@ export default async function PartnerAuditPage({
   return (
     <div className="space-y-6">
       <section>
+        <Link
+          href={`/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(id)}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-teal hover:text-navy"
+        >
+          Nominate components for audit coverage →
+        </Link>
+      </section>
+
+      <section>
         <div className="flex items-baseline justify-between mb-2">
           <h2 className="text-sm font-semibold text-charcoal">Active audit scopes</h2>
           <Link
