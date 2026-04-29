@@ -1,34 +1,44 @@
+import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-const getResponderQueue = vi.fn();
+let getResponderQueue = vi.fn();
+let getSession = vi.fn();
+let getToken = vi.fn();
 
-const mockClient = {
-  getResponderQueue,
-};
-
-vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore: (handler: (ctx: unknown) => unknown) =>
-    async (request: NextRequest) => {
-      const result = await handler({
-        client: mockClient,
-        session: { participant: { id: 'p-self' }, user: { role: 'owner' } },
-        request,
-        params: {},
-      });
-      if (result instanceof NextResponse) return result;
-      return NextResponse.json(result);
-    },
+vi.mock('@/lib/auth', () => ({
+  getSession: (...args: unknown[]) => getSession(...args),
+  getToken: (...args: unknown[]) => getToken(...args),
+  hasRole: () => true,
 }));
+
+vi.mock('@/lib/haiwave-api', () => ({
+  createHaiwaveClient: () => ({ getResponderQueue }),
+}));
+
+import { GET } from '../responder-queue/route';
 
 describe('GET /api/account/sku-obligations/responder-queue', () => {
   beforeEach(() => {
-    getResponderQueue.mockReset();
+    vi.clearAllMocks();
+    getSession.mockResolvedValue({
+      user: { role: 'owner' },
+      participant: { id: 'p-self' },
+    });
+    getToken.mockResolvedValue('header.payload.signature');
+  });
+
+  it('returns 401 when no session', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await GET(
+      new NextRequest('http://localhost/api/account/sku-obligations/responder-queue'),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(401);
   });
 
   it('forwards status and observer_id filters', async () => {
     getResponderQueue.mockResolvedValue([]);
-    const { GET } = await import('../responder-queue/route');
     const res = await GET(
       new NextRequest(
         'http://localhost/api/account/sku-obligations/responder-queue?status=outstanding&status=acknowledged&observer_id=p-1',
@@ -48,7 +58,6 @@ describe('GET /api/account/sku-obligations/responder-queue', () => {
       { product_id: 'p1', sku_label: 'A', request_count: 1, earliest_arrival: 't', status_mix: {}, observers: [] },
     ];
     getResponderQueue.mockResolvedValue(groups);
-    const { GET } = await import('../responder-queue/route');
     const res = await GET(
       new NextRequest('http://localhost/api/account/sku-obligations/responder-queue'),
       { params: Promise.resolve({}) },
