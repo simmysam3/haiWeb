@@ -30,11 +30,6 @@ export function makeAggregateReport(overrides: Partial<AggregateReport> = {}): A
       { country_of_origin: 'US', country_label: 'United States', component_count: 4 },
       { country_of_origin: 'DE', country_label: 'Germany', component_count: 1 },
     ],
-    // ClassRollupEntry protocol shape: node_id, master_label, root_label, component_count, depth
-    // (Note: task spec described class_id/class_slug/class_name/product_count/countries —
-    // those fields do not exist on the protocol type. The actual shape is used here.
-    // Task 11 (<ClassRollup />) tests must reference node_id, master_label, root_label,
-    // component_count, depth.)
     class_rollup: [
       {
         node_id: 'c1c1c1c1-0000-0000-0000-000000000001',

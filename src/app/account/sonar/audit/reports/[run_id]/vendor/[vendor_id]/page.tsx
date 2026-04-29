@@ -33,11 +33,6 @@ export default async function PerVendorReportPage({
 
   const { report } = result;
 
-  // NOTE: completed_at === null means the underlying run hasn't finished writing
-  // a completion timestamp. This is most often "still running" but can also occur
-  // for failed/cancelled runs whose terminal status was set without populating
-  // completed_at. The empty-state copy reflects the common case; future work may
-  // refine this once haiCore exposes a run_status alongside the report.
   if (report.header.completed_at === null) {
     return (
       <div className="px-8 py-10 space-y-3">

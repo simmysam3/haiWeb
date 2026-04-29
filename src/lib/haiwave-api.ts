@@ -781,6 +781,8 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         // All status filtering happens client-side because haiCore's
         // SkuObligationListQuery.status accepts only a single string —
         // passing the first of N selected statuses would silently drop the rest.
+        // TODO: widen SkuObligationListQuery.status to string[] in v1.28+
+        // and remove the client-side filter.
       });
       const connections = (await this.listActiveConnections()) as unknown as Array<{
         partner_participant_id: string;
@@ -860,6 +862,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/sonar/audit/reports/${runId}/company/${vendorId}`,
       );
     },
+    // INVARIANT: returns the raw Response and does NOT throw on non-OK
+    // status (unlike request<T>()). Callers — see sonar/audit/reports/*
+    // route.ts — rely on this to manually decide JSON vs error fallthrough,
+    // typically forwarding 4xx body verbatim and converting unexpected
+    // network failures to 500.
     fetchRaw(path, init) {
       return fetch(`${haiwaveApiUrl}${path}`, {
         ...init,
