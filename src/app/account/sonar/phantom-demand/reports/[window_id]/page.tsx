@@ -1,37 +1,8 @@
 import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { PhantomDemandAggregateReport } from '@haiwave/protocol';
 import { DownloadMenu } from './_components/download-menu';
-
-interface PhantomDemandAggregateReport {
-  header: {
-    initiator_participant_id: string;
-    window_id: string;
-    window_days: number;
-    generated_at: string;
-    counterparty_count: number;
-  };
-  posture_summary: {
-    total_probes: number;
-    response_rate: number;
-    median_response_latency_ms: number;
-    capacity_confidence_distribution: {
-      low: number;
-      moderate: number;
-      high: number;
-      at_capacity: number;
-    };
-  };
-  per_counterparty_summary: Array<{
-    counterparty_participant_id: string;
-    counterparty_display_name: string;
-    probe_count: number;
-    response_rate: number;
-    median_response_latency_ms: number;
-    behavioral_signal_score: number | null;
-    per_counterparty_report_path: string;
-  }>;
-}
 
 type LoadResult =
   | { kind: 'ok'; report: PhantomDemandAggregateReport }
