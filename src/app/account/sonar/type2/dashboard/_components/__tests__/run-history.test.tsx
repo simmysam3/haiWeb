@@ -49,7 +49,11 @@ describe('RunHistory', () => {
   });
 
   it('shows a Cancel button only for running runs and POSTs to the cancel route', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ cancelled: true }) });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({ cancelled: true }),
+    });
     const onCancel = vi.fn();
     const user = userEvent.setup();
     render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
@@ -68,5 +72,66 @@ describe('RunHistory', () => {
   it('does not show Cancel for non-running runs', () => {
     render(<RunHistory runs={[{ ...baseRun, status: 'complete' }]} onCancel={() => {}} />);
     expect(screen.queryByRole('button', { name: /Cancel/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a Cancelling… pill and disables the Cancel button after a successful click, until the row leaves running', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({ cancelled: true }),
+    });
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
+
+    await user.click(screen.getByRole('button', { name: /Cancel/i }));
+
+    // After fetch resolves: status pill flips to "Cancelling…" and the
+    // Cancel button is disabled while we wait for the next poll.
+    await waitFor(() => {
+      expect(screen.getByText(/Cancelling…/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Cancel/i })).toBeDisabled();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    // Simulate the next SWR poll surfacing the new status — the row is
+    // no longer running, so the Cancelling… pill should clear and the
+    // Cancel button should disappear.
+    rerender(
+      <RunHistory
+        runs={[{ ...baseRun, status: 'cancelled', cancelled_at: '2026-04-29T10:01:00Z' }]}
+        onCancel={onCancel}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.queryByText(/Cancelling…/)).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /Cancel/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a user-visible error and re-enables the Cancel button when cancel fails', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('boom'),
+      json: () => Promise.resolve({ error: 'boom' }),
+    });
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
+
+    const button = screen.getByRole('button', { name: /Cancel/i });
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByText(/boom/)).toBeInTheDocument();
+    });
+    // onCancel must NOT fire on non-OK — parent should not revalidate
+    // SWR for a failed request.
+    expect(onCancel).not.toHaveBeenCalled();
+    // Button is re-enabled so the user can retry.
+    expect(screen.getByRole('button', { name: /Cancel/i })).not.toBeDisabled();
+    // Status pill is still "running" (no Cancelling… mid-state).
+    expect(screen.queryByText(/Cancelling…/)).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { Type2Run, Type2RunStatus } from '@haiwave/protocol';
 
 interface RunHistoryProps {
@@ -16,29 +17,88 @@ const STATUS_PILL_CLASSES: Record<Type2RunStatus, string> = {
   cancelled: 'bg-slate-50 text-slate-700 border-slate-200',
 };
 
+const CANCELLING_PILL_CLASSES =
+  'bg-slate-50 text-slate-600 border-slate-200';
+
 function formatTime(value: string | null): string {
   if (!value) return '—';
   return new Date(value).toLocaleString();
-}
-
-async function cancelRun(runId: string): Promise<boolean> {
-  try {
-    const res = await fetch(
-      `/api/account/sonar/type2/runs/${runId}/cancel`,
-      { method: 'POST' },
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
 }
 
 /**
  * Run history table — rows for each Type 2 run with status pill, signal
  * types, counterparty filter (or "all"), trigger time, completion time,
  * and an inline cancel button while running.
+ *
+ * Cancel UX: tracks per-row in-flight cancels in a Set so the button
+ * disables instantly (preventing double-click) and the status pill shows
+ * "Cancelling…" until SWR's next poll surfaces the new status (running →
+ * cancelled / failed). On non-OK response the runId is cleared from the
+ * set and an inline error is rendered for that row.
  */
 export function RunHistory({ runs, onCancel }: RunHistoryProps) {
+  const [cancellingRunIds, setCancellingRunIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [cancelErrors, setCancelErrors] = useState<Record<string, string>>({});
+
+  // When SWR observes that a previously-cancelling run has left the
+  // 'running' state, drop it from the local cancelling set. This keeps
+  // the "Cancelling…" pill visible across the gap between the 200 OK
+  // and the next 5s SWR poll, then cleans up automatically.
+  useEffect(() => {
+    if (cancellingRunIds.size === 0) return;
+    const stillRunning = new Set(
+      runs.filter((r) => r.status === 'running').map((r) => r.run_id),
+    );
+    let changed = false;
+    const next = new Set(cancellingRunIds);
+    for (const id of cancellingRunIds) {
+      if (!stillRunning.has(id)) {
+        next.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) setCancellingRunIds(next);
+  }, [runs, cancellingRunIds]);
+
+  async function handleCancel(runId: string) {
+    setCancellingRunIds((prev) => {
+      const next = new Set(prev);
+      next.add(runId);
+      return next;
+    });
+    setCancelErrors((prev) => {
+      if (!(runId in prev)) return prev;
+      const next = { ...prev };
+      delete next[runId];
+      return next;
+    });
+    try {
+      const res = await fetch(
+        `/api/account/sonar/type2/runs/${runId}/cancel`,
+        { method: 'POST' },
+      );
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || `Cancel failed: ${res.status}`);
+      }
+      onCancel();
+    } catch (err) {
+      console.error('[RunHistory] cancel failed', { runId, err });
+      setCancellingRunIds((prev) => {
+        if (!prev.has(runId)) return prev;
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+      setCancelErrors((prev) => ({
+        ...prev,
+        [runId]: err instanceof Error ? err.message : 'Cancel failed',
+      }));
+    }
+  }
+
   if (runs.length === 0) {
     return (
       <p className="text-sm text-slate italic">
@@ -61,41 +121,59 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 bg-white">
-          {runs.map((run) => (
-            <tr key={run.run_id}>
-              <td className="px-4 py-2">
-                <span
-                  className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_PILL_CLASSES[run.status]}`}
-                >
-                  {run.status}
-                </span>
-              </td>
-              <td className="px-4 py-2 text-charcoal">
-                {run.signal_types.join(', ')}
-              </td>
-              <td className="px-4 py-2 text-charcoal">
-                {run.counterparty_filter
-                  ? `${run.counterparty_filter.length} selected`
-                  : 'all tier-1'}
-              </td>
-              <td className="px-4 py-2 text-charcoal">{formatTime(run.triggered_at)}</td>
-              <td className="px-4 py-2 text-charcoal">{formatTime(run.completed_at)}</td>
-              <td className="px-4 py-2">
-                {run.status === 'running' && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const ok = await cancelRun(run.run_id);
-                      if (ok) onCancel();
-                    }}
-                    className="text-xs text-rose-600 hover:underline"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
+          {runs.map((run) => {
+            const isCancelling =
+              cancellingRunIds.has(run.run_id) && run.status === 'running';
+            const cancelError = cancelErrors[run.run_id];
+            return (
+              <tr key={run.run_id}>
+                <td className="px-4 py-2">
+                  {isCancelling ? (
+                    <span
+                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${CANCELLING_PILL_CLASSES}`}
+                    >
+                      Cancelling…
+                    </span>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_PILL_CLASSES[run.status]}`}
+                    >
+                      {run.status}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-charcoal">
+                  {run.signal_types.join(', ')}
+                </td>
+                <td className="px-4 py-2 text-charcoal">
+                  {run.counterparty_filter
+                    ? `${run.counterparty_filter.length} selected`
+                    : 'all tier-1'}
+                </td>
+                <td className="px-4 py-2 text-charcoal">{formatTime(run.triggered_at)}</td>
+                <td className="px-4 py-2 text-charcoal">{formatTime(run.completed_at)}</td>
+                <td className="px-4 py-2">
+                  {run.status === 'running' && (
+                    <div className="flex flex-col items-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCancel(run.run_id)}
+                        disabled={isCancelling}
+                        className="text-xs text-rose-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+                      >
+                        Cancel
+                      </button>
+                      {cancelError && (
+                        <span className="text-xs text-rose-600">
+                          {cancelError}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
