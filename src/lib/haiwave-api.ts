@@ -50,6 +50,12 @@ import type {
   TrustBypassActivationRequest,
   TrustBypassDeactivationRequest,
   TrustBypassAffectedCounterparty,
+  Type2Run,
+  Type2Result,
+  Type2RunStatus,
+  Type2RunTriggerRequest,
+  Type2SignalSubscription,
+  Type2SignalSubscriptionPatch,
 } from '@haiwave/protocol';
 
 import type {
@@ -358,6 +364,17 @@ export interface HaiwaveClient {
   ): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }>;
   activateTrustBypass(body: TrustBypassActivationRequest): Promise<TrustBypassActivationResponse>;
   deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
+  // ─── Type 2 (v1.28 Phase 5) ──────────────────────────────────────────
+  triggerType2Run(body: Type2RunTriggerRequest): Promise<{ run_id: string; status: Type2RunStatus }>;
+  listType2Runs(): Promise<{ runs: Type2Run[] }>;
+  getType2Run(runId: string): Promise<{ run: Type2Run; results: Type2Result[] }>;
+  getType2RunStatus(runId: string): Promise<{ status: Type2RunStatus }>;
+  cancelType2Run(runId: string): Promise<{ cancelled: boolean }>;
+  listType2Subscriptions(): Promise<{ subscriptions: Type2SignalSubscription[] }>;
+  patchType2Subscription(
+    id: string,
+    patch: Type2SignalSubscriptionPatch,
+  ): Promise<{ subscription: Type2SignalSubscription }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -921,6 +938,50 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
       return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
     },
+
+    // ─── Type 2 (v1.28 Phase 5) ─────────────────────────────────────────
+    triggerType2Run(body) {
+      return request<{ run_id: string; status: Type2RunStatus }>(
+        'POST',
+        '/sonar/type2/runs',
+        body,
+      );
+    },
+    listType2Runs() {
+      return request<{ runs: Type2Run[] }>('GET', '/sonar/type2/runs');
+    },
+    getType2Run(runId) {
+      return request<{ run: Type2Run; results: Type2Result[] }>(
+        'GET',
+        `/sonar/type2/runs/${runId}`,
+      );
+    },
+    getType2RunStatus(runId) {
+      return request<{ status: Type2RunStatus }>(
+        'GET',
+        `/sonar/type2/runs/${runId}/status`,
+      );
+    },
+    cancelType2Run(runId) {
+      return request<{ cancelled: boolean }>(
+        'POST',
+        `/sonar/type2/runs/${runId}/cancel`,
+      );
+    },
+    listType2Subscriptions() {
+      return request<{ subscriptions: Type2SignalSubscription[] }>(
+        'GET',
+        '/sonar/type2/subscriptions',
+      );
+    },
+    patchType2Subscription(id, patch) {
+      return request<{ subscription: Type2SignalSubscription }>(
+        'PATCH',
+        `/sonar/type2/subscriptions/${id}`,
+        patch,
+      );
+    },
+
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
     // status (unlike request<T>()). Callers — see sonar/audit/reports/*
     // route.ts — rely on this to manually decide JSON vs error fallthrough,
