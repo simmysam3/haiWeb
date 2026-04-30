@@ -54,3 +54,34 @@ describe('DownloadMenu (per-vendor)', () => {
     expect(csv.getAttribute('download')).toBe(`per-vendor-${RUN_ID}-${VENDOR_ID}.csv`);
   });
 });
+
+describe('DownloadMenu (PDF — v1.28)', () => {
+  it('reveals a PDF anchor link for aggregate with format=pdf and a sensible filename', () => {
+    render(<DownloadMenu runId={RUN_ID} reportType="aggregate" />);
+    fireEvent.click(screen.getByRole('button', { name: /Download/i }));
+    const pdf = screen.getByRole('link', { name: /PDF/i }) as HTMLAnchorElement;
+    expect(pdf.getAttribute('href')).toBe(
+      `/api/account/sonar/audit/reports/${RUN_ID}/aggregate?format=pdf`,
+    );
+    expect(pdf.getAttribute('download')).toBe(`aggregate-${RUN_ID}.pdf`);
+  });
+
+  it('reveals a PDF anchor link for per-vendor with format=pdf and a sensible filename', () => {
+    render(<DownloadMenu runId={RUN_ID} reportType="per_vendor" vendorId={VENDOR_ID} />);
+    fireEvent.click(screen.getByRole('button', { name: /Download/i }));
+    const pdf = screen.getByRole('link', { name: /PDF/i }) as HTMLAnchorElement;
+    expect(pdf.getAttribute('href')).toBe(
+      `/api/account/sonar/audit/reports/${RUN_ID}/vendor/${VENDOR_ID}?format=pdf`,
+    );
+    expect(pdf.getAttribute('download')).toBe(`per-vendor-${RUN_ID}-${VENDOR_ID}.pdf`);
+  });
+
+  it('shows a transient loading indicator after a format link is clicked', () => {
+    render(<DownloadMenu runId={RUN_ID} reportType="aggregate" />);
+    fireEvent.click(screen.getByRole('button', { name: /Download/i }));
+    const pdfLink = screen.getByRole('link', { name: /PDF/i });
+    fireEvent.click(pdfLink);
+    // After click the button label switches to a "Generating …" indicator.
+    expect(screen.getByRole('button')).toHaveTextContent(/Generating/i);
+  });
+});
