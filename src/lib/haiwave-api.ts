@@ -56,6 +56,10 @@ import type {
   Type2RunTriggerRequest,
   Type2SignalSubscription,
   Type2SignalSubscriptionPatch,
+  QuarterlyScore,
+  PeerAggregateResponse,
+  VendorRiskDimension,
+  VendorRiskResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -238,6 +242,15 @@ export interface HaiwaveClient {
   updateInvite(connectionId: string, invite: boolean): Promise<ConnectionRecord>;
   getScore(participantId: string): Promise<ScoreData>;
   getScoreHistory(participantId: string): Promise<Record<string, number[]>>;
+  getQuarterlyScores(
+    participantId: string,
+    n?: number,
+  ): Promise<{ quarters: QuarterlyScore[] }>;
+  getPeerAggregate(n?: number): Promise<PeerAggregateResponse>;
+  getVendorRisk(
+    dimension: VendorRiskDimension,
+    n?: number,
+  ): Promise<VendorRiskResponse>;
   getCounterpartyManifest(id: string): Promise<Record<string, unknown>>;
   updateCounterpartyManifest(data: unknown): Promise<Record<string, unknown>>;
   updatePricingManifest(data: unknown): Promise<Record<string, unknown>>;
@@ -293,6 +306,7 @@ export interface HaiwaveClient {
   // Compliance (v1.15)
   getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   triggerSelfAudit(): Promise<Record<string, unknown>>;
+  resolveComplianceFlag(flagId: string, notes: string): Promise<Record<string, unknown>>;
   // Phantom Demand (v1.15)
   getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
   getPhantomDemandForecast(): Promise<Record<string, unknown>>;
@@ -470,6 +484,27 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<ScoreData>("GET", `/behavioral/score/${participantId}`);
     },
 
+    getQuarterlyScores(participantId, n = 5) {
+      return request<{ quarters: QuarterlyScore[] }>(
+        "GET",
+        `/behavioral/score/${participantId}/quarterly?n=${n}`,
+      );
+    },
+
+    getPeerAggregate(n = 5) {
+      return request<PeerAggregateResponse>(
+        "GET",
+        `/behavioral/peer-aggregate?n=${n}`,
+      );
+    },
+
+    getVendorRisk(dimension, n = 5) {
+      return request<VendorRiskResponse>(
+        "GET",
+        `/behavioral/vendor-risk?dimension=${dimension}&n=${n}`,
+      );
+    },
+
     getScoreHistory(participantId) {
       return request<Record<string, number[]>>("GET", `/behavioral/history/${participantId}`);
     },
@@ -524,8 +559,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Pricing Hierarchy ───────────────────────────────
-    getPricingHierarchy(participantId: string) {
-      return request<Record<string, unknown>[]>("GET", `/pricing/hierarchy/${participantId}`);
+    async getPricingHierarchy(participantId: string) {
+      const env = await request<{ participant_id: string; levels: Record<string, unknown>[] }>(
+        "GET",
+        `/pricing/hierarchy/${participantId}`,
+      );
+      return env.levels ?? [];
     },
     upsertPricingLevel(data: unknown) {
       return request<{ success: boolean }>("PUT", "/pricing/level", data);
@@ -552,8 +591,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Blocked / Downgrade ────────────────────────────
-    listBlocked() {
-      return request<Record<string, unknown>[]>("GET", "/connections/blocked");
+    async listBlocked() {
+      const env = await request<{ blocked: Record<string, unknown>[] }>(
+        "GET",
+        "/connections/blocked",
+      );
+      return env.blocked ?? [];
     },
     blockParticipant(targetId: string) {
       return request<{ success: boolean }>("POST", "/connections/block", { target_participant_id: targetId });
@@ -601,9 +644,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Orders (v1.15) ───────────────────────────────────
-    getSellSideOrders(statusFilter?: string) {
+    async getSellSideOrders(statusFilter?: string) {
       const qs = statusFilter ? `?status=${statusFilter}` : "";
-      return request<Record<string, unknown>[]>("GET", `/orders/sell-side${qs}`);
+      const env = await request<{ items: Record<string, unknown>[]; total_count: number }>(
+        "GET",
+        `/orders/sell-side${qs}`,
+      );
+      return env.items;
     },
     acceptInvoice(orderId: string, invoiceId: string) {
       return request<Record<string, unknown>>("POST", `/orders/${orderId}/invoice/accept`, { invoice_id: invoiceId });
@@ -620,7 +667,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("GET", "/provenance/manifest");
     },
     getOriginManifest(productId: string) {
-      return request<Record<string, unknown>>("GET", `/provenance/manifest?product_id=${productId}`);
+      return request<Record<string, unknown>>(
+        "GET",
+        `/provenance/manifest/${encodeURIComponent(productId)}`,
+      );
     },
     getCertifications(filters?: Record<string, string>) {
       const qs = filters ? `?${new URLSearchParams(filters)}` : "";
@@ -637,6 +687,9 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     triggerSelfAudit() {
       return request<Record<string, unknown>>("POST", "/noncompliance/self-audit");
+    },
+    resolveComplianceFlag(flagId: string, notes: string) {
+      return request<Record<string, unknown>>("POST", `/noncompliance/flags/${flagId}/resolve`, { notes });
     },
 
     // ─── Phantom Demand (v1.15) ──────────────────────────
