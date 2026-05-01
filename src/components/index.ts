@@ -1,4 +1,5 @@
 export { PageHeader } from "./page-header";
+export { PageIntro } from "./page-intro";
 export { Card } from "./card";
 export { Panel } from "./panel";
 export { StatCard } from "./stat-card";
@@ -10,6 +11,7 @@ export { Tabs } from "./tabs";
 export { Button } from "./button";
 export { ProgressSteps } from "./progress-steps";
 export { ScoreBar } from "./score-bar";
+export { Sparkline } from "./sparkline";
 export { AccountNav } from "./account-nav";
 export { MarketingNav } from "./marketing-nav";
 export { MarketingFooter } from "./marketing-footer";

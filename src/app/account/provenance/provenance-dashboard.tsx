@@ -5,12 +5,14 @@ import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { Tabs } from "@/components/tabs";
 import { useApi } from "@/lib/use-api";
+import { ManifestDetailDrawer } from "./manifest-detail-drawer";
 
 interface ManifestEntry {
-  product_id: string;
+  origin_manifest_id: string;
+  external_product_id: string;
   product_name: string;
-  version: string;
-  depth: number;
+  manifest_version: number;
+  provenance_depth: string;
   updated_at: string;
 }
 
@@ -39,6 +41,7 @@ const PROVENANCE_TABS = [
 
 export function ProvenanceDashboard() {
   const [activeTab, setActiveTab] = useState("manifests");
+  const [selected, setSelected] = useState<{ productId: string; productName: string } | null>(null);
 
   const { data, loading } = useApi<ProvenanceApiResponse>({
     url: "/api/account/provenance",
@@ -65,15 +68,28 @@ export function ProvenanceDashboard() {
                       <th className="pb-3 font-medium">Version</th>
                       <th className="pb-3 font-medium">Depth</th>
                       <th className="pb-3 font-medium">Last Updated</th>
+                      <th className="pb-3 font-medium" aria-hidden="true"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.manifests.map((m) => (
-                      <tr key={m.product_id} className="border-b border-slate/10 hover:bg-gray-50">
+                      <tr
+                        key={m.origin_manifest_id}
+                        onClick={() =>
+                          setSelected({
+                            productId: m.external_product_id,
+                            productName: m.product_name,
+                          })
+                        }
+                        className="border-b border-slate/10 hover:bg-gray-50 cursor-pointer"
+                      >
                         <td className="py-3 text-navy font-medium">{m.product_name}</td>
-                        <td className="py-3 text-charcoal">{m.version}</td>
-                        <td className="py-3 text-charcoal">{m.depth}</td>
-                        <td className="py-3 text-slate">{m.updated_at}</td>
+                        <td className="py-3 text-charcoal">v{m.manifest_version}</td>
+                        <td className="py-3 text-charcoal capitalize">{m.provenance_depth}</td>
+                        <td className="py-3 text-slate">
+                          {new Date(m.updated_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 text-right text-teal text-xs">Inspect →</td>
                       </tr>
                     ))}
                   </tbody>
@@ -120,6 +136,12 @@ export function ProvenanceDashboard() {
           </>
         )}
       </Card>
+
+      <ManifestDetailDrawer
+        productId={selected?.productId ?? null}
+        productName={selected?.productName ?? null}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }

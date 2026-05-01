@@ -9,6 +9,7 @@ import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { PartnersChart } from './partners-chart';
 import { buildPartnerCompliance, type PartnerComplianceData } from './_lib/partner-compliance';
+import { PageIntro } from '@/components/page-intro';
 
 interface DashboardData {
   rollup: GeoRollupEntry[];
@@ -119,6 +120,9 @@ export default async function DashboardPage() {
         </div>
         <RunControls />
       </header>
+      <PageIntro>
+        A visual roll-up of your most recent supply-chain audit run — where components originated geographically, which product classes show the most disclosure gaps, and how each trading partner is performing on compliance. Trigger a fresh run from here and drill into individual gaps; the per-run history and run controls themselves live in <em>Audit Runs</em>.
+      </PageIntro>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GeoChart data={data.rollup} />
         <GapsPanel totalGaps={data.gaps} latestAt={data.latestAt} />

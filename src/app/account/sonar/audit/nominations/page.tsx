@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
-import { Panel } from '@/components';
+import { Panel, PageIntro } from '@/components';
 import { ScopeTable } from './scope-table';
 
 async function loadScopes(): Promise<AuditScope[]> {
@@ -41,10 +41,13 @@ export default async function NominationsPage() {
           + New nomination
         </Link>
       </div>
-      <p className="text-sm text-slate mb-6">
+      <p className="text-sm text-slate mb-3">
         All SKUs you have nominated for audit coverage. Disabling removes a SKU
         from active coverage.
       </p>
+      <PageIntro>
+        The audit obligations you&apos;ve nominated trading partners to fulfill — each one a SKU you&apos;ve asked them to disclose downstream provenance for. Issue new nominations, monitor their status, and follow the resulting audit trail; this is the mirror of <em>Monitoring → Audit Nominations</em>, the inbound queue from partners auditing you.
+      </PageIntro>
 
       <Panel className="mb-6 p-3 text-xs text-slate">
         <p className="text-charcoal font-medium mb-1">About disclosure keys</p>

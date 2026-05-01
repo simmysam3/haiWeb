@@ -35,7 +35,10 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/audit/runs", label: "Audit Runs" },
       { href: "/account/sonar/audit/nominations", label: "My Nominations" },
       { href: "/account/sonar/audit/downstream-gaps", label: "My Downstream Gaps" },
+      { href: "/account/sonar/audit/trust-bypass", label: "Trust Bypass" },
       { href: "/account/sonar/phantom-demand/dashboard", label: "Phantom Demand" },
+      { href: "/account/sonar/phantom-demand/reports/latest", label: "Phantom Demand Reports" },
+      { href: "/account/sonar/type2/dashboard", label: "Type 2 Dashboard" },
     ],
   },
   {
@@ -46,7 +49,8 @@ const navSections: NavSection[] = [
       { href: "/account/partners/blocked", label: "Blocked Companies", indent: true },
       { href: "/account/manifests", label: "Manifests" },
       { href: "/account/pricing", label: "Pricing" },
-      { href: "/account/payments", label: "Payments" },
+      // Payments deferred to v2 — restore this entry when payments ships.
+      // { href: "/account/payments", label: "Payments" },
       { href: "/account/provenance-keys", label: "Provenance Keys" },
       { href: "/account/data-cleansing", label: "Data Cleansing" },
       { href: "/account/profile", label: "Company Profile" },

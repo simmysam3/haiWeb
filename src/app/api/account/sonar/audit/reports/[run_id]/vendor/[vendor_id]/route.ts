@@ -35,6 +35,33 @@ export const GET = withHaiCore<{ run_id: string; vendor_id: string }>(
       });
     }
 
+    if (format === 'pdf') {
+      // PDF passthrough: binary body via arrayBuffer().
+      // URL rewrite: HaiWeb /vendor/{id} → haiCore /company/{id} (same UUID).
+      const haiCoreRes = await client.fetchRaw(
+        `/sonar/audit/reports/${params.run_id}/company/${params.vendor_id}`,
+        { headers: { Accept: 'application/pdf' } },
+      );
+      if (!haiCoreRes.ok) {
+        const text = await haiCoreRes.text();
+        let body: unknown;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = { error: `haiCore returned ${haiCoreRes.status}` };
+        }
+        return NextResponse.json(body, { status: haiCoreRes.status });
+      }
+      const body = await haiCoreRes.arrayBuffer();
+      return new NextResponse(body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${filename}.pdf"`,
+        },
+      });
+    }
+
     // JSON path (default for inline; explicit format=json for download).
     const report = await client.getPerVendorReport(params.run_id, params.vendor_id);
 

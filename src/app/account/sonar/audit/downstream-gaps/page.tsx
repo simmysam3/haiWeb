@@ -4,6 +4,7 @@ import { GapsTable } from './gaps-table';
 import { LeastCompliantPanel } from './least-compliant-panel';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
+import { PageIntro } from '@/components/page-intro';
 
 interface SearchParams {
   resolution_class?: string | string[];
@@ -48,7 +49,7 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
 
   return (
     <div className="px-8 py-10">
-      <header className="mb-8 flex items-end justify-between">
+      <header className="mb-4 flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-display text-navy">My Downstream Gaps</h1>
           <p className="mt-2 text-slate">
@@ -58,6 +59,9 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
         </div>
         <RefreshButton />
       </header>
+      <PageIntro>
+        The aggregated list of audit gaps in your downstream supply chain — counterparties off-network, slow responders, or SKUs without enough disclosure to close the chain. Use it to prioritize which trading partners need outreach, find candidates for new nominations, or escalate via support.
+      </PageIntro>
 
       <FilterPills />
 

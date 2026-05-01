@@ -45,6 +45,21 @@ import type {
   DownstreamGapEntry,
   AggregateReport,
   PerVendorReport,
+  TrustBypassConfig,
+  TrustClass,
+  TrustBypassActivationRequest,
+  TrustBypassDeactivationRequest,
+  TrustBypassAffectedCounterparty,
+  Type2Run,
+  Type2Result,
+  Type2RunStatus,
+  Type2RunTriggerRequest,
+  Type2SignalSubscription,
+  Type2SignalSubscriptionPatch,
+  QuarterlyScore,
+  PeerAggregateResponse,
+  VendorRiskDimension,
+  VendorRiskResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -194,6 +209,28 @@ export interface ClassificationOverrideInput {
   reason?: string;
 }
 
+/**
+ * Activation response shape returned by POST /sonar/audit/trust-bypass/activate.
+ * Mirrors the haiCore route handler — the server emits a stripped config
+ * (config_id, trust_class, enabled, enabled_at) plus an optional dissolution
+ * payload populated only on retroactive activation. The full TrustBypassConfig
+ * schema is overkill here; the dissolution arrays drive the post-activation
+ * toast (preserved decline count) and the modal-close handler.
+ */
+export interface TrustBypassActivationResponse {
+  config: {
+    config_id: string;
+    trust_class: TrustClass;
+    enabled: boolean;
+    enabled_at: string | null;
+  };
+  dissolution: {
+    affected_counterparty_ids: string[];
+    affected_obligation_ids: string[];
+    preserved_decline_ids: string[];
+  } | null;
+}
+
 export interface HaiwaveClient {
   searchParticipants(query: string, options?: { limit?: number }): Promise<ParticipantProfile[]>;
   getCompanyProfile(id: string): Promise<ParticipantProfile>;
@@ -205,6 +242,15 @@ export interface HaiwaveClient {
   updateInvite(connectionId: string, invite: boolean): Promise<ConnectionRecord>;
   getScore(participantId: string): Promise<ScoreData>;
   getScoreHistory(participantId: string): Promise<Record<string, number[]>>;
+  getQuarterlyScores(
+    participantId: string,
+    n?: number,
+  ): Promise<{ quarters: QuarterlyScore[] }>;
+  getPeerAggregate(n?: number): Promise<PeerAggregateResponse>;
+  getVendorRisk(
+    dimension: VendorRiskDimension,
+    n?: number,
+  ): Promise<VendorRiskResponse>;
   getCounterpartyManifest(id: string): Promise<Record<string, unknown>>;
   updateCounterpartyManifest(data: unknown): Promise<Record<string, unknown>>;
   updatePricingManifest(data: unknown): Promise<Record<string, unknown>>;
@@ -260,6 +306,7 @@ export interface HaiwaveClient {
   // Compliance (v1.15)
   getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   triggerSelfAudit(): Promise<Record<string, unknown>>;
+  resolveComplianceFlag(flagId: string, notes: string): Promise<Record<string, unknown>>;
   // Phantom Demand (v1.15)
   getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
   getPhantomDemandForecast(): Promise<Record<string, unknown>>;
@@ -324,6 +371,24 @@ export interface HaiwaveClient {
   // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
   getAggregateReport(runId: string): Promise<AggregateReport>;
   getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
+  // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
+  listTrustBypassConfigs(): Promise<{ configs: TrustBypassConfig[] }>;
+  getTrustBypassAffectedCounterparties(
+    trustClass: TrustClass,
+  ): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }>;
+  activateTrustBypass(body: TrustBypassActivationRequest): Promise<TrustBypassActivationResponse>;
+  deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
+  // ─── Type 2 (v1.28 Phase 5) ──────────────────────────────────────────
+  triggerType2Run(body: Type2RunTriggerRequest): Promise<{ run_id: string; status: Type2RunStatus }>;
+  listType2Runs(): Promise<{ runs: Type2Run[] }>;
+  getType2Run(runId: string): Promise<{ run: Type2Run; results: Type2Result[] }>;
+  getType2RunStatus(runId: string): Promise<{ status: Type2RunStatus }>;
+  cancelType2Run(runId: string): Promise<{ cancelled: boolean }>;
+  listType2Subscriptions(): Promise<{ subscriptions: Type2SignalSubscription[] }>;
+  patchType2Subscription(
+    id: string,
+    patch: Type2SignalSubscriptionPatch,
+  ): Promise<{ subscription: Type2SignalSubscription }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -419,6 +484,27 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<ScoreData>("GET", `/behavioral/score/${participantId}`);
     },
 
+    getQuarterlyScores(participantId, n = 5) {
+      return request<{ quarters: QuarterlyScore[] }>(
+        "GET",
+        `/behavioral/score/${participantId}/quarterly?n=${n}`,
+      );
+    },
+
+    getPeerAggregate(n = 5) {
+      return request<PeerAggregateResponse>(
+        "GET",
+        `/behavioral/peer-aggregate?n=${n}`,
+      );
+    },
+
+    getVendorRisk(dimension, n = 5) {
+      return request<VendorRiskResponse>(
+        "GET",
+        `/behavioral/vendor-risk?dimension=${dimension}&n=${n}`,
+      );
+    },
+
     getScoreHistory(participantId) {
       return request<Record<string, number[]>>("GET", `/behavioral/history/${participantId}`);
     },
@@ -473,8 +559,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Pricing Hierarchy ───────────────────────────────
-    getPricingHierarchy(participantId: string) {
-      return request<Record<string, unknown>[]>("GET", `/pricing/hierarchy/${participantId}`);
+    async getPricingHierarchy(participantId: string) {
+      const env = await request<{ participant_id: string; levels: Record<string, unknown>[] }>(
+        "GET",
+        `/pricing/hierarchy/${participantId}`,
+      );
+      return env.levels ?? [];
     },
     upsertPricingLevel(data: unknown) {
       return request<{ success: boolean }>("PUT", "/pricing/level", data);
@@ -501,8 +591,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Blocked / Downgrade ────────────────────────────
-    listBlocked() {
-      return request<Record<string, unknown>[]>("GET", "/connections/blocked");
+    async listBlocked() {
+      const env = await request<{ blocked: Record<string, unknown>[] }>(
+        "GET",
+        "/connections/blocked",
+      );
+      return env.blocked ?? [];
     },
     blockParticipant(targetId: string) {
       return request<{ success: boolean }>("POST", "/connections/block", { target_participant_id: targetId });
@@ -550,9 +644,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // ─── Orders (v1.15) ───────────────────────────────────
-    getSellSideOrders(statusFilter?: string) {
+    async getSellSideOrders(statusFilter?: string) {
       const qs = statusFilter ? `?status=${statusFilter}` : "";
-      return request<Record<string, unknown>[]>("GET", `/orders/sell-side${qs}`);
+      const env = await request<{ items: Record<string, unknown>[]; total_count: number }>(
+        "GET",
+        `/orders/sell-side${qs}`,
+      );
+      return env.items;
     },
     acceptInvoice(orderId: string, invoiceId: string) {
       return request<Record<string, unknown>>("POST", `/orders/${orderId}/invoice/accept`, { invoice_id: invoiceId });
@@ -569,7 +667,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("GET", "/provenance/manifest");
     },
     getOriginManifest(productId: string) {
-      return request<Record<string, unknown>>("GET", `/provenance/manifest?product_id=${productId}`);
+      return request<Record<string, unknown>>(
+        "GET",
+        `/provenance/manifest/${encodeURIComponent(productId)}`,
+      );
     },
     getCertifications(filters?: Record<string, string>) {
       const qs = filters ? `?${new URLSearchParams(filters)}` : "";
@@ -586,6 +687,9 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     triggerSelfAudit() {
       return request<Record<string, unknown>>("POST", "/noncompliance/self-audit");
+    },
+    resolveComplianceFlag(flagId: string, notes: string) {
+      return request<Record<string, unknown>>("POST", `/noncompliance/flags/${flagId}/resolve`, { notes });
     },
 
     // ─── Phantom Demand (v1.15) ──────────────────────────
@@ -862,6 +966,75 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/sonar/audit/reports/${runId}/company/${vendorId}`,
       );
     },
+
+    // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
+    listTrustBypassConfigs() {
+      return request<{ configs: TrustBypassConfig[] }>(
+        'GET',
+        '/sonar/audit/trust-bypass/configs',
+      );
+    },
+    getTrustBypassAffectedCounterparties(trustClass) {
+      return request<{ counterparties: TrustBypassAffectedCounterparty[] }>(
+        'GET',
+        `/sonar/audit/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
+      );
+    },
+    activateTrustBypass(body) {
+      return request<TrustBypassActivationResponse>(
+        'POST',
+        '/sonar/audit/trust-bypass/activate',
+        body,
+      );
+    },
+    deactivateTrustBypass(body) {
+      // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
+      return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
+    },
+
+    // ─── Type 2 (v1.28 Phase 5) ─────────────────────────────────────────
+    triggerType2Run(body) {
+      return request<{ run_id: string; status: Type2RunStatus }>(
+        'POST',
+        '/sonar/type2/runs',
+        body,
+      );
+    },
+    listType2Runs() {
+      return request<{ runs: Type2Run[] }>('GET', '/sonar/type2/runs');
+    },
+    getType2Run(runId) {
+      return request<{ run: Type2Run; results: Type2Result[] }>(
+        'GET',
+        `/sonar/type2/runs/${runId}`,
+      );
+    },
+    getType2RunStatus(runId) {
+      return request<{ status: Type2RunStatus }>(
+        'GET',
+        `/sonar/type2/runs/${runId}/status`,
+      );
+    },
+    cancelType2Run(runId) {
+      return request<{ cancelled: boolean }>(
+        'POST',
+        `/sonar/type2/runs/${runId}/cancel`,
+      );
+    },
+    listType2Subscriptions() {
+      return request<{ subscriptions: Type2SignalSubscription[] }>(
+        'GET',
+        '/sonar/type2/subscriptions',
+      );
+    },
+    patchType2Subscription(id, patch) {
+      return request<{ subscription: Type2SignalSubscription }>(
+        'PATCH',
+        `/sonar/type2/subscriptions/${id}`,
+        patch,
+      );
+    },
+
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
     // status (unlike request<T>()). Callers — see sonar/audit/reports/*
     // route.ts — rely on this to manually decide JSON vs error fallthrough,
@@ -895,4 +1068,10 @@ export type {
   ReportFooter,
   ResolutionStatus,
   ClassRollupEntry,
+  TrustBypassConfig,
+  TrustClass,
+  TrustBypassActivationRequest,
+  TrustBypassDeactivationRequest,
+  TrustBypassAffectedCounterparty,
+  TrustBypassActivationMode,
 } from '@haiwave/protocol';
