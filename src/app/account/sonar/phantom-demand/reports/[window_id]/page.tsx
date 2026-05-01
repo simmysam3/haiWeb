@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { PhantomDemandAggregateReport } from '@haiwave/protocol';
 import { DownloadMenu } from './_components/download-menu';
+import { PageIntro } from '@/components/page-intro';
 
 type LoadResult =
   | { kind: 'ok'; report: PhantomDemandAggregateReport }
@@ -70,6 +71,10 @@ export default async function PhantomDemandAggregateReportPage({
         </div>
         <DownloadMenu windowId={report.header.window_id} reportType="aggregate" />
       </div>
+
+      <PageIntro>
+        The persistent, exportable report for each phantom-demand window — aggregate availability, per-counterparty breakdown, and gap classification, available as HTML, JSON, CSV, or PDF. Use these reports for procurement reviews, stakeholder updates, and audit trails; the live signal lives in <em>Phantom Demand</em>.
+      </PageIntro>
 
       <section>
         <h2 className="text-lg font-medium text-navy">Posture summary</h2>

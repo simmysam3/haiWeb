@@ -5,6 +5,7 @@ import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { RunControls } from '../dashboard/run-controls';
 import { RunsTable } from './runs-table';
+import { PageIntro } from '@/components/page-intro';
 
 async function loadRuns(): Promise<AuditRun[]> {
   const cookieHeader = (await cookies()).toString();
@@ -50,6 +51,9 @@ export default async function RunsPage() {
         <h1 className="text-xl font-semibold text-charcoal">Runs</h1>
         <RunControls />
       </header>
+      <PageIntro>
+        The complete history of supply-chain audit runs you&apos;ve initiated, with their status, trigger source, and result links. Start, cancel, or re-run audits here; the <em>Audit Dashboard</em> is where the latest run&apos;s results are aggregated for review.
+      </PageIntro>
       <RunsTable runs={runs} />
     </div>
   );

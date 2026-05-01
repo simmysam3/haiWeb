@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { headers } from 'next/headers';
 import { PageHeader } from '@/components/page-header';
+import { PageIntro } from '@/components/page-intro';
 import { ProvenanceKeysDashboard, type DashboardPayload } from './provenance-keys-dashboard';
 
 const EMPTY_PAYLOAD: DashboardPayload = {
@@ -42,6 +43,9 @@ export default async function ProvenanceKeysPage() {
         title="Provenance Keys"
         description="Issue keys to verify provenance from your suppliers, and install keys issued by buyers."
       />
+      <PageIntro>
+        Provenance keys are the cryptographic credentials that verify a buyer&apos;s request is authentic before your agent discloses sensitive supply-chain detail. Issue keys to trusted suppliers (so they accept your phantom-demand and audit traffic), install keys your buyers have issued to you, and review the audit trail for each one.
+      </PageIntro>
       <ProvenanceKeysDashboard initial={initial} />
     </div>
   );

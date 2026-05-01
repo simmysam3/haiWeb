@@ -3,6 +3,7 @@ import type { InboundNominationGroup } from './_lib/types';
 import { NominationsTable } from './nominations-table';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
+import { PageIntro } from '@/components/page-intro';
 
 interface SearchParams {
   status?: string | string[];
@@ -45,7 +46,7 @@ export default async function AuditNominationsPage({ searchParams }: PageProps) 
 
   return (
     <div className="px-8 py-10">
-      <header className="mb-8 flex items-end justify-between">
+      <header className="mb-4 flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-display text-navy">Audit Nominations</h1>
           <p className="mt-2 text-slate">
@@ -54,6 +55,9 @@ export default async function AuditNominationsPage({ searchParams }: PageProps) 
         </div>
         <RefreshButton />
       </header>
+      <PageIntro>
+        The inbound queue of audit obligations partners have nominated you to satisfy — each one a SKU your buyer wants you to disclose downstream provenance for. Acknowledge, respond, or decline obligations here; counterparties in trust classes you&apos;ve enabled bypass for auto-acknowledge and won&apos;t appear in this queue. The mirror of <em>Sonar → My Nominations</em>, which is what you&apos;ve sent in the other direction.
+      </PageIntro>
 
       <FilterPills
         observers={

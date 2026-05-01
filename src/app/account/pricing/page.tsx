@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/page-header";
+import { PageIntro } from "@/components/page-intro";
 import { Card } from "@/components/card";
 import { Button } from "@/components/button";
 import { PricingTree, PricingNode } from "@/components/pricing-tree";
@@ -148,6 +149,9 @@ export default function PricingPage() {
           </Button>
         }
       />
+      <PageIntro>
+        Set the baseline pricing your agent uses when responding to phantom-demand inquiries and order requests, organized as a hierarchy that lets child levels inherit (or override) their parent. Pricing changes here flow into the <em>Manifests</em> you publish to counterparties.
+      </PageIntro>
 
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
