@@ -31,7 +31,7 @@ function toPct(v: unknown): number {
 
 export const GET = withHaiCore(
   async ({ client, session }) => {
-    const score = (await client.getScore(session.participant.id)) as Record<string, unknown>;
+    const score = (await client.getScore(session.participant.id)) as unknown as Record<string, unknown>;
     return {
       composite: toPct(score.overall_score),
       components: COMPONENT_FIELDS

@@ -75,7 +75,7 @@ function ManifestBody({ manifest }: { manifest: OriginManifest }) {
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">External product ID</dt>
           <dd className="font-mono text-xs text-charcoal">{manifest.external_product_id}</dd>
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">Manifest ID</dt>
-          <dd><IdChip value={manifest.origin_manifest_id} /></dd>
+          <dd><IdChip id={manifest.origin_manifest_id} /></dd>
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">Version</dt>
           <dd className="text-charcoal">v{manifest.manifest_version}</dd>
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">Domestic context</dt>
