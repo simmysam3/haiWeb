@@ -6,6 +6,8 @@ import { RollupPanel } from './rollup-panel';
 import { ProductsGrid } from './products-grid';
 import { RunControls } from './run-controls';
 import { ThrottledStatusPill } from '@/components/sonar/throttled-status-pill';
+import { ThrottleBanner } from '@/components/sonar/throttle-banner';
+import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
 
 interface LoadOk {
   run: AuditRun;
@@ -106,6 +108,13 @@ export default async function RunDetailPage({
             ? ' — you do not have permission to view this run.'
             : ` — server returned ${data.resultsError.status}.`}
         </div>
+      )}
+
+      {data.run.status === 'throttled' && data.run.resumption_state && (
+        <>
+          <ThrottleBanner />
+          <ResumptionHistoryTable resumptionState={data.run.resumption_state} />
+        </>
       )}
 
       <RollupPanel results={data.results} />
