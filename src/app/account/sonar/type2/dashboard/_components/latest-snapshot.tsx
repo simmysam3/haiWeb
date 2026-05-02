@@ -64,6 +64,9 @@ function isDeliveryEvent(payload: unknown): payload is DeliveryEvent {
 function foldByCounterparty(results: Type2Result[]): PerCounterpartyRow[] {
   const rows = new Map<string, PerCounterpartyRow>();
   for (const r of results) {
+    // v1.29: aggregate rows (tier-2+) have null counterparty_participant_id —
+    // skip them here; the latest-snapshot view shows only direct tier-1 results.
+    if (r.counterparty_participant_id === null) continue;
     const cur = rows.get(r.counterparty_participant_id) ?? {
       counterpartyId: r.counterparty_participant_id,
       leadTime: null,

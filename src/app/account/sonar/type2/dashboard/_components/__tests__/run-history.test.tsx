@@ -25,6 +25,8 @@ const baseRun: Type2Run = {
   completed_at: null,
   cancelled_at: null,
   transformation_chain: null,
+  // v1.29 Phase 2
+  depth_limit: 1,
 };
 
 describe('RunHistory', () => {
