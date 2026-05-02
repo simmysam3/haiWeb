@@ -1,10 +1,17 @@
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
 import { PhantomDemandDashboard } from "./phantom-demand-dashboard";
+import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
+import { loadThrottledCounts } from '../../_lib/throttled-counts';
 
-export default function PhantomDemandPage() {
+/**
+ * v1.29: ThrottledRunsPanel added to surface any throttled runs.
+ */
+export default async function PhantomDemandPage() {
+  const throttledCounts = await loadThrottledCounts();
   return (
     <div>
+      <ThrottledRunsPanel counts={throttledCounts} />
       <PageHeader
         title="Phantom Demand"
         description="Usage tracking and demand forecast analytics"
