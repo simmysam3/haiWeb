@@ -15,7 +15,7 @@ export function ResumptionHistoryTable({ resumptionState }: Props) {
   return (
     <section>
       <h3 className="text-sm font-semibold text-charcoal mb-2">
-        Resumption history
+        Resumption status
       </h3>
       <table className="text-xs w-full">
         <thead>

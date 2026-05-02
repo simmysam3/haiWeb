@@ -26,7 +26,7 @@ export function ThrottledStatusPill({ nextResumeAt }: Props) {
 
 function formatCountdown(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'now';
+  if (ms <= 0) return 'imminently';
   const minutes = Math.ceil(ms / 60_000);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);

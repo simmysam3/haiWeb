@@ -15,10 +15,10 @@ describe('ThrottledStatusPill', () => {
     expect(screen.getByText(/Resumes in 45 min/)).toBeInTheDocument();
   });
 
-  it('renders "now" when nextResumeAt is in the past', () => {
+  it('renders "imminently" when nextResumeAt is in the past', () => {
     const past = new Date(Date.now() - 5000).toISOString();
     render(<ThrottledStatusPill nextResumeAt={past} />);
-    expect(screen.getByText(/Resumes in now/)).toBeInTheDocument();
+    expect(screen.getByText(/Resumes in imminently/)).toBeInTheDocument();
   });
 
   it('formats hours correctly for times more than 60 minutes away', () => {
@@ -51,7 +51,7 @@ describe('ThrottledStatusPill', () => {
     await act(async () => {
       vi.advanceTimersByTime(30 * 60_000);
     });
-    // After 30+ min elapsed against a 30-min window, should show "now"
-    expect(screen.getByText(/Resumes in now/)).toBeInTheDocument();
+    // After 30+ min elapsed against a 30-min window, should show "imminently"
+    expect(screen.getByText(/Resumes in imminently/)).toBeInTheDocument();
   });
 });

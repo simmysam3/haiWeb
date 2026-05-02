@@ -170,6 +170,17 @@ export interface ScoreData {
   components: Array<{ label: string; value: number }>;
 }
 
+// v1.29 Phase 1 — budget window summary returned by GET /sonar/budget/current.
+// Kept in HaiWeb (not protocol) because the route returns it directly without
+// Zod-shape validation in haiCore.
+export interface BudgetStatus {
+  participant_id: string;
+  window_start: string;
+  consumed: number;
+  remaining: number;
+  budget: number;
+}
+
 export const CLASSIFICATION_OVERRIDE_ACTIONS = [
   'reassign',
   'new_node_request',
@@ -392,13 +403,7 @@ export interface HaiwaveClient {
   ): Promise<{ subscription: Type2SignalSubscription }>;
   // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
   getRunResumptionState(runId: string): Promise<RunResumptionState>;
-  getBudgetCurrent(): Promise<{
-    participant_id: string;
-    window_start: string;
-    consumed: number;
-    remaining: number;
-    budget: number;
-  }>;
+  getBudgetCurrent(): Promise<BudgetStatus>;
   getThrottledRunsCount(): Promise<{ audit: number; type2: number; total: number }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
@@ -1051,13 +1056,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<RunResumptionState>('GET', `/sonar/runs/${runId}/resumption-state`);
     },
     getBudgetCurrent() {
-      return request<{
-        participant_id: string;
-        window_start: string;
-        consumed: number;
-        remaining: number;
-        budget: number;
-      }>('GET', '/sonar/budget/current');
+      return request<BudgetStatus>('GET', '/sonar/budget/current');
     },
     getThrottledRunsCount() {
       return request<{ audit: number; type2: number; total: number }>(

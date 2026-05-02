@@ -11,6 +11,7 @@ interface RunHistoryProps {
 
 const STATUS_PILL_CLASSES: Record<Type2RunStatus, string> = {
   running: 'bg-amber-50 text-amber-700 border-amber-200',
+  throttled: 'bg-amber-50 text-amber-700 border-amber-200',
   complete: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   partial: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   failed: 'bg-rose-50 text-rose-700 border-rose-200',

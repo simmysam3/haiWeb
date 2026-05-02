@@ -1,27 +1,8 @@
-import { cookies, headers } from 'next/headers';
 import { PageHeader } from '@/components/page-header';
 import { PageIntro } from '@/components/page-intro';
 import { Type2Dashboard } from './_components/type2-dashboard';
 import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
-
-async function loadThrottledCounts(): Promise<{ audit: number; type2: number; total: number }> {
-  const zeroThrottled = { audit: 0, type2: 0, total: 0 };
-  try {
-    const cookieHeader = (await cookies()).toString();
-    const reqHeaders = await headers();
-    const host = reqHeaders.get('host') ?? 'localhost:3001';
-    const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-    const baseUrl = `${proto}://${host}`;
-    const res = await fetch(`${baseUrl}/api/account/sonar/runs/throttled/count`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return zeroThrottled;
-    return (await res.json()) as { audit: number; type2: number; total: number };
-  } catch {
-    return zeroThrottled;
-  }
-}
+import { loadThrottledCounts } from '../../_lib/throttled-counts';
 
 /**
  * v1.28 Phase 5 — Type 2 (continuous observation) dashboard surface.

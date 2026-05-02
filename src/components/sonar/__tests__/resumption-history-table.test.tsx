@@ -18,7 +18,7 @@ const MOCK_STATE: RunResumptionState = {
 describe('ResumptionHistoryTable', () => {
   it('renders the section heading', () => {
     render(<ResumptionHistoryTable resumptionState={MOCK_STATE} />);
-    expect(screen.getByText('Resumption history')).toBeInTheDocument();
+    expect(screen.getByText('Resumption status')).toBeInTheDocument();
   });
 
   it('renders three column headers', () => {
