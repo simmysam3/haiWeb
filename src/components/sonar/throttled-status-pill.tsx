@@ -17,16 +17,17 @@ export function ThrottledStatusPill({ nextResumeAt }: Props) {
     const id = setInterval(() => setCountdown(formatCountdown(nextResumeAt)), 30_000);
     return () => clearInterval(id);
   }, [nextResumeAt]);
+  const ready = countdown === null;
   return (
     <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200">
-      Throttled · Resumes in {countdown}
+      {ready ? 'Throttled · Resuming now' : `Throttled · Resumes in ${countdown}`}
     </span>
   );
 }
 
-function formatCountdown(iso: string): string {
+function formatCountdown(iso: string): string | null {
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'imminently';
+  if (ms <= 0) return null;
   const minutes = Math.ceil(ms / 60_000);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
