@@ -60,6 +60,7 @@ import type {
   PeerAggregateResponse,
   VendorRiskDimension,
   VendorRiskResponse,
+  RunResumptionState,
 } from '@haiwave/protocol';
 
 import type {
@@ -389,6 +390,16 @@ export interface HaiwaveClient {
     id: string,
     patch: Type2SignalSubscriptionPatch,
   ): Promise<{ subscription: Type2SignalSubscription }>;
+  // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
+  getRunResumptionState(runId: string): Promise<RunResumptionState>;
+  getBudgetCurrent(): Promise<{
+    participant_id: string;
+    window_start: string;
+    consumed: number;
+    remaining: number;
+    budget: number;
+  }>;
+  getThrottledRunsCount(): Promise<{ audit: number; type2: number; total: number }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -1035,6 +1046,26 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
     },
 
+    // ─── v1.29 Phase 1: Resumable Execution ─────────────────────────────
+    getRunResumptionState(runId) {
+      return request<RunResumptionState>('GET', `/sonar/runs/${runId}/resumption-state`);
+    },
+    getBudgetCurrent() {
+      return request<{
+        participant_id: string;
+        window_start: string;
+        consumed: number;
+        remaining: number;
+        budget: number;
+      }>('GET', '/sonar/budget/current');
+    },
+    getThrottledRunsCount() {
+      return request<{ audit: number; type2: number; total: number }>(
+        'GET',
+        '/sonar/runs/throttled/count',
+      );
+    },
+
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
     // status (unlike request<T>()). Callers — see sonar/audit/reports/*
     // route.ts — rely on this to manually decide JSON vs error fallthrough,
@@ -1074,4 +1105,5 @@ export type {
   TrustBypassDeactivationRequest,
   TrustBypassAffectedCounterparty,
   TrustBypassActivationMode,
+  RunResumptionState,
 } from '@haiwave/protocol';
