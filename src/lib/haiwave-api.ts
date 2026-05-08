@@ -60,6 +60,7 @@ import type {
   PeerAggregateResponse,
   VendorRiskDimension,
   VendorRiskResponse,
+  RunResumptionState,
 } from '@haiwave/protocol';
 
 import type {
@@ -167,6 +168,17 @@ export interface ConnectionRecord {
 export interface ScoreData {
   composite: number;
   components: Array<{ label: string; value: number }>;
+}
+
+// v1.29 Phase 1 — budget window summary returned by GET /sonar/budget/current.
+// Kept in HaiWeb (not protocol) because the route returns it directly without
+// Zod-shape validation in haiCore.
+export interface BudgetStatus {
+  participant_id: string;
+  window_start: string;
+  consumed: number;
+  remaining: number;
+  budget: number;
 }
 
 export const CLASSIFICATION_OVERRIDE_ACTIONS = [
@@ -389,6 +401,10 @@ export interface HaiwaveClient {
     id: string,
     patch: Type2SignalSubscriptionPatch,
   ): Promise<{ subscription: Type2SignalSubscription }>;
+  // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
+  getRunResumptionState(runId: string): Promise<RunResumptionState>;
+  getBudgetCurrent(): Promise<BudgetStatus>;
+  getThrottledRunsCount(): Promise<{ audit: number; type2: number; total: number }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -1035,6 +1051,20 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
     },
 
+    // ─── v1.29 Phase 1: Resumable Execution ─────────────────────────────
+    getRunResumptionState(runId) {
+      return request<RunResumptionState>('GET', `/sonar/runs/${runId}/resumption-state`);
+    },
+    getBudgetCurrent() {
+      return request<BudgetStatus>('GET', '/sonar/budget/current');
+    },
+    getThrottledRunsCount() {
+      return request<{ audit: number; type2: number; total: number }>(
+        'GET',
+        '/sonar/runs/throttled/count',
+      );
+    },
+
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
     // status (unlike request<T>()). Callers — see sonar/audit/reports/*
     // route.ts — rely on this to manually decide JSON vs error fallthrough,
@@ -1074,4 +1104,5 @@ export type {
   TrustBypassDeactivationRequest,
   TrustBypassAffectedCounterparty,
   TrustBypassActivationMode,
+  RunResumptionState,
 } from '@haiwave/protocol';

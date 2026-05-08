@@ -10,6 +10,7 @@ import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { PartnersChart } from './partners-chart';
 import { buildPartnerCompliance, type PartnerComplianceData } from './_lib/partner-compliance';
 import { PageIntro } from '@/components/page-intro';
+import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
 
 interface DashboardData {
   rollup: GeoRollupEntry[];
@@ -17,6 +18,9 @@ interface DashboardData {
   gaps: number | null;
   latestAt: string | null;
   partnerCompliance: PartnerComplianceData | null;
+  // null = count fetch failed (renders an "unavailable" banner via the panel).
+  // Distinct from {0,0,0} which means "fetch succeeded, nothing throttled".
+  throttledCounts: { audit: number; type2: number; total: number } | null;
 }
 
 async function loadDashboard(): Promise<DashboardData> {
@@ -40,15 +44,21 @@ async function loadDashboard(): Promise<DashboardData> {
     }
   };
 
-  const runsRes = await fetchJson<{ runs: AuditRun[] }>(
-    '/api/account/audit-runs?limit=25',
-  );
-  if (!runsRes) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null };
+  const [runsRes, throttledCounts] = await Promise.all([
+    fetchJson<{ runs: AuditRun[] }>('/api/account/audit-runs?limit=25'),
+    fetchJson<{ audit: number; type2: number; total: number }>(
+      '/api/account/sonar/runs/throttled/count',
+    ),
+  ]);
+  // Pass throttledCounts through verbatim — null means "count unavailable" and
+  // the panel renders a degraded-state banner; collapsing to zeros would hide
+  // the failure from the operator.
+  if (!runsRes) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null, throttledCounts };
 
   const latest = runsRes.runs.find(
     (r) => r.status === 'complete' || r.status === 'partial',
   );
-  if (!latest) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null };
+  if (!latest) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null, throttledCounts };
 
   const [resultsRes, classRes] = await Promise.all([
     fetchJson<{ results: AuditRunResult[] }>(
@@ -87,6 +97,7 @@ async function loadDashboard(): Promise<DashboardData> {
     gaps: latest.gap_count ?? 0,
     latestAt: latest.triggered_at,
     partnerCompliance: resultsRes ? buildPartnerCompliance(latest, resultsRes.results) : null,
+    throttledCounts,
   };
 }
 
@@ -109,6 +120,7 @@ export default async function DashboardPage() {
   const data = await loadDashboard();
   return (
     <div className="p-6 space-y-6">
+      <ThrottledRunsPanel counts={data.throttledCounts} />
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-charcoal">Audit Dashboard</h1>

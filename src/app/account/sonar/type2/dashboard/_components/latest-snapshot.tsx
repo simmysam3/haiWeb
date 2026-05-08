@@ -60,10 +60,24 @@ function isDeliveryEvent(payload: unknown): payload is DeliveryEvent {
  * can render lead time / capacity / delivery side-by-side. A missing
  * signal renders as "—"; a redacted_gap is flagged so the row exposes
  * the gap context on the drill-down.
+ *
+ * Tier-2+ aggregate rows (null counterparty_participant_id) are skipped from
+ * the per-counterparty grid, but the count is returned separately so the
+ * caller can surface a badge — without it, a run that contains only
+ * aggregate rows would render as "no counterparty results" and operators
+ * would think the sweep failed when in fact the data is being filtered.
  */
-function foldByCounterparty(results: Type2Result[]): PerCounterpartyRow[] {
+function foldByCounterparty(results: Type2Result[]): {
+  rows: PerCounterpartyRow[];
+  aggregateRowsHidden: number;
+} {
   const rows = new Map<string, PerCounterpartyRow>();
+  let aggregateRowsHidden = 0;
   for (const r of results) {
+    if (r.counterparty_participant_id === null) {
+      aggregateRowsHidden += 1;
+      continue;
+    }
     const cur = rows.get(r.counterparty_participant_id) ?? {
       counterpartyId: r.counterparty_participant_id,
       leadTime: null,
@@ -85,7 +99,7 @@ function foldByCounterparty(results: Type2Result[]): PerCounterpartyRow[] {
     }
     rows.set(r.counterparty_participant_id, cur);
   }
-  return [...rows.values()];
+  return { rows: [...rows.values()], aggregateRowsHidden };
 }
 
 /**
@@ -102,13 +116,24 @@ export function LatestSnapshot({ runId, onSelectCounterparty }: LatestSnapshotPr
   if (isLoading) return <p className="text-sm text-slate">Loading snapshot…</p>;
   if (error || !data) return <p className="text-sm text-rose-600">Failed to load snapshot.</p>;
 
-  const rows = foldByCounterparty(data.results);
+  const { rows, aggregateRowsHidden } = foldByCounterparty(data.results);
   if (rows.length === 0) {
-    return <p className="text-sm text-slate italic">Run completed with no counterparty results.</p>;
+    return (
+      <p className="text-sm text-slate italic">
+        {aggregateRowsHidden > 0
+          ? `Run produced only tier-2+ aggregate rows (${aggregateRowsHidden} hidden — open a counterparty drill-down to view).`
+          : 'Run completed with no counterparty results.'}
+      </p>
+    );
   }
 
   return (
     <div className="overflow-hidden rounded-md border border-slate-200">
+      {aggregateRowsHidden > 0 && (
+        <p className="px-4 py-2 text-xs text-slate bg-slate-50 border-b border-slate-200">
+          + {aggregateRowsHidden} tier-2+ aggregate row{aggregateRowsHidden !== 1 ? 's' : ''} not shown — open a counterparty drill-down to view.
+        </p>
+      )}
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate">
           <tr>
