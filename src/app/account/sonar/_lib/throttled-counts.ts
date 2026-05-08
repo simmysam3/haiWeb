@@ -8,12 +8,18 @@ export interface ThrottledCounts {
 
 /**
  * loadThrottledCounts — fetches the current count of throttled runs (audit +
- * type2) from the BFF endpoint. Returns zeros on any network or auth failure so
- * dashboards degrade gracefully.
+ * type2) from the BFF endpoint. Returns null on network or auth failure so the
+ * caller can render a degraded-state indicator. The previous behavior returned
+ * zeros, which caused the throttled-runs panel to disappear entirely on
+ * failure — operators saw a clean dashboard while runs were actually waiting.
+ * That inverts the v1.29 Phase 1 visibility goal. The new contract:
+ *
+ *   - 200 OK with body  → ThrottledCounts (zeros mean "nothing throttled")
+ *   - any other outcome → null            ("count unavailable")
  *
  * v1.29 Phase 1: extracted from the type2 and phantom-demand dashboard pages.
  */
-export async function loadThrottledCounts(): Promise<ThrottledCounts> {
+export async function loadThrottledCounts(): Promise<ThrottledCounts | null> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
@@ -24,9 +30,13 @@ export async function loadThrottledCounts(): Promise<ThrottledCounts> {
       headers: { cookie: cookieHeader },
       cache: 'no-store',
     });
-    if (!res.ok) return { audit: 0, type2: 0, total: 0 };
+    if (!res.ok) {
+      console.error('[loadThrottledCounts] non-OK response', { status: res.status });
+      return null;
+    }
     return (await res.json()) as ThrottledCounts;
-  } catch {
-    return { audit: 0, type2: 0, total: 0 };
+  } catch (err) {
+    console.error('[loadThrottledCounts] fetch threw', { err });
+    return null;
   }
 }

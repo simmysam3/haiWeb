@@ -11,6 +11,14 @@ describe('ThrottledRunsPanel', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it('renders an "unavailable" banner when counts is null', () => {
+    render(<ThrottledRunsPanel counts={null} />);
+    expect(screen.getByText('Throttle status unavailable')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Could not load the throttled-runs count/),
+    ).toBeInTheDocument();
+  });
+
   it('renders the panel when total > 0', () => {
     render(<ThrottledRunsPanel counts={{ audit: 2, type2: 1, total: 3 }} />);
     expect(screen.getByText('Throttled runs')).toBeInTheDocument();

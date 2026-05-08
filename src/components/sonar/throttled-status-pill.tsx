@@ -6,8 +6,16 @@ interface Props {
 }
 
 /**
- * ThrottledStatusPill — renders a live-updating countdown until the run
- * resumes after a budget throttle. Refreshes every 30 seconds.
+ * ThrottledStatusPill — renders a countdown until the run resumes after a
+ * budget throttle. Recomputes the displayed minutes every 30s against the
+ * current wall clock, but does NOT re-fetch the underlying nextResumeAt — if
+ * the parent surface wants the resume time itself to refresh (e.g. because
+ * the run completed or its budget window shifted), the parent must re-render
+ * with a new prop. On a static page-load this means the pill counts down
+ * toward whatever `nextResumeAt` was at server-render time. See run detail
+ * page (page.tsx) for the Phase 1 refresh model: the page itself has no
+ * client polling, so an operator who leaves the tab open will eventually see
+ * "Resuming now" indefinitely until they reload.
  *
  * v1.29 Phase 1.
  */
