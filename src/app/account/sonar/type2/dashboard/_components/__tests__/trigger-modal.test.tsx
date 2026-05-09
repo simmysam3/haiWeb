@@ -67,4 +67,13 @@ describe('TriggerModal', () => {
     expect(await screen.findByText(/Trigger failed \(500\)/i)).toBeInTheDocument();
     expect(onSuccess).not.toHaveBeenCalled();
   });
+
+  it('renders a Save-as-template link with the type2 observation_class', () => {
+    render(<TriggerModal onClose={() => {}} onSuccess={() => {}} />);
+    const link = screen.getByRole('link', { name: /save as template instead/i });
+    expect(link).toHaveAttribute(
+      'href',
+      '/account/sonar/templates/new?observation_class=type2',
+    );
+  });
 });

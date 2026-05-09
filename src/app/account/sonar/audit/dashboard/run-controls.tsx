@@ -1,6 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export function RunControls() {
   const [busy, startTransition] = useTransition();
@@ -25,6 +26,12 @@ export function RunControls() {
   return (
     <div className="flex items-center gap-2">
       {error && <span className="text-xs text-[var(--color-problem)]">{error}</span>}
+      <Link
+        href="/account/sonar/templates/new?observation_class=audit"
+        className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
+      >
+        Save as template
+      </Link>
       <button
         onClick={runAudit}
         disabled={busy}

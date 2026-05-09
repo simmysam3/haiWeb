@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { SignalType } from '@haiwave/protocol';
 
 interface TriggerModalProps {
@@ -110,23 +111,32 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
           ))}
         </div>
         {error && <p className="text-sm text-rose-600">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
+        <div className="flex justify-between items-center gap-2">
+          <Link
+            href="/account/sonar/templates/new?observation_class=type2"
+            className="text-sm text-teal hover:underline"
             onClick={onClose}
-            disabled={busy}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={busy}
-            className="rounded bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
-          >
-            {busy ? 'Triggering…' : 'Run observation'}
-          </button>
+            Save as template instead
+          </Link>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={busy}
+              className="rounded bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
+            >
+              {busy ? 'Triggering…' : 'Run observation'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
