@@ -56,10 +56,11 @@ describe('computeRiskScore', () => {
   });
 
   it('threshold boundary: score === 0.67 → red (strict <)', () => {
-    // audit=1, PD=1, t2 such that 0.4 + 0.3 + t2*0.3 = 0.67  →  t2 = 0
-    const result = computeRiskScore({ audit: 1, phantom_demand: 1, type2: 0 });
-    expect(result.score).toBeCloseTo(0.7, 5);
+    // 1*0.4 + 0.9*0.3 + 0*0.3 = 0.67 — verifies strict < at 0.67
+    const result = computeRiskScore({ audit: 1, phantom_demand: 0.9, type2: 0 });
+    expect(result.score).toBeCloseTo(0.67, 5);
     expect(result.color).toBe('red');
+    expect(result.label).toBe('critical');
   });
 
   it('exposes MISSING_WEIGHT constant for downstream callers', () => {
