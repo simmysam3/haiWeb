@@ -30,6 +30,26 @@ function compareNullable(a: number | null, b: number | null, dir: 'asc' | 'desc'
   return dir === 'asc' ? a - b : b - a;
 }
 
+interface HeaderButtonProps {
+  k: SortKey;
+  children: React.ReactNode;
+  sortKey: SortKey;
+  dir: 'asc' | 'desc';
+  onClick: (k: SortKey) => void;
+}
+
+function HeaderButton({ k, children, sortKey, dir, onClick }: HeaderButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(k)}
+      className="text-left text-xs font-semibold uppercase tracking-wide text-slate hover:text-charcoal"
+    >
+      {children} {sortKey === k ? (dir === 'asc' ? '↑' : '↓') : ''}
+    </button>
+  );
+}
+
 export function CrossModalityTable({ partners }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('risk');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
@@ -78,27 +98,17 @@ export function CrossModalityTable({ partners }: Props) {
     );
   }
 
-  const HeaderButton = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
-    <button
-      type="button"
-      onClick={() => onHeaderClick(k)}
-      className="text-left text-xs font-semibold uppercase tracking-wide text-slate hover:text-charcoal"
-    >
-      {children} {sortKey === k ? (dir === 'asc' ? '↑' : '↓') : ''}
-    </button>
-  );
-
   return (
     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50">
           <tr>
-            <th className="px-4 py-2"><HeaderButton k="partner">Partner</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="audit">Audit (non-compliant)</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="pd">PD response</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="capacity">T2 capacity</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="lead_time">T2 lead p90</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="risk">Risk</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="partner" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Partner</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="audit" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Audit (non-compliant)</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="pd" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>PD response</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="capacity" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>T2 capacity</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="lead_time" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>T2 lead p90</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="risk" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Risk</HeaderButton></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
