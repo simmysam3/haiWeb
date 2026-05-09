@@ -3,6 +3,7 @@ import { PageIntro } from '@/components/page-intro';
 import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
 import { CrossModalityTable } from './_components/cross-modality-table';
+import { ActivityFeed } from './_components/activity-feed';
 
 interface CrossModalityResponse {
   partners: Array<{
@@ -111,7 +112,7 @@ export default async function UnifiedDashboardPage() {
       />
       <ModalityLens partners={data.crossModality?.partners ?? []} />
       <CrossModalityTable partners={data.crossModality?.partners ?? []} />
-      {/* Activity feed lands in subsequent tasks */}
+      <ActivityFeed initial={data.initialActivity} />
     </div>
   );
 }
