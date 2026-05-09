@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 import { PageIntro } from '@/components/page-intro';
 import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
+import { CrossModalityTable } from './_components/cross-modality-table';
 
 interface CrossModalityResponse {
   partners: Array<{
@@ -109,7 +110,8 @@ export default async function UnifiedDashboardPage() {
         enabledTemplateCount={data.enabledTemplateCount}
       />
       <ModalityLens partners={data.crossModality?.partners ?? []} />
-      {/* Cross-modality table, activity feed land in subsequent tasks */}
+      <CrossModalityTable partners={data.crossModality?.partners ?? []} />
+      {/* Activity feed lands in subsequent tasks */}
     </div>
   );
 }
