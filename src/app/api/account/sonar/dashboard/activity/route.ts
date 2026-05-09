@@ -51,12 +51,18 @@ export const GET = withHaiCore(async ({ client }) => {
   const auditP = client
     .listAuditRuns({ limit: MODALITY_LIMIT })
     .then((r: { runs: AuditRun[] }) => r.runs.map(normalizeAudit))
-    .catch(() => [] as ActivityEvent[]);
+    .catch((err) => {
+      console.error('[dashboard/activity] auditP failed:', err);
+      return [] as ActivityEvent[];
+    });
 
   const type2P = client
     .listType2Runs()
     .then((r: { runs: Type2Run[] }) => r.runs.slice(0, MODALITY_LIMIT).map(normalizeType2))
-    .catch(() => [] as ActivityEvent[]);
+    .catch((err) => {
+      console.error('[dashboard/activity] type2P failed:', err);
+      return [] as ActivityEvent[];
+    });
 
   const pdP = (async (): Promise<ActivityEvent[]> => {
     try {
@@ -79,7 +85,8 @@ export const GET = withHaiCore(async ({ client }) => {
           detail_href: `/account/sonar/phantom-demand/reports/${window_id}`,
         },
       ];
-    } catch {
+    } catch (err) {
+      console.error('[dashboard/activity] pdP failed:', err);
       return [];
     }
   })();
