@@ -42,4 +42,10 @@ describe('TemplateRunHistory', () => {
     expect(screen.getByText('complete')).toBeInTheDocument();
     expect(screen.getByText('template_scheduled')).toBeInTheDocument();
   });
+
+  it('renders error message on fetch failure', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('Network error'));
+    render(wrap(<TemplateRunHistory templateId="tA" />));
+    await waitFor(() => screen.getByText(/failed to load run history/i));
+  });
 });

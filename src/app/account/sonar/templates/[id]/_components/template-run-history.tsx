@@ -32,7 +32,7 @@ export function TemplateRunHistory({ templateId }: Props) {
     return <p className="text-sm text-slate">Loading run history…</p>;
   }
   if (data.runs.length === 0) {
-    return <p className="text-sm italic text-slate">This template hasn't been triggered yet.</p>;
+    return <p className="text-sm italic text-slate">This template hasn&apos;t been triggered yet.</p>;
   }
 
   return (
