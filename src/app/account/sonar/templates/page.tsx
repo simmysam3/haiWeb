@@ -49,7 +49,7 @@ export default async function TemplatesListPage() {
       {templates.length === 0 ? (
         <p className="text-sm text-slate">
           No templates yet. Create one or use &ldquo;Save as template&rdquo; from
-          the audit or Type 2 dashboard after a manual run.
+          the audit or Watcher dashboard after a manual run.
         </p>
       ) : (
         <table className="w-full border-collapse text-sm">
