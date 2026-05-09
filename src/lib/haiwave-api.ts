@@ -404,7 +404,7 @@ export interface HaiwaveClient {
     id: string,
     patch: Type2SignalSubscriptionPatch,
   ): Promise<{ subscription: Type2SignalSubscription }>;
-  // ─── v1.29 Phase 3 Batch 1: Run Templates ───────────────────────────────────
+  // ─── v1.29 Phase 3 Batch 3a: Run Templates ───────────────────────────────
   listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
   getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
   createRunTemplate(body: CreateRunTemplateRequest): Promise<{ template: RunTemplate }>;
@@ -1051,7 +1051,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
     },
 
-    // ─── v1.29 Phase 3 Batch 1: Run Templates ────────────────────────
+    // ─── v1.29 Phase 3 Batch 3a: Run Templates ─────────────────────
     listRunTemplates() {
       return request<{ templates: RunTemplate[] }>('GET', '/sonar/templates');
     },
