@@ -41,3 +41,6 @@ haiwave-site.zip
 
 # Superpowers brainstorm session artifacts
 .superpowers/
+
+# Claude Code session-local state and worktrees
+.claude/
