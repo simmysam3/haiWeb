@@ -365,7 +365,7 @@ export interface HaiwaveClient {
   // Audit Runs (v1.25)
   triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
   refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
-  listAuditRuns(opts?: { status?: string; limit?: number }): Promise<{ runs: AuditRun[] }>;
+  listAuditRuns(opts?: { status?: string; limit?: number; template_id?: string }): Promise<{ runs: AuditRun[] }>;
   getAuditRun(runId: string): Promise<AuditRun>;
   getAuditRunResults(
     runId: string,
@@ -395,7 +395,7 @@ export interface HaiwaveClient {
   deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
   // ─── Type 2 (v1.28 Phase 5) ──────────────────────────────────────────
   triggerType2Run(body: Type2RunTriggerRequest): Promise<{ run_id: string; status: Type2RunStatus }>;
-  listType2Runs(): Promise<{ runs: Type2Run[] }>;
+  listType2Runs(opts?: { limit?: number; template_id?: string }): Promise<{ runs: Type2Run[] }>;
   getType2Run(runId: string): Promise<{ run: Type2Run; results: Type2Result[] }>;
   getType2RunStatus(runId: string): Promise<{ status: Type2RunStatus }>;
   cancelType2Run(runId: string): Promise<{ cancelled: boolean }>;
@@ -863,7 +863,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ runs: AuditRun[] }>(
         'GET',
         `/source-audit/runs${q ? `?${q}` : ''}`,
-      );
+      ).then((res) => {
+        if (!opts.template_id) return res;
+        return { runs: res.runs.filter((r) => r.template_id === opts.template_id) };
+      });
     },
     getAuditRun(runId) {
       return request<AuditRun>('GET', `/source-audit/runs/${runId}`);
@@ -1029,8 +1032,17 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         body,
       );
     },
-    listType2Runs() {
-      return request<{ runs: Type2Run[] }>('GET', '/sonar/type2/runs');
+    listType2Runs(opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      const q = params.toString();
+      return request<{ runs: Type2Run[] }>(
+        'GET',
+        `/sonar/type2/runs${q ? `?${q}` : ''}`,
+      ).then((res) => {
+        if (!opts.template_id) return res;
+        return { runs: res.runs.filter((r) => r.template_id === opts.template_id) };
+      });
     },
     getType2Run(runId) {
       return request<{ run: Type2Run; results: Type2Result[] }>(

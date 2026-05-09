@@ -1,0 +1,157 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
+
+vi.mock('@/lib/with-hai-core', () => ({
+  withHaiCore: (handler: any) => async (req: NextRequest) => {
+    const client = (globalThis as any).__mockClient;
+    return await handler({ client, request: req, params: {}, session: {} });
+  },
+}));
+
+import { GET } from '../route';
+
+const VENDOR_A = '00000000-0000-0000-0000-00000000000a';
+const VENDOR_B = '00000000-0000-0000-0000-00000000000b';
+
+function setMockClient(overrides: Record<string, any>) {
+  (globalThis as any).__mockClient = {
+    listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
+    listType2Runs: vi.fn().mockResolvedValue({ runs: [] }),
+    getType2Run: vi.fn().mockResolvedValue({ run: {}, results: [] }),
+    fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
+    ...overrides,
+  };
+}
+
+function makeReq() {
+  return new NextRequest('http://localhost:3001/api/account/sonar/dashboard/cross-modality');
+}
+
+describe('GET /api/account/sonar/dashboard/cross-modality', () => {
+  beforeEach(() => setMockClient({}));
+
+  it('returns empty partners array when no modality data exists', async () => {
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+    expect(body.partners).toEqual([]);
+    expect(typeof body.generated_at).toBe('string');
+  });
+
+  it('joins audit + phantom-demand + type2 by partner_id and computes risk', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({
+        runs: [
+          {
+            run_id: 'r1',
+            status: 'complete',
+            triggered_at: '2026-05-09T00:00:00Z',
+            scope_snapshot: { resolved_products: [{ vendor_id: VENDOR_A }, { vendor_id: VENDOR_B }] },
+          },
+        ],
+      }),
+      fetchRaw: vi.fn(async (path: string) => {
+        if (path === '/sonar/audit/runs/r1/results' || path === '/audit/runs/r1/results') {
+          return new Response(
+            JSON.stringify({
+              results: [
+                {
+                  vendor_participant_id: VENDOR_A,
+                  tree: { vendor_legal_name: 'A Co' },
+                  geo_rollup: [
+                    { country_of_origin: 'US', component_count: 6, depth_distribution: {} },
+                    { country_of_origin: 'CN', component_count: 4, depth_distribution: {} },
+                  ],
+                },
+                {
+                  vendor_participant_id: VENDOR_B,
+                  tree: { vendor_legal_name: 'B Co' },
+                  geo_rollup: [
+                    { country_of_origin: 'US', component_count: 10, depth_distribution: {} },
+                  ],
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (path === '/sonar/phantom-demand/reports/latest') {
+          return new Response(JSON.stringify({ window_id: 'w1' }), { status: 200 });
+        }
+        if (path === '/sonar/phantom-demand/reports/w1/aggregate') {
+          return new Response(
+            JSON.stringify({
+              header: { generated_at: '2026-05-09T00:00:00Z', window_id: 'w1' },
+              per_counterparty_summary: [
+                { counterparty_participant_id: VENDOR_A, counterparty_display_name: 'A Co', response_rate: 0.8 },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+      listType2Runs: vi.fn().mockResolvedValue({
+        runs: [{ run_id: 't1', status: 'complete', triggered_at: '2026-05-09T00:00:00Z' }],
+      }),
+      getType2Run: vi.fn().mockResolvedValue({
+        run: { run_id: 't1' },
+        results: [
+          {
+            counterparty_participant_id: VENDOR_A,
+            signal_type: 'capacity_utilization_band',
+            payload: { band: 'high', observed_at: '2026-05-09T00:00:00Z' },
+            synthesis_mode: 'direct',
+          },
+          {
+            counterparty_participant_id: VENDOR_A,
+            signal_type: 'lead_time_distribution',
+            payload: { window_days: 90, percentiles: { p50: 5, p75: 7, p90: 14, p95: 18, p99: 21 }, sample_count: 10 },
+            synthesis_mode: 'direct',
+          },
+        ],
+      }),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+    expect(body.partners).toHaveLength(2);
+
+    const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);
+    expect(a.partner_name).toBe('A Co');
+    expect(a.audit).toEqual({
+      compliant: 6,
+      non_compliant: 4,
+      partial: 0,
+      total: 10,
+    });
+    expect(a.phantom_demand).toEqual({ response_rate: 0.8, window_id: 'w1' });
+    expect(a.type2.capacity_band).toBe('high');
+    expect(a.type2.lead_time_p90_days).toBe(14);
+    // audit_w = 0.4, pd_w = 1 - 0.8 = 0.2, t2_w = 0.67
+    // score = 0.4*0.4 + 0.2*0.3 + 0.67*0.3 = 0.16 + 0.06 + 0.201 = 0.421
+    expect(a.risk_score).toBeCloseTo(0.421, 2);
+    expect(a.risk_color).toBe('yellow');
+    expect(a.risk_label).toBe('elevated');
+
+    const b = body.partners.find((p: any) => p.partner_id === VENDOR_B);
+    expect(b.audit).not.toBeNull();
+    expect(b.phantom_demand).toBeNull();
+    expect(b.type2).toBeNull();
+    // B is in audit only — audit_w = 0, pd_w = 0.25, t2_w = 0.25
+    // score = 0*0.4 + 0.25*0.3 + 0.25*0.3 = 0.15
+    expect(b.risk_score).toBeCloseTo(0.15, 2);
+    expect(b.risk_color).toBe('green');
+  });
+
+  it('degrades gracefully when phantom-demand /latest returns 404', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
+      listType2Runs: vi.fn().mockResolvedValue({ runs: [] }),
+      fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
+    });
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.partners).toEqual([]);
+  });
+});
