@@ -61,6 +61,9 @@ import type {
   VendorRiskDimension,
   VendorRiskResponse,
   RunResumptionState,
+  RunTemplate,
+  CreateRunTemplateRequest,
+  UpdateRunTemplateRequest,
 } from '@haiwave/protocol';
 
 import type {
@@ -401,6 +404,16 @@ export interface HaiwaveClient {
     id: string,
     patch: Type2SignalSubscriptionPatch,
   ): Promise<{ subscription: Type2SignalSubscription }>;
+  // ─── v1.29 Phase 3 Batch 1: Run Templates ───────────────────────────────────
+  listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
+  getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
+  createRunTemplate(body: CreateRunTemplateRequest): Promise<{ template: RunTemplate }>;
+  updateRunTemplate(
+    templateId: string,
+    body: UpdateRunTemplateRequest,
+  ): Promise<{ template: RunTemplate }>;
+  deleteRunTemplate(templateId: string): Promise<{ deleted: boolean }>;
+  triggerRunTemplate(templateId: string): Promise<{ run_id: string }>;
   // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
   getRunResumptionState(runId: string): Promise<RunResumptionState>;
   getBudgetCurrent(): Promise<BudgetStatus>;
@@ -1037,6 +1050,44 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/sonar/type2/runs/${runId}/cancel`,
       );
     },
+
+    // ─── v1.29 Phase 3 Batch 1: Run Templates ────────────────────────
+    listRunTemplates() {
+      return request<{ templates: RunTemplate[] }>('GET', '/sonar/templates');
+    },
+    getRunTemplate(templateId) {
+      return request<{ template: RunTemplate }>(
+        'GET',
+        `/sonar/templates/${templateId}`,
+      );
+    },
+    createRunTemplate(body) {
+      return request<{ template: RunTemplate }>(
+        'POST',
+        '/sonar/templates',
+        body,
+      );
+    },
+    updateRunTemplate(templateId, body) {
+      return request<{ template: RunTemplate }>(
+        'PATCH',
+        `/sonar/templates/${templateId}`,
+        body,
+      );
+    },
+    deleteRunTemplate(templateId) {
+      return request<{ deleted: boolean }>(
+        'DELETE',
+        `/sonar/templates/${templateId}`,
+      );
+    },
+    triggerRunTemplate(templateId) {
+      return request<{ run_id: string }>(
+        'POST',
+        `/sonar/templates/${templateId}/trigger`,
+      );
+    },
+
     listType2Subscriptions() {
       return request<{ subscriptions: Type2SignalSubscription[] }>(
         'GET',
