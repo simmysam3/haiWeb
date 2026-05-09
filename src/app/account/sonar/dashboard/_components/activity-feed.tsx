@@ -32,6 +32,7 @@ const MODALITY_LABEL: Record<Modality, string> = {
 
 function formatRelative(iso: string): string {
   const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return 'unknown time';
   const diff = Date.now() - then;
   const m = Math.floor(diff / 60_000);
   if (m < 1) return 'just now';

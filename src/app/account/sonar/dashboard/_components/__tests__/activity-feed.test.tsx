@@ -45,4 +45,22 @@ describe('ActivityFeed', () => {
     render(wrap(<ActivityFeed initial={null} />));
     await waitFor(() => screen.getByText(/Failed to load activity/i));
   });
+
+  it('renders "unknown time" for malformed triggered_at', async () => {
+    const initial = {
+      events: [
+        {
+          run_id: 'a1',
+          modality: 'audit' as const,
+          status: 'complete',
+          triggered_at: 'not-a-date',
+          completed_at: null,
+          run_origin: 'ad_hoc',
+          detail_href: '/account/sonar/audit/runs/a1',
+        },
+      ],
+    };
+    render(wrap(<ActivityFeed initial={initial} />));
+    expect(screen.getByText(/unknown time/i)).toBeInTheDocument();
+  });
 });
