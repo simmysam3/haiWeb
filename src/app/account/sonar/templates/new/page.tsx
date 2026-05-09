@@ -4,8 +4,8 @@ interface NewTemplatePageProps {
   searchParams: Promise<{ observation_class?: string }>;
 }
 
-function isObservationClass(v: unknown): v is 'audit' | 'type2' {
-  return v === 'audit' || v === 'type2';
+function isObservationClass(v: unknown): v is 'audit' | 'watcher' {
+  return v === 'audit' || v === 'watcher';
 }
 
 export default async function NewTemplatePage({ searchParams }: NewTemplatePageProps) {

@@ -5,7 +5,7 @@ import { RunAllButton } from './run-all-button';
 interface Props {
   totalPartners: number;
   lastRunAt: string | null;
-  throttledCounts: { audit: number; type2: number; total: number } | null;
+  throttledCounts: { audit: number; watcher: number; total: number } | null;
   failedRunsLast30d: number | null;
   enabledTemplateCount?: number;
 }

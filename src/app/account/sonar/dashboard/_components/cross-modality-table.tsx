@@ -11,7 +11,7 @@ export interface CrossModalityPartner {
   partner_name: string;
   audit: { compliant: number; partial: number; non_compliant: number; total: number } | null;
   phantom_demand: { response_rate: number; window_id: string } | null;
-  type2: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
+  watcher: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
   risk_score: number;
   risk_color: Color;
   risk_label: Label;
@@ -76,12 +76,12 @@ export function CrossModalityTable({ partners }: Props) {
           return compareNullable(a.phantom_demand?.response_rate ?? null, b.phantom_demand?.response_rate ?? null, dir);
         case 'capacity': {
           const order = { low: 0, moderate: 1, high: 2, at_capacity: 3 };
-          const av = a.type2?.capacity_band ? order[a.type2.capacity_band] : null;
-          const bv = b.type2?.capacity_band ? order[b.type2.capacity_band] : null;
+          const av = a.watcher?.capacity_band ? order[a.watcher.capacity_band] : null;
+          const bv = b.watcher?.capacity_band ? order[b.watcher.capacity_band] : null;
           return compareNullable(av, bv, dir);
         }
         case 'lead_time':
-          return compareNullable(a.type2?.lead_time_p90_days ?? null, b.type2?.lead_time_p90_days ?? null, dir);
+          return compareNullable(a.watcher?.lead_time_p90_days ?? null, b.watcher?.lead_time_p90_days ?? null, dir);
         case 'risk':
         default:
           return dir === 'asc' ? a.risk_score - b.risk_score : b.risk_score - a.risk_score;
@@ -106,8 +106,8 @@ export function CrossModalityTable({ partners }: Props) {
             <th className="px-4 py-2"><HeaderButton k="partner" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Partner</HeaderButton></th>
             <th className="px-4 py-2"><HeaderButton k="audit" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Audit (non-compliant)</HeaderButton></th>
             <th className="px-4 py-2"><HeaderButton k="pd" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>PD response</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="capacity" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>T2 capacity</HeaderButton></th>
-            <th className="px-4 py-2"><HeaderButton k="lead_time" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>T2 lead p90</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="capacity" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Watcher capacity</HeaderButton></th>
+            <th className="px-4 py-2"><HeaderButton k="lead_time" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Watcher lead p90</HeaderButton></th>
             <th className="px-4 py-2"><HeaderButton k="risk" sortKey={sortKey} dir={dir} onClick={onHeaderClick}>Risk</HeaderButton></th>
           </tr>
         </thead>
@@ -121,9 +121,9 @@ export function CrossModalityTable({ partners }: Props) {
               <td className="px-4 py-2 text-charcoal">
                 {p.phantom_demand ? `${(p.phantom_demand.response_rate * 100).toFixed(0)}%` : '—'}
               </td>
-              <td className="px-4 py-2 text-charcoal capitalize">{p.type2?.capacity_band ?? '—'}</td>
+              <td className="px-4 py-2 text-charcoal capitalize">{p.watcher?.capacity_band ?? '—'}</td>
               <td className="px-4 py-2 text-charcoal">
-                {p.type2?.lead_time_p90_days != null ? `${p.type2.lead_time_p90_days.toFixed(1)}d` : '—'}
+                {p.watcher?.lead_time_p90_days != null ? `${p.watcher.lead_time_p90_days.toFixed(1)}d` : '—'}
               </td>
               <td className="px-4 py-2"><RiskPill color={p.risk_color} label={p.risk_label} /></td>
             </tr>

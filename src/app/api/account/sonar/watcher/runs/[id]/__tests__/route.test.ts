@@ -2,10 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { getType2Run, cancelType2Run, getType2RunStatus, getSession, getToken } = vi.hoisted(() => ({
-  getType2Run: vi.fn(),
-  cancelType2Run: vi.fn(),
-  getType2RunStatus: vi.fn(),
+const { getWatcherRun, cancelWatcherRun, getWatcherRunStatus, getSession, getToken } = vi.hoisted(() => ({
+  getWatcherRun: vi.fn(),
+  cancelWatcherRun: vi.fn(),
+  getWatcherRunStatus: vi.fn(),
   getSession: vi.fn(),
   getToken: vi.fn(),
 }));
@@ -17,7 +17,7 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/lib/haiwave-api', () => ({
-  createHaiwaveClient: () => ({ getType2Run, cancelType2Run, getType2RunStatus }),
+  createHaiwaveClient: () => ({ getWatcherRun, cancelWatcherRun, getWatcherRunStatus }),
 }));
 
 import { GET as getRun } from '../route';
@@ -25,11 +25,11 @@ import { POST as postCancel } from '../cancel/route';
 import { GET as getStatus } from '../status/route';
 
 const RUN_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-const detailUrl = `http://localhost/api/account/sonar/type2/runs/${RUN_ID}`;
-const cancelUrl = `http://localhost/api/account/sonar/type2/runs/${RUN_ID}/cancel`;
-const statusUrl = `http://localhost/api/account/sonar/type2/runs/${RUN_ID}/status`;
+const detailUrl = `http://localhost/api/account/sonar/watcher/runs/${RUN_ID}`;
+const cancelUrl = `http://localhost/api/account/sonar/watcher/runs/${RUN_ID}/cancel`;
+const statusUrl = `http://localhost/api/account/sonar/watcher/runs/${RUN_ID}/status`;
 
-describe('Type 2 run BFF routes', () => {
+describe('Watcher run BFF routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSession.mockResolvedValue({
@@ -46,7 +46,7 @@ describe('Type 2 run BFF routes', () => {
         params: Promise.resolve({ id: RUN_ID }),
       });
       expect(res.status).toBe(401);
-      expect(getType2Run).not.toHaveBeenCalled();
+      expect(getWatcherRun).not.toHaveBeenCalled();
     });
 
     it('returns the run + results envelope from the client', async () => {
@@ -54,17 +54,17 @@ describe('Type 2 run BFF routes', () => {
         run: { run_id: RUN_ID, status: 'complete' },
         results: [{ result_id: 'r1' }],
       };
-      getType2Run.mockResolvedValueOnce(payload);
+      getWatcherRun.mockResolvedValueOnce(payload);
       const res = await getRun(new NextRequest(detailUrl), {
         params: Promise.resolve({ id: RUN_ID }),
       });
       expect(res.status).toBe(200);
-      expect(getType2Run).toHaveBeenCalledWith(RUN_ID);
+      expect(getWatcherRun).toHaveBeenCalledWith(RUN_ID);
       expect(await res.json()).toEqual(payload);
     });
 
     it('forwards a 404 verbatim from haiCore (existence-leak idiom)', async () => {
-      getType2Run.mockRejectedValueOnce(
+      getWatcherRun.mockRejectedValueOnce(
         Object.assign(new Error('haiCore 404'), {
           status: 404,
           haiCoreBody: { error: { code: 'RUN_NOT_FOUND', message: 'Run not found' } },
@@ -82,12 +82,12 @@ describe('Type 2 run BFF routes', () => {
 
   describe('POST /runs/[id]/cancel', () => {
     it('returns 200 with cancel envelope on a successful cancel', async () => {
-      cancelType2Run.mockResolvedValueOnce({ cancelled: true });
+      cancelWatcherRun.mockResolvedValueOnce({ cancelled: true });
       const res = await postCancel(new NextRequest(cancelUrl, { method: 'POST' }), {
         params: Promise.resolve({ id: RUN_ID }),
       });
       expect(res.status).toBe(200);
-      expect(cancelType2Run).toHaveBeenCalledWith(RUN_ID);
+      expect(cancelWatcherRun).toHaveBeenCalledWith(RUN_ID);
       expect(await res.json()).toEqual({ cancelled: true });
     });
 
@@ -97,18 +97,18 @@ describe('Type 2 run BFF routes', () => {
         params: Promise.resolve({ id: RUN_ID }),
       });
       expect(res.status).toBe(401);
-      expect(cancelType2Run).not.toHaveBeenCalled();
+      expect(cancelWatcherRun).not.toHaveBeenCalled();
     });
   });
 
   describe('GET /runs/[id]/status', () => {
     it('returns the lightweight status payload', async () => {
-      getType2RunStatus.mockResolvedValueOnce({ status: 'running' });
+      getWatcherRunStatus.mockResolvedValueOnce({ status: 'running' });
       const res = await getStatus(new NextRequest(statusUrl), {
         params: Promise.resolve({ id: RUN_ID }),
       });
       expect(res.status).toBe(200);
-      expect(getType2RunStatus).toHaveBeenCalledWith(RUN_ID);
+      expect(getWatcherRunStatus).toHaveBeenCalledWith(RUN_ID);
       expect(await res.json()).toEqual({ status: 'running' });
     });
   });

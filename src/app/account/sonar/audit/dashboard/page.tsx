@@ -20,7 +20,7 @@ interface DashboardData {
   partnerCompliance: PartnerComplianceData | null;
   // null = count fetch failed (renders an "unavailable" banner via the panel).
   // Distinct from {0,0,0} which means "fetch succeeded, nothing throttled".
-  throttledCounts: { audit: number; type2: number; total: number } | null;
+  throttledCounts: { audit: number; watcher: number; total: number } | null;
 }
 
 async function loadDashboard(): Promise<DashboardData> {
@@ -46,7 +46,7 @@ async function loadDashboard(): Promise<DashboardData> {
 
   const [runsRes, throttledCounts] = await Promise.all([
     fetchJson<{ runs: AuditRun[] }>('/api/account/audit-runs?limit=25'),
-    fetchJson<{ audit: number; type2: number; total: number }>(
+    fetchJson<{ audit: number; watcher: number; total: number }>(
       '/api/account/sonar/runs/throttled/count',
     ),
   ]);

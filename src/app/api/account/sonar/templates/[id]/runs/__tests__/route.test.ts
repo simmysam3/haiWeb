@@ -20,7 +20,7 @@ describe('GET /api/account/sonar/templates/[id]/runs', () => {
     (globalThis as any).__mockClient = {
       getRunTemplate: vi.fn(),
       listAuditRuns: vi.fn(),
-      listType2Runs: vi.fn(),
+      listWatcherRuns: vi.fn(),
     };
   });
 
@@ -42,17 +42,17 @@ describe('GET /api/account/sonar/templates/[id]/runs', () => {
     });
   });
 
-  it('type2 template: dispatches to listType2Runs', async () => {
+  it('watcher template: dispatches to listWatcherRuns', async () => {
     (globalThis as any).__mockClient.getRunTemplate.mockResolvedValue({
-      template: { template_id: 'tB', observation_class: 'type2', enabled: true },
+      template: { template_id: 'tB', observation_class: 'watcher', enabled: true },
     });
-    (globalThis as any).__mockClient.listType2Runs.mockResolvedValue({
+    (globalThis as any).__mockClient.listWatcherRuns.mockResolvedValue({
       runs: [{ run_id: 't1', status: 'complete', triggered_at: '2026-05-09T02:00:00Z', completed_at: null, run_origin: 'template_scheduled', template_id: 'tB' }],
     });
     const res = await GET(makeReq('tB'), { params: Promise.resolve({ id: 'tB' }) });
     const body = await res.json();
     expect(body.runs).toHaveLength(1);
-    expect((globalThis as any).__mockClient.listType2Runs).toHaveBeenCalledWith({
+    expect((globalThis as any).__mockClient.listWatcherRuns).toHaveBeenCalledWith({
       template_id: 'tB',
       limit: 200,
     });

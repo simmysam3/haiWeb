@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHaiwaveClient } from '../haiwave-api';
-import type { AuditRun, Type2Run } from '@haiwave/protocol';
+import type { AuditRun, WatcherRun } from '@haiwave/protocol';
 
 const TEMPLATE_A = '00000000-0000-0000-0000-00000000000a';
 const TEMPLATE_B = '00000000-0000-0000-0000-00000000000b';
@@ -16,7 +16,7 @@ function fakeAuditRun(template_id: string | null, run_id: string): AuditRun {
   } as unknown as AuditRun;
 }
 
-function fakeType2Run(template_id: string | null, run_id: string): Type2Run {
+function fakeWatcherRun(template_id: string | null, run_id: string): WatcherRun {
   return {
     run_id,
     initiator_participant_id: 'caller',
@@ -24,7 +24,7 @@ function fakeType2Run(template_id: string | null, run_id: string): Type2Run {
     status: 'complete',
     template_id,
     run_origin: template_id ? 'template_manual' : 'ad_hoc',
-  } as unknown as Type2Run;
+  } as unknown as WatcherRun;
 }
 
 describe('HaiwaveClient run-list filters', () => {
@@ -69,33 +69,33 @@ describe('HaiwaveClient run-list filters', () => {
     expect(result.runs).toHaveLength(1);
   });
 
-  it('listType2Runs with template_id filters client-side', async () => {
+  it('listWatcherRuns with template_id filters client-side', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           runs: [
-            fakeType2Run(TEMPLATE_A, 't1'),
-            fakeType2Run(TEMPLATE_B, 't2'),
-            fakeType2Run(TEMPLATE_A, 't3'),
+            fakeWatcherRun(TEMPLATE_A, 't1'),
+            fakeWatcherRun(TEMPLATE_B, 't2'),
+            fakeWatcherRun(TEMPLATE_A, 't3'),
           ],
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
     const client = createHaiwaveClient('header.payload.sig', 'caller');
-    const result = await client.listType2Runs({ template_id: TEMPLATE_A });
+    const result = await client.listWatcherRuns({ template_id: TEMPLATE_A });
     expect(result.runs.map((r) => r.run_id)).toEqual(['t1', 't3']);
   });
 
-  it('listType2Runs without args returns all runs unfiltered', async () => {
+  it('listWatcherRuns without args returns all runs unfiltered', async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ runs: [fakeType2Run(null, 't1'), fakeType2Run(null, 't2')] }), {
+      new Response(JSON.stringify({ runs: [fakeWatcherRun(null, 't1'), fakeWatcherRun(null, 't2')] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
     );
     const client = createHaiwaveClient('header.payload.sig', 'caller');
-    const result = await client.listType2Runs();
+    const result = await client.listWatcherRuns();
     expect(result.runs).toHaveLength(2);
   });
 });

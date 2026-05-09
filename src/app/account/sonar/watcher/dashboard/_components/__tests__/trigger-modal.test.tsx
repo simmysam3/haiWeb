@@ -33,7 +33,7 @@ describe('TriggerModal', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toBe('/api/account/sonar/type2/runs');
+      expect(url).toBe('/api/account/sonar/watcher/runs');
       expect((init as RequestInit).method).toBe('POST');
       const body = JSON.parse((init as RequestInit).body as string) as { signal_types: string[] };
       expect(body.signal_types.sort()).toEqual([
@@ -68,12 +68,12 @@ describe('TriggerModal', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it('renders a Save-as-template link with the type2 observation_class', () => {
+  it('renders a Save-as-template link with the watcher observation_class', () => {
     render(<TriggerModal onClose={() => {}} onSuccess={() => {}} />);
     const link = screen.getByRole('link', { name: /save as template instead/i });
     expect(link).toHaveAttribute(
       'href',
-      '/account/sonar/templates/new?observation_class=type2',
+      '/account/sonar/templates/new?observation_class=watcher',
     );
   });
 });

@@ -1,5 +1,5 @@
 interface Props {
-  counts: { audit: number; type2: number; total: number } | null;
+  counts: { audit: number; watcher: number; total: number } | null;
 }
 
 /**
@@ -41,7 +41,7 @@ export function ThrottledRunsPanel({ counts }: Props) {
         {counts.total} run{counts.total !== 1 ? 's' : ''} currently waiting
         for budget refresh
         {counts.audit > 0 && ` · ${counts.audit} audit`}
-        {counts.type2 > 0 && ` · ${counts.type2} Type 2`}.
+        {counts.watcher > 0 && ` · ${counts.watcher} Watcher`}.
       </p>
     </div>
   );

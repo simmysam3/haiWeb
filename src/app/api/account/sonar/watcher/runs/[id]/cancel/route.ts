@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
 
 /**
- * POST /api/account/sonar/type2/runs/[id]/cancel — request cancellation
+ * POST /api/account/sonar/watcher/runs/[id]/cancel — request cancellation
  * at the next worker boundary. v1.28 Phase 5 BFF passthrough.
  *
  * The actual cancel semantics (only running runs can cancel, single
@@ -10,5 +10,5 @@ import { withHaiCore } from '@/lib/with-hai-core';
  * this BFF just forwards.
  */
 export const POST = withHaiCore<{ id: string }>(async ({ client, params }) => {
-  return NextResponse.json(await client.cancelType2Run(params.id));
+  return NextResponse.json(await client.cancelWatcherRun(params.id));
 });

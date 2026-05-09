@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import type { Type2Result, Type2Run } from '@haiwave/protocol';
+import type { WatcherResult, WatcherRun } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 
 interface PerCounterpartyDetailProps {
@@ -11,12 +11,12 @@ interface PerCounterpartyDetailProps {
 }
 
 interface RunDetailEnvelope {
-  run: Type2Run;
-  results: Type2Result[];
+  run: WatcherRun;
+  results: WatcherResult[];
 }
 
 /**
- * Drawer for a single counterparty's Type 2 results within a run.
+ * Drawer for a single counterparty's Watcher results within a run.
  *
  * Renders the full payload (or gap_reason for redacted_gap entries) in
  * a JSON-pretty form per signal_type. v1.28 ships a single-run view;
@@ -25,7 +25,7 @@ interface RunDetailEnvelope {
  */
 export function PerCounterpartyDetail({ runId, counterpartyId, onClose }: PerCounterpartyDetailProps) {
   const { data, isLoading } = useSWR<RunDetailEnvelope>(
-    `/api/account/sonar/type2/runs/${runId}`,
+    `/api/account/sonar/watcher/runs/${runId}`,
     jsonFetcher,
   );
 

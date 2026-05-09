@@ -2,7 +2,7 @@ export const MISSING_WEIGHT = 0.25;
 
 const AUDIT_COEF = 0.4;
 const PD_COEF = 0.3;
-const TYPE2_COEF = 0.3;
+const WATCHER_COEF = 0.3;
 
 const GREEN_CUTOFF = 0.33;
 const RED_CUTOFF = 0.67;
@@ -13,7 +13,7 @@ export type RiskLabel = 'normal' | 'elevated' | 'critical';
 export interface RiskWeights {
   audit: number | null;
   phantom_demand: number | null;
-  type2: number | null;
+  watcher: number | null;
 }
 
 export interface RiskScoreResult {
@@ -36,9 +36,9 @@ function weightOrFloor(n: number | null): number {
 export function computeRiskScore(weights: RiskWeights): RiskScoreResult {
   const audit_w = weightOrFloor(weights.audit);
   const pd_w = weightOrFloor(weights.phantom_demand);
-  const t2_w = weightOrFloor(weights.type2);
+  const watcher_w = weightOrFloor(weights.watcher);
 
-  const score = audit_w * AUDIT_COEF + pd_w * PD_COEF + t2_w * TYPE2_COEF;
+  const score = audit_w * AUDIT_COEF + pd_w * PD_COEF + watcher_w * WATCHER_COEF;
 
   let color: RiskColor;
   let label: RiskLabel;

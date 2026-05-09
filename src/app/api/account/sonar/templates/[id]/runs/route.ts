@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { AuditRun, Type2Run } from '@haiwave/protocol';
+import type { AuditRun, WatcherRun } from '@haiwave/protocol';
 import { withHaiCore } from '@/lib/with-hai-core';
 
 type RouteParams = Record<string, string> & { id: string };
@@ -25,7 +25,7 @@ function normalizeAuditRun(r: AuditRun): RunRow {
   };
 }
 
-function normalizeType2Run(r: Type2Run): RunRow {
+function normalizeWatcherRun(r: WatcherRun): RunRow {
   return {
     run_id: r.run_id,
     status: r.status,
@@ -41,9 +41,9 @@ export const GET = withHaiCore<RouteParams>(async ({ client, params }) => {
     const { runs } = await client.listAuditRuns({ template_id: params.id, limit: FETCH_LIMIT });
     return NextResponse.json({ runs: runs.slice(0, PAGE_LIMIT).map(normalizeAuditRun) });
   }
-  if (template.observation_class === 'type2') {
-    const { runs } = await client.listType2Runs({ template_id: params.id, limit: FETCH_LIMIT });
-    return NextResponse.json({ runs: runs.slice(0, PAGE_LIMIT).map(normalizeType2Run) });
+  if (template.observation_class === 'watcher') {
+    const { runs } = await client.listWatcherRuns({ template_id: params.id, limit: FETCH_LIMIT });
+    return NextResponse.json({ runs: runs.slice(0, PAGE_LIMIT).map(normalizeWatcherRun) });
   }
   return NextResponse.json({ runs: [] });
 });

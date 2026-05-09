@@ -40,18 +40,18 @@ describe('GET /api/account/sonar/runs/throttled/count', () => {
   });
 
   it('returns 200 with counts envelope from haiCore', async () => {
-    getThrottledRunsCount.mockResolvedValueOnce({ audit: 2, type2: 1, total: 3 });
+    getThrottledRunsCount.mockResolvedValueOnce({ audit: 2, watcher: 1, total: 3 });
     const res = await GET(new NextRequest(baseUrl), { params: Promise.resolve({}) });
     expect(res.status).toBe(200);
     expect(getThrottledRunsCount).toHaveBeenCalled();
-    expect(await res.json()).toEqual({ audit: 2, type2: 1, total: 3 });
+    expect(await res.json()).toEqual({ audit: 2, watcher: 1, total: 3 });
   });
 
   it('returns 200 with zeros when no throttled runs', async () => {
-    getThrottledRunsCount.mockResolvedValueOnce({ audit: 0, type2: 0, total: 0 });
+    getThrottledRunsCount.mockResolvedValueOnce({ audit: 0, watcher: 0, total: 0 });
     const res = await GET(new NextRequest(baseUrl), { params: Promise.resolve({}) });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ audit: 0, type2: 0, total: 0 });
+    expect(await res.json()).toEqual({ audit: 0, watcher: 0, total: 0 });
   });
 
   // NOTE: 5xx haiCore failures are handled by withHaiCore (returns 500 in

@@ -52,14 +52,14 @@ describe('ScopePicker — audit', () => {
   });
 });
 
-describe('ScopePicker — type2', () => {
-  it('renders signal_types checkboxes for type2 scope', async () => {
+describe('ScopePicker — watcher', () => {
+  it('renders signal_types checkboxes for watcher scope', async () => {
     const onChange = vi.fn<(s: RunTemplateScope) => void>();
     render(
       <ScopePicker
-        observationClass="type2"
+        observationClass="watcher"
         value={{
-          scope_type: 'type2',
+          scope_type: 'watcher',
           signal_types: ['lead_time_distribution'],
           counterparty_filter: null,
           depth_limit: 1,

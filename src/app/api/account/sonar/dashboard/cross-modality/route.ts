@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { AuditRun, AuditRunResult, Type2Result } from '@haiwave/protocol';
+import type { AuditRun, AuditRunResult, WatcherResult } from '@haiwave/protocol';
 import { withHaiCore } from '@/lib/with-hai-core';
 import { computeRiskScore } from '@/app/account/sonar/dashboard/_lib/risk-score';
 import { buildPerPartnerAuditWeights, type PartnerAuditWeight } from '@/app/account/sonar/dashboard/_lib/audit-weights';
@@ -23,7 +23,7 @@ const BAND_TO_WEIGHT: Record<CapacityBand, number> = {
   at_capacity: 1,
 };
 
-interface Type2PerPartner {
+interface WatcherPerPartner {
   capacity_band: CapacityBand | null;
   lead_time_p90_days: number | null;
 }
@@ -84,17 +84,17 @@ async function loadPhantomDemand(client: {
   return { byPartner };
 }
 
-async function loadType2(client: {
-  listType2Runs: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: string; triggered_at: string }> }>;
-  getType2Run: (runId: string) => Promise<{ run: unknown; results: Type2Result[] }>;
-}): Promise<Map<string, Type2PerPartner>> {
-  const { runs } = await client.listType2Runs({ limit: 5 });
+async function loadWatcher(client: {
+  listWatcherRuns: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: string; triggered_at: string }> }>;
+  getWatcherRun: (runId: string) => Promise<{ run: unknown; results: WatcherResult[] }>;
+}): Promise<Map<string, WatcherPerPartner>> {
+  const { runs } = await client.listWatcherRuns({ limit: 5 });
   const latest = runs.find((r) => r.status === 'complete' || r.status === 'partial');
   if (!latest) return new Map();
-  const detail = await client.getType2Run(latest.run_id);
+  const detail = await client.getWatcherRun(latest.run_id);
   const results = detail.results;
 
-  const byPartner = new Map<string, Type2PerPartner>();
+  const byPartner = new Map<string, WatcherPerPartner>();
   for (const r of results) {
     if (!r.counterparty_participant_id) continue;
     const cur = byPartner.get(r.counterparty_participant_id) ?? { capacity_band: null, lead_time_p90_days: null };
@@ -116,37 +116,37 @@ async function loadType2(client: {
 }
 
 export const GET = withHaiCore(async ({ client }) => {
-  const [audit, pd, type2] = await Promise.all([
+  const [audit, pd, watcher] = await Promise.all([
     loadAudit(client).catch(() => ({ perVendor: new Map<string, PartnerAuditWeight>(), resultsByVendor: new Map() })),
     loadPhantomDemand(client).catch(() => ({ byPartner: new Map<string, { response_rate: number; window_id: string; name: string | null }>() })),
-    loadType2(client).catch(() => new Map<string, Type2PerPartner>()),
+    loadWatcher(client).catch(() => new Map<string, WatcherPerPartner>()),
   ]);
 
   const allPartnerIds = new Set<string>();
   for (const id of audit.perVendor.keys()) allPartnerIds.add(id);
   for (const id of pd.byPartner.keys()) allPartnerIds.add(id);
-  for (const id of type2.keys()) allPartnerIds.add(id);
+  for (const id of watcher.keys()) allPartnerIds.add(id);
 
   const partners = [...allPartnerIds].map((partner_id) => {
     const a = audit.perVendor.get(partner_id);
     const p = pd.byPartner.get(partner_id);
-    const t = type2.get(partner_id);
+    const w = watcher.get(partner_id);
     const partner_name = a?.vendor_name ?? p?.name ?? null;
 
     const audit_w = a ? a.weight : null;
     const pd_w = p ? 1 - p.response_rate : null;
-    const t2_w = t && t.capacity_band !== null ? BAND_TO_WEIGHT[t.capacity_band] : null;
+    const watcher_w = w && w.capacity_band !== null ? BAND_TO_WEIGHT[w.capacity_band] : null;
 
-    const risk = computeRiskScore({ audit: audit_w, phantom_demand: pd_w, type2: t2_w });
+    const risk = computeRiskScore({ audit: audit_w, phantom_demand: pd_w, watcher: watcher_w });
 
     return {
       partner_id,
       partner_name: partner_name ?? partner_id,
       audit: a ? audit.resultsByVendor.get(partner_id) ?? null : null,
       phantom_demand: p ? { response_rate: p.response_rate, window_id: p.window_id } : null,
-      type2:
-        t && (t.capacity_band !== null || t.lead_time_p90_days !== null)
-          ? { capacity_band: t.capacity_band, lead_time_p90_days: t.lead_time_p90_days }
+      watcher:
+        w && (w.capacity_band !== null || w.lead_time_p90_days !== null)
+          ? { capacity_band: w.capacity_band, lead_time_p90_days: w.lead_time_p90_days }
           : null,
       risk_score: risk.score,
       risk_color: risk.color,

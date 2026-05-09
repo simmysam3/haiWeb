@@ -2,13 +2,13 @@ import { cookies, headers } from 'next/headers';
 
 export interface ThrottledCounts {
   audit: number;
-  type2: number;
+  watcher: number;
   total: number;
 }
 
 /**
  * loadThrottledCounts — fetches the current count of throttled runs (audit +
- * type2) from the BFF endpoint. Returns null on network or auth failure so the
+ * watcher) from the BFF endpoint. Returns null on network or auth failure so the
  * caller can render a degraded-state indicator. The previous behavior returned
  * zeros, which caused the throttled-runs panel to disappear entirely on
  * failure — operators saw a clean dashboard while runs were actually waiting.
@@ -17,7 +17,7 @@ export interface ThrottledCounts {
  *   - 200 OK with body  → ThrottledCounts (zeros mean "nothing throttled")
  *   - any other outcome → null            ("count unavailable")
  *
- * v1.29 Phase 1: extracted from the type2 and phantom-demand dashboard pages.
+ * v1.29 Phase 1: extracted from the watcher and phantom-demand dashboard pages.
  */
 export async function loadThrottledCounts(): Promise<ThrottledCounts | null> {
   const cookieHeader = (await cookies()).toString();

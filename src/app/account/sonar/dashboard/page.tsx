@@ -11,7 +11,7 @@ interface CrossModalityResponse {
     partner_name: string;
     audit: { compliant: number; partial: number; non_compliant: number; total: number } | null;
     phantom_demand: { response_rate: number; window_id: string } | null;
-    type2: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
+    watcher: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
     risk_score: number;
     risk_color: 'green' | 'yellow' | 'red';
     risk_label: 'normal' | 'elevated' | 'critical';
@@ -22,7 +22,7 @@ interface CrossModalityResponse {
 interface ActivityResponse {
   events: Array<{
     run_id: string;
-    modality: 'audit' | 'type2' | 'phantom_demand';
+    modality: 'audit' | 'watcher' | 'phantom_demand';
     status: string;
     triggered_at: string;
     completed_at: string | null;
@@ -34,7 +34,7 @@ interface ActivityResponse {
 interface DashboardData {
   crossModality: CrossModalityResponse | null;
   initialActivity: ActivityResponse | null;
-  throttledCounts: { audit: number; type2: number; total: number } | null;
+  throttledCounts: { audit: number; watcher: number; total: number } | null;
   enabledTemplateCount: number;
   failedRunsLast30d: number | null;
 }
@@ -63,7 +63,7 @@ async function loadDashboard(): Promise<DashboardData> {
   const [crossModality, initialActivity, throttledCounts, templatesRes] = await Promise.all([
     fetchJson<CrossModalityResponse>('/api/account/sonar/dashboard/cross-modality'),
     fetchJson<ActivityResponse>('/api/account/sonar/dashboard/activity'),
-    fetchJson<{ audit: number; type2: number; total: number }>('/api/account/sonar/runs/throttled/count'),
+    fetchJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
     fetchJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
   ]);
 
@@ -98,7 +98,7 @@ export default async function UnifiedDashboardPage() {
     <div className="p-6 space-y-6">
       <header>
         <h1 className="text-xl font-semibold text-charcoal">Sonar Dashboard</h1>
-        <p className="text-sm text-slate">Cross-modality view across audit, phantom demand, and Type 2 observations.</p>
+        <p className="text-sm text-slate">Cross-modality view across audit, phantom demand, and Watcher observations.</p>
       </header>
       <PageIntro>
         Single landing for the state of your supply-chain visibility — partners observed, latest runs, and aggregate risk across modalities. Drill into any modality for full detail.

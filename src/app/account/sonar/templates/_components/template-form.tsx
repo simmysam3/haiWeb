@@ -15,10 +15,10 @@ interface TemplateFormProps {
   /** If provided, the form runs in edit mode (PATCH instead of POST). */
   initial?: RunTemplate;
   /** Pre-fills observation_class on a fresh form (used by Save-as-template CTAs). */
-  defaultObservationClass?: 'audit' | 'type2';
+  defaultObservationClass?: 'audit' | 'watcher';
 }
 
-function emptyScope(observationClass: 'audit' | 'type2'): RunTemplateScope {
+function emptyScope(observationClass: 'audit' | 'watcher'): RunTemplateScope {
   if (observationClass === 'audit') {
     return {
       scope_type: 'company',
@@ -28,7 +28,7 @@ function emptyScope(observationClass: 'audit' | 'type2'): RunTemplateScope {
     };
   }
   return {
-    scope_type: 'type2',
+    scope_type: 'watcher',
     signal_types: ['lead_time_distribution'],
     counterparty_filter: null,
     depth_limit: 1,
@@ -38,7 +38,7 @@ function emptyScope(observationClass: 'audit' | 'type2'): RunTemplateScope {
 export function TemplateForm({ initial, defaultObservationClass }: TemplateFormProps) {
   const isEdit = Boolean(initial);
   const [name, setName] = useState(initial?.template_name ?? '');
-  const [observationClass, setObservationClass] = useState<'audit' | 'type2'>(
+  const [observationClass, setObservationClass] = useState<'audit' | 'watcher'>(
     initial?.observation_class ?? defaultObservationClass ?? 'audit',
   );
   const [cadence, setCadence] = useState<Cadence>(
@@ -53,7 +53,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  function changeObservationClass(next: 'audit' | 'type2') {
+  function changeObservationClass(next: 'audit' | 'watcher') {
     setObservationClass(next);
     // reset scope to a sane default for the new modality
     setScope(emptyScope(next));
@@ -162,10 +162,10 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
             <input
               type="radio"
               name="observation-class"
-              checked={observationClass === 'type2'}
-              onChange={() => changeObservationClass('type2')}
+              checked={observationClass === 'watcher'}
+              onChange={() => changeObservationClass('watcher')}
             />
-            Type 2
+            Watcher
           </label>
         </fieldset>
       )}
