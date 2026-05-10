@@ -64,6 +64,8 @@ import type {
   RunTemplate,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
+  PhantomDemandAggregate,
+  PhantomDemandWindow,
 } from '@haiwave/protocol';
 
 import type {
@@ -450,6 +452,8 @@ export interface HaiwaveClient {
   getPhantomDemandRunStatus(runId: string): Promise<{ status: string; cancel_requested_at: string | null }>;
   cancelPhantomDemandRun(runId: string): Promise<{ ok: true }>;
   triggerPhantomDemand(body: { scope: Record<string, unknown>; template_id?: string | null }): Promise<{ runId: string }>;
+  /** Spec §7.7 — per-counterparty PD posture over a rolling window. */
+  getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }): Promise<PhantomDemandAggregate>;
   // ─── v1.29 Phase 3 Batch 3a: Run Templates ───────────────────────────────
   listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
   getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
@@ -1146,6 +1150,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         body,
       );
       return { runId: r.run_id };
+    },
+    getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }) {
+      return request<PhantomDemandAggregate>(
+        'GET',
+        `/sonar/phantom-demand/aggregate?window=${encodeURIComponent(opts.window)}`,
+      );
     },
 
     // ─── v1.29 Phase 3 Batch 3a: Run Templates ─────────────────────
