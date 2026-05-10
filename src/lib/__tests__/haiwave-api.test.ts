@@ -139,3 +139,74 @@ describe('HaiwaveClient provenance-key methods', () => {
     expect(JSON.parse(init.body as string)).toEqual({ shared_fields: ['facility_country'], dry_run: true });
   });
 });
+
+describe('HaiwaveClient PD methods (v1.30)', () => {
+  const token = 'tok';
+  const participantId = 'pid-1234';
+  let client: ReturnType<typeof createHaiwaveClient>;
+
+  beforeEach(() => {
+    client = createHaiwaveClient(token, participantId);
+  });
+
+  it('listPhantomDemandRuns GETs /sonar/phantom-demand/runs', async () => {
+    const fetchMock = mockFetchOnce([]);
+    await client.listPhantomDemandRuns({});
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs$/);
+    expect(init.method).toBe('GET');
+  });
+
+  it('listPhantomDemandRuns appends template_id and limit when provided', async () => {
+    const fetchMock = mockFetchOnce([]);
+    await client.listPhantomDemandRuns({ template_id: 'tid-1', limit: 25 });
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('template_id=tid-1');
+    expect(String(url)).toContain('limit=25');
+  });
+
+  it('getPhantomDemandRun GETs /sonar/phantom-demand/runs/:runId', async () => {
+    const payload = { run_id: 'r1', results: [] };
+    const fetchMock = mockFetchOnce(payload);
+    const res = await client.getPhantomDemandRun('r1');
+    expect(res.run_id).toBe('r1');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs\/r1$/);
+    expect(init.method).toBe('GET');
+  });
+
+  it('getPhantomDemandRunStatus GETs /sonar/phantom-demand/runs/:runId/status', async () => {
+    const fetchMock = mockFetchOnce({ status: 'running', cancel_requested_at: null });
+    const res = await client.getPhantomDemandRunStatus('r1');
+    expect(res.status).toBe('running');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs\/r1\/status$/);
+    expect(init.method).toBe('GET');
+  });
+
+  it('cancelPhantomDemandRun POSTs to /sonar/phantom-demand/runs/:runId/cancel', async () => {
+    const fetchMock = mockFetchOnce({ ok: true });
+    await client.cancelPhantomDemandRun('r1');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs\/r1\/cancel$/);
+    expect(init.method).toBe('POST');
+  });
+
+  it('triggerPhantomDemand POSTs to /sonar/phantom-demand/runs and maps run_id -> runId', async () => {
+    const fetchMock = mockFetchOnce({ run_id: 'new-run-123' });
+    const scope = {
+      kind: 'phantom_demand',
+      authorization_basis: 'bilateral',
+      counterparty: 'cp1',
+      skus: ['sku1'],
+      hypothetical_quantity: 10,
+      hypothetical_timeline: null,
+    };
+    const res = await client.triggerPhantomDemand({ scope, template_id: null });
+    expect(res.runId).toBe('new-run-123');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs$/);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ scope, template_id: null });
+  });
+});
