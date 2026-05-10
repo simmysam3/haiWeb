@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import type { AuditRun, Type2Run } from '@haiwave/protocol';
+import type { AuditRun, WatcherRun } from '@haiwave/protocol';
 import { withHaiCore } from '@/lib/with-hai-core';
 
-type Modality = 'audit' | 'type2' | 'phantom_demand';
+type Modality = 'audit' | 'watcher' | 'phantom_demand';
 
 interface ActivityEvent {
   run_id: string;
@@ -33,17 +33,17 @@ function normalizeAudit(r: AuditRun): ActivityEvent {
   };
 }
 
-function normalizeType2(r: Type2Run): ActivityEvent {
+function normalizeWatcher(r: WatcherRun): ActivityEvent {
   return {
     run_id: r.run_id,
-    modality: 'type2',
+    modality: 'watcher',
     status: r.status,
     partner_id: null,
     partner_name: null,
     triggered_at: r.triggered_at,
     completed_at: (r as { completed_at?: string | null }).completed_at ?? null,
     run_origin: (r as { run_origin?: string }).run_origin ?? 'ad_hoc',
-    detail_href: `/account/sonar/type2/dashboard`,
+    detail_href: `/account/sonar/watcher/dashboard`,
   };
 }
 
@@ -56,11 +56,11 @@ export const GET = withHaiCore(async ({ client }) => {
       return [] as ActivityEvent[];
     });
 
-  const type2P = client
-    .listType2Runs()
-    .then((r: { runs: Type2Run[] }) => r.runs.slice(0, MODALITY_LIMIT).map(normalizeType2))
+  const watcherP = client
+    .listWatcherRuns()
+    .then((r: { runs: WatcherRun[] }) => r.runs.slice(0, MODALITY_LIMIT).map(normalizeWatcher))
     .catch((err) => {
-      console.error('[dashboard/activity] type2P failed:', err);
+      console.error('[dashboard/activity] watcherP failed:', err);
       return [] as ActivityEvent[];
     });
 
@@ -91,9 +91,9 @@ export const GET = withHaiCore(async ({ client }) => {
     }
   })();
 
-  const [auditEvents, type2Events, pdEvents] = await Promise.all([auditP, type2P, pdP]);
+  const [auditEvents, watcherEvents, pdEvents] = await Promise.all([auditP, watcherP, pdP]);
 
-  const all = [...auditEvents, ...type2Events, ...pdEvents].sort((a, b) =>
+  const all = [...auditEvents, ...watcherEvents, ...pdEvents].sort((a, b) =>
     a.triggered_at < b.triggered_at ? 1 : a.triggered_at > b.triggered_at ? -1 : 0,
   );
 

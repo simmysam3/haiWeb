@@ -13,7 +13,7 @@ describe('HeaderStrip', () => {
       <HeaderStrip
         totalPartners={5}
         lastRunAt="2026-05-09T03:00:00Z"
-        throttledCounts={{ audit: 0, type2: 0, total: 0 }}
+        throttledCounts={{ audit: 0, watcher: 0, total: 0 }}
         failedRunsLast30d={2}
       />,
     );

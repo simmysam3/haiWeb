@@ -49,7 +49,7 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
             {template.template_name}
           </h1>
           <p className="text-sm text-slate mt-1">
-            {template.observation_class === 'audit' ? 'Audit' : 'Type 2'} ·{' '}
+            {template.observation_class === 'audit' ? 'Audit' : 'Watcher'} ·{' '}
             {formatCadence(template.cadence)} · Last run{' '}
             {template.last_run_at
               ? new Date(template.last_run_at).toLocaleString()

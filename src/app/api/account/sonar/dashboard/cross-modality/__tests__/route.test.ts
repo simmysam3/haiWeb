@@ -16,8 +16,8 @@ const VENDOR_B = '00000000-0000-0000-0000-00000000000b';
 function setMockClient(overrides: Record<string, any>) {
   (globalThis as any).__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
-    listType2Runs: vi.fn().mockResolvedValue({ runs: [] }),
-    getType2Run: vi.fn().mockResolvedValue({ run: {}, results: [] }),
+    listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
+    getWatcherRun: vi.fn().mockResolvedValue({ run: {}, results: [] }),
     fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
     ...overrides,
   };
@@ -37,7 +37,7 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     expect(typeof body.generated_at).toBe('string');
   });
 
-  it('joins audit + phantom-demand + type2 by partner_id and computes risk', async () => {
+  it('joins audit + phantom-demand + watcher by partner_id and computes risk', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({
         runs: [
@@ -90,10 +90,10 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
         }
         return new Response('{}', { status: 404 });
       }),
-      listType2Runs: vi.fn().mockResolvedValue({
+      listWatcherRuns: vi.fn().mockResolvedValue({
         runs: [{ run_id: 't1', status: 'complete', triggered_at: '2026-05-09T00:00:00Z' }],
       }),
-      getType2Run: vi.fn().mockResolvedValue({
+      getWatcherRun: vi.fn().mockResolvedValue({
         run: { run_id: 't1' },
         results: [
           {
@@ -125,9 +125,9 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
       total: 10,
     });
     expect(a.phantom_demand).toEqual({ response_rate: 0.8, window_id: 'w1' });
-    expect(a.type2.capacity_band).toBe('high');
-    expect(a.type2.lead_time_p90_days).toBe(14);
-    // audit_w = 0.4, pd_w = 1 - 0.8 = 0.2, t2_w = 0.67
+    expect(a.watcher.capacity_band).toBe('high');
+    expect(a.watcher.lead_time_p90_days).toBe(14);
+    // audit_w = 0.4, pd_w = 1 - 0.8 = 0.2, watcher_w = 0.67
     // score = 0.4*0.4 + 0.2*0.3 + 0.67*0.3 = 0.16 + 0.06 + 0.201 = 0.421
     expect(a.risk_score).toBeCloseTo(0.421, 2);
     expect(a.risk_color).toBe('yellow');
@@ -136,8 +136,8 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     const b = body.partners.find((p: any) => p.partner_id === VENDOR_B);
     expect(b.audit).not.toBeNull();
     expect(b.phantom_demand).toBeNull();
-    expect(b.type2).toBeNull();
-    // B is in audit only — audit_w = 0, pd_w = 0.25, t2_w = 0.25
+    expect(b.watcher).toBeNull();
+    // B is in audit only — audit_w = 0, pd_w = 0.25, watcher_w = 0.25
     // score = 0*0.4 + 0.25*0.3 + 0.25*0.3 = 0.15
     expect(b.risk_score).toBeCloseTo(0.15, 2);
     expect(b.risk_color).toBe('green');
@@ -146,7 +146,7 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
   it('degrades gracefully when phantom-demand /latest returns 404', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
-      listType2Runs: vi.fn().mockResolvedValue({ runs: [] }),
+      listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
       fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
     });
     const res = await GET(makeReq(), { params: Promise.resolve({}) });

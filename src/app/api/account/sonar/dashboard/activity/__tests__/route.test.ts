@@ -13,7 +13,7 @@ import { GET } from '../route';
 function setMockClient(overrides: Record<string, any>) {
   (globalThis as any).__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
-    listType2Runs: vi.fn().mockResolvedValue({ runs: [] }),
+    listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
     fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
     ...overrides,
   };
@@ -32,7 +32,7 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     expect(body.events).toEqual([]);
   });
 
-  it('merges audit + type2 runs sorted by triggered_at desc', async () => {
+  it('merges audit + watcher runs sorted by triggered_at desc', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({
         runs: [
@@ -40,7 +40,7 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
           { run_id: 'a2', status: 'failed', triggered_at: '2026-05-09T01:00:00Z', completed_at: null, run_origin: 'template_scheduled' },
         ],
       }),
-      listType2Runs: vi.fn().mockResolvedValue({
+      listWatcherRuns: vi.fn().mockResolvedValue({
         runs: [
           { run_id: 't1', status: 'complete', triggered_at: '2026-05-09T02:00:00Z', completed_at: '2026-05-09T02:05:00Z', run_origin: 'template_manual' },
         ],
@@ -51,8 +51,8 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     expect(body.events.map((e: any) => e.run_id)).toEqual(['a1', 't1', 'a2']);
     expect(body.events[0].modality).toBe('audit');
     expect(body.events[0].detail_href).toBe('/account/sonar/audit/runs/a1');
-    expect(body.events[1].modality).toBe('type2');
-    expect(body.events[1].detail_href).toBe('/account/sonar/type2/dashboard');
+    expect(body.events[1].modality).toBe('watcher');
+    expect(body.events[1].detail_href).toBe('/account/sonar/watcher/dashboard');
   });
 
   it('caps output at 30 events', async () => {

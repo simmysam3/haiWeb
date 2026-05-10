@@ -28,8 +28,8 @@ const ALL_SIGNALS: { value: SignalType; label: string; description: string }[] =
 ];
 
 /**
- * Modal for selecting which Type 2 signals to fetch. Submitting POSTs to
- * /api/account/sonar/type2/runs and closes on success. counterparty_filter
+ * Modal for selecting which Watcher signals to fetch. Submitting POSTs to
+ * /api/account/sonar/watcher/runs and closes on success. counterparty_filter
  * is omitted (= all tier-1 partners) for the v1.28 demo flow.
  */
 export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
@@ -56,7 +56,7 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch('/api/account/sonar/type2/runs', {
+      const res = await fetch('/api/account/sonar/watcher/runs', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ signal_types: Array.from(selected) }),
@@ -85,7 +85,7 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-navy">
-          New Type 2 observation
+          New Watcher observation
         </h3>
         <p className="text-sm text-slate">
           Pick the signal types to request from each tier-1 counterparty. The run
@@ -113,7 +113,7 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="flex justify-between items-center gap-2">
           <Link
-            href="/account/sonar/templates/new?observation_class=type2"
+            href="/account/sonar/templates/new?observation_class=watcher"
             className="text-sm text-teal hover:underline"
             onClick={onClose}
           >

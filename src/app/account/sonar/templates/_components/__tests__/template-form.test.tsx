@@ -34,9 +34,9 @@ describe('TemplateForm — create mode', () => {
     );
   });
 
-  it('respects defaultObservationClass="type2" by hiding audit-specific fields', () => {
-    render(<TemplateForm defaultObservationClass="type2" />);
-    // Type 2 scope picker shows signal-type checkboxes
+  it('respects defaultObservationClass="watcher" by hiding audit-specific fields', () => {
+    render(<TemplateForm defaultObservationClass="watcher" />);
+    // Watcher scope picker shows signal-type checkboxes
     expect(screen.getByLabelText(/lead time distribution/i)).toBeInTheDocument();
   });
 });

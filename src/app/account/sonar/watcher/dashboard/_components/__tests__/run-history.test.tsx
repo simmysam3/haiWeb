@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Type2Run } from '@haiwave/protocol';
+import type { WatcherRun } from '@haiwave/protocol';
 
 const fetchMock = vi.fn();
 global.fetch = fetchMock as unknown as typeof fetch;
@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const baseRun: Type2Run = {
+const baseRun: WatcherRun = {
   run_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
   initiator_participant_id: 'iiiiiiii-iiii-iiii-iiii-iiiiiiiiiiii',
   status: 'running',
@@ -36,7 +36,7 @@ describe('RunHistory', () => {
   });
 
   it('renders a row per run with the status pill text', () => {
-    const runs: Type2Run[] = [
+    const runs: WatcherRun[] = [
       { ...baseRun, status: 'complete', completed_at: '2026-04-29T10:05:00Z' },
       { ...baseRun, run_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', status: 'failed' },
     ];
@@ -64,7 +64,7 @@ describe('RunHistory', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/account/sonar/type2/runs/${baseRun.run_id}/cancel`,
+        `/api/account/sonar/watcher/runs/${baseRun.run_id}/cancel`,
         { method: 'POST' },
       );
       expect(onCancel).toHaveBeenCalled();

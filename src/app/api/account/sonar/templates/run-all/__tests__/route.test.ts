@@ -30,7 +30,7 @@ describe('POST /api/account/sonar/templates/run-all', () => {
     mockClient.listRunTemplates.mockResolvedValue({
       templates: [
         { template_id: 'tA', enabled: true, observation_class: 'audit' },
-        { template_id: 'tB', enabled: true, observation_class: 'type2' },
+        { template_id: 'tB', enabled: true, observation_class: 'watcher' },
         { template_id: 'tC', enabled: false, observation_class: 'audit' },
       ],
     });
@@ -52,18 +52,18 @@ describe('POST /api/account/sonar/templates/run-all', () => {
     mockClient.listRunTemplates.mockResolvedValue({
       templates: [
         { template_id: 'tA', enabled: true, observation_class: 'audit' },
-        { template_id: 'tB', enabled: true, observation_class: 'type2' },
+        { template_id: 'tB', enabled: true, observation_class: 'watcher' },
       ],
     });
     mockClient.triggerRunTemplate.mockImplementation(async (id: string) => {
-      if (id === 'tB') throw new Error('TYPE2_BUSY');
+      if (id === 'tB') throw new Error('WATCHER_BUSY');
       return { run_id: `run-${id}` };
     });
     const res = await POST(makeReq(), { params: Promise.resolve({}) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.triggered).toEqual([{ template_id: 'tA', run_id: 'run-tA' }]);
-    expect(body.failed).toEqual([{ template_id: 'tB', error_message: 'TYPE2_BUSY' }]);
+    expect(body.failed).toEqual([{ template_id: 'tB', error_message: 'WATCHER_BUSY' }]);
     expect(body.total).toBe(2);
   });
 
@@ -78,7 +78,7 @@ describe('POST /api/account/sonar/templates/run-all', () => {
     mockClient.listRunTemplates.mockResolvedValue({
       templates: [
         { template_id: 'tA', enabled: false, observation_class: 'audit' },
-        { template_id: 'tB', enabled: false, observation_class: 'type2' },
+        { template_id: 'tB', enabled: false, observation_class: 'watcher' },
       ],
     });
     const res = await POST(makeReq(), { params: Promise.resolve({}) });

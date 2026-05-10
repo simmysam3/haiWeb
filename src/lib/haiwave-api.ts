@@ -50,12 +50,12 @@ import type {
   TrustBypassActivationRequest,
   TrustBypassDeactivationRequest,
   TrustBypassAffectedCounterparty,
-  Type2Run,
-  Type2Result,
-  Type2RunStatus,
-  Type2RunTriggerRequest,
-  Type2SignalSubscription,
-  Type2SignalSubscriptionPatch,
+  WatcherRun,
+  WatcherResult,
+  WatcherRunStatus,
+  WatcherRunTriggerRequest,
+  WatcherSignalSubscription,
+  WatcherSignalSubscriptionPatch,
   QuarterlyScore,
   PeerAggregateResponse,
   VendorRiskDimension,
@@ -393,17 +393,17 @@ export interface HaiwaveClient {
   ): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }>;
   activateTrustBypass(body: TrustBypassActivationRequest): Promise<TrustBypassActivationResponse>;
   deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
-  // ─── Type 2 (v1.28 Phase 5) ──────────────────────────────────────────
-  triggerType2Run(body: Type2RunTriggerRequest): Promise<{ run_id: string; status: Type2RunStatus }>;
-  listType2Runs(opts?: { limit?: number; template_id?: string }): Promise<{ runs: Type2Run[] }>;
-  getType2Run(runId: string): Promise<{ run: Type2Run; results: Type2Result[] }>;
-  getType2RunStatus(runId: string): Promise<{ status: Type2RunStatus }>;
-  cancelType2Run(runId: string): Promise<{ cancelled: boolean }>;
-  listType2Subscriptions(): Promise<{ subscriptions: Type2SignalSubscription[] }>;
-  patchType2Subscription(
+  // ─── Watcher (v1.28 Phase 5) ─────────────────────────────────────────
+  triggerWatcherRun(body: WatcherRunTriggerRequest): Promise<{ run_id: string; status: WatcherRunStatus }>;
+  listWatcherRuns(opts?: { limit?: number; template_id?: string }): Promise<{ runs: WatcherRun[] }>;
+  getWatcherRun(runId: string): Promise<{ run: WatcherRun; results: WatcherResult[] }>;
+  getWatcherRunStatus(runId: string): Promise<{ status: WatcherRunStatus }>;
+  cancelWatcherRun(runId: string): Promise<{ cancelled: boolean }>;
+  listWatcherSubscriptions(): Promise<{ subscriptions: WatcherSignalSubscription[] }>;
+  patchWatcherSubscription(
     id: string,
-    patch: Type2SignalSubscriptionPatch,
-  ): Promise<{ subscription: Type2SignalSubscription }>;
+    patch: WatcherSignalSubscriptionPatch,
+  ): Promise<{ subscription: WatcherSignalSubscription }>;
   // ─── v1.29 Phase 3 Batch 3a: Run Templates ───────────────────────────────
   listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
   getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
@@ -417,7 +417,7 @@ export interface HaiwaveClient {
   // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
   getRunResumptionState(runId: string): Promise<RunResumptionState>;
   getBudgetCurrent(): Promise<BudgetStatus>;
-  getThrottledRunsCount(): Promise<{ audit: number; type2: number; total: number }>;
+  getThrottledRunsCount(): Promise<{ audit: number; watcher: number; total: number }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -1024,42 +1024,42 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
     },
 
-    // ─── Type 2 (v1.28 Phase 5) ─────────────────────────────────────────
-    triggerType2Run(body) {
-      return request<{ run_id: string; status: Type2RunStatus }>(
+    // ─── Watcher (v1.28 Phase 5) ────────────────────────────────────────
+    triggerWatcherRun(body) {
+      return request<{ run_id: string; status: WatcherRunStatus }>(
         'POST',
-        '/sonar/type2/runs',
+        '/sonar/watcher/runs',
         body,
       );
     },
-    listType2Runs(opts = {}) {
+    listWatcherRuns(opts = {}) {
       const params = new URLSearchParams();
       if (opts.limit !== undefined) params.set('limit', String(opts.limit));
       const q = params.toString();
-      return request<{ runs: Type2Run[] }>(
+      return request<{ runs: WatcherRun[] }>(
         'GET',
-        `/sonar/type2/runs${q ? `?${q}` : ''}`,
+        `/sonar/watcher/runs${q ? `?${q}` : ''}`,
       ).then((res) => {
         if (!opts.template_id) return res;
         return { runs: res.runs.filter((r) => r.template_id === opts.template_id) };
       });
     },
-    getType2Run(runId) {
-      return request<{ run: Type2Run; results: Type2Result[] }>(
+    getWatcherRun(runId) {
+      return request<{ run: WatcherRun; results: WatcherResult[] }>(
         'GET',
-        `/sonar/type2/runs/${runId}`,
+        `/sonar/watcher/runs/${runId}`,
       );
     },
-    getType2RunStatus(runId) {
-      return request<{ status: Type2RunStatus }>(
+    getWatcherRunStatus(runId) {
+      return request<{ status: WatcherRunStatus }>(
         'GET',
-        `/sonar/type2/runs/${runId}/status`,
+        `/sonar/watcher/runs/${runId}/status`,
       );
     },
-    cancelType2Run(runId) {
+    cancelWatcherRun(runId) {
       return request<{ cancelled: boolean }>(
         'POST',
-        `/sonar/type2/runs/${runId}/cancel`,
+        `/sonar/watcher/runs/${runId}/cancel`,
       );
     },
 
@@ -1100,16 +1100,16 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
     },
 
-    listType2Subscriptions() {
-      return request<{ subscriptions: Type2SignalSubscription[] }>(
+    listWatcherSubscriptions() {
+      return request<{ subscriptions: WatcherSignalSubscription[] }>(
         'GET',
-        '/sonar/type2/subscriptions',
+        '/sonar/watcher/subscriptions',
       );
     },
-    patchType2Subscription(id, patch) {
-      return request<{ subscription: Type2SignalSubscription }>(
+    patchWatcherSubscription(id, patch) {
+      return request<{ subscription: WatcherSignalSubscription }>(
         'PATCH',
-        `/sonar/type2/subscriptions/${id}`,
+        `/sonar/watcher/subscriptions/${id}`,
         patch,
       );
     },
@@ -1122,7 +1122,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<BudgetStatus>('GET', '/sonar/budget/current');
     },
     getThrottledRunsCount() {
-      return request<{ audit: number; type2: number; total: number }>(
+      return request<{ audit: number; watcher: number; total: number }>(
         'GET',
         '/sonar/runs/throttled/count',
       );

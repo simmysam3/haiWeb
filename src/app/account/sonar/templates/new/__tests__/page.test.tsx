@@ -17,10 +17,10 @@ describe('NewTemplatePage', () => {
     expect(screen.getByRole('button', { name: /create template/i })).toBeInTheDocument();
   });
 
-  it('preselects type2 modality when ?observation_class=type2', async () => {
+  it('preselects watcher modality when ?observation_class=watcher', async () => {
     const Page = (await import('../page')).default;
     const ui = await Page({
-      searchParams: Promise.resolve({ observation_class: 'type2' }),
+      searchParams: Promise.resolve({ observation_class: 'watcher' }),
     });
     render(ui as React.ReactElement);
     expect(screen.getByLabelText(/lead time distribution/i)).toBeInTheDocument();

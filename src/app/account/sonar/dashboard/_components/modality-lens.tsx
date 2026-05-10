@@ -1,12 +1,12 @@
 import { AuditPostureCard } from './audit-posture-card';
 import { PhantomDemandCard } from './phantom-demand-card';
-import { Type2SignalsCard } from './type2-signals-card';
+import { WatcherSignalsCard } from './watcher-signals-card';
 
 interface Partner {
   partner_id: string;
   audit: { compliant: number; partial: number; non_compliant: number; total: number } | null;
   phantom_demand: { response_rate: number; window_id: string } | null;
-  type2: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
+  watcher: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
 }
 
 interface Props {
@@ -32,11 +32,11 @@ export function ModalityLens({ partners }: Props) {
       pdRates.push(p.phantom_demand.response_rate);
       pdPartnerCount += 1;
     }
-    if (p.type2?.capacity_band) {
-      bandCounts[p.type2.capacity_band] += 1;
+    if (p.watcher?.capacity_band) {
+      bandCounts[p.watcher.capacity_band] += 1;
     }
-    if (p.type2?.lead_time_p90_days != null) {
-      leadTimes.push(p.type2.lead_time_p90_days);
+    if (p.watcher?.lead_time_p90_days != null) {
+      leadTimes.push(p.watcher.lead_time_p90_days);
     }
   }
 
@@ -49,7 +49,7 @@ export function ModalityLens({ partners }: Props) {
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <AuditPostureCard totalCompliant={totalCompliant} totalNonCompliant={totalNonCompliant} totalPartial={totalPartial} />
       <PhantomDemandCard averageResponseRate={averageResponseRate} partnerCount={pdPartnerCount} />
-      <Type2SignalsCard capacityBandCounts={bandCounts} medianLeadTimeP90={medianLeadTimeP90} />
+      <WatcherSignalsCard capacityBandCounts={bandCounts} medianLeadTimeP90={medianLeadTimeP90} />
     </div>
   );
 }

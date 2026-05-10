@@ -2,31 +2,31 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import type { Type2Run } from '@haiwave/protocol';
+import type { WatcherRun } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 import { RunHistory } from './run-history';
 import { LatestSnapshot } from './latest-snapshot';
 import { TriggerModal } from './trigger-modal';
 import { PerCounterpartyDetail } from './per-counterparty-detail';
 
-interface Type2RunsEnvelope {
-  runs: Type2Run[];
+interface WatcherRunsEnvelope {
+  runs: WatcherRun[];
 }
 
 /**
- * Top-level interactive Type 2 dashboard. SWR-driven; polls every 5s
+ * Top-level interactive Watcher dashboard. SWR-driven; polls every 5s
  * while at least one run is in flight so status pills + the latest
  * snapshot grid update without manual refresh.
  */
-export function Type2Dashboard() {
+export function WatcherDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<{
     runId: string;
     counterpartyId: string;
   } | null>(null);
 
-  const { data, isLoading, mutate } = useSWR<Type2RunsEnvelope>(
-    '/api/account/sonar/type2/runs',
+  const { data, isLoading, mutate } = useSWR<WatcherRunsEnvelope>(
+    '/api/account/sonar/watcher/runs',
     jsonFetcher,
     {
       // 5s while running, off when idle. SWR re-evaluates on each render.
@@ -47,7 +47,7 @@ export function Type2Dashboard() {
           onClick={() => setModalOpen(true)}
           className="rounded-md bg-teal text-white px-4 py-2 text-sm font-medium hover:bg-teal/90 transition-colors"
         >
-          Run Type 2 observation
+          Run Watcher observation
         </button>
       </div>
 

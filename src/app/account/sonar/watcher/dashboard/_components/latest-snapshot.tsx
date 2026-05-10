@@ -2,8 +2,8 @@
 
 import useSWR from 'swr';
 import type {
-  Type2Result,
-  Type2Run,
+  WatcherResult,
+  WatcherRun,
   CapacityUtilizationBand,
   DeliveryEvent,
   LeadTimeDistribution,
@@ -16,8 +16,8 @@ interface LatestSnapshotProps {
 }
 
 interface RunDetailEnvelope {
-  run: Type2Run;
-  results: Type2Result[];
+  run: WatcherRun;
+  results: WatcherResult[];
 }
 
 interface PerCounterpartyRow {
@@ -67,7 +67,7 @@ function isDeliveryEvent(payload: unknown): payload is DeliveryEvent {
  * aggregate rows would render as "no counterparty results" and operators
  * would think the sweep failed when in fact the data is being filtered.
  */
-function foldByCounterparty(results: Type2Result[]): {
+function foldByCounterparty(results: WatcherResult[]): {
   rows: PerCounterpartyRow[];
   aggregateRowsHidden: number;
 } {
@@ -109,7 +109,7 @@ function foldByCounterparty(results: Type2Result[]): {
  */
 export function LatestSnapshot({ runId, onSelectCounterparty }: LatestSnapshotProps) {
   const { data, isLoading, error } = useSWR<RunDetailEnvelope>(
-    `/api/account/sonar/type2/runs/${runId}`,
+    `/api/account/sonar/watcher/runs/${runId}`,
     jsonFetcher,
   );
 

@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
 
 interface ScopePickerProps {
-  observationClass: 'audit' | 'type2';
+  observationClass: 'audit' | 'watcher';
   value: RunTemplateScope;
   onChange: (next: RunTemplateScope) => void;
 }
 
-const TYPE2_SIGNALS: { value: SignalType; label: string }[] = [
+const WATCHER_SIGNALS: { value: SignalType; label: string }[] = [
   { value: 'lead_time_distribution', label: 'Lead time distribution' },
   { value: 'capacity_utilization_band', label: 'Capacity utilization band' },
   { value: 'delivery_event', label: 'Latest delivery event' },
@@ -128,9 +128,9 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     }
   }
 
-  // type2 scope — use 'in' check to read signal_types without requiring scope_type discriminant
-  const type2Value = 'signal_types' in value ? value : null;
-  const selectedSignals = new Set<SignalType>(type2Value?.signal_types ?? []);
+  // watcher scope — use 'in' check to read signal_types without requiring scope_type discriminant
+  const watcherValue = 'signal_types' in value ? value : null;
+  const selectedSignals = new Set<SignalType>(watcherValue?.signal_types ?? []);
   function toggleSignal(sig: SignalType) {
     const next = new Set(selectedSignals);
     if (next.has(sig)) next.delete(sig);
@@ -144,7 +144,7 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     <div className="space-y-3">
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-charcoal">Signal types</legend>
-        {TYPE2_SIGNALS.map((s) => (
+        {WATCHER_SIGNALS.map((s) => (
           <label key={s.value} className="flex items-center gap-2 text-sm text-charcoal">
             <input
               type="checkbox"
@@ -157,7 +157,7 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
       </fieldset>
       <NumberField
         label="Depth limit"
-        value={type2Value?.depth_limit ?? 1}
+        value={watcherValue?.depth_limit ?? 1}
         min={1}
         max={8}
         onChange={(n) => onChange({ ...value, depth_limit: n } as RunTemplateScope)}

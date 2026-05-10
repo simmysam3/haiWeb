@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Type2Run, Type2RunStatus } from '@haiwave/protocol';
+import type { WatcherRun, WatcherRunStatus } from '@haiwave/protocol';
 
 interface RunHistoryProps {
-  runs: Type2Run[];
+  runs: WatcherRun[];
   /** Called after a successful cancel so the parent can revalidate SWR. */
   onCancel: () => void;
 }
 
-const STATUS_PILL_CLASSES: Record<Type2RunStatus, string> = {
+const STATUS_PILL_CLASSES: Record<WatcherRunStatus, string> = {
   running: 'bg-amber-50 text-amber-700 border-amber-200',
   throttled: 'bg-amber-50 text-amber-700 border-amber-200',
   complete: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -27,7 +27,7 @@ function formatTime(value: string | null): string {
 }
 
 /**
- * Run history table — rows for each Type 2 run with status pill, signal
+ * Run history table — rows for each Watcher run with status pill, signal
  * types, counterparty filter (or "all"), trigger time, completion time,
  * and an inline cancel button while running.
  *
@@ -77,7 +77,7 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
     });
     try {
       const res = await fetch(
-        `/api/account/sonar/type2/runs/${runId}/cancel`,
+        `/api/account/sonar/watcher/runs/${runId}/cancel`,
         { method: 'POST' },
       );
       if (!res.ok) {
@@ -103,7 +103,7 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
   if (runs.length === 0) {
     return (
       <p className="text-sm text-slate italic">
-        No runs yet. Click <strong>Run Type 2 observation</strong> above to start one.
+        No runs yet. Click <strong>Run Watcher observation</strong> above to start one.
       </p>
     );
   }

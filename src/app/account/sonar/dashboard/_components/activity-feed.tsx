@@ -4,7 +4,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 
-type Modality = 'audit' | 'type2' | 'phantom_demand';
+type Modality = 'audit' | 'watcher' | 'phantom_demand';
 
 interface ActivityEvent {
   run_id: string;
@@ -26,7 +26,7 @@ interface Props {
 
 const MODALITY_LABEL: Record<Modality, string> = {
   audit: 'Audit',
-  type2: 'Type 2',
+  watcher: 'Watcher',
   phantom_demand: 'Phantom Demand',
 };
 
