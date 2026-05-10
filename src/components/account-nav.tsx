@@ -37,7 +37,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/audit/nominations", label: "My Nominations" },
       { href: "/account/sonar/audit/downstream-gaps", label: "My Downstream Gaps" },
       { href: "/account/sonar/audit/trust-bypass", label: "Trust Bypass" },
-      { href: "/account/sonar/phantom-demand/dashboard", label: "Phantom Demand" },
+      { href: "/account/sonar/templates?modality=phantom_demand", label: "Phantom Demand" },
       { href: "/account/sonar/phantom-demand/reports/latest", label: "Phantom Demand Reports" },
       { href: "/account/sonar/watcher/dashboard", label: "Watcher Dashboard" },
       { href: "/account/sonar/templates", label: "Run Templates" },
