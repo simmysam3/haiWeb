@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TemplateForm } from '../template-form';
 
@@ -38,5 +38,13 @@ describe('TemplateForm — create mode', () => {
     render(<TemplateForm defaultObservationClass="watcher" />);
     // Watcher scope picker shows signal-type checkboxes
     expect(screen.getByLabelText(/lead time distribution/i)).toBeInTheDocument();
+  });
+
+  it('allows selecting Phantom Demand modality', async () => {
+    render(<TemplateForm />);
+    const select = screen.getByLabelText('Modality');
+    fireEvent.change(select, { target: { value: 'phantom_demand' } });
+    expect(screen.getByText(/Counterparty/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Hypothetical Quantity/)).toBeInTheDocument();
   });
 });

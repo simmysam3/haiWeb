@@ -11,34 +11,51 @@ import type {
 import { CadencePicker } from './cadence-picker';
 import { ScopePicker } from './scope-picker';
 
+type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+
 interface TemplateFormProps {
   /** If provided, the form runs in edit mode (PATCH instead of POST). */
   initial?: RunTemplate;
   /** Pre-fills observation_class on a fresh form (used by Save-as-template CTAs). */
-  defaultObservationClass?: 'audit' | 'watcher';
+  defaultObservationClass?: ObservationClass;
 }
 
-function emptyScope(observationClass: 'audit' | 'watcher'): RunTemplateScope {
+function emptyScope(observationClass: ObservationClass): RunTemplateScope {
   if (observationClass === 'audit') {
     return {
-      scope_type: 'company',
-      scope_ids: [],
+      kind: 'audit',
+      authorization_basis: 'bilateral',
+      counterparties: [],
+      signal_types: [],
+      skus: [],
       depth_limit: 1,
       hop_budget: 5,
     };
   }
+  if (observationClass === 'watcher') {
+    return {
+      kind: 'watcher',
+      authorization_basis: 'bilateral',
+      counterparties: [],
+      signal_types: ['lead_time_distribution'],
+      depth_limit: 1,
+    };
+  }
+  // phantom_demand
   return {
-    scope_type: 'watcher',
-    signal_types: ['lead_time_distribution'],
-    counterparty_filter: null,
-    depth_limit: 1,
+    kind: 'phantom_demand',
+    authorization_basis: 'bilateral',
+    counterparty: '',
+    skus: [],
+    hypothetical_quantity: 1,
+    hypothetical_timeline: null,
   };
 }
 
 export function TemplateForm({ initial, defaultObservationClass }: TemplateFormProps) {
   const isEdit = Boolean(initial);
   const [name, setName] = useState(initial?.template_name ?? '');
-  const [observationClass, setObservationClass] = useState<'audit' | 'watcher'>(
+  const [observationClass, setObservationClass] = useState<ObservationClass>(
     initial?.observation_class ?? defaultObservationClass ?? 'audit',
   );
   const [cadence, setCadence] = useState<Cadence>(
@@ -53,7 +70,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  function changeObservationClass(next: 'audit' | 'watcher') {
+  function changeObservationClass(next: ObservationClass) {
     setObservationClass(next);
     // reset scope to a sane default for the new modality
     setScope(emptyScope(next));
@@ -147,27 +164,20 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
       </label>
 
       {!isEdit && (
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-charcoal">Modality</legend>
-          <label className="flex items-center gap-2 text-sm text-charcoal">
-            <input
-              type="radio"
-              name="observation-class"
-              checked={observationClass === 'audit'}
-              onChange={() => changeObservationClass('audit')}
-            />
-            Audit
-          </label>
-          <label className="flex items-center gap-2 text-sm text-charcoal">
-            <input
-              type="radio"
-              name="observation-class"
-              checked={observationClass === 'watcher'}
-              onChange={() => changeObservationClass('watcher')}
-            />
-            Watcher
-          </label>
-        </fieldset>
+        <label className="block text-sm text-charcoal">
+          <span className="block mb-1 font-medium" id="modality-label">Modality</span>
+          <select
+            aria-labelledby="modality-label"
+            aria-label="Modality"
+            value={observationClass}
+            onChange={(e) => changeObservationClass(e.target.value as ObservationClass)}
+            className="rounded border border-slate-300 px-2 py-1 text-sm"
+          >
+            <option value="audit">Audit</option>
+            <option value="watcher">Watcher</option>
+            <option value="phantom_demand">Phantom Demand</option>
+          </select>
+        </label>
       )}
 
       <CadencePicker value={cadence} onChange={setCadence} />
