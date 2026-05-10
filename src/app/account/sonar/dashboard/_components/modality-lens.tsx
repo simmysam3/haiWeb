@@ -40,7 +40,7 @@ export function ModalityLens({ partners }: Props) {
   }
 
   const medianLeadTimeP90 = leadTimes.length > 0
-    ? leadTimes.sort((a, b) => a - b)[Math.floor(leadTimes.length / 2)]
+    ? [...leadTimes].sort((a, b) => a - b)[Math.floor(leadTimes.length / 2)]
     : null;
 
   // Phantom Demand: v1.30 §7.7 — sourced from the new aggregate BFF route,
