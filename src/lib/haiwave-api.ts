@@ -64,6 +64,8 @@ import type {
   RunTemplate,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
+  PhantomDemandAggregate,
+  PhantomDemandWindow,
 } from '@haiwave/protocol';
 
 import type {
@@ -171,6 +173,46 @@ export interface ConnectionRecord {
 export interface ScoreData {
   composite: number;
   components: Array<{ label: string; value: number }>;
+}
+
+// v1.30 — Phantom Demand run types. Defined locally (not in @haiwave/protocol)
+// because the run table lives in haiCore's private schema. Shapes mirror the
+// Drizzle select() return from phantom_demand_runs / phantom_demand_results.
+export interface PhantomDemandRun {
+  run_id: string;
+  initiator_participant_id: string;
+  template_id: string | null;
+  run_origin: 'ad_hoc' | 'template_manual' | 'template_scheduled' | 'template_event_triggered';
+  authorization_basis: 'bilateral';
+  status: string;
+  scope_snapshot: Record<string, unknown>;
+  hop_budget: number;
+  hops_consumed: number;
+  throttled_at: string | null;
+  resumption_count: number;
+  cancel_requested_at: string | null;
+  cancelled_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  triggered_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PhantomDemandResult {
+  result_id: string;
+  run_id: string;
+  sku_id: string;
+  responder_participant_id: string;
+  payload: Record<string, unknown>;
+  synthesis_mode: 'direct' | 'aggregated_derivative' | 'redacted_gap';
+  gap: Record<string, unknown> | null;
+  response_time_ms: number | null;
+  created_at: string;
+}
+
+export interface PhantomDemandRunDetail extends PhantomDemandRun {
+  results: PhantomDemandResult[];
 }
 
 // v1.29 Phase 1 — budget window summary returned by GET /sonar/budget/current.
@@ -404,6 +446,14 @@ export interface HaiwaveClient {
     id: string,
     patch: WatcherSignalSubscriptionPatch,
   ): Promise<{ subscription: WatcherSignalSubscription }>;
+  // ─── Phantom Demand Runs (v1.30) ─────────────────────────────────────────
+  listPhantomDemandRuns(opts: { template_id?: string; limit?: number }): Promise<PhantomDemandRun[]>;
+  getPhantomDemandRun(runId: string): Promise<PhantomDemandRunDetail>;
+  getPhantomDemandRunStatus(runId: string): Promise<{ status: string; cancel_requested_at: string | null }>;
+  cancelPhantomDemandRun(runId: string): Promise<{ ok: true }>;
+  triggerPhantomDemand(body: { scope: Record<string, unknown>; template_id?: string | null }): Promise<{ runId: string }>;
+  /** Spec §7.7 — per-counterparty PD posture over a rolling window. */
+  getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }): Promise<PhantomDemandAggregate>;
   // ─── v1.29 Phase 3 Batch 3a: Run Templates ───────────────────────────────
   listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
   getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
@@ -1060,6 +1110,51 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ cancelled: boolean }>(
         'POST',
         `/sonar/watcher/runs/${runId}/cancel`,
+      );
+    },
+
+    // ─── Phantom Demand Runs (v1.30) ─────────────────────────────────────────
+    listPhantomDemandRuns(opts: { template_id?: string; limit?: number }) {
+      const params = new URLSearchParams();
+      if (opts.template_id) params.set('template_id', opts.template_id);
+      if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      const q = params.toString();
+      return request<PhantomDemandRun[]>(
+        'GET',
+        `/sonar/phantom-demand/runs${q ? `?${q}` : ''}`,
+      );
+    },
+    getPhantomDemandRun(runId: string) {
+      return request<PhantomDemandRunDetail>(
+        'GET',
+        `/sonar/phantom-demand/runs/${runId}`,
+      );
+    },
+    getPhantomDemandRunStatus(runId: string) {
+      return request<{ status: string; cancel_requested_at: string | null }>(
+        'GET',
+        `/sonar/phantom-demand/runs/${runId}/status`,
+      );
+    },
+    cancelPhantomDemandRun(runId: string) {
+      return request<{ ok: true }>(
+        'POST',
+        `/sonar/phantom-demand/runs/${runId}/cancel`,
+        {},
+      );
+    },
+    async triggerPhantomDemand(body: { scope: Record<string, unknown>; template_id?: string | null }) {
+      const r = await request<{ run_id: string }>(
+        'POST',
+        '/sonar/phantom-demand/runs',
+        body,
+      );
+      return { runId: r.run_id };
+    },
+    getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }) {
+      return request<PhantomDemandAggregate>(
+        'GET',
+        `/sonar/phantom-demand/aggregate?window=${encodeURIComponent(opts.window)}`,
       );
     },
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { AuditRun, WatcherRun } from '@haiwave/protocol';
+import type { PhantomDemandRun } from '@/lib/haiwave-api';
 import { withHaiCore } from '@/lib/with-hai-core';
 
 type Modality = 'audit' | 'watcher' | 'phantom_demand';
@@ -64,32 +65,28 @@ export const GET = withHaiCore(async ({ client }) => {
       return [] as ActivityEvent[];
     });
 
-  const pdP = (async (): Promise<ActivityEvent[]> => {
-    try {
-      const latestRes = await client.fetchRaw('/sonar/phantom-demand/reports/latest');
-      if (!latestRes.ok) return [];
-      const { window_id } = (await latestRes.json()) as { window_id: string };
-      const aggRes = await client.fetchRaw(`/sonar/phantom-demand/reports/${window_id}/aggregate`);
-      if (!aggRes.ok) return [];
-      const agg = (await aggRes.json()) as { header: { generated_at: string; window_id: string } };
-      return [
-        {
-          run_id: window_id,
+  // v1.30 §7.7 — PD activity now sourced from phantom_demand_runs (not v1.21 windows/reports).
+  const pdP = client
+    .listPhantomDemandRuns({ limit: MODALITY_LIMIT })
+    .then((runs: PhantomDemandRun[]) =>
+      runs.map(
+        (r): ActivityEvent => ({
+          run_id: r.run_id,
           modality: 'phantom_demand',
-          status: 'complete',
+          status: r.status,
           partner_id: null,
           partner_name: null,
-          triggered_at: agg.header.generated_at,
-          completed_at: agg.header.generated_at,
-          run_origin: 'ad_hoc',
-          detail_href: `/account/sonar/phantom-demand/reports/${window_id}`,
-        },
-      ];
-    } catch (err) {
+          triggered_at: r.created_at,
+          completed_at: r.completed_at ?? null,
+          run_origin: r.run_origin ?? 'ad_hoc',
+          detail_href: `/account/sonar/phantom-demand/runs/${r.run_id}`,
+        }),
+      ),
+    )
+    .catch((err) => {
       console.error('[dashboard/activity] pdP failed:', err);
-      return [];
-    }
-  })();
+      return [] as ActivityEvent[];
+    });
 
   const [auditEvents, watcherEvents, pdEvents] = await Promise.all([auditP, watcherP, pdP]);
 

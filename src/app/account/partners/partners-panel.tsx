@@ -321,6 +321,12 @@ export function PartnersPanel() {
           >
             View Catalog &rarr;
           </Link>
+          <Link
+            href={`/account/sonar/templates/new?observation_class=phantom_demand&counterparty=${encodeURIComponent(p.id)}`}
+            className="text-xs text-teal hover:text-navy font-medium"
+          >
+            Run Phantom Demand
+          </Link>
           <Button
             size="sm"
             variant={p.invite_yours ? "ghost" : "secondary"}

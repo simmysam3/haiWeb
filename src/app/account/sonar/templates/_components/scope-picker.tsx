@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
 
+type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+
 interface ScopePickerProps {
-  observationClass: 'audit' | 'watcher';
+  observationClass: ObservationClass;
   value: RunTemplateScope;
   onChange: (next: RunTemplateScope) => void;
 }
@@ -17,154 +19,286 @@ const WATCHER_SIGNALS: { value: SignalType; label: string }[] = [
 
 export function ScopePicker({ observationClass, value, onChange }: ScopePickerProps) {
   if (observationClass === 'audit') {
-    if (value.scope_type === 'company') {
-      return (
-        <div className="space-y-3">
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-charcoal">Audit scope</legend>
-            <label className="flex items-center gap-2 text-sm text-charcoal">
-              <input
-                type="radio"
-                name="audit-scope-type"
-                checked
-                readOnly
-              />
-              Company scope (vendor IDs)
-            </label>
-            <label className="flex items-center gap-2 text-sm text-charcoal">
-              <input
-                type="radio"
-                name="audit-scope-type"
-                onChange={() =>
-                  onChange({
-                    scope_type: 'key',
-                    provenance_key_id: '',
-                    depth_limit: value.depth_limit,
-                    hop_budget: value.hop_budget,
-                  })
-                }
-              />
-              Provenance key
-            </label>
-          </fieldset>
-          <NumberField
-            label="Depth limit"
-            value={value.depth_limit ?? 1}
-            min={1}
-            max={5}
-            onChange={(n) => onChange({ ...value, depth_limit: n })}
-          />
-          <NumberField
-            label="Hop budget"
-            value={value.hop_budget ?? 5}
-            min={1}
-            max={50}
-            onChange={(n) => onChange({ ...value, hop_budget: n })}
-          />
-          <p className="text-xs text-slate">
-            Vendor IDs come from active audit scopes; selection UI is configured
-            from /account/sonar/audit/nominations and is not editable here.
-          </p>
-        </div>
-      );
-    }
-    if (value.scope_type === 'key') {
-      return (
-        <div className="space-y-3">
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-charcoal">Audit scope</legend>
-            <label className="flex items-center gap-2 text-sm text-charcoal">
-              <input
-                type="radio"
-                name="audit-scope-type"
-                onChange={() =>
-                  onChange({
-                    scope_type: 'company',
-                    scope_ids: [],
-                    depth_limit: value.depth_limit,
-                    hop_budget: value.hop_budget,
-                  })
-                }
-              />
-              Company scope (vendor IDs)
-            </label>
-            <label className="flex items-center gap-2 text-sm text-charcoal">
-              <input
-                type="radio"
-                name="audit-scope-type"
-                checked
-                readOnly
-              />
-              Provenance key
-            </label>
-          </fieldset>
+    // Narrow to audit scope
+    const auditValue = value.kind === 'audit' ? value : null;
+    const authBasis = auditValue?.authorization_basis ?? 'bilateral';
+    const depthLimit = auditValue?.depth_limit ?? 1;
+    const hopBudget = 'hop_budget' in (auditValue ?? {}) ? (auditValue as { hop_budget?: number }).hop_budget ?? 5 : 5;
+
+    return (
+      <div className="space-y-3">
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-charcoal">Audit scope</legend>
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input
+              type="radio"
+              name="audit-scope-type"
+              checked={authBasis === 'bilateral'}
+              onChange={() =>
+                onChange({
+                  kind: 'audit',
+                  authorization_basis: 'bilateral',
+                  counterparties: [],
+                  signal_types: [],
+                  skus: [],
+                  depth_limit: depthLimit,
+                  hop_budget: hopBudget,
+                })
+              }
+            />
+            Company scope (vendor IDs)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input
+              type="radio"
+              name="audit-scope-type"
+              checked={authBasis === 'key_scoped'}
+              onChange={() =>
+                onChange({
+                  kind: 'audit',
+                  authorization_basis: 'key_scoped',
+                  provenance_key_id: '',
+                  depth_limit: depthLimit,
+                  hop_budget: hopBudget,
+                })
+              }
+            />
+            Provenance key
+          </label>
+        </fieldset>
+
+        {authBasis === 'key_scoped' && (
           <label className="block text-sm text-charcoal">
             <span className="block mb-1 font-medium">Provenance key ID</span>
             <input
               type="text"
-              value={value.provenance_key_id}
+              value={auditValue && 'provenance_key_id' in auditValue ? auditValue.provenance_key_id : ''}
               onChange={(e) =>
-                onChange({ ...value, provenance_key_id: e.target.value })
+                onChange({
+                  kind: 'audit',
+                  authorization_basis: 'key_scoped',
+                  provenance_key_id: e.target.value,
+                  depth_limit: depthLimit,
+                  hop_budget: hopBudget,
+                })
               }
               className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
             />
           </label>
-          <NumberField
-            label="Depth limit"
-            value={value.depth_limit ?? 1}
-            min={1}
-            max={5}
-            onChange={(n) => onChange({ ...value, depth_limit: n })}
-          />
-          <NumberField
-            label="Hop budget"
-            value={value.hop_budget ?? 5}
-            min={1}
-            max={50}
-            onChange={(n) => onChange({ ...value, hop_budget: n })}
-          />
-        </div>
-      );
-    }
+        )}
+
+        <NumberField
+          label="Depth limit"
+          value={depthLimit}
+          min={1}
+          max={5}
+          onChange={(n) =>
+            onChange(
+              authBasis === 'key_scoped'
+                ? {
+                    kind: 'audit',
+                    authorization_basis: 'key_scoped',
+                    provenance_key_id:
+                      auditValue && 'provenance_key_id' in auditValue
+                        ? auditValue.provenance_key_id
+                        : '',
+                    depth_limit: n,
+                    hop_budget: hopBudget,
+                  }
+                : {
+                    kind: 'audit',
+                    authorization_basis: 'bilateral',
+                    counterparties: auditValue && 'counterparties' in auditValue ? auditValue.counterparties : [],
+                    signal_types: auditValue && 'signal_types' in auditValue ? auditValue.signal_types : [],
+                    skus: auditValue && 'skus' in auditValue ? auditValue.skus : [],
+                    depth_limit: n,
+                    hop_budget: hopBudget,
+                  },
+            )
+          }
+        />
+        <NumberField
+          label="Hop budget"
+          value={hopBudget}
+          min={1}
+          max={50}
+          onChange={(n) =>
+            onChange(
+              authBasis === 'key_scoped'
+                ? {
+                    kind: 'audit',
+                    authorization_basis: 'key_scoped',
+                    provenance_key_id:
+                      auditValue && 'provenance_key_id' in auditValue
+                        ? auditValue.provenance_key_id
+                        : '',
+                    depth_limit: depthLimit,
+                    hop_budget: n,
+                  }
+                : {
+                    kind: 'audit',
+                    authorization_basis: 'bilateral',
+                    counterparties: auditValue && 'counterparties' in auditValue ? auditValue.counterparties : [],
+                    signal_types: auditValue && 'signal_types' in auditValue ? auditValue.signal_types : [],
+                    skus: auditValue && 'skus' in auditValue ? auditValue.skus : [],
+                    depth_limit: depthLimit,
+                    hop_budget: n,
+                  },
+            )
+          }
+        />
+        {authBasis === 'bilateral' && (
+          <p className="text-xs text-slate">
+            Vendor IDs come from active audit scopes; selection UI is configured
+            from /account/sonar/audit/nominations and is not editable here.
+          </p>
+        )}
+      </div>
+    );
   }
 
-  // watcher scope — use 'in' check to read signal_types without requiring scope_type discriminant
-  const watcherValue = 'signal_types' in value ? value : null;
-  const selectedSignals = new Set<SignalType>(watcherValue?.signal_types ?? []);
-  function toggleSignal(sig: SignalType) {
-    const next = new Set(selectedSignals);
-    if (next.has(sig)) next.delete(sig);
-    else next.add(sig);
-    onChange({
-      ...value,
-      signal_types: Array.from(next),
-    } as RunTemplateScope);
+  if (observationClass === 'watcher') {
+    // Narrow to watcher scope
+    const watcherValue = value.kind === 'watcher' ? value : null;
+    const selectedSignals = new Set<SignalType>(watcherValue?.signal_types ?? []);
+    const depthLimit = watcherValue?.depth_limit ?? 1;
+
+    function toggleSignal(sig: SignalType) {
+      const next = new Set(selectedSignals);
+      if (next.has(sig)) next.delete(sig);
+      else next.add(sig);
+      onChange({
+        kind: 'watcher',
+        authorization_basis: 'bilateral',
+        counterparties: watcherValue?.counterparties ?? [],
+        signal_types: Array.from(next) as [SignalType, ...SignalType[]],
+        depth_limit: depthLimit,
+      });
+    }
+
+    return (
+      <div className="space-y-3">
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-charcoal">Signal types</legend>
+          {WATCHER_SIGNALS.map((s) => (
+            <label key={s.value} className="flex items-center gap-2 text-sm text-charcoal">
+              <input
+                type="checkbox"
+                checked={selectedSignals.has(s.value)}
+                onChange={() => toggleSignal(s.value)}
+              />
+              {s.label}
+            </label>
+          ))}
+        </fieldset>
+        <NumberField
+          label="Depth limit"
+          value={depthLimit}
+          min={1}
+          max={8}
+          onChange={(n) =>
+            onChange({
+              kind: 'watcher',
+              authorization_basis: 'bilateral',
+              counterparties: watcherValue?.counterparties ?? [],
+              signal_types: watcherValue?.signal_types ?? ['lead_time_distribution'],
+              depth_limit: n,
+            })
+          }
+        />
+        <p className="text-xs text-slate">
+          Counterparty filter is omitted (defaults to all tier-1 partners).
+        </p>
+      </div>
+    );
   }
+
+  // phantom_demand branch
+  const pdValue = value.kind === 'phantom_demand' ? value : null;
+
   return (
-    <div className="space-y-3">
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-charcoal">Signal types</legend>
-        {WATCHER_SIGNALS.map((s) => (
-          <label key={s.value} className="flex items-center gap-2 text-sm text-charcoal">
-            <input
-              type="checkbox"
-              checked={selectedSignals.has(s.value)}
-              onChange={() => toggleSignal(s.value)}
-            />
-            {s.label}
-          </label>
-        ))}
-      </fieldset>
+    <div className="space-y-4">
+      <label className="block text-sm text-charcoal">
+        <span className="block mb-1 font-medium">Counterparty</span>
+        <input
+          type="text"
+          aria-label="Counterparty"
+          value={pdValue?.counterparty ?? ''}
+          placeholder="Counterparty participant ID"
+          onChange={(e) =>
+            onChange({
+              kind: 'phantom_demand',
+              authorization_basis: 'bilateral',
+              counterparty: e.target.value,
+              skus: pdValue?.skus ?? [],
+              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
+              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
+            })
+          }
+          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
+        />
+      </label>
+      <label className="block text-sm text-charcoal">
+        <span className="block mb-1 font-medium">SKUs</span>
+        <input
+          type="text"
+          aria-label="SKUs"
+          value={pdValue?.skus?.join(', ') ?? ''}
+          placeholder="SKU IDs (comma-separated)"
+          onChange={(e) => {
+            const skus = e.target.value
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean);
+            onChange({
+              kind: 'phantom_demand',
+              authorization_basis: 'bilateral',
+              counterparty: pdValue?.counterparty ?? '',
+              skus,
+              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
+              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
+            });
+          }}
+          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
+        />
+        <span className="text-xs text-slate">Comma-separated SKU IDs</span>
+      </label>
       <NumberField
-        label="Depth limit"
-        value={watcherValue?.depth_limit ?? 1}
+        label="Hypothetical Quantity"
+        value={pdValue?.hypothetical_quantity ?? 1}
         min={1}
-        max={8}
-        onChange={(n) => onChange({ ...value, depth_limit: n } as RunTemplateScope)}
+        max={999999}
+        onChange={(hypothetical_quantity) =>
+          onChange({
+            kind: 'phantom_demand',
+            authorization_basis: 'bilateral',
+            counterparty: pdValue?.counterparty ?? '',
+            skus: pdValue?.skus ?? [],
+            hypothetical_quantity,
+            hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
+          })
+        }
       />
-      <p className="text-xs text-slate">
-        Counterparty filter is omitted (defaults to all tier-1 partners).
-      </p>
+      <label className="block text-sm text-charcoal">
+        <span className="block mb-1 font-medium">Hypothetical Timeline</span>
+        <input
+          type="datetime-local"
+          aria-label="Hypothetical Timeline"
+          value={pdValue?.hypothetical_timeline ?? ''}
+          onChange={(e) =>
+            onChange({
+              kind: 'phantom_demand',
+              authorization_basis: 'bilateral',
+              counterparty: pdValue?.counterparty ?? '',
+              skus: pdValue?.skus ?? [],
+              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
+              hypothetical_timeline: e.target.value || null,
+            })
+          }
+          className="rounded border border-slate-300 px-2 py-1 text-sm"
+        />
+        <span className="text-xs text-slate">Empty = as soon as possible</span>
+      </label>
     </div>
   );
 }
@@ -193,6 +327,7 @@ function NumberField({
       <span className="block mb-1 font-medium">{label}</span>
       <input
         type="number"
+        aria-label={label}
         value={display}
         min={min}
         max={max}

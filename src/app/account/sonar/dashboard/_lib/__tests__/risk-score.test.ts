@@ -74,3 +74,26 @@ describe('computeRiskScore', () => {
     expect(result.color).toBe('yellow');
   });
 });
+
+describe('risk-score PD weight (spec §7.7)', () => {
+  it('zero-probe counterparty → pd_w = 0.25', () => {
+    expect(
+      computeRiskScore({ pd: { totalProbes: 0, directResponses: 0 }, audit: { ratio: 0 }, watcher: { ratio: 0 } }).pdWeight,
+    ).toBe(0.25);
+  });
+  it('response_rate = 1.0 → pd_w = 0.0', () => {
+    expect(
+      computeRiskScore({ pd: { totalProbes: 10, directResponses: 10 }, audit: { ratio: 0 }, watcher: { ratio: 0 } }).pdWeight,
+    ).toBe(0);
+  });
+  it('response_rate = 0 → pd_w = 1.0', () => {
+    expect(
+      computeRiskScore({ pd: { totalProbes: 10, directResponses: 0 }, audit: { ratio: 0 }, watcher: { ratio: 0 } }).pdWeight,
+    ).toBe(1);
+  });
+  it('response_rate = 0.5 → pd_w = 0.5', () => {
+    expect(
+      computeRiskScore({ pd: { totalProbes: 10, directResponses: 5 }, audit: { ratio: 0 }, watcher: { ratio: 0 } }).pdWeight,
+    ).toBe(0.5);
+  });
+});

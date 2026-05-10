@@ -14,7 +14,8 @@ function setMockClient(overrides: Record<string, any>) {
   (globalThis as any).__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
-    fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
+    // v1.30 §7.7: PD activity sourced from listPhantomDemandRuns (not fetchRaw windows)
+    listPhantomDemandRuns: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -69,28 +70,25 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     expect(body.events).toHaveLength(30);
   });
 
-  it('includes the latest phantom-demand window as a single event when available', async () => {
+  it('includes phantom-demand runs as activity events (spec §7.7)', async () => {
     setMockClient({
-      fetchRaw: vi.fn(async (path: string) => {
-        if (path === '/sonar/phantom-demand/reports/latest') {
-          return new Response(JSON.stringify({ window_id: 'w1' }), { status: 200 });
-        }
-        if (path === '/sonar/phantom-demand/reports/w1/aggregate') {
-          return new Response(
-            JSON.stringify({ header: { window_id: 'w1', generated_at: '2026-05-09T04:00:00Z' } }),
-            { status: 200 },
-          );
-        }
-        return new Response('{}', { status: 404 });
-      }),
+      listPhantomDemandRuns: vi.fn().mockResolvedValue([
+        {
+          run_id: 'pd-1',
+          status: 'complete',
+          created_at: '2026-05-09T04:00:00Z',
+          completed_at: '2026-05-09T04:05:00Z',
+          run_origin: 'ad_hoc',
+        },
+      ]),
     });
     const res = await GET(makeReq(), { params: Promise.resolve({}) });
     const body = await res.json();
     expect(body.events).toHaveLength(1);
     expect(body.events[0]).toMatchObject({
       modality: 'phantom_demand',
-      run_id: 'w1',
-      detail_href: '/account/sonar/phantom-demand/reports/w1',
+      run_id: 'pd-1',
+      detail_href: '/account/sonar/phantom-demand/runs/pd-1',
     });
   });
 });
