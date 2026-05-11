@@ -58,10 +58,33 @@ const EMPTY_CTA: Record<ObservationClass, { title: string; body: string }> = {
   },
 };
 
+function isObservationClass(value: string): value is ObservationClass {
+  return value === 'audit' || value === 'watcher' || value === 'phantom_demand';
+}
+
 export function ObservationsClient({ initialTab, initialRuns, initialTemplates }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Sticky-tab read (spec §8.3): on first mount, if the URL has no ?tab= and
+  // localStorage holds a last-used tab that differs from the server's default,
+  // replace the URL so the server re-fetches that modality. Querystring
+  // always wins over localStorage.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlTab = searchParams.get('tab');
+    if (urlTab) return;
+    const stored = window.localStorage.getItem(STICKY_TAB_KEY);
+    if (!stored || !isObservationClass(stored)) return;
+    if (stored === initialTab) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', stored);
+    router.replace(`${pathname}?${params.toString()}`);
+    // Intentionally run only on mount; subsequent tab changes are user-driven
+    // via changeTab which writes the new tab to localStorage below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

@@ -3,9 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ObservationsClient } from '../_components/observations-client';
 
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
+let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
   usePathname: () => '/account/sonar/observations',
 }));
 
@@ -13,6 +14,7 @@ describe('ObservationsClient', () => {
   beforeEach(() => {
     mockRouter.push.mockClear();
     mockRouter.replace.mockClear();
+    mockSearchParams = new URLSearchParams();
     if (typeof window !== 'undefined') {
       window.localStorage?.clear?.();
     }
@@ -54,5 +56,33 @@ describe('ObservationsClient', () => {
     ];
     render(<ObservationsClient initialTab="audit" initialRuns={runs} initialTemplates={[]} />);
     expect(screen.getByText(/Test SKU vs Acme/i)).toBeInTheDocument();
+  });
+
+  it('replaces URL with last-used tab from localStorage when no ?tab= is present', () => {
+    window.localStorage.setItem('haiwave.observations.lastTab', 'watcher');
+    mockSearchParams = new URLSearchParams();
+    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
+    expect(mockRouter.replace).toHaveBeenCalledWith(
+      expect.stringContaining('?tab=watcher'),
+    );
+  });
+
+  it('does not redirect when ?tab= is already in the URL (querystring wins)', () => {
+    window.localStorage.setItem('haiwave.observations.lastTab', 'watcher');
+    mockSearchParams = new URLSearchParams('tab=audit');
+    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it('does not redirect when localStorage matches the server initialTab', () => {
+    window.localStorage.setItem('haiwave.observations.lastTab', 'audit');
+    mockSearchParams = new URLSearchParams();
+    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it('writes the active tab to localStorage on mount', () => {
+    render(<ObservationsClient initialTab="phantom_demand" initialRuns={[]} initialTemplates={[]} />);
+    expect(window.localStorage.getItem('haiwave.observations.lastTab')).toBe('phantom_demand');
   });
 });
