@@ -13,6 +13,8 @@ const seedCurrent = {
   remaining: 4880,
   budget: 5000,
   is_custom: false,
+  phantom_demand_inbound_probe_limit: 50,
+  phantom_demand_inbound_probe_limit_is_custom: false,
 };
 
 /**

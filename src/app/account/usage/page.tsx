@@ -7,9 +7,11 @@ interface CurrentPayload {
   consumed: number;
   remaining: number;
   budget: number;
-  // v1.30 PR-5: true iff admin wrote a per-participant hourly_hop_budget.
-  // Surfaced so HaiWeb does not hardcode haiCore's PLATFORM_DEFAULT_HOP_BUDGET.
+  // v1.30 PR-5: is_custom flags + probe limit surfaced so HaiWeb does not
+  // hardcode haiCore's PLATFORM_DEFAULT_* constants for §7.2 labels.
   is_custom: boolean;
+  phantom_demand_inbound_probe_limit: number;
+  phantom_demand_inbound_probe_limit_is_custom: boolean;
 }
 
 async function getBaseUrl(): Promise<string> {

@@ -223,9 +223,9 @@ export interface PhantomDemandRunDetail extends PhantomDemandRun {
 // Kept in HaiWeb (not protocol) because the route returns it directly without
 // Zod-shape validation in haiCore.
 //
-// v1.30 PR-5 added `is_custom` so HaiWeb does not duplicate haiCore's
-// PLATFORM_DEFAULT_HOP_BUDGET constant when rendering the "(custom)" vs
-// "(platform default)" label.
+// v1.30 PR-5 added `is_custom` plus the phantom-demand inbound probe limit
+// fields so HaiWeb does not duplicate haiCore's PLATFORM_DEFAULT_* constants
+// when rendering "(custom)" vs "(platform default)" labels (spec §7.2).
 export interface BudgetStatus {
   participant_id: string;
   window_start: string;
@@ -233,6 +233,8 @@ export interface BudgetStatus {
   remaining: number;
   budget: number;
   is_custom: boolean;
+  phantom_demand_inbound_probe_limit: number;
+  phantom_demand_inbound_probe_limit_is_custom: boolean;
 }
 
 export const CLASSIFICATION_OVERRIDE_ACTIONS = [

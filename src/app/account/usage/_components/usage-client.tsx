@@ -23,6 +23,8 @@ interface CurrentPayload {
   remaining: number;
   budget: number;
   is_custom: boolean;
+  phantom_demand_inbound_probe_limit: number;
+  phantom_demand_inbound_probe_limit_is_custom: boolean;
 }
 
 interface Props { initialCurrent: CurrentPayload | null; }
@@ -94,7 +96,12 @@ export function UsageClient({ initialCurrent }: Props) {
 
       <ThrottleHistoryList rows={throttleData?.throttle_history ?? []} />
 
-      <BudgetDisplay budget={current.budget} isCustom={current.is_custom} />
+      <BudgetDisplay
+        budget={current.budget}
+        isCustom={current.is_custom}
+        probeLimit={current.phantom_demand_inbound_probe_limit}
+        probeLimitIsCustom={current.phantom_demand_inbound_probe_limit_is_custom}
+      />
     </div>
   );
 }
