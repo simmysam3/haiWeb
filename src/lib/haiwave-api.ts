@@ -480,6 +480,10 @@ export interface HaiwaveClient {
   getRunResumptionState(runId: string): Promise<RunResumptionState>;
   getBudgetCurrent(): Promise<BudgetStatus>;
   getThrottledRunsCount(): Promise<{ audit: number; watcher: number; total: number }>;
+  getThrottleStatus(): Promise<{
+    count: number;
+    most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
+  }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -1248,6 +1252,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         '/sonar/runs/throttled/count',
       );
+    },
+    getThrottleStatus() {
+      return request<{
+        count: number;
+        most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
+      }>('GET', '/account/throttle-status');
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
