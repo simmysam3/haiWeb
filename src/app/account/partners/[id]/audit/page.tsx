@@ -77,10 +77,10 @@ export default async function PartnerAuditPage({
           Audit runs cover all active scopes across vendors. View the full run
           history in{' '}
           <Link
-            href="/account/sonar/audit/runs"
+            href={`/account/sonar/observations?tab=audit&counterparty=${encodeURIComponent(id)}`}
             className="text-teal underline hover:text-navy"
           >
-            Sonar &rarr; Audit &rarr; Runs
+            Sonar &rarr; Observations &rarr; Audit
           </Link>
           .
         </p>
