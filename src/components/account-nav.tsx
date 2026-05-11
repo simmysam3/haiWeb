@@ -59,6 +59,12 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    label: "Settings",
+    items: [
+      { href: "/account/settings/trust-posture", label: "Trust Posture" },
+    ],
+  },
+  {
     label: "Admin",
     items: [
       { href: "/account/users", label: "Users" },
