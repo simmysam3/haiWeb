@@ -1,8 +1,34 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// v1.30 §10: 301 redirects from pre-Sonar URLs to the unified Observations page.
+// Rules are ordered most-specific-first; first match wins.
+const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
+  // Pre-v1.27 monitoring path
+  {
+    from: /^\/account\/monitoring\/audit-nominations(\/.*)?$/,
+    to: () => '/account/sonar/observations?tab=audit',
+  },
+  // Pre-v1.27 phantom-demand paths (if any v1.21 surface URLs still get hit)
+  {
+    from: /^\/account\/phantom-demand(\/.*)?$/,
+    to: () => '/account/sonar/observations?tab=phantom_demand',
+  },
+];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 301 redirects fire first so bookmarks and external links resolve to the
+  // new URL without bouncing through /login (the auth check below).
+  for (const rule of REDIRECTS) {
+    if (rule.from.test(pathname)) {
+      const target = rule.to(pathname);
+      const url = new URL(target, request.url);
+      return NextResponse.redirect(url, 301);
+    }
+  }
+
   const session = request.cookies.get("haiwave_session");
 
   // Protect /account/* routes

@@ -1,5 +1,5 @@
 import type { SkuObligationStatus } from '@haiwave/protocol';
-import type { InboundNominationGroup, InboundNominationRow } from './types';
+import type { InboundNominationGroup, InboundNominationRow } from './responder-queue-types';
 
 export function groupNominations(
   rows: InboundNominationRow[],

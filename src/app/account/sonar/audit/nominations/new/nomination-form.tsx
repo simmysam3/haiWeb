@@ -90,7 +90,7 @@ export function NominationForm({ initialState }: { initialState: InitialState })
   }
 
   function onSubmitted() {
-    router.push('/account/sonar/audit/nominations');
+    router.push('/account/sonar/observations?tab=audit');
   }
 
   return (

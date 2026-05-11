@@ -58,7 +58,7 @@ export function PreservedDeclinesPanel({ trustClass }: { trustClass: TrustClass 
           <li key={c.counterparty_participant_id} className="text-sm">
             <Link
               className="text-teal hover:text-navy"
-              href={`/account/sonar/audit/nominations?counterparty=${c.counterparty_participant_id}`}
+              href={`/account/sonar/observations?tab=audit&counterparty=${c.counterparty_participant_id}`}
             >
               {c.counterparty_display_name} — {c.explicit_decline_count} declines
             </Link>

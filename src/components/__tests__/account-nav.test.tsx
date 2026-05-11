@@ -20,9 +20,21 @@ vi.mock('next/link', () => ({
 }));
 
 describe('AccountNav', () => {
-  it('Phantom Demand sidebar entry links to /account/sonar/templates?modality=phantom_demand', () => {
+  it('Sonar section is consolidated to Sonar Dashboard + Observations', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
-    const link = screen.getByRole('link', { name: 'Phantom Demand' });
-    expect(link.getAttribute('href')).toBe('/account/sonar/templates?modality=phantom_demand');
+    const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
+    expect(dashboard.getAttribute('href')).toBe('/account/sonar/dashboard');
+    const observations = screen.getByRole('link', { name: 'Observations' });
+    expect(observations.getAttribute('href')).toBe('/account/sonar/observations');
+    // The pre-consolidation entries should no longer be present in the sidebar.
+    expect(screen.queryByRole('link', { name: 'Phantom Demand' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Audit Dashboard' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Run Templates' })).toBeNull();
+  });
+
+  it('Monitoring section no longer surfaces the pre-Sonar Audit Nominations entry', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    const audit = screen.queryAllByRole('link', { name: 'Audit Nominations' });
+    expect(audit).toHaveLength(0);
   });
 });
