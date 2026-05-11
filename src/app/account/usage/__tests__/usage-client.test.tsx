@@ -12,6 +12,7 @@ const seedCurrent = {
   consumed: 120,
   remaining: 4880,
   budget: 5000,
+  is_custom: false,
 };
 
 /**

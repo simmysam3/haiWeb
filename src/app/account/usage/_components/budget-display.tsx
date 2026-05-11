@@ -1,11 +1,20 @@
 'use client';
 
-interface Props { budget: number; }
+/**
+ * Budget Configuration section (v1.30 spec §7.2).
+ *
+ * Read-only display of the participant's current hourly hop budget. The
+ * "(custom)" vs "(platform default)" label is driven by the `is_custom`
+ * flag from `/sonar/budget/current` — HaiWeb does not maintain its own
+ * copy of haiCore's PLATFORM_DEFAULT_HOP_BUDGET so the label cannot lie
+ * if haiCore changes the default.
+ */
+interface Props {
+  budget: number;
+  isCustom: boolean;
+}
 
-const PLATFORM_DEFAULT = 5000;
-
-export function BudgetDisplay({ budget }: Props) {
-  const isCustom = budget !== PLATFORM_DEFAULT;
+export function BudgetDisplay({ budget, isCustom }: Props) {
   return (
     <section className="bg-white border border-slate-200 rounded p-4">
       <h2 className="text-sm font-semibold text-charcoal uppercase tracking-wider">Budget</h2>

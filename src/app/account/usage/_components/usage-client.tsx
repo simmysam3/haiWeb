@@ -22,6 +22,7 @@ interface CurrentPayload {
   consumed: number;
   remaining: number;
   budget: number;
+  is_custom: boolean;
 }
 
 interface Props { initialCurrent: CurrentPayload | null; }
@@ -93,7 +94,7 @@ export function UsageClient({ initialCurrent }: Props) {
 
       <ThrottleHistoryList rows={throttleData?.throttle_history ?? []} />
 
-      <BudgetDisplay budget={current.budget} />
+      <BudgetDisplay budget={current.budget} isCustom={current.is_custom} />
     </div>
   );
 }

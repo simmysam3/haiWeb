@@ -222,12 +222,17 @@ export interface PhantomDemandRunDetail extends PhantomDemandRun {
 // v1.29 Phase 1 — budget window summary returned by GET /sonar/budget/current.
 // Kept in HaiWeb (not protocol) because the route returns it directly without
 // Zod-shape validation in haiCore.
+//
+// v1.30 PR-5 added `is_custom` so HaiWeb does not duplicate haiCore's
+// PLATFORM_DEFAULT_HOP_BUDGET constant when rendering the "(custom)" vs
+// "(platform default)" label.
 export interface BudgetStatus {
   participant_id: string;
   window_start: string;
   consumed: number;
   remaining: number;
   budget: number;
+  is_custom: boolean;
 }
 
 export const CLASSIFICATION_OVERRIDE_ACTIONS = [

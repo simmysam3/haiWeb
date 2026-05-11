@@ -28,6 +28,9 @@ const MOCK_BUDGET = {
   consumed: 42,
   remaining: 958,
   budget: 1000,
+  // v1.30 PR-5: is_custom surfaced so HaiWeb can render the "(custom)" label
+  // without duplicating haiCore's PLATFORM_DEFAULT_HOP_BUDGET constant.
+  is_custom: true,
 };
 
 describe('GET /api/account/sonar/budget/current', () => {

@@ -7,6 +7,9 @@ interface CurrentPayload {
   consumed: number;
   remaining: number;
   budget: number;
+  // v1.30 PR-5: true iff admin wrote a per-participant hourly_hop_budget.
+  // Surfaced so HaiWeb does not hardcode haiCore's PLATFORM_DEFAULT_HOP_BUDGET.
+  is_custom: boolean;
 }
 
 async function getBaseUrl(): Promise<string> {
