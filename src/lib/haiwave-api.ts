@@ -69,6 +69,7 @@ import type {
   ParticipantModalityPosture,
   Modality,
   Posture,
+  ObservationClass,
 } from '@haiwave/protocol';
 
 import type {
@@ -476,6 +477,14 @@ export interface HaiwaveClient {
   ): Promise<{ template: RunTemplate }>;
   deleteRunTemplate(templateId: string): Promise<{ deleted: boolean }>;
   triggerRunTemplate(templateId: string): Promise<{ run_id: string }>;
+  // ─── v1.30 PR-4: Unified observations list ───────────────────────────
+  listObservations(query: {
+    tab: ObservationClass;
+    status?: string;
+    date_range?: string;
+    search?: string;
+    counterparty?: string;
+  }): Promise<{ tab: ObservationClass; runs: unknown[]; templates: unknown[] }>;
   // ─── v1.29 Phase 1: Resumable Execution ──────────────────────────────
   getRunResumptionState(runId: string): Promise<RunResumptionState>;
   getBudgetCurrent(): Promise<BudgetStatus>;
@@ -1223,6 +1232,19 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ run_id: string }>(
         'POST',
         `/sonar/templates/${templateId}/trigger`,
+      );
+    },
+
+    // ─── v1.30 PR-4: Unified observations list ─────────────────────
+    async listObservations(query) {
+      const qs = new URLSearchParams({ tab: query.tab });
+      if (query.status) qs.set('status', query.status);
+      if (query.date_range) qs.set('date_range', query.date_range);
+      if (query.search) qs.set('search', query.search);
+      if (query.counterparty) qs.set('counterparty', query.counterparty);
+      return request<{ tab: ObservationClass; runs: unknown[]; templates: unknown[] }>(
+        'GET',
+        `/sonar/observations?${qs.toString()}`,
       );
     },
 
