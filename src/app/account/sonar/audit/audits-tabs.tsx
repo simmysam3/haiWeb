@@ -11,8 +11,8 @@ interface Tab {
 
 const tabs: Tab[] = [
   { segment: "dashboard", label: "Dashboard", href: "/account/sonar/audit/dashboard" },
-  { segment: "nominations", label: "My nominations", href: "/account/sonar/observations?tab=audit" },
-  { segment: "runs", label: "Runs", href: "/account/sonar/observations?tab=audit" },
+  { segment: "nominations", label: "My nominations", href: "/account/sonar/audit/nominations" },
+  { segment: "runs", label: "Runs", href: "/account/sonar/audit/runs" },
 ];
 
 export function AuditsTabs({ hasScopes }: { hasScopes: boolean }) {
