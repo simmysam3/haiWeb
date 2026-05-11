@@ -493,6 +493,40 @@ export interface HaiwaveClient {
     count: number;
     most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
   }>;
+  // ─── v1.30 PR-5: Usage Page surfaces ────────────────────────────────
+  getUsageTimeseries(query?: { window_days?: number }): Promise<{
+    buckets: Array<{ window_start: string; hops_consumed: number }>;
+  }>;
+  getUsageCounterparties(query?: { window_days?: number }): Promise<{
+    counterparties: Array<{
+      counterparty_id: string;
+      counterparty_name: string | null;
+      total_hops: number;
+      audit_hops: number;
+      watcher_hops: number;
+      phantom_demand_hops: number;
+      last_activity: string;
+    }>;
+  }>;
+  getActiveRuns(): Promise<{
+    active_runs: Array<{
+      run_id: string;
+      observation_class: 'audit' | 'watcher' | 'phantom_demand';
+      status: 'running' | 'throttled';
+      hops_consumed: number;
+      started_at: string | null;
+      throttled_at: string | null;
+    }>;
+  }>;
+  getThrottleHistory(query?: { days?: number }): Promise<{
+    throttle_history: Array<{
+      run_id: string;
+      observation_class: 'audit' | 'watcher' | 'phantom_demand';
+      throttled_at: string;
+      resumption_count: number;
+      current_status: string;
+    }>;
+  }>;
   /** Direct passthrough to haiCore. Used for non-JSON content negotiation
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
@@ -1280,6 +1314,59 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         count: number;
         most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
       }>('GET', '/account/throttle-status');
+    },
+
+    // ─── v1.30 PR-5: Usage Page surfaces ───────────────────────────────
+    getUsageTimeseries(query = {}) {
+      const qs = new URLSearchParams();
+      if (query.window_days !== undefined) qs.set('window_days', String(query.window_days));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request<{ buckets: Array<{ window_start: string; hops_consumed: number }> }>(
+        'GET',
+        `/sonar/usage/timeseries${suffix}`,
+      );
+    },
+    getUsageCounterparties(query = {}) {
+      const qs = new URLSearchParams();
+      if (query.window_days !== undefined) qs.set('window_days', String(query.window_days));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request<{
+        counterparties: Array<{
+          counterparty_id: string;
+          counterparty_name: string | null;
+          total_hops: number;
+          audit_hops: number;
+          watcher_hops: number;
+          phantom_demand_hops: number;
+          last_activity: string;
+        }>;
+      }>('GET', `/sonar/usage/counterparties${suffix}`);
+    },
+    getActiveRuns() {
+      return request<{
+        active_runs: Array<{
+          run_id: string;
+          observation_class: 'audit' | 'watcher' | 'phantom_demand';
+          status: 'running' | 'throttled';
+          hops_consumed: number;
+          started_at: string | null;
+          throttled_at: string | null;
+        }>;
+      }>('GET', '/sonar/usage/active-runs');
+    },
+    getThrottleHistory(query = {}) {
+      const qs = new URLSearchParams();
+      if (query.days !== undefined) qs.set('days', String(query.days));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request<{
+        throttle_history: Array<{
+          run_id: string;
+          observation_class: 'audit' | 'watcher' | 'phantom_demand';
+          throttled_at: string;
+          resumption_count: number;
+          current_status: string;
+        }>;
+      }>('GET', `/sonar/usage/throttle-history${suffix}`);
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
