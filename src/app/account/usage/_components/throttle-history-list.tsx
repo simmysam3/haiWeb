@@ -1,18 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import type { ThrottleHistoryRow } from './types';
 
-interface Row {
-  run_id: string;
-  observation_class: 'audit' | 'watcher' | 'phantom_demand';
-  throttled_at: string;
-  resumption_count: number;
-  current_status: string;
-}
+interface Props { rows: ThrottleHistoryRow[]; }
 
-interface Props { rows: Row[]; }
-
-const RUN_HREF: Record<Row['observation_class'], (id: string) => string> = {
+const RUN_HREF: Record<ThrottleHistoryRow['observation_class'], (id: string) => string> = {
   audit: (id) => `/account/sonar/audit/runs/${id}`,
   watcher: (id) => `/account/sonar/templates/${id}`,
   phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,

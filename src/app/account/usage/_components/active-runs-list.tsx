@@ -1,19 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import type { ActiveRunRow } from './types';
 
-interface Row {
-  run_id: string;
-  observation_class: 'audit' | 'watcher' | 'phantom_demand';
-  status: 'running' | 'throttled';
-  hops_consumed: number;
-  started_at: string | null;
-  throttled_at: string | null;
-}
+interface Props { rows: ActiveRunRow[]; }
 
-interface Props { rows: Row[]; }
-
-const RUN_HREF: Record<Row['observation_class'], (id: string) => string> = {
+const RUN_HREF: Record<ActiveRunRow['observation_class'], (id: string) => string> = {
   audit: (id) => `/account/sonar/audit/runs/${id}`,
   watcher: (id) => `/account/sonar/templates/${id}`,
   phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,

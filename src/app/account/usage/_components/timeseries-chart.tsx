@@ -1,14 +1,10 @@
 'use client';
 
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-
-interface Bucket {
-  window_start: string;
-  hops_consumed: number;
-}
+import type { TimeseriesBucket } from './types';
 
 interface Props {
-  buckets: Bucket[];
+  buckets: TimeseriesBucket[];
   window: 1 | 7 | 30;
   onWindowChange: (w: 1 | 7 | 30) => void;
 }

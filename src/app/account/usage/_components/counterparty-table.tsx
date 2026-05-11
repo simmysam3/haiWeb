@@ -1,18 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import type { CounterpartyRow } from './types';
 
-interface Row {
-  counterparty_id: string;
-  counterparty_name: string | null;
-  total_hops: number;
-  audit_hops: number;
-  watcher_hops: number;
-  phantom_demand_hops: number;
-  last_activity: string;
-}
-
-interface Props { rows: Row[]; }
+interface Props { rows: CounterpartyRow[]; }
 
 export function CounterpartyTable({ rows }: Props) {
   return (

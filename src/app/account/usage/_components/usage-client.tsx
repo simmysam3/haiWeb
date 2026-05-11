@@ -9,6 +9,12 @@ import { CounterpartyTable } from './counterparty-table';
 import { ActiveRunsList } from './active-runs-list';
 import { ThrottleHistoryList } from './throttle-history-list';
 import { BudgetDisplay } from './budget-display';
+import type {
+  ActiveRunRow,
+  CounterpartyRow,
+  ThrottleHistoryRow,
+  TimeseriesBucket,
+} from './types';
 
 interface CurrentPayload {
   participant_id: string;
@@ -31,23 +37,23 @@ export function UsageClient({ initialCurrent }: Props) {
   });
   const current = currentData ?? initialCurrent;
 
-  const { data: activeRunsData } = useSWR<{ active_runs: any[] }>(
+  const { data: activeRunsData } = useSWR<{ active_runs: ActiveRunRow[] }>(
     '/api/account/usage/active-runs',
     fetcher,
     { refreshInterval: 10000 },
   );
 
-  const { data: timeseriesData } = useSWR<{ buckets: any[] }>(
+  const { data: timeseriesData } = useSWR<{ buckets: TimeseriesBucket[] }>(
     `/api/account/usage/timeseries?window_days=${window}`,
     fetcher,
   );
 
-  const { data: counterpartiesData } = useSWR<{ counterparties: any[] }>(
+  const { data: counterpartiesData } = useSWR<{ counterparties: CounterpartyRow[] }>(
     `/api/account/usage/counterparties?window_days=${window}`,
     fetcher,
   );
 
-  const { data: throttleData } = useSWR<{ throttle_history: any[] }>(
+  const { data: throttleData } = useSWR<{ throttle_history: ThrottleHistoryRow[] }>(
     '/api/account/usage/throttle-history?days=30',
     fetcher,
   );
@@ -61,7 +67,7 @@ export function UsageClient({ initialCurrent }: Props) {
   }
 
   const totalHops = (timeseriesData?.buckets ?? []).reduce(
-    (sum: number, b: any) => sum + (b.hops_consumed ?? 0),
+    (sum: number, b: TimeseriesBucket) => sum + (b.hops_consumed ?? 0),
     0,
   );
 

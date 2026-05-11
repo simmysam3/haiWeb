@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import useSWR from 'swr';
+import useSWR, { type SWRResponse, type Key } from 'swr';
 import { UsageClient } from '../_components/usage-client';
 
 vi.mock('swr');
@@ -14,25 +14,40 @@ const seedCurrent = {
   budget: 5000,
 };
 
+/**
+ * Build a minimal SWRResponse stub typed against `unknown`. We pre-narrow
+ * the data shape at the call site; the test mock only needs `.data` to be
+ * a faithful object, the rest is ignored by UsageClient.
+ */
+function swrStub(data: unknown): SWRResponse<unknown> {
+  return {
+    data,
+    error: undefined,
+    isLoading: data === undefined,
+    isValidating: false,
+    mutate: vi.fn(),
+  } as SWRResponse<unknown>;
+}
+
 describe('UsageClient', () => {
   beforeEach(() => {
-    mockedUseSWR.mockImplementation((key: any) => {
+    mockedUseSWR.mockImplementation((key: Key) => {
       if (typeof key !== 'string') {
-        return { data: undefined, error: undefined, isLoading: false, mutate: vi.fn() } as any;
+        return swrStub(undefined);
       }
       if (key.includes('active-runs')) {
-        return { data: { active_runs: [] }, error: undefined, isLoading: false, mutate: vi.fn() } as any;
+        return swrStub({ active_runs: [] });
       }
       if (key.includes('timeseries')) {
-        return { data: { buckets: [] }, error: undefined, isLoading: false, mutate: vi.fn() } as any;
+        return swrStub({ buckets: [] });
       }
       if (key.includes('counterparties')) {
-        return { data: { counterparties: [] }, error: undefined, isLoading: false, mutate: vi.fn() } as any;
+        return swrStub({ counterparties: [] });
       }
       if (key.includes('throttle-history')) {
-        return { data: { throttle_history: [] }, error: undefined, isLoading: false, mutate: vi.fn() } as any;
+        return swrStub({ throttle_history: [] });
       }
-      return { data: undefined, error: undefined, isLoading: true, mutate: vi.fn() } as any;
+      return swrStub(undefined);
     });
   });
 
