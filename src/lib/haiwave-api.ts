@@ -66,6 +66,9 @@ import type {
   UpdateRunTemplateRequest,
   PhantomDemandAggregate,
   PhantomDemandWindow,
+  ParticipantModalityPosture,
+  Modality,
+  Posture,
 } from '@haiwave/protocol';
 
 import type {
@@ -435,6 +438,15 @@ export interface HaiwaveClient {
   ): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }>;
   activateTrustBypass(body: TrustBypassActivationRequest): Promise<TrustBypassActivationResponse>;
   deactivateTrustBypass(body: TrustBypassDeactivationRequest): Promise<void>;
+  // ─── Modality posture (v1.30 PR-3) ───────────────────────────────────
+  getModalityPosture(participantId: string): Promise<{ postures: ParticipantModalityPosture[] }>;
+  updateModalityPosture(
+    participantId: string,
+    trustClass: TrustClass,
+    modality: Modality,
+    posture: Posture,
+    signalTypeOverrides?: string[] | null,
+  ): Promise<ParticipantModalityPosture>;
   // ─── Watcher (v1.28 Phase 5) ─────────────────────────────────────────
   triggerWatcherRun(body: WatcherRunTriggerRequest): Promise<{ run_id: string; status: WatcherRunStatus }>;
   listWatcherRuns(opts?: { limit?: number; template_id?: string }): Promise<{ runs: WatcherRun[] }>;
@@ -1072,6 +1084,21 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     deactivateTrustBypass(body) {
       // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
       return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
+    },
+
+    // ─── Modality posture (v1.30 PR-3) ───────────────────────────────────
+    getModalityPosture(participantId) {
+      return request<{ postures: ParticipantModalityPosture[] }>(
+        'GET',
+        `/participants/${participantId}/modality-posture`,
+      );
+    },
+    updateModalityPosture(participantId, trustClass, modality, posture, signalTypeOverrides) {
+      return request<ParticipantModalityPosture>(
+        'PUT',
+        `/participants/${participantId}/modality-posture/${trustClass}/${modality}`,
+        { posture, signal_type_overrides: signalTypeOverrides ?? null },
+      );
     },
 
     // ─── Watcher (v1.28 Phase 5) ────────────────────────────────────────
