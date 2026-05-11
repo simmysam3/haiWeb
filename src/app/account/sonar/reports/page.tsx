@@ -16,22 +16,34 @@ interface ReportsPayload {
   reports: ReportEntry[];
 }
 
-async function loadReports(tab: Modality): Promise<ReportsPayload> {
+interface FilterParams {
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+async function loadReports(tab: Modality, filters: FilterParams): Promise<ReportsPayload> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
   const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  try {
-    const res = await fetch(`${proto}://${host}/api/account/sonar/reports?tab=${tab}`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return { reports: [] };
-    return (await res.json()) as ReportsPayload;
-  } catch (err) {
-    console.error('[reports list] fetch failed', err);
-    return { reports: [] };
+
+  const qs = new URLSearchParams({ tab });
+  if (filters.status) qs.set('status', filters.status);
+  if (filters.date_from) qs.set('date_from', filters.date_from);
+  if (filters.date_to) qs.set('date_to', filters.date_to);
+
+  const res = await fetch(`${proto}://${host}/api/account/sonar/reports?${qs.toString()}`, {
+    headers: { cookie: cookieHeader },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    // Distinct error state vs empty state (review #20 I1). Surface a real
+    // error so Next's error boundary handles it instead of rendering the
+    // "No reports yet" empty-state UI for what is actually a 4xx/5xx.
+    throw new Error(`reports list fetch failed: ${res.status} ${res.statusText}`);
   }
+  return (await res.json()) as ReportsPayload;
 }
 
 const VALID_TABS: ReadonlySet<string> = new Set(['audit', 'watcher', 'phantom_demand']);
@@ -42,6 +54,11 @@ function normalizeTab(raw: string | string[] | undefined): Modality {
   return 'audit';
 }
 
+function firstString(raw: string | string[] | undefined): string | undefined {
+  if (raw === undefined) return undefined;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -49,7 +66,12 @@ export default async function ReportsPage({
 }) {
   const params = await searchParams;
   const tab = normalizeTab(params.tab);
-  const payload = await loadReports(tab);
+  const filters: FilterParams = {
+    status: firstString(params.status),
+    date_from: firstString(params.date_from),
+    date_to: firstString(params.date_to),
+  };
+  const payload = await loadReports(tab, filters);
 
   return (
     <div className="p-6 space-y-6">

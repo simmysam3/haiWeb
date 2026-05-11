@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -20,6 +21,9 @@ interface Props {
   initialReports: ReportEntry[];
 }
 
+type SortKey = 'completed_at' | 'modality' | 'status';
+type SortDir = 'asc' | 'desc';
+
 const TABS: { id: Modality; label: string }[] = [
   { id: 'audit', label: 'Audit' },
   { id: 'watcher', label: 'Watcher' },
@@ -32,16 +36,58 @@ const RUN_DETAIL_HREF: Record<Modality, (runId: string) => string> = {
   phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,
 };
 
+// Download URLs target HaiWeb BFF routes (NOT the haiCore Fastify origin —
+// the browser can't reach Fastify directly and haiCore uses Accept-header
+// negotiation, not a `?format=` querystring). The BFF translates the
+// `?format=` querystring into the appropriate Accept header before
+// forwarding to haiCore. Mirrors `src/app/account/sonar/audit/runs/[id]/_components/download-menu.tsx`.
+//
+// watcher + phantom_demand have no per-run report endpoint in v1.30
+// (deferred — see as-built §14.25); their `available_formats` arrive from
+// the service as `[]` so this dropdown is not rendered for those rows.
+// The functions remain as defensive placeholders that return '#'.
 const REPORT_DOWNLOAD_URL: Record<Modality, (runId: string, format: ReportFormat) => string> = {
-  audit: (id, fmt) => `/api/v1/sonar/audit/reports/${id}/aggregate?format=${fmt}`,
+  audit: (id, fmt) => `/api/account/sonar/audit/reports/${id}/aggregate?format=${fmt}`,
   watcher: () => '#',
-  phantom_demand: (id, fmt) => `/api/v1/sonar/phantom-demand/runs/${id}/report?format=${fmt}`,
+  phantom_demand: () => '#',
 };
+
+const SORT_VALUE: Record<SortKey, (r: ReportEntry) => string> = {
+  completed_at: (r) => r.completed_at ?? '',
+  modality: (r) => r.modality,
+  status: (r) => r.status,
+};
+
+function compareReports(a: ReportEntry, b: ReportEntry, key: SortKey, dir: SortDir): number {
+  const av = SORT_VALUE[key](a);
+  const bv = SORT_VALUE[key](b);
+  if (av === bv) return 0;
+  const cmp = av < bv ? -1 : 1;
+  return dir === 'asc' ? cmp : -cmp;
+}
 
 export function ReportsClient({ initialTab, initialReports }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Default sort: most recently completed first.
+  const [sortKey, setSortKey] = useState<SortKey>('completed_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const sortedReports = useMemo(() => {
+    // Defensive copy: never mutate the caller's array.
+    return [...initialReports].sort((a, b) => compareReports(a, b, sortKey, sortDir));
+  }, [initialReports, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'completed_at' ? 'desc' : 'asc');
+    }
+  }
 
   function changeTab(next: Modality) {
     const params = new URLSearchParams(searchParams.toString());
@@ -50,6 +96,11 @@ export function ReportsClient({ initialTab, initialReports }: Props) {
     params.delete('date_from');
     params.delete('date_to');
     router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function sortIndicator(key: SortKey): string {
+    if (sortKey !== key) return '';
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
   }
 
   return (
@@ -73,7 +124,7 @@ export function ReportsClient({ initialTab, initialReports }: Props) {
         })}
       </div>
 
-      {initialReports.length === 0 ? (
+      {sortedReports.length === 0 ? (
         <div className="border border-dashed rounded p-8 text-center">
           <h2 className="text-base font-semibold text-charcoal">No reports yet</h2>
           <p className="text-sm text-slate mt-1">
@@ -85,13 +136,31 @@ export function ReportsClient({ initialTab, initialReports }: Props) {
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate">
               <th className="py-2">Name</th>
-              <th className="py-2">Completed</th>
-              <th className="py-2">Status</th>
+              <th className="py-2">
+                <button
+                  type="button"
+                  onClick={() => toggleSort('completed_at')}
+                  aria-sort={sortKey === 'completed_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="uppercase text-xs text-slate hover:text-charcoal"
+                >
+                  Completed{sortIndicator('completed_at')}
+                </button>
+              </th>
+              <th className="py-2">
+                <button
+                  type="button"
+                  onClick={() => toggleSort('status')}
+                  aria-sort={sortKey === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="uppercase text-xs text-slate hover:text-charcoal"
+                >
+                  Status{sortIndicator('status')}
+                </button>
+              </th>
               <th className="py-2 text-right">Download</th>
             </tr>
           </thead>
           <tbody>
-            {initialReports.map((r) => (
+            {sortedReports.map((r) => (
               <tr key={r.run_id} className="border-b border-slate-100">
                 <td className="py-2">
                   <Link
@@ -125,7 +194,7 @@ export function ReportsClient({ initialTab, initialReports }: Props) {
   );
 }
 
-function FormatDropdown({
+export function FormatDropdown({
   runId,
   modality,
   formats,
@@ -134,6 +203,9 @@ function FormatDropdown({
   modality: Modality;
   formats: ReportFormat[];
 }) {
+  if (formats.length === 0) {
+    return <span className="text-xs text-slate">no report</span>;
+  }
   return (
     <select
       onChange={(e) => {
@@ -141,7 +213,9 @@ function FormatDropdown({
         if (!format) return;
         const url = REPORT_DOWNLOAD_URL[modality](runId, format);
         if (url !== '#') {
-          window.open(url, '_blank');
+          // noopener/noreferrer: the download tab must not be able to
+          // window.opener back into the portal (review #20 I4).
+          window.open(url, '_blank', 'noopener,noreferrer');
         }
         e.target.value = '';
       }}
