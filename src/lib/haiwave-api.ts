@@ -75,7 +75,7 @@ import type {
 import type {
   InboundNominationGroup,
   ResponderQueueFilters,
-} from '@/app/account/monitoring/audit-nominations/_lib/types';
+} from '@/lib/responder-queue-types';
 
 import type {
   DownstreamGapFilters,
@@ -1023,7 +1023,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       }));
 
       const { groupNominations } = await import(
-        '@/app/account/monitoring/audit-nominations/_lib/group-nominations'
+        '@/lib/responder-queue'
       );
       return groupNominations(rows);
     },

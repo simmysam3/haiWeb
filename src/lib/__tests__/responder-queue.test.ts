@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { InboundNominationRow } from '../types';
-import { groupNominations } from '../group-nominations';
+import type { InboundNominationRow } from '../responder-queue-types';
+import { groupNominations } from '../responder-queue';
 
 const row = (
   o: Partial<InboundNominationRow>,
