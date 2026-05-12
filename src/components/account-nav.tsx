@@ -42,6 +42,7 @@ const navSections: NavSection[] = [
       { href: "/account/partners/blocked", label: "Blocked Companies", indent: true },
       { href: "/account/manifests", label: "Manifests" },
       { href: "/account/pricing", label: "Pricing" },
+      { href: "/account/usage", label: "Usage" },
       // Payments deferred to v2 — restore this entry when payments ships.
       // { href: "/account/payments", label: "Payments" },
       { href: "/account/provenance-keys", label: "Provenance Keys" },
