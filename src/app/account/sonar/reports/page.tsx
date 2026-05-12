@@ -22,7 +22,11 @@ interface FilterParams {
   date_to?: string;
 }
 
-async function loadReports(tab: Modality, filters: FilterParams): Promise<ReportsPayload> {
+type LoadReportsResult =
+  | { kind: 'ok'; payload: ReportsPayload }
+  | { kind: 'forbidden' };
+
+async function loadReports(tab: Modality, filters: FilterParams): Promise<LoadReportsResult> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
@@ -37,14 +41,27 @@ async function loadReports(tab: Modality, filters: FilterParams): Promise<Report
     headers: { cookie: cookieHeader },
     cache: 'no-store',
   });
+  if (res.status === 403) {
+    // Surfaced via the per-modality scope check landed in haiCore PR-7
+    // (#31 C4) — e.g. a user without `watcher:read` clicking the Watcher
+    // tab. Show an inline permissions message instead of falling through to
+    // the generic error boundary or (worse) a silent empty-state fallback.
+    return { kind: 'forbidden' };
+  }
   if (!res.ok) {
     // Distinct error state vs empty state (review #20 I1). Surface a real
     // error so Next's error boundary handles it instead of rendering the
     // "No reports yet" empty-state UI for what is actually a 4xx/5xx.
     throw new Error(`reports list fetch failed: ${res.status} ${res.statusText}`);
   }
-  return (await res.json()) as ReportsPayload;
+  return { kind: 'ok', payload: (await res.json()) as ReportsPayload };
 }
+
+const SCOPE_HINT: Record<Modality, string> = {
+  audit: '`audit:read`',
+  watcher: '`watcher:read`',
+  phantom_demand: '`phantom_demand:read`',
+};
 
 const VALID_TABS: ReadonlySet<string> = new Set(['audit', 'watcher', 'phantom_demand']);
 
@@ -71,7 +88,7 @@ export default async function ReportsPage({
     date_from: firstString(params.date_from),
     date_to: firstString(params.date_to),
   };
-  const payload = await loadReports(tab, filters);
+  const result = await loadReports(tab, filters);
 
   return (
     <div className="p-6 space-y-6">
@@ -81,7 +98,21 @@ export default async function ReportsPage({
           Completed observation runs with downloadable reports. Switch tabs to browse by modality.
         </p>
       </header>
-      <ReportsClient initialTab={tab} initialReports={payload.reports} />
+      {result.kind === 'forbidden' ? (
+        <div
+          role="alert"
+          className="border border-amber-200 bg-amber-50 rounded p-6"
+        >
+          <h2 className="text-base font-semibold text-charcoal">No access to this modality</h2>
+          <p className="text-sm text-slate mt-2">
+            Your account is missing the {SCOPE_HINT[tab]} scope required to view{' '}
+            {tab === 'phantom_demand' ? 'phantom demand' : tab} reports. Contact your
+            workspace admin to request it.
+          </p>
+        </div>
+      ) : (
+        <ReportsClient initialTab={tab} initialReports={result.payload.reports} />
+      )}
     </div>
   );
 }

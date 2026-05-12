@@ -55,6 +55,25 @@ describe('ReportsPage — error vs empty state (review #20 I1)', () => {
     expect(screen.getByTestId('reports-client')).toHaveTextContent('rows=0');
   });
 
+  it('renders permissions banner (not error boundary) when BFF returns 403 (Prompt 3)', async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    const { default: ReportsPage } = await import('../page');
+    const ui = await ReportsPage({ searchParams: Promise.resolve({ tab: 'watcher' }) });
+    render(ui);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/no access to this modality/i);
+    expect(alert).toHaveTextContent(/watcher:read/);
+    // 403 must NOT fall through to the error boundary AND must NOT silently
+    // render the empty-state — both were the pre-fix failure modes.
+    expect(screen.queryByTestId('reports-client')).not.toBeInTheDocument();
+  });
+
   it('forwards filter querystrings to the BFF (review #20 I2)', async () => {
     const fetchSpy = vi.fn(async (_input: RequestInfo | URL) =>
       new Response(JSON.stringify({ reports: [] }), {
