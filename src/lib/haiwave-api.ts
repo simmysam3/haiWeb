@@ -439,6 +439,22 @@ export interface HaiwaveClient {
   // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
   getAggregateReport(runId: string): Promise<AggregateReport>;
   getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
+  // ─── Unified reports list (v1.30 PR-7) ───────────────────────────────
+  listReports(query: {
+    tab: 'audit' | 'watcher' | 'phantom_demand';
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+  }): Promise<{
+    reports: Array<{
+      run_id: string;
+      modality: 'audit' | 'watcher' | 'phantom_demand';
+      name: string;
+      completed_at: string | null;
+      status: string;
+      available_formats: Array<'html' | 'csv' | 'pdf'>;
+    }>;
+  }>;
   // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
   listTrustBypassConfigs(): Promise<{ configs: TrustBypassConfig[] }>;
   getTrustBypassAffectedCounterparties(
@@ -1113,6 +1129,24 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         `/sonar/audit/reports/${runId}/company/${vendorId}`,
       );
+    },
+
+    // ─── Unified reports list (v1.30 PR-7) ──────────────────────────────
+    async listReports(query) {
+      const qs = new URLSearchParams({ modality: query.tab });
+      if (query.status) qs.set('status', query.status);
+      if (query.date_from) qs.set('date_from', query.date_from);
+      if (query.date_to) qs.set('date_to', query.date_to);
+      return request<{
+        reports: Array<{
+          run_id: string;
+          modality: 'audit' | 'watcher' | 'phantom_demand';
+          name: string;
+          completed_at: string | null;
+          status: string;
+          available_formats: Array<'html' | 'csv' | 'pdf'>;
+        }>;
+      }>('GET', `/sonar/reports?${qs.toString()}`);
     },
 
     // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
