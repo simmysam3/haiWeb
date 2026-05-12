@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
+import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -11,11 +12,9 @@ interface ScopePickerProps {
   onChange: (next: RunTemplateScope) => void;
 }
 
-const WATCHER_SIGNALS: { value: SignalType; label: string }[] = [
-  { value: 'lead_time_distribution', label: 'Lead time distribution' },
-  { value: 'capacity_utilization_band', label: 'Capacity utilization band' },
-  { value: 'delivery_event', label: 'Latest delivery event' },
-];
+const WATCHER_SIGNALS: { value: SignalType; label: string; tooltip: string }[] = (
+  Object.entries(SIGNAL_TYPE_LABELS) as [SignalType, { label: string; tooltip: string }][]
+).map(([value, meta]) => ({ value, label: meta.label, tooltip: meta.tooltip }));
 
 export function ScopePicker({ observationClass, value, onChange }: ScopePickerProps) {
   if (observationClass === 'audit') {
@@ -181,7 +180,11 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-charcoal">Signal types</legend>
           {WATCHER_SIGNALS.map((s) => (
-            <label key={s.value} className="flex items-center gap-2 text-sm text-charcoal">
+            <label
+              key={s.value}
+              className="flex items-center gap-2 text-sm text-charcoal"
+              title={s.tooltip}
+            >
               <input
                 type="checkbox"
                 checked={selectedSignals.has(s.value)}

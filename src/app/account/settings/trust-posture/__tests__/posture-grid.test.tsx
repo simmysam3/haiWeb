@@ -67,8 +67,9 @@ describe('PostureGrid', () => {
     fireEvent.click(screen.getByLabelText(/watcher posture for trading_pair/i));
     const permissiveRadio = await screen.findByLabelText(/permissive/i);
     fireEvent.click(permissiveRadio);
-    expect(await screen.findByLabelText(/lead_time_distribution/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/capacity_utilization_band/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/delivery_event/i)).toBeInTheDocument();
+    // Labels are human-friendly per signal-type-labels (Prompt 6).
+    expect(await screen.findByLabelText(/lead time distribution/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/capacity utilization band/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/latest delivery event/i)).toBeInTheDocument();
   });
 });

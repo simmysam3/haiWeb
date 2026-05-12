@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import type { ParticipantModalityPosture } from '@haiwave/protocol';
+import type { ParticipantModalityPosture, SignalType } from '@haiwave/protocol';
 import { Drawer, Button } from '@/components';
+import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 
 const MODALITIES = ['audit', 'watcher', 'phantom_demand'] as const;
 const TRUST_CLASSES = ['unknown', 'behavioral_only', 'trading_pair', 'premier_partner'] as const;
 const POSTURES = ['permissive', 'manual', 'opt_out'] as const;
-const WATCHER_SIGNAL_TYPES = ['lead_time_distribution', 'capacity_utilization_band', 'delivery_event'] as const;
+const WATCHER_SIGNAL_TYPES: readonly SignalType[] = ['lead_time_distribution', 'capacity_utilization_band', 'delivery_event'];
 
 type Modality = (typeof MODALITIES)[number];
 type TrustClass = (typeof TRUST_CLASSES)[number];
@@ -218,21 +219,24 @@ function PostureDrawerBody({
             opt OUT of.
           </p>
           <div className="space-y-1">
-            {WATCHER_SIGNAL_TYPES.map((st) => (
-              <label key={st} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={overrides.includes(st)}
-                  onChange={() =>
-                    setOverrides((prev) =>
-                      prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st],
-                    )
-                  }
-                  aria-label={st}
-                />
-                <span className="text-sm text-charcoal">{st}</span>
-              </label>
-            ))}
+            {WATCHER_SIGNAL_TYPES.map((st) => {
+              const meta = SIGNAL_TYPE_LABELS[st];
+              return (
+                <label key={st} className="flex items-center gap-2 cursor-pointer" title={meta.tooltip}>
+                  <input
+                    type="checkbox"
+                    checked={overrides.includes(st)}
+                    onChange={() =>
+                      setOverrides((prev) =>
+                        prev.includes(st) ? prev.filter((x) => x !== st) : [...prev, st],
+                      )
+                    }
+                    aria-label={meta.label}
+                  />
+                  <span className="text-sm text-charcoal">{meta.label}</span>
+                </label>
+              );
+            })}
           </div>
         </fieldset>
       )}

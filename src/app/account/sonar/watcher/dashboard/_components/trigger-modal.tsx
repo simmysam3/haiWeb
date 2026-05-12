@@ -3,29 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { SignalType } from '@haiwave/protocol';
+import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 
 interface TriggerModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const ALL_SIGNALS: { value: SignalType; label: string; description: string }[] = [
-  {
-    value: 'lead_time_distribution',
-    label: 'Lead time distribution',
-    description: 'p50 / p75 / p90 / p95 / p99 over the last 90 days.',
-  },
-  {
-    value: 'capacity_utilization_band',
-    label: 'Capacity utilization band',
-    description: 'Latest reported band: low / moderate / high / at_capacity.',
-  },
-  {
-    value: 'delivery_event',
-    label: 'Latest delivery event',
-    description: 'Most recent shipment status (premier-tier counterparties only).',
-  },
-];
+const ALL_SIGNALS: { value: SignalType; label: string; description: string }[] = (
+  Object.entries(SIGNAL_TYPE_LABELS) as [SignalType, { label: string; tooltip: string }][]
+).map(([value, meta]) => ({ value, label: meta.label, description: meta.tooltip }));
 
 /**
  * Modal for selecting which Watcher signals to fetch. Submitting POSTs to
