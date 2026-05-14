@@ -43,6 +43,18 @@ interface HaiCorePublicProfile {
   categories?: HaiCoreCategory[];
 }
 
+interface HaiCoreBehavioralScore {
+  participant_id: string;
+  // 0-1 scale per protocol spec doc4 §390. Queue card displays on a 0-100
+  // scale ("score / 100"), so we multiply at the BFF.
+  overall_score: number;
+}
+
+function scaleScore(s: number | undefined | null): number | null {
+  if (s == null || Number.isNaN(s)) return null;
+  return Math.round(s * 100);
+}
+
 function ageDays(requestedAt: string): number {
   const ms = Date.now() - new Date(requestedAt).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
@@ -94,14 +106,11 @@ function productLinesFrom(profile: HaiCorePublicProfile | undefined): string[] {
  * GET /api/account/connections
  *
  * Lists pending connection requests from haiCore and enriches each row with
- * the requester's public company profile (parallel fan-out via
- * /company/:id/profile). Profile fetches use Promise.allSettled so a single
- * 404 or 500 doesn't drop the whole queue — that requester just renders
- * with empty subtitle/description fields.
- *
- * behavioral_score is not enriched here (would require a third per-row fetch
- * to /participants/:id/credibility); it stays null and the card shows the
- * "New to Network" treatment.
+ * the requester's public company profile and latest behavioral score
+ * (parallel fan-out via /company/:id/profile + /behavioral/score/:id).
+ * Both fetches use Promise.allSettled so a 404 (e.g. participant has no
+ * score yet) or transient 500 doesn't drop the whole queue — that
+ * requester's row just renders with the missing fields blank/null.
  *
  * Falls back to mock data when haiCore is unreachable.
  */
@@ -110,19 +119,31 @@ export const GET = withHaiCore(
     const rows = (await client.listPendingRequests()) as unknown as HaiCorePendingRow[];
     if (rows.length === 0) return [];
 
-    const profileResults = await Promise.allSettled(
-      rows.map((r) =>
-        r.requesting_participant_id
-          ? (client.getCompanyProfile(r.requesting_participant_id) as unknown as Promise<HaiCorePublicProfile>)
-          : Promise.reject(new Error("missing requesting_participant_id")),
+    const [profileResults, scoreResults] = await Promise.all([
+      Promise.allSettled(
+        rows.map((r) =>
+          r.requesting_participant_id
+            ? (client.getCompanyProfile(r.requesting_participant_id) as unknown as Promise<HaiCorePublicProfile>)
+            : Promise.reject(new Error("missing requesting_participant_id")),
+        ),
       ),
-    );
+      Promise.allSettled(
+        rows.map((r) =>
+          r.requesting_participant_id
+            ? (client.getScore(r.requesting_participant_id) as unknown as Promise<HaiCoreBehavioralScore>)
+            : Promise.reject(new Error("missing requesting_participant_id")),
+        ),
+      ),
+    ]);
 
     return rows.map((r, i) => {
       const requestedAt = r.requested_at ?? new Date().toISOString();
-      const settled = profileResults[i];
+      const profileSettled = profileResults[i];
+      const scoreSettled = scoreResults[i];
       const profile: HaiCorePublicProfile | undefined =
-        settled.status === "fulfilled" ? settled.value : undefined;
+        profileSettled.status === "fulfilled" ? profileSettled.value : undefined;
+      const score: HaiCoreBehavioralScore | undefined =
+        scoreSettled.status === "fulfilled" ? scoreSettled.value : undefined;
 
       return {
         id: r.id,
@@ -134,7 +155,7 @@ export const GET = withHaiCore(
         location: locationFrom(profile?.locality),
         business_type: profile?.business_type ?? "",
         company_description: profile?.vendor_description ?? "",
-        behavioral_score: null,
+        behavioral_score: scaleScore(score?.overall_score),
         product_lines: productLinesFrom(profile),
         region: regionFrom(profile?.locality),
         network_member_since: profile?.registered_at ?? null,
