@@ -1,17 +1,32 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { AuditRunResult, ObservationNode } from '@haiwave/protocol';
+import type { AuditRunResult, ObservationNode, AuditGapKind } from '@haiwave/protocol';
 import { DataTable, type Column, Drawer } from '@/components';
 import { IdChip } from '@/components/id-chip';
 import { TreeView } from './tree-view';
 
 const PAGE_SIZE = 100;
 
+const GAP_KIND_LABEL: Record<AuditGapKind, string> = {
+  non_participant: 'Non-participant',
+  agent_offline: 'Agent offline',
+  unauthorized: 'Unauthorized',
+  depth_limited: 'Depth limit',
+};
+
 function countGaps(node: ObservationNode): number {
   let n = node.gap ? 1 : 0;
   for (const c of node.components) n += countGaps(c);
   return n;
+}
+
+// "Nothing to view" when the root node has a gap and no components — the
+// audit was blocked or pruned at the very top, so opening the drawer would
+// just show an empty tree. Surface the gap reason in place of the action.
+function rootBlockingGap(node: ObservationNode): AuditGapKind | null {
+  if (node.gap && node.components.length === 0) return node.gap.kind;
+  return null;
 }
 
 export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
@@ -96,14 +111,27 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
       label: '',
       align: 'right',
       nowrap: true,
-      render: (r) => (
-        <button
-          onClick={() => setSelected(r.result)}
-          className="text-xs text-teal hover:text-navy"
-        >
-          View tree
-        </button>
-      ),
+      render: (r) => {
+        const blocked = rootBlockingGap(r.result.tree);
+        if (blocked) {
+          return (
+            <span
+              className="rounded bg-[var(--color-problem)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-problem)]"
+              title={`Root audit blocked: ${blocked.replace(/_/g, ' ')}`}
+            >
+              {GAP_KIND_LABEL[blocked]}
+            </span>
+          );
+        }
+        return (
+          <button
+            onClick={() => setSelected(r.result)}
+            className="text-xs text-teal hover:text-navy"
+          >
+            View tree
+          </button>
+        );
+      },
     },
   ];
 
@@ -160,7 +188,14 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
       <Drawer
         open={selected !== null}
         onClose={() => setSelected(null)}
-        title={selected ? `Tree · ${selected.product_id}` : 'Tree'}
+        title={
+          selected
+            ? `Audit tree · ${
+                enriched.find((e) => e.result.result_id === selected.result_id)?.vendorName ||
+                selected.product_id
+              }`
+            : 'Audit tree'
+        }
         width="max-w-2xl"
       >
         {selected && <TreeView node={selected.tree} />}
