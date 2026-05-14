@@ -521,7 +521,7 @@ export function PartnersPanel() {
                           )}
                         </div>
                         <p className="text-xs text-slate mt-0.5">
-                          {req.location} &middot; {req.business_type} &middot; {req.region}
+                          {[req.location, req.business_type, req.region].filter(Boolean).join(" · ")}
                         </p>
                       </div>
                       <div className="flex gap-2 shrink-0">
