@@ -56,7 +56,11 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
               : '—'}
           </p>
         </div>
-        <ManualTriggerButton templateId={template.template_id} enabled={template.enabled} />
+        <ManualTriggerButton
+          templateId={template.template_id}
+          enabled={template.enabled}
+          observationClass={template.observation_class}
+        />
       </header>
 
       <div className="bg-white rounded-xl border border-slate/15 p-6 max-w-2xl">
@@ -66,7 +70,10 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-charcoal">Run history</h2>
-        <TemplateRunHistory templateId={template.template_id} />
+        <TemplateRunHistory
+          templateId={template.template_id}
+          observationClass={template.observation_class}
+        />
       </section>
     </div>
   );

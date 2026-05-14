@@ -16,7 +16,7 @@ describe('TemplateRunHistory', () => {
 
   it('empty state when template has no runs yet', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ runs: [] }), { status: 200 }));
-    render(wrap(<TemplateRunHistory templateId="tA" />));
+    render(wrap(<TemplateRunHistory templateId="tA" observationClass="audit" />));
     await waitFor(() => screen.getByText(/hasn't been triggered yet/i));
   });
 
@@ -37,15 +37,16 @@ describe('TemplateRunHistory', () => {
         { status: 200 },
       ),
     );
-    render(wrap(<TemplateRunHistory templateId="tA" />));
+    render(wrap(<TemplateRunHistory templateId="tA" observationClass="audit" />));
     await waitFor(() => screen.getByText('r1'));
     expect(screen.getByText('complete')).toBeInTheDocument();
-    expect(screen.getByText('template_scheduled')).toBeInTheDocument();
+    // origin label strips the 'template_' prefix and underscores
+    expect(screen.getByText('scheduled')).toBeInTheDocument();
   });
 
   it('renders error message on fetch failure', async () => {
     fetchMock.mockRejectedValueOnce(new Error('Network error'));
-    render(wrap(<TemplateRunHistory templateId="tA" />));
+    render(wrap(<TemplateRunHistory templateId="tA" observationClass="audit" />));
     await waitFor(() => screen.getByText(/failed to load run history/i));
   });
 });
