@@ -32,12 +32,16 @@ function ageLabel(days: number) {
 
 export function PartnersPanel() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") ?? "directory";
+  const tabParam = searchParams.get("tab");
+  // The legacy `?tab=directory` deep link no longer maps to a tab; coerce it to active.
+  const initialTab = tabParam && tabParam !== "directory" ? tabParam : "active";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [directory, setDirectory] = useState<MockDirectoryCompany[]>([]);
   const [requests, setRequests] = useState<MockAccessRequest[]>([]);
   const [partners, setPartners] = useState<MockPartner[]>([]);
-  const [search, setSearch] = useState("");
+  const [topSearch, setTopSearch] = useState("");
+  const [searchScope, setSearchScope] = useState<"mine" | "directory">("mine");
+  const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [connectCompany, setConnectCompany] = useState<MockDirectoryCompany | null>(null);
   const [connectMessage, setConnectMessage] = useState("");
   const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
@@ -237,18 +241,51 @@ export function PartnersPanel() {
     return result;
   }, [requests, queueSearch, queueTypeFilter, queueInviteFilter, queueSort]);
 
-  // ─── Directory ──────────────────────────────────────────────
+  // ─── Top Search (scoped) ────────────────────────────────────
+  // Single search input above the tabs with a segmented scope toggle.
+  // Scope "mine" filters the Active partner list inline; scope "directory"
+  // launches the directory modal so discovery doesn't compete with the
+  // management tabs below.
 
   const filteredDirectory = directory.filter((c) =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry.toLowerCase().includes(search.toLowerCase()) ||
-    c.location.toLowerCase().includes(search.toLowerCase())
+    c.company_name.toLowerCase().includes(topSearch.toLowerCase()) ||
+    c.industry.toLowerCase().includes(topSearch.toLowerCase()) ||
+    c.location.toLowerCase().includes(topSearch.toLowerCase())
   );
+
+  const filteredPartners = useMemo(() => {
+    if (searchScope !== "mine" || !topSearch) return partners;
+    const lower = topSearch.toLowerCase();
+    return partners.filter((p) =>
+      p.company_name.toLowerCase().includes(lower) ||
+      p.location.toLowerCase().includes(lower) ||
+      p.industry.toLowerCase().includes(lower),
+    );
+  }, [partners, topSearch, searchScope]);
+
+  function handleScopeChange(next: "mine" | "directory") {
+    setSearchScope(next);
+    if (next === "directory") {
+      setDirectoryModalOpen(true);
+    } else {
+      setDirectoryModalOpen(false);
+      // Surface the filtered list immediately when the user starts searching their partners.
+      if (topSearch && activeTab !== "active") setActiveTab("active");
+    }
+  }
+
+  function handleTopSearchChange(value: string) {
+    setTopSearch(value);
+    if (searchScope === "directory") {
+      setDirectoryModalOpen(true);
+    } else if (value && activeTab !== "active") {
+      setActiveTab("active");
+    }
+  }
 
   // ─── Tabs ───────────────────────────────────────────────────
 
   const tabs = [
-    { key: "directory", label: "Directory", count: directory.length },
     { key: "queue", label: "Approval Queue", count: requests.length },
     { key: "active", label: "Active", count: partners.length },
     { key: "rules", label: "Rules" },
@@ -352,53 +389,57 @@ export function PartnersPanel() {
         </div>
       )}
 
-      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
-
-      {/* Directory Tab */}
-      {activeTab === "directory" && (
-        <div>
-          <div className="mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, industry, or location..."
-              className="w-full px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {filteredDirectory.map((company) => (
-              <Card key={company.id}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-charcoal">{company.company_name}</p>
-                    <p className="text-xs text-slate mt-0.5">{company.location} &middot; {company.industry}</p>
-                    <p className="text-xs text-slate mt-2">{company.description}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  {company.connection_status === "none" ? (
-                    <Button size="sm" onClick={() => setConnectCompany(company)}>
-                      Request Connection
-                    </Button>
-                  ) : (
-                    <StatusBadge status={company.connection_status} />
-                  )}
-                  {(company.connection_status === "approved" ||
-                    company.connection_status === "trading_pair") && (
-                    <Link
-                      href={`/account/partners/${company.id}/catalog`}
-                      className="text-xs text-teal hover:text-navy font-medium"
-                    >
-                      View Catalog &rarr;
-                    </Link>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
+      {/* Scoped Search Bar */}
+      <div className="mb-5 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <input
+          type="text"
+          value={topSearch}
+          onChange={(e) => handleTopSearchChange(e.target.value)}
+          onFocus={() => {
+            if (searchScope === "directory") setDirectoryModalOpen(true);
+          }}
+          placeholder={
+            searchScope === "mine"
+              ? "Search your partners by name, industry, or location..."
+              : "Search the HAIWAVE directory..."
+          }
+          className="flex-1 px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+        />
+        <div
+          role="radiogroup"
+          aria-label="Search scope"
+          className="inline-flex rounded-lg border border-slate/20 p-0.5 bg-slate/5 self-start sm:self-auto"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={searchScope === "mine"}
+            onClick={() => handleScopeChange("mine")}
+            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+              searchScope === "mine"
+                ? "bg-white shadow-sm text-navy font-medium"
+                : "text-slate hover:text-charcoal"
+            }`}
+          >
+            My partners
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={searchScope === "directory"}
+            onClick={() => handleScopeChange("directory")}
+            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+              searchScope === "directory"
+                ? "bg-white shadow-sm text-navy font-medium"
+                : "text-slate hover:text-charcoal"
+            }`}
+          >
+            Directory
+          </button>
         </div>
-      )}
+      </div>
+
+      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {/* Queue Tab — v1.6 Overhaul */}
       {activeTab === "queue" && (
@@ -569,7 +610,16 @@ export function PartnersPanel() {
       {/* Active Tab */}
       {activeTab === "active" && (
         <div className="bg-white rounded-lg border border-slate/15">
-          <DataTable columns={partnerColumns} data={partners} keyFn={(p) => p.id} emptyMessage="No active partnerships." />
+          <DataTable
+            columns={partnerColumns}
+            data={filteredPartners}
+            keyFn={(p) => p.id}
+            emptyMessage={
+              searchScope === "mine" && topSearch
+                ? `No partners match "${topSearch}".`
+                : "No active partnerships."
+            }
+          />
         </div>
       )}
 
@@ -592,6 +642,62 @@ export function PartnersPanel() {
           industry: profileRequest.industry,
         } : null}
       />
+
+      {/* Directory Modal — discovery for not-yet-connected companies */}
+      <Modal
+        open={directoryModalOpen}
+        onClose={() => setDirectoryModalOpen(false)}
+        title="HAIWAVE Directory"
+        width="max-w-5xl"
+      >
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={topSearch}
+            onChange={(e) => setTopSearch(e.target.value)}
+            placeholder="Search by name, industry, or location..."
+            autoFocus
+            className="w-full px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+          />
+          {filteredDirectory.length === 0 ? (
+            <p className="text-sm text-slate text-center py-8">
+              No companies match {topSearch ? `"${topSearch}"` : "your search"}.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredDirectory.map((company) => (
+                <Card key={company.id}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-charcoal">{company.company_name}</p>
+                      <p className="text-xs text-slate mt-0.5">{company.location} &middot; {company.industry}</p>
+                      <p className="text-xs text-slate mt-2">{company.description}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    {company.connection_status === "none" ? (
+                      <Button size="sm" onClick={() => setConnectCompany(company)}>
+                        Request Connection
+                      </Button>
+                    ) : (
+                      <StatusBadge status={company.connection_status} />
+                    )}
+                    {(company.connection_status === "approved" ||
+                      company.connection_status === "trading_pair") && (
+                      <Link
+                        href={`/account/partners/${company.id}/catalog`}
+                        className="text-xs text-teal hover:text-navy font-medium"
+                      >
+                        View Catalog &rarr;
+                      </Link>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Connect Modal */}
       <Modal open={!!connectCompany} onClose={() => setConnectCompany(null)} title="Request Connection">
