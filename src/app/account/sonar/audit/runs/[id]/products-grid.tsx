@@ -23,7 +23,12 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
     () =>
       results.map((r) => ({
         result: r,
-        vendorName: r.tree.vendor_legal_name ?? r.tree.origin.vendor_name ?? '',
+        // v1.30: audit-specific fields (origin, product_id) moved into the
+        // discriminated payload union. Read them through the audit branch.
+        vendorName:
+          r.tree.vendor_legal_name ??
+          (r.tree.payload.kind === 'audit' ? r.tree.payload.origin.vendor_name : null) ??
+          '',
         countryCount: r.geo_rollup.length,
         gapCount: countGaps(r.tree),
       })),

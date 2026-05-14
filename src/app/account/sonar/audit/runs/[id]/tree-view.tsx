@@ -2,6 +2,16 @@
 import type { ObservationNode } from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
 
+// v1.30: audit-specific fields moved into ObservationNode.payload (a
+// discriminated union by `kind`). For audit-run trees every node should be
+// kind='audit', but defensively narrow before reading audit-only fields so
+// a stray watcher_signal/phantom_demand_response node doesn't crash render.
+function auditPayload(
+  node: ObservationNode,
+): Extract<ObservationNode['payload'], { kind: 'audit' }> | null {
+  return node.payload.kind === 'audit' ? node.payload : null;
+}
+
 export function TreeView({
   node,
   depth = 0,
@@ -10,8 +20,9 @@ export function TreeView({
   depth?: number;
 }) {
   const isParticipant = !!node.participant_id;
-  const vendorName = node.vendor_legal_name ?? node.origin.vendor_name;
-  const country = node.origin.country_of_origin;
+  const audit = auditPayload(node);
+  const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
+  const country = audit?.origin.country_of_origin ?? null;
   const countryLabel =
     !country || country === '<unknown>' ? 'Unknown' : country;
 
@@ -23,7 +34,7 @@ export function TreeView({
             <>
               <Field label="Product">
                 <span className="font-mono text-charcoal">
-                  {node.product_id ?? '—'}
+                  {audit?.product_id ?? '—'}
                 </span>
               </Field>
               <Field label="Vendor">
@@ -36,9 +47,7 @@ export function TreeView({
             </>
           ) : (
             <Field label="Component">
-              <span className="text-charcoal">
-                {node.component_ref ?? '(unknown)'}
-              </span>
+              <span className="text-slate italic">(component)</span>
             </Field>
           )}
           <Field label="Origin">
