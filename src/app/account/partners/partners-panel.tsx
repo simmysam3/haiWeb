@@ -57,34 +57,45 @@ export function PartnersPanel() {
   const [queueTypeFilter, setQueueTypeFilter] = useState<"all" | "approved" | "trading_pair">("all");
   const [queueInviteFilter, setQueueInviteFilter] = useState<"all" | "with_invite" | "without_invite">("all");
 
-  // ─── BFF API Integration (initial load only) ─────────────
-  // Directory loads once — search filtering is done client-side.
-  // After initial load, local state is the source of truth so that
-  // optimistic updates from actions (approve, connect, etc.) persist.
+  // ─── BFF API Integration ─────────────────────────────────
+  // Pending requests + active partners load once on mount; after that, local
+  // state is the source of truth so optimistic updates persist.
+  // The directory is fetched on-demand from the modal (debounced server-side
+  // search) — pre-loading is impractical because haiCore requires q ≥ 2.
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: [], enabled: !initialLoaded });
   const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: [], enabled: !initialLoaded });
   const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: [], enabled: !initialLoaded });
-  // Self-id so we can exclude the logged-in participant from the directory in
-  // the fallback path (the server handler already does this when haiCore is
-  // reachable, but the fallback path doesn't have session context).
-  const profileApi = useApi<{ id?: string }>({ url: '/api/account/profile', fallback: {}, enabled: !initialLoaded });
 
   useEffect(() => {
     if (initialLoaded) return;
-    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading && !profileApi.loading;
+    const allDone = !connectionsApi.loading && !partnersApi.loading;
     if (allDone) {
-      const selfId = profileApi.data?.id;
-      setDirectory(
-        selfId
-          ? directoryApi.data.filter((c) => c.id !== selfId)
-          : directoryApi.data,
-      );
       setRequests(connectionsApi.data);
       setPartners(partnersApi.data);
       setInitialLoaded(true);
     }
-  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, profileApi.data, profileApi.loading, initialLoaded]);
+  }, [connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
+
+  // Directory: debounced query → server fetch when modal is open and q ≥ 2.
+  const [directoryQuery, setDirectoryQuery] = useState("");
+  useEffect(() => {
+    if (!directoryModalOpen) return;
+    const handle = setTimeout(() => setDirectoryQuery(topSearch.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [topSearch, directoryModalOpen]);
+  const canSearchDirectory = directoryModalOpen && directoryQuery.length >= 2;
+  const directorySearchApi = useApi<MockDirectoryCompany[]>({
+    url: `/api/account/directory?q=${encodeURIComponent(directoryQuery)}`,
+    fallback: [],
+    enabled: canSearchDirectory,
+  });
+  // Mirror search results into the local directory state so existing
+  // optimistic-update helpers (updateDirectoryStatus) keep working.
+  useEffect(() => {
+    if (canSearchDirectory && !directorySearchApi.loading) {
+      setDirectory(directorySearchApi.data);
+    }
+  }, [directorySearchApi.data, directorySearchApi.loading, canSearchDirectory]);
 
   // ─── Queue Actions ──────────────────────────────────────────
 
@@ -245,13 +256,8 @@ export function PartnersPanel() {
   // Single search input above the tabs with a segmented scope toggle.
   // Scope "mine" filters the Active partner list inline; scope "directory"
   // launches the directory modal so discovery doesn't compete with the
-  // management tabs below.
-
-  const filteredDirectory = directory.filter((c) =>
-    c.company_name.toLowerCase().includes(topSearch.toLowerCase()) ||
-    c.industry.toLowerCase().includes(topSearch.toLowerCase()) ||
-    c.location.toLowerCase().includes(topSearch.toLowerCase())
-  );
+  // management tabs below. Directory results come from the server (debounced
+  // /api/account/directory fetch), so no client-side filter is needed.
 
   const filteredPartners = useMemo(() => {
     if (searchScope !== "mine" || !topSearch) return partners;
@@ -659,13 +665,19 @@ export function PartnersPanel() {
             autoFocus
             className="w-full px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
           />
-          {filteredDirectory.length === 0 ? (
+          {!canSearchDirectory ? (
             <p className="text-sm text-slate text-center py-8">
-              No companies match {topSearch ? `"${topSearch}"` : "your search"}.
+              Type at least 2 characters to search the HAIWAVE directory.
+            </p>
+          ) : directorySearchApi.loading ? (
+            <p className="text-sm text-slate text-center py-8">Searching…</p>
+          ) : directory.length === 0 ? (
+            <p className="text-sm text-slate text-center py-8">
+              No companies match &ldquo;{directoryQuery}&rdquo;.
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredDirectory.map((company) => (
+              {directory.map((company) => (
                 <Card key={company.id}>
                   <div className="flex items-start justify-between">
                     <div>
