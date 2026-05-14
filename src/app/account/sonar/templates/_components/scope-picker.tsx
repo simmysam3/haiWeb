@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
+import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -22,7 +23,10 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     const auditValue = value.kind === 'audit' ? value : null;
     const authBasis = auditValue?.authorization_basis ?? 'bilateral';
     const depthLimit = auditValue?.depth_limit ?? 1;
-    const hopBudget = 'hop_budget' in (auditValue ?? {}) ? (auditValue as { hop_budget?: number }).hop_budget ?? 5 : 5;
+    // hop_budget is system-managed (see system-config.ts) — preserve any existing
+    // value on edit but never expose it as a form field. Falls back to the
+    // system default for fresh templates.
+    const hopBudget = 'hop_budget' in (auditValue ?? {}) ? (auditValue as { hop_budget?: number }).hop_budget ?? SYSTEM_AUDIT_HOP_BUDGET : SYSTEM_AUDIT_HOP_BUDGET;
 
     return (
       <div className="space-y-3">
@@ -112,36 +116,6 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
                     skus: auditValue && 'skus' in auditValue ? auditValue.skus : [],
                     depth_limit: n,
                     hop_budget: hopBudget,
-                  },
-            )
-          }
-        />
-        <NumberField
-          label="Hop budget"
-          value={hopBudget}
-          min={1}
-          max={50}
-          onChange={(n) =>
-            onChange(
-              authBasis === 'key_scoped'
-                ? {
-                    kind: 'audit',
-                    authorization_basis: 'key_scoped',
-                    provenance_key_id:
-                      auditValue && 'provenance_key_id' in auditValue
-                        ? auditValue.provenance_key_id
-                        : '',
-                    depth_limit: depthLimit,
-                    hop_budget: n,
-                  }
-                : {
-                    kind: 'audit',
-                    authorization_basis: 'bilateral',
-                    counterparties: auditValue && 'counterparties' in auditValue ? auditValue.counterparties : [],
-                    signal_types: auditValue && 'signal_types' in auditValue ? auditValue.signal_types : [],
-                    skus: auditValue && 'skus' in auditValue ? auditValue.skus : [],
-                    depth_limit: depthLimit,
-                    hop_budget: n,
                   },
             )
           }

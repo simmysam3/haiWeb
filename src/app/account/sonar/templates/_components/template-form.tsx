@@ -10,6 +10,7 @@ import type {
 } from '@haiwave/protocol';
 import { CadencePicker } from './cadence-picker';
 import { ScopePicker } from './scope-picker';
+import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -29,7 +30,7 @@ function emptyScope(observationClass: ObservationClass): RunTemplateScope {
       signal_types: [],
       skus: [],
       depth_limit: 1,
-      hop_budget: 5,
+      hop_budget: SYSTEM_AUDIT_HOP_BUDGET,
     };
   }
   if (observationClass === 'watcher') {
