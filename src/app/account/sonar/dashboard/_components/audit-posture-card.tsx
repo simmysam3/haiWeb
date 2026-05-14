@@ -17,7 +17,15 @@ export function AuditPostureCard({ totalCompliant, totalNonCompliant, totalParti
         </Link>
       </div>
       {total === 0 ? (
-        <p className="text-sm text-slate italic">No runs yet — visit /audit to start.</p>
+        <p className="text-sm text-slate italic">
+          No runs yet —{' '}
+          <Link
+            href="/account/sonar/templates/new?observation_class=audit"
+            className="not-italic text-teal hover:underline"
+          >
+            start your first audit →
+          </Link>
+        </p>
       ) : (
         <dl className="grid grid-cols-3 gap-2 text-sm">
           <div>
