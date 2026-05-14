@@ -9,46 +9,58 @@ import { MOCK_ACCESS_REQUESTS } from "@/lib/mock-data";
  *
  * Lists pending connection requests from haiCore. Falls back to mock data.
  */
+interface HaiCorePendingRow {
+  id: string;
+  requesting_participant_id?: string;
+  requesting_name?: string;
+  requested_level?: "approved" | "trading_pair";
+  invite?: boolean;
+  context_message?: string | null;
+  requested_at?: string;
+}
+
+function ageDays(requestedAt: string): number {
+  const ms = Date.now() - new Date(requestedAt).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * GET /api/account/connections
+ *
+ * Lists pending connection requests from haiCore. Maps haiCore's
+ * {requesting_name, context_message, requested_level, ...} shape onto the
+ * flatter MockAccessRequest the UI consumes. haiCore doesn't currently return
+ * the rich profile fields the queue card displays (industry, behavioral_score,
+ * product_lines); those degrade gracefully to empty values until profile
+ * enrichment is added to /connections/pending.
+ *
+ * Falls back to mock data when haiCore is unreachable.
+ */
 export const GET = withHaiCore(
   async ({ client }) => {
-    const result = (await client.listPendingRequests()) as unknown as Array<{
-      id: string;
-      company_name?: string;
-      contact_name?: string;
-      message?: string;
-      requested_at?: string;
-      industry?: string;
-      location?: string;
-      business_type?: string;
-      company_description?: string;
-      behavioral_score?: number | null;
-      product_lines?: string[];
-      region?: string;
-      network_member_since?: string | null;
-      request_type?: "approved" | "trading_pair";
-      invite?: boolean;
-      age_days?: number;
-    }>;
+    const rows = (await client.listPendingRequests()) as unknown as HaiCorePendingRow[];
 
-    // Map haiCore response to the shape the UI expects (MockAccessRequest)
-    return result.map((r) => ({
-      id: r.id,
-      company_name: r.company_name ?? "",
-      contact_name: r.contact_name ?? "",
-      message: r.message ?? "",
-      requested_at: r.requested_at ?? new Date().toISOString(),
-      industry: r.industry ?? "",
-      location: r.location ?? "",
-      business_type: r.business_type ?? "",
-      company_description: r.company_description ?? "",
-      behavioral_score: r.behavioral_score ?? null,
-      product_lines: r.product_lines ?? [],
-      region: r.region ?? "",
-      network_member_since: r.network_member_since ?? null,
-      request_type: r.request_type ?? "approved",
-      invite: r.invite ?? false,
-      age_days: r.age_days ?? 0,
-    }));
+    return rows.map((r) => {
+      const requestedAt = r.requested_at ?? new Date().toISOString();
+      return {
+        id: r.id,
+        company_name: r.requesting_name ?? "Unknown participant",
+        contact_name: "",
+        message: r.context_message ?? "",
+        requested_at: requestedAt,
+        industry: "",
+        location: "",
+        business_type: "",
+        company_description: "",
+        behavioral_score: null,
+        product_lines: [],
+        region: "",
+        network_member_since: null,
+        request_type: r.requested_level ?? "approved",
+        invite: r.invite ?? false,
+        age_days: ageDays(requestedAt),
+      };
+    });
   },
   { fallback: MOCK_ACCESS_REQUESTS },
 );
