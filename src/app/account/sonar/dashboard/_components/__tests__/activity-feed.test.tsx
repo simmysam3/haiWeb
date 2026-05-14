@@ -28,16 +28,22 @@ describe('ActivityFeed', () => {
           run_id: 'a1',
           modality: 'audit' as const,
           status: 'complete',
+          title: 'Apex Q1 Compliance Audit',
+          summary: '5 products · 2 vendors · depth 2',
+          outcome: '3 gaps',
           triggered_at: '2026-05-09T03:00:00Z',
           completed_at: '2026-05-09T03:01:00Z',
-          run_origin: 'ad_hoc',
+          duration_seconds: 60,
+          run_origin: 'template_scheduled',
           detail_href: '/account/sonar/audit/runs/a1',
         },
       ],
     };
     render(wrap(<ActivityFeed initial={initial} />));
-    expect(screen.getByText(/audit/i)).toBeInTheDocument();
+    expect(screen.getByText('Apex Q1 Compliance Audit')).toBeInTheDocument();
+    expect(screen.getByText('5 products · 2 vendors · depth 2')).toBeInTheDocument();
     expect(screen.getByText('complete')).toBeInTheDocument();
+    expect(screen.getByText('3 gaps')).toBeInTheDocument();
   });
 
   it('renders error state when fetch fails', async () => {
@@ -53,8 +59,12 @@ describe('ActivityFeed', () => {
           run_id: 'a1',
           modality: 'audit' as const,
           status: 'complete',
+          title: 'Ad hoc Audit',
+          summary: '',
+          outcome: null,
           triggered_at: 'not-a-date',
           completed_at: null,
+          duration_seconds: null,
           run_origin: 'ad_hoc',
           detail_href: '/account/sonar/audit/runs/a1',
         },

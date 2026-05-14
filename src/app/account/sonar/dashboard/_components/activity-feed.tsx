@@ -10,8 +10,12 @@ interface ActivityEvent {
   run_id: string;
   modality: Modality;
   status: string;
+  title: string;
+  summary: string;
+  outcome: string | null;
   triggered_at: string;
   completed_at: string | null;
+  duration_seconds: number | null;
   run_origin: string;
   detail_href: string;
 }
@@ -30,6 +34,33 @@ const MODALITY_LABEL: Record<Modality, string> = {
   phantom_demand: 'Phantom Demand',
 };
 
+const MODALITY_TONE: Record<Modality, string> = {
+  audit: 'bg-indigo-100 text-indigo-900',
+  watcher: 'bg-teal/10 text-teal-dark',
+  phantom_demand: 'bg-amber-100 text-amber-900',
+};
+
+function statusTone(status: string): string {
+  switch (status) {
+    case 'complete':
+    case 'completed':
+    case 'succeeded':
+      return 'bg-emerald-100 text-emerald-800';
+    case 'running':
+    case 'in_progress':
+      return 'bg-sky-100 text-sky-800';
+    case 'throttled':
+    case 'partial':
+      return 'bg-amber-100 text-amber-800';
+    case 'failed':
+    case 'cancelled':
+    case 'canceled':
+      return 'bg-rose-100 text-rose-800';
+    default:
+      return 'bg-slate-100 text-slate-800';
+  }
+}
+
 function formatRelative(iso: string): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return 'unknown time';
@@ -41,6 +72,23 @@ function formatRelative(iso: string): string {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   return `${d}d ago`;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) {
+    const s = seconds - m * 60;
+    return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  }
+  const h = Math.floor(m / 60);
+  const remM = m - h * 60;
+  return remM === 0 ? `${h}h` : `${h}h ${remM}m`;
+}
+
+function originLabel(origin: string): string | null {
+  if (origin === 'ad_hoc') return null;
+  return origin.replace(/^template_/, '').replace(/_/g, ' ');
 }
 
 export function ActivityFeed({ initial }: Props) {
@@ -75,25 +123,59 @@ export function ActivityFeed({ initial }: Props) {
         Recent activity
       </h2>
       <ul className="divide-y divide-slate-100">
-        {events.map((e) => (
-          <li key={`${e.modality}-${e.run_id}`} className="flex items-center justify-between px-4 py-2 text-sm">
-            <div className="flex items-center gap-3">
-              <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-charcoal">
-                {MODALITY_LABEL[e.modality]}
-              </span>
-              <span className="text-xs text-slate">{e.status}</span>
-              {e.run_origin !== 'ad_hoc' && (
-                <span className="text-xs text-teal">{e.run_origin}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-xs text-slate">
-              <span>{formatRelative(e.triggered_at)}</span>
-              <Link href={e.detail_href} className="text-teal hover:underline">
-                Open →
-              </Link>
-            </div>
-          </li>
-        ))}
+        {events.map((e) => {
+          const origin = originLabel(e.run_origin);
+          return (
+            <li
+              key={`${e.modality}-${e.run_id}`}
+              className="px-4 py-3 text-sm hover:bg-slate-50/50 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${MODALITY_TONE[e.modality]}`}
+                    >
+                      {MODALITY_LABEL[e.modality]}
+                    </span>
+                    <span className="truncate font-medium text-charcoal">{e.title}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(e.status)}`}
+                    >
+                      {e.status}
+                    </span>
+                    {e.outcome && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-charcoal">
+                        {e.outcome}
+                      </span>
+                    )}
+                    {origin && (
+                      <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate">
+                        {origin}
+                      </span>
+                    )}
+                  </div>
+                  {e.summary && (
+                    <p className="mt-1 truncate text-xs text-slate">{e.summary}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate">
+                  <span title={new Date(e.triggered_at).toLocaleString()}>
+                    {formatRelative(e.triggered_at)}
+                  </span>
+                  {e.duration_seconds !== null && (
+                    <span className="text-slate-500">
+                      ran {formatDuration(e.duration_seconds)}
+                    </span>
+                  )}
+                  <Link href={e.detail_href} className="text-teal hover:underline">
+                    Open →
+                  </Link>
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
