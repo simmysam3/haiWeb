@@ -20,3 +20,4 @@ export type { PricingNode } from "./pricing-tree";
 export { PricingLevelEditor } from "./pricing-level-editor";
 export * from './drawer';
 export { IdChip } from './id-chip';
+export { FormError } from './form-error';
