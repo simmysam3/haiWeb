@@ -84,4 +84,21 @@ describe('TemplateForm — create mode', () => {
     expect(screen.getByText(/Counterparty/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Hypothetical Quantity/)).toBeInTheDocument();
   });
+
+  it('renders the scope picker after the Enabled/Retention controls (D8)', () => {
+    render(<TemplateForm defaultObservationClass="audit" />);
+    const html = document.body.innerHTML;
+    expect(html.indexOf('Enabled')).toBeGreaterThan(-1);
+    expect(html.indexOf('Audit scope')).toBeGreaterThan(html.indexOf('Enabled'));
+  });
+
+  it('disables Create for phantom_demand until counterparty AND >=1 sku are set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('[]', { status: 200 })),
+    );
+    render(<TemplateForm defaultObservationClass="phantom_demand" />);
+    await userEvent.type(screen.getByLabelText(/template name/i), 'pd-1');
+    expect(screen.getByRole('button', { name: /create template/i })).toBeDisabled();
+  });
 });

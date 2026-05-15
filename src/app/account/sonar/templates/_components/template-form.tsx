@@ -174,6 +174,12 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
     }
   }
 
+  const pdIncomplete =
+    !isEdit &&
+    observationClass === 'phantom_demand' &&
+    scope.kind === 'phantom_demand' &&
+    (scope.counterparty.length === 0 || scope.skus.length === 0);
+
   return (
     <div className="space-y-6">
       <label className="block text-sm text-charcoal">
@@ -206,14 +212,6 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
 
       <CadencePicker value={cadence} onChange={setCadence} />
 
-      {!isEdit && (
-        <ScopePicker
-          observationClass={observationClass}
-          value={scope}
-          onChange={setScope}
-        />
-      )}
-
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
@@ -239,13 +237,21 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
         </label>
       </div>
 
+      {!isEdit && (
+        <ScopePicker
+          observationClass={observationClass}
+          value={scope}
+          onChange={setScope}
+        />
+      )}
+
       {error && <FormError message={error} sessionExpired={sessionExpired} />}
 
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={submit}
-          disabled={busy || name.length === 0}
+          disabled={busy || name.length === 0 || pdIncomplete}
           className="rounded bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
         >
           {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}
