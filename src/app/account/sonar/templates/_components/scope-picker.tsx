@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
+import { PhantomDemandScopeFields } from './phantom-demand-scope-fields';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -190,94 +191,19 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     );
   }
 
-  // phantom_demand branch
-  const pdValue = value.kind === 'phantom_demand' ? value : null;
-
-  return (
-    <div className="space-y-4">
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Counterparty</span>
-        <input
-          type="text"
-          aria-label="Counterparty"
-          value={pdValue?.counterparty ?? ''}
-          placeholder="Counterparty participant ID"
-          onChange={(e) =>
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: e.target.value,
-              skus: pdValue?.skus ?? [],
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-            })
-          }
-          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
-        />
-      </label>
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">SKUs</span>
-        <input
-          type="text"
-          aria-label="SKUs"
-          value={pdValue?.skus?.join(', ') ?? ''}
-          placeholder="SKU IDs (comma-separated)"
-          onChange={(e) => {
-            const skus = e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean);
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: pdValue?.counterparty ?? '',
-              skus,
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-            });
-          }}
-          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
-        />
-        <span className="text-xs text-slate">Comma-separated SKU IDs</span>
-      </label>
-      <NumberField
-        label="Hypothetical Quantity"
-        value={pdValue?.hypothetical_quantity ?? 1}
-        min={1}
-        max={999999}
-        onChange={(hypothetical_quantity) =>
-          onChange({
-            kind: 'phantom_demand',
-            authorization_basis: 'bilateral',
-            counterparty: pdValue?.counterparty ?? '',
-            skus: pdValue?.skus ?? [],
-            hypothetical_quantity,
-            hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-          })
-        }
-      />
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Hypothetical Timeline</span>
-        <input
-          type="datetime-local"
-          aria-label="Hypothetical Timeline"
-          value={pdValue?.hypothetical_timeline ?? ''}
-          onChange={(e) =>
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: pdValue?.counterparty ?? '',
-              skus: pdValue?.skus ?? [],
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: e.target.value || null,
-            })
-          }
-          className="rounded border border-slate-300 px-2 py-1 text-sm"
-        />
-        <span className="text-xs text-slate">Empty = as soon as possible</span>
-      </label>
-    </div>
-  );
+  // phantom_demand branch — delegated to a dedicated component (v1.31).
+  const pdValue: Extract<RunTemplateScope, { kind: 'phantom_demand' }> =
+    value.kind === 'phantom_demand'
+      ? value
+      : {
+          kind: 'phantom_demand',
+          authorization_basis: 'bilateral',
+          counterparty: '',
+          skus: [],
+          hypothetical_quantity: 1,
+          hypothetical_timeline: null,
+        };
+  return <PhantomDemandScopeFields value={pdValue} onChange={onChange} />;
 }
 
 function NumberField({
