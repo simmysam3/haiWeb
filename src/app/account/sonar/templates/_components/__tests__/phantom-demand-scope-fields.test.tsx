@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhantomDemandScopeFields } from '../phantom-demand-scope-fields';
 
@@ -33,12 +33,12 @@ describe('PhantomDemandScopeFields', () => {
     expect(screen.queryByText(/hypothetical timeline/i)).not.toBeInTheDocument();
   });
 
-  it('emits quantity changes preserving scope shape', async () => {
+  it('emits quantity changes preserving scope shape', () => {
     const onChange = vi.fn();
     render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
-    const qty = screen.getByLabelText(/hypothetical quantity/i);
-    await userEvent.clear(qty);
-    await userEvent.type(qty, '250');
+    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+      target: { value: '250' },
+    });
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'phantom_demand', hypothetical_quantity: 250 }),
     );

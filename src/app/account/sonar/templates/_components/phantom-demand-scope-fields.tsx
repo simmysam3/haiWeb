@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { CounterpartyPicker } from './counterparty-picker';
 import { PartnerSkuPicker } from './partner-sku-picker';
@@ -13,8 +12,6 @@ interface Props {
 }
 
 export function PhantomDemandScopeFields({ value, onChange }: Props) {
-  const [qtyInput, setQtyInput] = useState<string>(String(value.hypothetical_quantity));
-
   return (
     <div className="space-y-4">
       <label className="block text-sm text-charcoal">
@@ -23,9 +20,8 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
           type="number"
           aria-label="Hypothetical Quantity"
           min={1}
-          value={qtyInput}
+          value={value.hypothetical_quantity}
           onChange={(e) => {
-            setQtyInput(e.target.value);
             const n = Number.parseInt(e.target.value, 10);
             if (Number.isFinite(n)) onChange({ ...value, hypothetical_quantity: n });
           }}
