@@ -23,6 +23,7 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
+  const [addNotice, setAddNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!counterpartyId) {
@@ -33,6 +34,8 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setProducts([]);
+    setTotal(0);
     (async () => {
       try {
         const res = await fetch(
@@ -78,11 +81,17 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
 
   function addDraft() {
     const trimmed = draft.trim();
-    if (!trimmed || selectedSet.has(trimmed)) {
+    if (!trimmed) {
+      setDraft('');
+      return;
+    }
+    if (selectedSet.has(trimmed)) {
+      setAddNotice('Already selected.');
       setDraft('');
       return;
     }
     onChange([...value, trimmed]);
+    setAddNotice(null);
     setDraft('');
   }
 
@@ -132,7 +141,7 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
               No matching products. Add a SKU by id below.
             </p>
           ) : (
-            <ul className="border border-slate/20 rounded-lg divide-y divide-slate/10 max-h-60 overflow-y-auto">
+            <ul aria-label="Partner catalog" className="border border-slate/20 rounded-lg divide-y divide-slate/10 max-h-60 overflow-y-auto">
               {filtered.map((p) => {
                 const checked = selectedSet.has(p.external_product_id);
                 return (
@@ -140,7 +149,6 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
                     <input
                       id={`sku-${p.external_product_id}`}
                       type="checkbox"
-                      aria-label={p.external_product_id}
                       checked={checked}
                       onChange={() => toggle(p.external_product_id)}
                       className="h-4 w-4 accent-teal"
@@ -163,7 +171,7 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
         <input
           type="text"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => { setDraft(e.target.value); setAddNotice(null); }}
           aria-label="SKU I have in mind"
           placeholder="SKU I have in mind…"
           className="flex-1 px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
@@ -176,6 +184,7 @@ export function PartnerSkuPicker({ counterpartyId, value, onChange }: Props) {
           Add
         </button>
       </div>
+      {addNotice && <p className="text-xs text-problem">{addNotice}</p>}
     </div>
   );
 }

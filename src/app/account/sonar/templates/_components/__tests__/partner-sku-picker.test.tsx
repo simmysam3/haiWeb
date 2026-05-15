@@ -70,4 +70,16 @@ describe('PartnerSkuPicker', () => {
     await userEvent.click(screen.getByRole('button', { name: /remove X-1/i }));
     expect(onChange).toHaveBeenCalledWith(['AC-LENS-2200']);
   });
+
+  it('shows an "Already selected" notice on a duplicate free-text add', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [], total: 0 }), { status: 200 }),
+    );
+    const onChange = vi.fn();
+    render(<PartnerSkuPicker counterpartyId="p1" value={['DUP-1']} onChange={onChange} />);
+    await userEvent.type(screen.getByPlaceholderText(/sku i have in mind/i), 'DUP-1');
+    await userEvent.click(screen.getByRole('button', { name: /add/i }));
+    expect(screen.getByText(/already selected/i)).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
