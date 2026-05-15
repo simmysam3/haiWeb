@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 interface PartnerRow {
   id: string;
   company_name: string;
-  status: string;
+  status: 'trading_pair' | 'approved' | (string & {});
   industry?: string;
   location?: string;
 }
@@ -74,6 +74,7 @@ export function CounterpartyPicker({ value, onChange }: Props) {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        aria-label="Search trading partners"
         placeholder="Search trading partners…"
         className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
       />
@@ -87,6 +88,7 @@ export function CounterpartyPicker({ value, onChange }: Props) {
               <li key={p.id}>
                 <button
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => onChange(p.id)}
                   className={`w-full text-left px-4 py-3 transition-colors ${
                     selected ? 'bg-teal/10' : 'hover:bg-light-gray'
@@ -94,7 +96,7 @@ export function CounterpartyPicker({ value, onChange }: Props) {
                 >
                   <p className="text-sm font-medium text-charcoal">
                     {p.company_name}
-                    {selected && <span className="ml-2 text-teal">✓</span>}
+                    {selected && <span aria-hidden="true" className="ml-2 text-teal">✓</span>}
                   </p>
                   <p className="text-xs text-slate">
                     {[p.industry, p.location, p.status].filter(Boolean).join(' · ')}

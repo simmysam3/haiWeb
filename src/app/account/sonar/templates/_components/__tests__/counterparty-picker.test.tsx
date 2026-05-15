@@ -52,4 +52,10 @@ describe('CounterpartyPicker', () => {
     render(<CounterpartyPicker value="" onChange={vi.fn()} />);
     expect(await screen.findByText(/no trading pairs/i)).toBeInTheDocument();
   });
+
+  it('shows an error banner when the fetch fails', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    render(<CounterpartyPicker value="" onChange={vi.fn()} />);
+    expect(await screen.findByText(/couldn't load/i)).toBeInTheDocument();
+  });
 });
