@@ -174,6 +174,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
     }
   }
 
+  // Edit mode never gates on scope (scope is read-only on PATCH).
   const pdIncomplete =
     !isEdit &&
     observationClass === 'phantom_demand' &&
