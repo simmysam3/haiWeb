@@ -30,7 +30,10 @@ interface WatcherPerPartner {
 
 async function loadAudit(client: {
   listAuditRuns: (opts?: { status?: string; limit?: number }) => Promise<{ runs: AuditRun[] }>;
-  fetchRaw: (path: string, init?: RequestInit) => Promise<Response>;
+  getAuditRunResults: (
+    runId: string,
+    opts?: { vendorId?: string; productId?: string },
+  ) => Promise<{ results: AuditRunResult[] }>;
 }): Promise<{
   perVendor: Map<string, PartnerAuditWeight>;
   resultsByVendor: Map<string, { compliant: number; partial: number; non_compliant: number; total: number }>;
@@ -39,13 +42,10 @@ async function loadAudit(client: {
   const latest = runs[0];
   if (!latest) return { perVendor: new Map(), resultsByVendor: new Map() };
 
-  // Try the canonical path first; fallback to alt path used by the existing implementation if 404.
-  let resultsRes = await client.fetchRaw(`/sonar/audit/runs/${latest.run_id}/results`);
-  if (!resultsRes.ok) {
-    resultsRes = await client.fetchRaw(`/audit/runs/${latest.run_id}/results`);
-  }
-  if (!resultsRes.ok) return { perVendor: new Map(), resultsByVendor: new Map() };
-  const { results } = (await resultsRes.json()) as { results: AuditRunResult[] };
+  // Canonical typed accessor — hits /source-audit/runs/:id/results (the only
+  // path haiCore actually registers; the previous hand-rolled /sonar/audit
+  // and /audit prefixes 404'd, so audit posture was permanently empty).
+  const { results } = await client.getAuditRunResults(latest.run_id);
 
   const perVendor = buildPerPartnerAuditWeights(latest, results);
   const resultsByVendor = new Map<string, { compliant: number; partial: number; non_compliant: number; total: number }>();
