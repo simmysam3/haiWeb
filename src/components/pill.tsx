@@ -51,9 +51,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     critical: 'Risk score critically high; immediate attention warranted.',
   },
   throttle: {
-    throttled: 'The run paused because its hop budget was exhausted; it resumes automatically on the next tick.',
+    throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
 };
+
+const _warnedKeys = new Set<string>();
 
 const TITLE_CASE = (v: string) =>
   v.charAt(0).toUpperCase() + v.slice(1).replace(/_/g, ' ');
@@ -81,7 +83,7 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
 
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
   const v = value ?? '';
-  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical'].includes(v)) return 'problem';
+  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed'].includes(v)) return 'problem';
   if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled'].includes(v)) return 'warn';
   if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal'].includes(v)) return 'success';
   if (category === 'resolution_class' && v === 'agentic_eligible') return 'info';
@@ -104,7 +106,11 @@ export function Pill({
     definition ?? (category && value ? PILL_DEFINITIONS[category]?.[value] : undefined);
 
   if (process.env.NODE_ENV !== 'production' && !resolved) {
-    console.warn('[Pill] no definition resolved', { category, value });
+    const warnKey = `${category}:${value}`;
+    if (!_warnedKeys.has(warnKey)) {
+      _warnedKeys.add(warnKey);
+      console.warn('[Pill] no definition resolved', { category, value });
+    }
   }
 
   const body = [resolved ?? '', detail ? `Reason: ${detail}` : '']
@@ -122,6 +128,9 @@ export function Pill({
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
+      // If tooltip content ever becomes interactive (links/buttons), replace this
+      // with a relatedTarget containment check so focus moving into the tooltip
+      // doesn't dismiss it.
       onBlur={() => setOpen(false)}
       onKeyDown={(e) => {
         if (e.key === 'Escape') setOpen(false);
