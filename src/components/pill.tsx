@@ -42,9 +42,9 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     procurement_read_only: 'Procurement role with read-only access.',
     buyer_view_only: 'Buyer role with view-only access.',
     inside_sales_read_only: 'Inside sales role with read-only access.',
-    processed: 'Processed successfully.',
-    quoted: 'A quote has been issued.',
-    accepted: 'Accepted.',
+    processed: 'The transaction has been processed and recorded.',
+    quoted: 'A quote has been issued to the requesting party.',
+    accepted: 'The order or quote has been accepted by the counterparty.',
   },
   resolution_class: {
     agentic_eligible: 'The gap can be resolved agent-to-agent on the HAIWAVE network.',
