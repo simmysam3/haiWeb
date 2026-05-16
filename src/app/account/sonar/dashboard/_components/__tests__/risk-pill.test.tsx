@@ -12,4 +12,13 @@ describe('RiskPill', () => {
     );
     expect(tip).toHaveTextContent(/critically high/i);
   });
+
+  it.each([
+    ['green', 'normal'],
+    ['yellow', 'elevated'],
+    ['red', 'critical'],
+  ] as const)('renders the %s/%s label', (color, label) => {
+    render(<RiskPill color={color} label={label} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
 });
