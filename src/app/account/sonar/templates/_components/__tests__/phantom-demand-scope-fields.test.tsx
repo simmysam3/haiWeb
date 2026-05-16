@@ -57,4 +57,43 @@ describe('PhantomDemandScopeFields', () => {
       expect.objectContaining({ counterparty: 'cp-1', skus: [] }),
     );
   });
+
+  it('emits an ISO-8601 hypothetical_timeline from the datetime-local input', () => {
+    const onChange = vi.fn();
+    render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText(/target delivery date/i), {
+      target: { value: '2026-06-30T14:30' },
+    });
+    const emitted = onChange.mock.lastCall?.[0].hypothetical_timeline as string;
+    expect(emitted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/);
+    expect(Number.isFinite(Date.parse(emitted))).toBe(true);
+  });
+
+  it('clearing the date emits null', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_timeline: '2026-06-30T14:30:00.000Z' }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/target delivery date/i), {
+      target: { value: '' },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ hypothetical_timeline: null }),
+    );
+  });
+
+  it('round-trips a stored ISO into the datetime-local input', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_timeline: '2026-06-30T14:30:00.000Z' }}
+        onChange={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText(/target delivery date/i) as HTMLInputElement;
+    expect(input.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+    expect(input.value).not.toBe('');
+  });
 });

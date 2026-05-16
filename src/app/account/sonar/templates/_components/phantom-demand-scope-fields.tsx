@@ -11,6 +11,30 @@ interface Props {
   onChange: (next: PdScope) => void;
 }
 
+/** Convert a datetime-local string (YYYY-MM-DDTHH:mm) to a full ISO-8601 string.
+ *  Returns null if the input is empty or not a valid date. */
+function toIso(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/** Convert a stored ISO-8601 string back to the YYYY-MM-DDTHH:mm format
+ *  required by datetime-local inputs. Uses local date/time components to
+ *  match what the browser would display, avoiding UTC-offset display drift. */
+function toLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+}
+
 export function PhantomDemandScopeFields({ value, onChange }: Props) {
   return (
     <div className="space-y-4">
@@ -34,9 +58,9 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
         <input
           type="datetime-local"
           aria-label="Target Delivery Date"
-          value={value.hypothetical_timeline ?? ''}
+          value={toLocalInput(value.hypothetical_timeline)}
           onChange={(e) =>
-            onChange({ ...value, hypothetical_timeline: e.target.value || null })
+            onChange({ ...value, hypothetical_timeline: toIso(e.target.value) })
           }
           className="rounded border border-slate-300 px-2 py-1 text-sm"
         />
