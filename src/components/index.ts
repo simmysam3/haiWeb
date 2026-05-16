@@ -4,6 +4,8 @@ export { Card } from "./card";
 export { Panel } from "./panel";
 export { StatCard } from "./stat-card";
 export { StatusBadge } from "./status-badge";
+export { Pill } from "./pill";
+export type { PillProps } from "./pill";
 export { DataTable } from "./data-table";
 export type { Column } from "./data-table";
 export { Modal } from "./modal";
