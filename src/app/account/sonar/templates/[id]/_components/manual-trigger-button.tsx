@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { mutate } from 'swr';
+import { describeApiError } from '@/lib/api-error';
+import { FormError } from '@/components';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -37,19 +39,23 @@ export function ManualTriggerButton({
 }: ManualTriggerButtonProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [last, setLast] = useState<TriggerSuccess | null>(null);
   const router = useRouter();
 
   async function trigger() {
     setBusy(true);
     setError(null);
+    setSessionExpired(false);
     try {
       const res = await fetch(
         `/api/account/sonar/templates/${templateId}/trigger`,
         { method: 'POST' },
       );
       if (!res.ok) {
-        setError(`Trigger failed (${res.status})`);
+        const info = await describeApiError(res);
+        setError(info.message);
+        setSessionExpired(info.sessionExpired);
         return;
       }
       const body = (await res.json().catch(() => ({}))) as { run_id?: string };
@@ -61,6 +67,8 @@ export function ManualTriggerButton({
       void mutate(`/api/account/sonar/templates/${templateId}/runs`);
       // Refresh the page-level data (last_run_at on the template header).
       router.refresh();
+    } catch {
+      setError('Network error — could not reach the server. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -78,8 +86,8 @@ export function ManualTriggerButton({
         >
           {busy ? 'Triggering…' : 'Run now'}
         </button>
-        {error && <span className="text-xs text-rose-600">{error}</span>}
       </div>
+      {error && <FormError message={error} sessionExpired={sessionExpired} />}
       {last && !error && (
         <div className="flex items-center gap-2 text-xs">
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
