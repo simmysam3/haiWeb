@@ -5,6 +5,7 @@ import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { RollupPanel } from './rollup-panel';
 import { ProductsGrid } from './products-grid';
 import { RunControls } from './run-controls';
+import { RunFailureBanner } from './run-failure-banner';
 import { ThrottledStatusPill } from '@/components/sonar/throttled-status-pill';
 import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
@@ -95,6 +96,12 @@ export default async function RunDetailPage({
           )}
         </div>
       </header>
+
+      <RunFailureBanner
+        status={data.run.status}
+        errorMessage={data.run.error_message}
+        resultsCount={data.results.length}
+      />
 
       {data.resultsError && (
         <div
