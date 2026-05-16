@@ -1,16 +1,16 @@
 import type { ResolutionStatus } from '@/lib/haiwave-api';
+import { Pill } from '@/components/pill';
 
-const STYLES: Record<ResolutionStatus, { label: string; cls: string }> = {
-  compliant:           { label: 'Compliant',           cls: 'bg-teal/10 text-teal' },
-  partially_compliant: { label: 'Partially compliant', cls: 'bg-orange/10 text-orange' },
-  non_compliant:       { label: 'Non-compliant',       cls: 'bg-problem/10 text-problem' },
+const LABELS: Record<ResolutionStatus, string> = {
+  compliant: 'Compliant',
+  partially_compliant: 'Partially compliant',
+  non_compliant: 'Non-compliant',
 };
 
 export function ResolutionStatusBadge({ resolution_status }: { resolution_status: ResolutionStatus }) {
-  const { label, cls } = STYLES[resolution_status];
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cls}`}>
-      {label}
-    </span>
+    <Pill category="resolution_status" value={resolution_status}>
+      {LABELS[resolution_status]}
+    </Pill>
   );
 }

@@ -14,4 +14,12 @@ describe('ResolutionStatusBadge', () => {
     expect(badge).toBeInTheDocument();
     expect(badge.className).toContain(colorClass);
   });
+
+  it('carries a definition tooltip', () => {
+    render(<ResolutionStatusBadge resolution_status="non_compliant" />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/failed origin\/disclosure/i);
+  });
 });

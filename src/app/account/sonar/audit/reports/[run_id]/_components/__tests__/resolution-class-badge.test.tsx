@@ -14,4 +14,12 @@ describe('ResolutionClassBadge', () => {
     expect(badge).toBeInTheDocument();
     expect(badge.className).toContain(colorClass);
   });
+
+  it('carries a definition tooltip', () => {
+    render(<ResolutionClassBadge resolution_class="agentic_eligible" />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/agent-to-agent/i);
+  });
 });
