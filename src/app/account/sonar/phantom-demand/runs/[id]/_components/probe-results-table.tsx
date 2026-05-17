@@ -1,96 +1,87 @@
 import type { PhantomDemandResult } from '@/lib/haiwave-api';
 import { DataTable, type Column } from '@/components';
-import { Pill, type PillProps } from '@/components/pill';
+import { Pill } from '@/components/pill';
+import {
+  interpretProbeResult,
+  type ProbeAsk,
+  type InterpretedProbeResult,
+} from '@/app/account/sonar/phantom-demand/_lib/interpret-probe-result';
 
-interface ProbeResultPayload {
-  kind?: string;
-  responder_quoted_quantity?: number | null;
-  responder_completeness?: string | null;
-  responder_confidence?: string | null;
-  responder_response_time_ms?: number | null;
-  responder_quoted_timeline?: string | null;
-  free_text_response?: string | null;
+function ResultCell({ r, ask }: { r: PhantomDemandResult; ask: ProbeAsk }) {
+  const i: InterpretedProbeResult = interpretProbeResult(r, ask);
+
+  const facts: string[] = [];
+  if (i.quotedQuantity != null) {
+    facts.push(
+      i.verdict === 'partial'
+        ? `${i.quotedQuantity} of ${ask.hypothetical_quantity}`
+        : `${i.quotedQuantity}`,
+    );
+  }
+  if (i.quotedTimeline) {
+    const d = new Date(i.quotedTimeline);
+    if (!Number.isNaN(d.getTime())) facts.push(`by ${d.toLocaleDateString()}`);
+  }
+  const noData = i.verdict === 'no_answer' || i.verdict === 'unusable';
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Pill category="probe_verdict" value={i.verdict} tone={i.tone}>
+          {i.verdictLabel}
+        </Pill>
+        {facts.length > 0 && (
+          <span className="text-xs text-charcoal">· {facts.join(' · ')}</span>
+        )}
+        {noData && <span className="text-xs text-slate">— availability unknown</span>}
+        <span className="text-xs text-slate">
+          ·{' '}
+          {i.confidence ? (
+            `confidence ${i.confidence}`
+          ) : (
+            <span className="italic text-slate/70">confidence n/a</span>
+          )}
+        </span>
+      </div>
+      <div className="mt-1 flex items-start gap-1.5 text-xs text-charcoal/80">
+        <span
+          aria-hidden
+          className="mt-[1px] inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-teal text-[9px] leading-none text-white"
+        >
+          i
+        </span>
+        <span>{i.action}</span>
+      </div>
+    </div>
+  );
 }
 
-const PROBE_TONE: Record<string, NonNullable<PillProps['tone']>> = {
-  complete: 'success',
-  partial: 'warn',
-  declined: 'problem',
-  gap: 'neutral',
-  unknown: 'neutral',
-};
-
-function probeStatus(r: PhantomDemandResult): string {
-  if (r.synthesis_mode === 'redacted_gap') return 'gap';
-  const c = (r.payload as ProbeResultPayload).responder_completeness;
-  return c ?? 'unknown';
-}
-
-const columns: Column<PhantomDemandResult>[] = [
+const makeColumns = (ask: ProbeAsk): Column<PhantomDemandResult>[] => [
   {
     key: 'sku',
     label: 'SKU',
     nowrap: true,
-    render: (r) => (
-      <span className="font-mono text-xs text-charcoal">{r.sku_id}</span>
-    ),
+    render: (r) => <span className="font-mono text-xs text-charcoal">{r.sku_id}</span>,
   },
   {
-    key: 'status',
-    label: 'Status',
-    nowrap: true,
-    render: (r) => {
-      const s = probeStatus(r);
-      return <Pill category="probe_status" value={s} tone={PROBE_TONE[s]} />;
-    },
-  },
-  {
-    key: 'qty',
-    label: 'Quoted Qty',
-    align: 'right',
-    nowrap: true,
-    render: (r) => (r.payload as ProbeResultPayload).responder_quoted_quantity ?? '—',
-  },
-  {
-    key: 'timeline',
-    label: 'Timeline',
-    nowrap: true,
-    render: (r) => (
-      <span className="text-xs">
-        {(r.payload as ProbeResultPayload).responder_quoted_timeline ?? '—'}
-      </span>
-    ),
-  },
-  {
-    key: 'confidence',
-    label: 'Confidence',
-    nowrap: true,
-    render: (r) => (r.payload as ProbeResultPayload).responder_confidence ?? '—',
-  },
-  {
-    key: 'latency',
-    label: 'Latency (ms)',
-    align: 'right',
-    nowrap: true,
-    render: (r) => (r.payload as ProbeResultPayload).responder_response_time_ms ?? '—',
-  },
-  {
-    key: 'gap',
-    label: 'Gap',
-    render: (r) => (
-      <span className="text-xs text-slate">
-        {r.gap ? (r.gap as { reason?: string }).reason ?? '' : ''}
-      </span>
-    ),
+    key: 'result',
+    label: 'Result',
+    render: (r) => <ResultCell r={r} ask={ask} />,
   },
 ];
 
-export function ProbeResultsTable({ results }: { results: PhantomDemandResult[] }) {
+export function ProbeResultsTable({
+  results,
+  ask,
+}: {
+  results: PhantomDemandResult[];
+  ask: ProbeAsk;
+}) {
   return (
     <section>
       <h2 className="text-sm font-medium text-charcoal mb-2">Probe Results</h2>
       <DataTable
-        columns={columns}
+        columns={makeColumns(ask)}
         data={results}
         keyFn={(r) => r.sku_id}
         emptyMessage="No probe results yet."

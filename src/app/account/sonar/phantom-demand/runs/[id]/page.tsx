@@ -50,7 +50,13 @@ export default async function Page({
 
       <ScopeSummary scope={scope} />
 
-      <ProbeResultsTable results={run.results} />
+      <ProbeResultsTable
+        results={run.results}
+        ask={{
+          hypothetical_quantity: scope.hypothetical_quantity,
+          hypothetical_timeline: scope.hypothetical_timeline,
+        }}
+      />
 
       {run.status === 'running' && (
         <CancelButton runId={run.run_id} />
