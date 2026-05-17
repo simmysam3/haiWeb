@@ -11,6 +11,13 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     cancelled: 'The run was cancelled by an operator before completing.',
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
+  probe_status: {
+    complete: 'The responder returned a full quote for this SKU.',
+    partial: 'The responder returned a partial response (some fields missing).',
+    declined: 'The responder declined to quote this SKU.',
+    gap: 'No response was recorded — the probe was redacted or the responder was unreachable.',
+    unknown: 'The responder completeness was not reported.',
+  },
   status: {
     active: 'Active and in good standing.',
     trading_pair: 'A bilaterally established trading relationship.',

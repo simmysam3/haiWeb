@@ -47,9 +47,37 @@ describe('PD run detail page', () => {
     expect(screen.getByText(/Counterparty/)).toBeInTheDocument();
     // '100' appears in both quantity and quoted quantity
     expect(screen.getAllByText('100').length).toBeGreaterThan(0);
-    // Probe completeness — 'complete' appears in status pill + table row
-    expect(screen.getAllByText('complete').length).toBeGreaterThan(0);
     // Gap reason
     expect(screen.getByText(/responder_probe_limit_exhausted/)).toBeInTheDocument();
+  });
+
+  it('renders statuses via the standard Pill primitive (run status + per-probe), not hand-rolled spans', async () => {
+    render(await Page({ params: { id: 'r1' } } as any));
+    const pills = screen.getAllByTestId('pill');
+    // run-status pill + one probe-status pill per result row (2 results)
+    expect(pills.length).toBeGreaterThanOrEqual(3);
+    // Pill title-cases its value: run status + complete probe -> 'Complete'
+    // (textContent also includes the sr-only definition tooltip text)
+    expect(pills.some((p) => p.textContent?.includes('Complete'))).toBe(true);
+    // gap row's probe status renders as a 'Gap' pill
+    expect(pills.some((p) => p.textContent?.includes('Gap'))).toBe(true);
+  });
+
+  it('shows the standard empty state when there are no probe results', async () => {
+    vi.resetModules();
+    vi.doMock('@/lib/server-haiwave-client', () => ({
+      getServerHaiwaveClient: async () => ({
+        getPhantomDemandRun: async () => ({
+          run_id: 'r2',
+          // non-running so CancelButton (useRouter) is not rendered
+          status: 'complete',
+          scope_snapshot: { kind: 'phantom_demand', counterparty: 'cp1', skus: [], hypothetical_quantity: 1, hypothetical_timeline: null },
+          results: [],
+        }),
+      }),
+    }));
+    const { default: FreshPage } = await import('../page.js');
+    render(await FreshPage({ params: { id: 'r2' } } as any));
+    expect(screen.getByText(/No probe results yet/i)).toBeInTheDocument();
   });
 });

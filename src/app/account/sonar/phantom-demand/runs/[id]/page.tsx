@@ -3,6 +3,7 @@ import { getServerHaiwaveClient } from '@/lib/server-haiwave-client';
 import { ScopeSummary } from './_components/scope-summary';
 import { ProbeResultsTable } from './_components/probe-results-table';
 import { CancelButton } from './_components/cancel-button';
+import { Pill } from '@/components/pill';
 import type { PhantomDemandRunDetail } from '@/lib/haiwave-api';
 
 export default async function Page({
@@ -37,7 +38,7 @@ export default async function Page({
           </h1>
           <p className="text-sm text-slate font-mono">{run.run_id}</p>
         </div>
-        <StatusPill status={run.status} />
+        <Pill category="run_status" value={run.status} />
       </header>
 
       <ScopeSummary scope={scope} />
@@ -48,19 +49,5 @@ export default async function Page({
         <CancelButton runId={run.run_id} />
       )}
     </main>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === 'running'
-      ? 'bg-blue-50 text-blue-700'
-      : status === 'complete'
-      ? 'bg-emerald-50 text-emerald-700'
-      : status === 'failed'
-      ? 'bg-red-50 text-red-700'
-      : 'bg-slate-100 text-slate-600';
-  return (
-    <span className={`text-xs px-2 py-1 rounded ${tone}`}>{status}</span>
   );
 }

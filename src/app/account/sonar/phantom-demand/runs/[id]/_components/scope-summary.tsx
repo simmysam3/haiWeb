@@ -10,7 +10,7 @@ export function ScopeSummary({ scope }: { scope: PhantomDemandScopeSnapshot }) {
   return (
     <section>
       <h2 className="text-sm font-medium text-charcoal mb-2">Scope</h2>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm max-w-md">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm rounded-lg border border-slate/15 bg-white p-4 max-w-md">
         <dt className="text-slate font-medium">Counterparty</dt>
         <dd className="text-charcoal font-mono truncate">{scope.counterparty}</dd>
         <dt className="text-slate font-medium">SKUs</dt>
