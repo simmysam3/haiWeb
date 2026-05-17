@@ -17,6 +17,7 @@ interface CrossModalityResponse {
     risk_label: 'normal' | 'elevated' | 'critical';
   }>;
   generated_at: string;
+  partial: { audit: boolean; phantom_demand: boolean; watcher: boolean };
 }
 
 interface ActivityResponse {
@@ -98,6 +99,9 @@ export default async function UnifiedDashboardPage() {
       ? data.initialActivity.events[0].triggered_at
       : null;
 
+  const p = data.crossModality?.partial;
+  const anyPartial = p && (p.audit || p.phantom_demand || p.watcher);
+
   return (
     <div className="p-6 space-y-6">
       <header>
@@ -107,6 +111,11 @@ export default async function UnifiedDashboardPage() {
       <PageIntro>
         Single landing for the state of your supply-chain visibility — partners observed, latest runs, and aggregate risk across modalities. Drill into any modality for full detail.
       </PageIntro>
+      {anyPartial && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          Risk scores may be incomplete — some signals failed to load. Check server logs for details.
+        </p>
+      )}
       <HeaderStrip
         totalPartners={totalPartners}
         lastRunAt={lastRunAt}

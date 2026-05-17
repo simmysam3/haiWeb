@@ -1,92 +1,91 @@
 import type { PhantomDemandResult } from '@/lib/haiwave-api';
+import { DataTable, type Column } from '@/components';
+import { Pill } from '@/components/pill';
+import {
+  interpretProbeResult,
+  type ProbeAsk,
+  type InterpretedProbeResult,
+} from '@/app/account/sonar/phantom-demand/_lib/interpret-probe-result';
 
-interface ProbeResultPayload {
-  kind?: string;
-  responder_quoted_quantity?: number | null;
-  responder_completeness?: string | null;
-  responder_confidence?: string | null;
-  responder_response_time_ms?: number | null;
-  responder_quoted_timeline?: string | null;
-  free_text_response?: string | null;
-}
+function ResultCell({ r, ask }: { r: PhantomDemandResult; ask: ProbeAsk }) {
+  const i: InterpretedProbeResult = interpretProbeResult(r, ask);
 
-export function ProbeResultsTable({ results }: { results: PhantomDemandResult[] }) {
-  if (results.length === 0) {
-    return (
-      <p className="text-sm text-slate">No probe results yet.</p>
+  const facts: string[] = [];
+  if (i.quotedQuantity != null) {
+    facts.push(
+      i.verdict === 'partial'
+        ? `${i.quotedQuantity} of ${ask.hypothetical_quantity}`
+        : `${i.quotedQuantity}`,
     );
   }
+  if (i.quotedTimeline) {
+    const d = new Date(i.quotedTimeline);
+    if (!Number.isNaN(d.getTime())) facts.push(`by ${d.toLocaleDateString()}`);
+  }
+  const noData = i.verdict === 'no_answer' || i.verdict === 'unusable';
 
   return (
-    <section>
-      <h2 className="text-sm font-medium text-charcoal mb-2">Probe Results</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 text-left">
-              <th className="py-2 pr-4 font-medium text-slate">SKU</th>
-              <th className="py-2 pr-4 font-medium text-slate">Status</th>
-              <th className="py-2 pr-4 font-medium text-slate">Quoted Qty</th>
-              <th className="py-2 pr-4 font-medium text-slate">Timeline</th>
-              <th className="py-2 pr-4 font-medium text-slate">Confidence</th>
-              <th className="py-2 pr-4 font-medium text-slate">Latency (ms)</th>
-              <th className="py-2 font-medium text-slate">Gap</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r) => {
-              const payload = r.payload as ProbeResultPayload;
-              const isGap = r.synthesis_mode === 'redacted_gap';
-              const statusText = isGap ? 'gap' : (payload.responder_completeness ?? '—');
-              const gapReason = r.gap
-                ? (r.gap as { reason?: string }).reason ?? ''
-                : '';
-
-              return (
-                <tr key={r.sku_id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-2 pr-4 font-mono text-xs text-charcoal truncate max-w-xs">
-                    {r.sku_id}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <StatusPill status={statusText} />
-                  </td>
-                  <td className="py-2 pr-4 text-charcoal">
-                    {payload.responder_quoted_quantity ?? '—'}
-                  </td>
-                  <td className="py-2 pr-4 text-charcoal text-xs">
-                    {payload.responder_quoted_timeline ?? '—'}
-                  </td>
-                  <td className="py-2 pr-4 text-charcoal">
-                    {payload.responder_confidence ?? '—'}
-                  </td>
-                  <td className="py-2 pr-4 text-charcoal">
-                    {payload.responder_response_time_ms ?? '—'}
-                  </td>
-                  <td className="py-2 text-xs text-slate">
-                    {gapReason}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Pill category="probe_verdict" value={i.verdict} detail={i.meaning} tone={i.tone}>
+          {i.verdictLabel}
+        </Pill>
+        {facts.length > 0 && (
+          <span className="text-xs text-charcoal">· {facts.join(' · ')}</span>
+        )}
+        {noData && <span className="text-xs text-slate">— availability unknown</span>}
+        <span className="text-xs text-slate">
+          ·{' '}
+          {i.confidence ? (
+            `confidence ${i.confidence}`
+          ) : (
+            <span className="italic text-slate/70">confidence n/a</span>
+          )}
+        </span>
       </div>
-    </section>
+      <div className="mt-1 flex items-start gap-1.5 text-xs text-charcoal/80">
+        <span
+          aria-hidden
+          className="mt-[1px] inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-teal text-[9px] leading-none text-white"
+        >
+          i
+        </span>
+        <span>{i.action}</span>
+      </div>
+    </div>
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === 'complete'
-      ? 'bg-emerald-50 text-emerald-700'
-      : status === 'partial'
-      ? 'bg-amber-50 text-amber-700'
-      : status === 'declined'
-      ? 'bg-red-50 text-red-700'
-      : status === 'gap'
-      ? 'bg-slate-100 text-slate-600'
-      : 'bg-slate-50 text-slate-500';
+const makeColumns = (ask: ProbeAsk): Column<PhantomDemandResult>[] => [
+  {
+    key: 'sku',
+    label: 'SKU',
+    nowrap: true,
+    render: (r) => <span className="font-mono text-xs text-charcoal">{r.sku_id}</span>,
+  },
+  {
+    key: 'result',
+    label: 'Result',
+    render: (r) => <ResultCell r={r} ask={ask} />,
+  },
+];
+
+export function ProbeResultsTable({
+  results,
+  ask,
+}: {
+  results: PhantomDemandResult[];
+  ask: ProbeAsk;
+}) {
   return (
-    <span className={`text-xs px-1.5 py-0.5 rounded ${tone}`}>{status}</span>
+    <section>
+      <h2 className="text-sm font-medium text-charcoal mb-2">Probe Results</h2>
+      <DataTable
+        columns={makeColumns(ask)}
+        data={results}
+        keyFn={(r) => r.sku_id}
+        emptyMessage="No probe results yet."
+      />
+    </section>
   );
 }

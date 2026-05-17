@@ -104,7 +104,7 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
             className="text-sm text-teal hover:underline"
             onClick={onClose}
           >
-            Save as template instead
+            Save as Watch instead
           </Link>
           <div className="flex gap-2">
             <button

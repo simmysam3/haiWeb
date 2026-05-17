@@ -54,7 +54,7 @@ export default async function ObservationsPage({
       <header>
         <h1 className="text-xl font-semibold text-charcoal">Observations</h1>
         <p className="text-sm text-slate mt-1">
-          Unified view of audit, Watcher, and Phantom Demand runs + templates.
+          Unified view of audit, Watcher, and Phantom Demand runs + configurations.
           Use the tabs to switch modalities.
         </p>
       </header>

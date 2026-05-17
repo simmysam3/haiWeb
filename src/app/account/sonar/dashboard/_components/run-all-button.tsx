@@ -26,7 +26,7 @@ export function RunAllButton({ enabledTemplateCount }: Props) {
     try {
       const res = await fetch('/api/account/sonar/templates/run-all', { method: 'POST' });
       if (!res.ok) {
-        setFeedback('Run all failed — check templates page');
+        setFeedback('Run all failed — check the Configurations page');
         return;
       }
       const body = (await res.json()) as RunAllResponse;
@@ -34,7 +34,7 @@ export function RunAllButton({ enabledTemplateCount }: Props) {
       setFeedback(`Triggered ${body.triggered.length} run${body.triggered.length === 1 ? '' : 's'}${failedSuffix}`);
       await mutate('/api/account/sonar/dashboard/activity');
     } catch {
-      setFeedback('Run all failed — check templates page');
+      setFeedback('Run all failed — check the Configurations page');
     } finally {
       setIsPending(false);
     }
@@ -47,7 +47,7 @@ export function RunAllButton({ enabledTemplateCount }: Props) {
         type="button"
         onClick={onClick}
         disabled={disabled}
-        title={enabledTemplateCount === 0 ? 'No enabled templates yet — create one in Run Templates' : undefined}
+        title={enabledTemplateCount === 0 ? 'No enabled configurations yet — create one in Configurations' : undefined}
         className="rounded-md bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? 'Triggering…' : 'Run all'}

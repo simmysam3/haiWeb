@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { mutate } from 'swr';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
+import { configNoun } from '../../_lib/config-noun';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -81,7 +82,11 @@ export function ManualTriggerButton({
           type="button"
           onClick={trigger}
           disabled={busy || !enabled}
-          title={!enabled ? 'Enable the template to trigger a run' : ''}
+          title={
+            !enabled
+              ? `Enable the ${configNoun(observationClass).toLowerCase()} to trigger a run`
+              : ''
+          }
           className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
         >
           {busy ? 'Triggering…' : 'Run now'}

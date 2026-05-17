@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
+import { configNoun } from '../../_lib/config-noun';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -114,7 +115,11 @@ export function TemplateRunHistory({ templateId, observationClass }: Props) {
     return <p className="text-sm text-slate">Loading run history…</p>;
   }
   if (data.runs.length === 0) {
-    return <p className="text-sm italic text-slate">This template hasn&apos;t been triggered yet.</p>;
+    return (
+      <p className="text-sm italic text-slate">
+        This {configNoun(observationClass).toLowerCase()} hasn&apos;t been triggered yet.
+      </p>
+    );
   }
 
   const inFlight = data.runs.filter((r) => isInFlight(r.status));

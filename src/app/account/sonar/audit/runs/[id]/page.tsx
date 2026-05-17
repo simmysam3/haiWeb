@@ -28,9 +28,16 @@ async function load(runId: string): Promise<LoadOk | null> {
       headers: { cookie: cookieHeader },
       cache: 'no-store',
     });
-    if (!runRes.ok) return null;
+    if (runRes.status === 404) return null; // genuinely not found → notFound()
+    if (!runRes.ok) {
+      // Auth / 5xx — a real error, not "not found".
+      throw new Error(`audit run fetch failed: ${runRes.status}`);
+    }
     const run = (await runRes.json()) as AuditRun;
-    if (!run?.run_id) return null;
+    if (!run?.run_id) {
+      // 200 but missing run_id ⇒ broken response contract, not "not found".
+      throw new Error('audit run response missing run_id (contract mismatch)');
+    }
 
     const resultsRes = await fetch(
       `${baseUrl}/api/account/audit-runs/${runId}/results`,
@@ -50,8 +57,11 @@ async function load(runId: string): Promise<LoadOk | null> {
     }
     return { run, results: [], resultsError: { status: resultsRes.status } };
   } catch (err) {
-    console.error('[runs/[id] load] network failure', { runId, err });
-    return null;
+    // Genuine 404 already returned null above; reaching here means a real
+    // failure (network / auth / 5xx / contract). Surface it as an error
+    // instead of a misleading not-found page.
+    console.error('[runs/[id] load] fetch failed', { runId, err });
+    throw err;
   }
 }
 

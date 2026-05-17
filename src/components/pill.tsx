@@ -11,6 +11,21 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     cancelled: 'The run was cancelled by an operator before completing.',
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
+  probe_status: {
+    complete: 'The responder returned a full quote for this SKU.',
+    partial: 'The responder returned a partial response (some fields missing).',
+    declined: 'The responder declined to quote this SKU.',
+    gap: 'No response was recorded — the probe was redacted or the responder was unreachable.',
+    unknown: 'The responder completeness was not reported.',
+  },
+  probe_verdict: {
+    full: 'The supplier indicated it can meet the full hypothetical quantity.',
+    partial: 'The supplier can cover only part of the hypothetical ask.',
+    declined: 'The supplier indicated it would not fulfill this hypothetical request.',
+    no_answer:
+      'No usable reply was obtained — missing data, not a decline. Supplier availability is unknown.',
+    unusable: 'A response arrived but could not be interpreted.',
+  },
   status: {
     active: 'Active and in good standing.',
     trading_pair: 'A bilaterally established trading relationship.',
@@ -66,6 +81,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   },
   throttle: {
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
+  },
+  signal_type: {
+    lead_time_distribution: 'p50 / p75 / p90 / p95 / p99 fulfilment lead time over the last 90 days.',
+    capacity_utilization_band: 'Latest reported production band: low, moderate, high, or at_capacity.',
+    delivery_event: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
+  },
+  config_provenance: {
+    fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
   },
 };
 

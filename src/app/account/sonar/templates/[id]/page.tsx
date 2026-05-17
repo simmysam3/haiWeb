@@ -1,10 +1,12 @@
+// src/app/account/sonar/templates/[id]/page.tsx
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { RunTemplate } from '@haiwave/protocol';
-import { TemplateForm } from '../_components/template-form';
+import { TemplateEditor } from '../_components/template-editor';
 import { ManualTriggerButton } from './_components/manual-trigger-button';
 import { TemplateRunHistory } from './_components/template-run-history';
+import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
 
 interface DetailPageProps {
@@ -22,12 +24,14 @@ async function loadTemplate(templateId: string): Promise<RunTemplate | null> {
       { headers: { cookie: cookieHeader }, cache: 'no-store' },
     );
     if (res.status === 404) return null;
-    if (!res.ok) return null;
+    if (!res.ok) {
+      throw new Error(`template detail fetch failed: ${res.status}`);
+    }
     const payload = (await res.json()) as { template: RunTemplate };
     return payload.template;
   } catch (err) {
     console.error('[template detail] fetch failed', err);
-    return null;
+    throw err;
   }
 }
 
@@ -43,13 +47,13 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
             href="/account/sonar/templates"
             className="text-sm text-teal hover:underline"
           >
-            ← Templates
+            ← Configurations
           </Link>
           <h1 className="text-xl font-semibold text-charcoal mt-2">
             {template.template_name}
           </h1>
           <p className="text-sm text-slate mt-1">
-            {template.observation_class === 'audit' ? 'Audit' : 'Watcher'} ·{' '}
+            {configNoun(template.observation_class)} ·{' '}
             {formatCadence(template.cadence)} · Last run{' '}
             {template.last_run_at
               ? new Date(template.last_run_at).toLocaleString()
@@ -63,12 +67,9 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
         />
       </header>
 
-      <div className="bg-white rounded-xl border border-slate/15 p-6 max-w-2xl">
-        <h2 className="text-sm font-semibold text-charcoal mb-4">Edit configuration</h2>
-        <TemplateForm initial={template} />
-      </div>
+      <TemplateEditor template={template} />
 
-      <section className="space-y-3">
+      <section id="step-history" className="space-y-3 scroll-mt-6">
         <h2 className="text-sm font-semibold text-charcoal">Run history</h2>
         <TemplateRunHistory
           templateId={template.template_id}

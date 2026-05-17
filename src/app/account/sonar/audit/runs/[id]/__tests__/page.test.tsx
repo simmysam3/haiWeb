@@ -65,6 +65,29 @@ describe('RunDetailPage — View Aggregate Report CTA', () => {
     expect(link.getAttribute('href')).toBe(`/account/sonar/audit/reports/${RUN_ID}`);
   });
 
+  it('propagates a non-404 run-fetch failure instead of masking it as not-found', async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'boom' }), { status: 500 }),
+    ) as unknown as typeof fetch;
+    const { default: Page } = await import('../page');
+    const err = await Page({ params: Promise.resolve({ id: RUN_ID }) }).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err?.message).toMatch(/500/);
+    expect(err?.message).not.toBe('NEXT_NOT_FOUND');
+  });
+
+  it('still renders not-found on a genuine 404', async () => {
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ error: 'not_found' }), { status: 404 }),
+    ) as unknown as typeof fetch;
+    const { default: Page } = await import('../page');
+    await expect(
+      Page({ params: Promise.resolve({ id: RUN_ID }) }),
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+
   it.each(['running', 'failed', 'cancelled'] as const)(
     'does not render the link when run.status === %s',
     async (status) => {

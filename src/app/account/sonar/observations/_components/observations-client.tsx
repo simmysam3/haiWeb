@@ -49,7 +49,7 @@ const EMPTY_CTA: Record<ObservationClass, { title: string; body: string }> = {
     body: 'Nominate a counterparty to verify origin or certifications.',
   },
   watcher: {
-    title: 'Create your first Watcher template',
+    title: 'Create your first Watch',
     body: 'Track signals from your trading partners on a cadence.',
   },
   phantom_demand: {
@@ -150,7 +150,7 @@ export function ObservationsClient({ initialTab, initialRuns, initialTemplates }
         <div className="space-y-6">
           {templates.length > 0 ? (
             <section>
-              <h2 className="text-sm font-semibold text-charcoal uppercase tracking-wider">Templates</h2>
+              <h2 className="text-sm font-semibold text-charcoal uppercase tracking-wider">Configurations</h2>
               <table className="w-full mt-2 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate">

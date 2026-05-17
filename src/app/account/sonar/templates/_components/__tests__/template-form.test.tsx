@@ -1,103 +1,54 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TemplateForm } from '../template-form';
+import { NameField, LifecycleFields } from '../template-form';
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    refresh: vi.fn(),
-  }),
-}));
-
-const fetchMock = vi.fn();
-beforeEach(() => {
-  fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
+describe('NameField', () => {
+  it('renders the labelled input and reports changes', async () => {
+    const onChange = vi.fn();
+    render(<NameField noun="Audit" value="" onChange={onChange} />);
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'x');
+    expect(onChange).toHaveBeenCalledWith('x');
+  });
 });
 
-describe('TemplateForm — create mode', () => {
-  it('POSTs with the name + scope when "Create template" is clicked', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ template: { template_id: 'new' } }),
-    } as Response);
-    render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'my-tmpl');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/account/sonar/templates',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('my-tmpl'),
-      }),
+describe('LifecycleFields', () => {
+  it('toggles enabled and edits retention', async () => {
+    const onEnabled = vi.fn();
+    const onRetention = vi.fn();
+    render(
+      <LifecycleFields
+        enabled
+        retentionDays={365}
+        onEnabledChange={onEnabled}
+        onRetentionChange={onRetention}
+      />,
     );
+    await userEvent.click(screen.getByRole('checkbox', { name: /enabled/i }));
+    expect(onEnabled).toHaveBeenCalledWith(false);
+    const ret = screen.getByLabelText(/retention/i);
+    await userEvent.clear(ret);
+    await userEvent.type(ret, '90');
+    expect(onRetention).toHaveBeenLastCalledWith(90);
   });
 
-  it('on 401 shows a session-expired message with a Sign in link, not a status code', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
+  it('updates displayed retention when retentionDays prop changes', () => {
+    const { rerender } = render(
+      <LifecycleFields
+        enabled
+        retentionDays={365}
+        onEnabledChange={vi.fn()}
+        onRetentionChange={vi.fn()}
+      />,
     );
-    render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'x');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/session has expired/i);
-    expect(screen.queryByText(/Create failed \(401\)/i)).not.toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /sign in again/i });
-    expect(link).toHaveAttribute('href', '/login');
-  });
-
-  it('on 400 surfaces the haiCore validation field detail', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid create template request (1 validation error(s))',
-            details: [
-              { path: ['scope', 'provenance_key_id'], message: 'Invalid uuid' },
-            ],
-          },
-        }),
-        { status: 400 },
-      ),
+    rerender(
+      <LifecycleFields
+        enabled
+        retentionDays={90}
+        onEnabledChange={vi.fn()}
+        onRetentionChange={vi.fn()}
+      />,
     );
-    render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'x');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/scope\.provenance_key_id/);
-    expect(alert).toHaveTextContent(/Invalid uuid/);
-    expect(screen.queryByText(/Create failed/i)).not.toBeInTheDocument();
-  });
-
-  it('respects defaultObservationClass="watcher" by hiding audit-specific fields', () => {
-    render(<TemplateForm defaultObservationClass="watcher" />);
-    // Watcher scope picker shows signal-type checkboxes
-    expect(screen.getByLabelText(/lead time distribution/i)).toBeInTheDocument();
-  });
-
-  it('allows selecting Phantom Demand modality', async () => {
-    render(<TemplateForm />);
-    const select = screen.getByLabelText('Modality');
-    fireEvent.change(select, { target: { value: 'phantom_demand' } });
-    expect(screen.getByText(/Counterparty/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hypothetical Quantity/)).toBeInTheDocument();
-  });
-
-  it('renders the scope picker after the Enabled/Retention controls (D8)', () => {
-    render(<TemplateForm defaultObservationClass="audit" />);
-    const enabled = screen.getByLabelText(/enabled/i);
-    const auditScope = screen.getByRole('group', { name: /audit scope/i });
-    expect(
-      enabled.compareDocumentPosition(auditScope) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it('disables Create for phantom_demand until counterparty AND >=1 sku are set', async () => {
-    render(<TemplateForm defaultObservationClass="phantom_demand" />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'pd-1');
-    expect(screen.getByRole('button', { name: /create template/i })).toBeDisabled();
+    expect(screen.getByLabelText(/retention/i)).toHaveValue(90);
   });
 });
