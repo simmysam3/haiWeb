@@ -34,7 +34,7 @@ export function RunControls() {
         href="/account/sonar/templates/new?observation_class=audit"
         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
       >
-        Save as template
+        New audit template
       </Link>
       <button
         onClick={runAudit}

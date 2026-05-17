@@ -14,10 +14,10 @@ describe('RunControls', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders Run-audit-now and Save-as-template buttons', () => {
+  it('renders Run-audit-now and New-audit-template buttons', () => {
     render(<RunControls />);
     expect(screen.getByRole('button', { name: /run audit now/i })).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /save as template/i });
+    const link = screen.getByRole('link', { name: /new audit template/i });
     expect(link).toHaveAttribute(
       'href',
       '/account/sonar/templates/new?observation_class=audit',
