@@ -32,7 +32,7 @@ const template: RunTemplate = {
     depth_limit: 2,
     hop_budget: 5,
   },
-} as RunTemplate;
+} as unknown as RunTemplate;
 
 describe('TemplateEditor', () => {
   it('renders the read-only scope alongside editable name', () => {
