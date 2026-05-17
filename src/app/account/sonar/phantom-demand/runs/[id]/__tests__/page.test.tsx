@@ -59,8 +59,8 @@ describe('PD run detail page', () => {
     // Pill title-cases its value: run status + complete probe -> 'Complete'
     // (textContent also includes the sr-only definition tooltip text)
     expect(pills.some((p) => p.textContent?.includes('Complete'))).toBe(true);
-    // gap row's probe status renders as a 'Gap' pill
-    expect(pills.some((p) => p.textContent?.includes('Gap'))).toBe(true);
+    // gap row (redacted_gap synthesis_mode) renders as a 'No answer' verdict pill
+    expect(pills.some((p) => p.textContent?.includes('No answer'))).toBe(true);
   });
 
   it('propagates a non-404 fetch failure instead of masking it as not-found', async () => {
