@@ -9,6 +9,7 @@ vi.mock('@/lib/server-haiwave-client', () => ({
       status: 'complete',
       scope_snapshot: {
         kind: 'phantom_demand',
+        authorization_basis: 'bilateral',
         counterparty: 'cp1',
         skus: ['s1', 's2'],
         hypothetical_quantity: 100,
@@ -117,7 +118,7 @@ describe('PD run detail page', () => {
           run_id: 'r2',
           // non-running so CancelButton (useRouter) is not rendered
           status: 'complete',
-          scope_snapshot: { kind: 'phantom_demand', counterparty: 'cp1', skus: [], hypothetical_quantity: 1, hypothetical_timeline: null },
+          scope_snapshot: { kind: 'phantom_demand', authorization_basis: 'bilateral', counterparty: 'cp1', skus: [], hypothetical_quantity: 1, hypothetical_timeline: null },
           results: [],
         }),
       }),

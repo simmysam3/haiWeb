@@ -28,13 +28,7 @@ export default async function Page({
     throw err;
   }
 
-  const scope = run.scope_snapshot as {
-    kind: 'phantom_demand';
-    counterparty: string;
-    skus: string[];
-    hypothetical_quantity: number;
-    hypothetical_timeline: string | null;
-  };
+  const scope = run.scope_snapshot;
 
   return (
     <main className="space-y-6 p-6">

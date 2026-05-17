@@ -66,6 +66,7 @@ import type {
   UpdateRunTemplateRequest,
   PhantomDemandAggregate,
   PhantomDemandWindow,
+  PhantomDemandScope,
   ParticipantModalityPosture,
   Modality,
   Posture,
@@ -189,7 +190,7 @@ export interface PhantomDemandRun {
   run_origin: 'ad_hoc' | 'template_manual' | 'template_scheduled' | 'template_event_triggered';
   authorization_basis: 'bilateral';
   status: string;
-  scope_snapshot: Record<string, unknown>;
+  scope_snapshot: PhantomDemandScope;
   hop_budget: number;
   hops_consumed: number;
   throttled_at: string | null;
