@@ -8,6 +8,11 @@ interface Props {
 export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Props) {
   const total =
     capacityBandCounts.low + capacityBandCounts.moderate + capacityBandCounts.high + capacityBandCounts.at_capacity;
+  // "No runs yet" must mean *no signal data at all* — not merely "no capacity
+  // bands". A complete run can emit only lead_time_distribution signals, in
+  // which case total === 0 but a real median p90 exists; gating on `total`
+  // alone hid that data and falsely claimed there were no runs.
+  const hasSignal = total > 0 || medianLeadTimeP90 !== null;
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -16,7 +21,7 @@ export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Pr
           View details →
         </Link>
       </div>
-      {total === 0 ? (
+      {!hasSignal ? (
         <p className="text-sm text-slate italic">
           No runs yet —{' '}
           <Link
@@ -31,8 +36,14 @@ export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Pr
           <div>
             <dt className="text-xs text-slate">Capacity bands</dt>
             <dd className="text-xs text-charcoal">
-              {capacityBandCounts.low} low · {capacityBandCounts.moderate} mod ·{' '}
-              {capacityBandCounts.high} high · {capacityBandCounts.at_capacity} at-cap
+              {total === 0 ? (
+                <span className="text-slate">— (no capacity signal in latest run)</span>
+              ) : (
+                <>
+                  {capacityBandCounts.low} low · {capacityBandCounts.moderate} mod ·{' '}
+                  {capacityBandCounts.high} high · {capacityBandCounts.at_capacity} at-cap
+                </>
+              )}
             </dd>
           </div>
           <div>
