@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function NameField({
   noun,
@@ -38,6 +38,10 @@ export function LifecycleFields({
 }) {
   const [retentionRaw, setRetentionRaw] = useState(String(retentionDays));
 
+  useEffect(() => {
+    setRetentionRaw(String(retentionDays));
+  }, [retentionDays]);
+
   return (
     <div className="flex items-center gap-4">
       <label className="flex items-center gap-2 text-sm text-charcoal">
@@ -45,7 +49,6 @@ export function LifecycleFields({
           type="checkbox"
           checked={enabled}
           onChange={(e) => onEnabledChange(e.target.checked)}
-          aria-label="Enabled"
         />
         Enabled
       </label>

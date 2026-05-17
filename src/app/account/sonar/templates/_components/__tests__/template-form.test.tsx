@@ -31,4 +31,24 @@ describe('LifecycleFields', () => {
     await userEvent.type(ret, '90');
     expect(onRetention).toHaveBeenLastCalledWith(90);
   });
+
+  it('updates displayed retention when retentionDays prop changes', () => {
+    const { rerender } = render(
+      <LifecycleFields
+        enabled
+        retentionDays={365}
+        onEnabledChange={vi.fn()}
+        onRetentionChange={vi.fn()}
+      />,
+    );
+    rerender(
+      <LifecycleFields
+        enabled
+        retentionDays={90}
+        onEnabledChange={vi.fn()}
+        onRetentionChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText(/retention/i)).toHaveValue(90);
+  });
 });
