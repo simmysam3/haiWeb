@@ -159,7 +159,7 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
             <button
               type="button"
               onClick={save}
-              disabled={busy || name.length === 0}
+              disabled={busy || name.trim().length === 0}
               className="rounded bg-orange text-white px-4 py-1.5 text-sm font-semibold hover:bg-orange/90 disabled:opacity-60"
             >
               {busy ? 'Saving…' : 'Save changes'}

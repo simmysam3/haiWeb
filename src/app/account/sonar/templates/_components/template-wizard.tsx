@@ -99,7 +99,7 @@ export function TemplateWizard({
   async function create() {
     setError(null);
     setSessionExpired(false);
-    if (name.length === 0) {
+    if (name.trim().length === 0) {
       setNameError(true);
       setError('Name is required.');
       jump('identity');

@@ -41,4 +41,19 @@ describe('TemplateWizard', () => {
     );
     expect(push).toHaveBeenCalledWith('/account/sonar/templates/new-1');
   });
+
+  it('blocks Create for an incomplete phantom_demand scope and does not POST', async () => {
+    render(<TemplateWizard defaultObservationClass="phantom_demand" />);
+    await userEvent.type(screen.getByLabelText(/demand request name/i), 'pd-tmpl');
+    await userEvent.click(
+      screen.getByRole('button', { name: /create configuration/i }),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/account/sonar/templates',
+      expect.anything(),
+    );
+    expect(
+      screen.getByText(/counterparty and at least one sku/i),
+    ).toBeInTheDocument();
+  });
 });
