@@ -27,7 +27,7 @@ function ResultCell({ r, ask }: { r: PhantomDemandResult; ask: ProbeAsk }) {
   return (
     <div>
       <div className="flex items-center gap-2 flex-wrap">
-        <Pill category="probe_verdict" value={i.verdict} tone={i.tone}>
+        <Pill category="probe_verdict" value={i.verdict} detail={i.meaning} tone={i.tone}>
           {i.verdictLabel}
         </Pill>
         {facts.length > 0 && (

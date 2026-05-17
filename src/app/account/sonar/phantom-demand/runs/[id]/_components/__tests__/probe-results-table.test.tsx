@@ -20,7 +20,7 @@ describe('ProbeResultsTable', () => {
     ];
     render(<ProbeResultsTable results={results} ask={ask} />);
     expect(screen.getByText('No answer')).toBeInTheDocument();
-    expect(screen.getByText(/confidence n\/a/i)).toBeInTheDocument();
+    expect(screen.getByText('confidence n/a')).toBeInTheDocument();
     expect(screen.getByText(/Not a "no"/)).toBeInTheDocument();
     expect(screen.queryByText('low')).not.toBeInTheDocument();
   });
@@ -37,8 +37,8 @@ describe('ProbeResultsTable', () => {
     ];
     render(<ProbeResultsTable results={results} ask={ask} />);
     expect(screen.getByText('Partial')).toBeInTheDocument();
-    expect(screen.getByText(/120 of 200/)).toBeInTheDocument();
-    expect(screen.getByText(/confidence medium/)).toBeInTheDocument();
+    expect(screen.getByText('· 120 of 200')).toBeInTheDocument();
+    expect(screen.getByText('· confidence medium')).toBeInTheDocument();
   });
 
   it('full row: shows "Can fulfill"', () => {
