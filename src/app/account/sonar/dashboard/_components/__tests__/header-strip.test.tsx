@@ -23,6 +23,20 @@ describe('HeaderStrip', () => {
     expect(screen.getByText(/Failed runs/i)).toBeInTheDocument();
   });
 
+  it('links to the Configurations list view (only inbound UI path to /account/sonar/templates)', () => {
+    render(
+      <HeaderStrip
+        totalPartners={1}
+        lastRunAt={null}
+        throttledCounts={null}
+        failedRunsLast30d={null}
+        enabledTemplateCount={3}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /configurations/i });
+    expect(link).toHaveAttribute('href', '/account/sonar/templates');
+  });
+
   it('renders dash for null tiles', () => {
     render(
       <HeaderStrip

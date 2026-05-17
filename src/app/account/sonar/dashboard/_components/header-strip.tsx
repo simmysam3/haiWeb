@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
 import { RefreshButton } from './refresh-button';
 import { RunAllButton } from './run-all-button';
@@ -42,6 +43,12 @@ export function HeaderStrip({
         <Tile label="Failed runs (30d)" value={failedDisplay} />
       </div>
       <div className="flex items-center justify-end gap-2">
+        <Link
+          href="/account/sonar/templates"
+          className="text-sm text-teal-dark hover:underline"
+        >
+          View all configurations
+        </Link>
         <RefreshButton />
         <RunAllButton enabledTemplateCount={enabledTemplateCount} />
       </div>
