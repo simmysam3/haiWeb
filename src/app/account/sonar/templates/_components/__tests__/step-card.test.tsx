@@ -32,4 +32,13 @@ describe('StepCard', () => {
     );
     expect(container.querySelector('#step-schedule')).not.toBeNull();
   });
+
+  it('dim variant applies reduced opacity', () => {
+    const { container } = render(
+      <StepCard id="x" index={0} title="Identity" dim>
+        <p>body</p>
+      </StepCard>,
+    );
+    expect(container.querySelector('section')?.className).toContain('opacity-50');
+  });
 });

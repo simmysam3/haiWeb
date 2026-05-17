@@ -25,8 +25,8 @@ export function StepCard({
         locked
           ? 'bg-slate/5 border border-dashed border-slate/25'
           : 'bg-white border border-slate/15',
-        dim ? 'opacity-50' : '',
-      ].join(' ')}
+        dim && 'opacity-50',
+      ].filter(Boolean).join(' ')}
     >
       <div className="flex items-center gap-2 mb-4">
         <span
