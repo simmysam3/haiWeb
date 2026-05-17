@@ -56,11 +56,20 @@ describe('interpretProbeResult', () => {
     const mk = (c: string): PhantomDemandResult => ({ ...base, sku_id: 'S', synthesis_mode: 'direct', gap: null, payload: { responder_completeness: 'complete', responder_confidence: c } });
     expect(interpretProbeResult(mk('high'), ask).action).toMatch(/strong signal/i);
     expect(interpretProbeResult(mk('low'), ask).action).toMatch(/tentative/i);
+    expect(interpretProbeResult(mk('medium'), ask).action).toMatch(/tentative/i);
     expect(interpretProbeResult(mk('high'), ask).verdict).toBe('full');
   });
 
   it('redacted_gap wins even when a stale completeness is present', () => {
     const r: PhantomDemandResult = { ...base, sku_id: 'S', synthesis_mode: 'redacted_gap', gap: null, payload: { responder_completeness: 'complete' } };
     expect(interpretProbeResult(r, ask).verdict).toBe('no_answer');
+  });
+
+  it('complete with no confidence → full, confidence null, tentative action', () => {
+    const r: PhantomDemandResult = { ...base, sku_id: 'S', synthesis_mode: 'direct', gap: null, payload: { responder_completeness: 'complete' } };
+    const i = interpretProbeResult(r, ask);
+    expect(i.verdict).toBe('full');
+    expect(i.confidence).toBeNull();
+    expect(i.action).toMatch(/tentative/i);
   });
 });

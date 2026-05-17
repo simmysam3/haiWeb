@@ -32,7 +32,7 @@ function asConfidence(v: unknown): 'high' | 'medium' | 'low' | null {
   return typeof v === 'string' && CONFIDENCE.has(v) ? (v as 'high' | 'medium' | 'low') : null;
 }
 function asInt(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
 }
 function asTimeline(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null;
