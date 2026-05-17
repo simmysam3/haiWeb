@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Cadence, RunTemplate } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
@@ -11,6 +11,14 @@ import { StepRail, type RailStep } from './step-rail';
 import { StepCard } from './step-card';
 import { ScopeSummary } from './scope-summary';
 import { NameField, LifecycleFields } from './template-form';
+
+const steps: RailStep[] = [
+  { id: 'identity', label: 'Identity', state: 'active' },
+  { id: 'scope', label: 'Scope', state: 'locked' },
+  { id: 'schedule', label: 'Schedule', state: 'todo' },
+  { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
+  { id: 'history', label: 'Run history', state: 'todo' },
+];
 
 export function TemplateEditor({ template }: { template: RunTemplate }) {
   const noun = configNoun(template.observation_class);
@@ -23,6 +31,13 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    setName(template.template_name);
+    setCadence(template.cadence);
+    setEnabled(template.enabled);
+    setRetentionDays(template.retention_days);
+  }, [template]);
+
   const dirty = useMemo(
     () =>
       name !== template.template_name ||
@@ -31,14 +46,6 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
       JSON.stringify(cadence) !== JSON.stringify(template.cadence),
     [name, enabled, retentionDays, cadence, template],
   );
-
-  const steps: RailStep[] = [
-    { id: 'identity', label: 'Identity', state: 'active' },
-    { id: 'scope', label: 'Scope', state: 'locked' },
-    { id: 'schedule', label: 'Schedule', state: 'todo' },
-    { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
-    { id: 'history', label: 'Run history', state: 'todo' },
-  ];
 
   function jump(id: string) {
     document.getElementById(`step-${id}`)?.scrollIntoView({ behavior: 'smooth' });

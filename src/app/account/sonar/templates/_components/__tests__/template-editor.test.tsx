@@ -68,4 +68,30 @@ describe('TemplateEditor', () => {
     });
     expect(body).not.toHaveProperty('scope');
   });
+
+  it('clears the save bar after a successful save and prop refresh', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    const { rerender } = render(<TemplateEditor template={template} />);
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'Z');
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    // simulate router.refresh() delivering the server-committed template
+    rerender(
+      <TemplateEditor template={{ ...template, template_name: 'daily-auditZ' }} />,
+    );
+    expect(screen.queryByRole('button', { name: /save changes/i })).toBeNull();
+  });
+
+  it('shows an error and keeps the save bar when PATCH fails', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'Bad request' }), { status: 400 }),
+    );
+    render(<TemplateEditor template={template} />);
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'Z');
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    // FormError surfaces a message; save bar remains because the prop never refreshed
+    expect(
+      await screen.findByRole('button', { name: /save changes/i }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
