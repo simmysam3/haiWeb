@@ -44,6 +44,62 @@ describe('PhantomDemandScopeFields', () => {
     );
   });
 
+  it('lets the user clear the quantity field while editing (no snap-back)', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 12 }}
+        onChange={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+  });
+
+  it('does not emit an invalid quantity while the field is empty', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 12 }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+      target: { value: '' },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('clearing then typing a new quantity emits the new value', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 12 }}
+        onChange={onChange}
+      />,
+    );
+    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(input.value).toBe('5');
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ hypothetical_quantity: 5 }),
+    );
+  });
+
+  it('restores the last valid quantity on blur if left empty', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 12 }}
+        onChange={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('12');
+  });
+
   it('selecting a counterparty resets skus (D9)', async () => {
     const onChange = vi.fn();
     render(
@@ -58,14 +114,14 @@ describe('PhantomDemandScopeFields', () => {
     );
   });
 
-  it('emits an ISO-8601 hypothetical_timeline from the datetime-local input', () => {
+  it('emits a UTC-midnight ISO-8601 hypothetical_timeline from the date input', () => {
     const onChange = vi.fn();
     render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText(/target delivery date/i), {
-      target: { value: '2026-06-30T14:30' },
+      target: { value: '2026-06-30' },
     });
     const emitted = onChange.mock.lastCall?.[0].hypothetical_timeline as string;
-    expect(emitted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/);
+    expect(emitted).toBe('2026-06-30T00:00:00.000Z');
     expect(Number.isFinite(Date.parse(emitted))).toBe(true);
   });
 
@@ -85,7 +141,7 @@ describe('PhantomDemandScopeFields', () => {
     );
   });
 
-  it('round-trips a stored ISO into the datetime-local input', () => {
+  it('round-trips a stored ISO into the date input (date only, no time)', () => {
     render(
       <PhantomDemandScopeFields
         value={{ ...BASE, hypothetical_timeline: '2026-06-30T14:30:00.000Z' }}
@@ -93,7 +149,6 @@ describe('PhantomDemandScopeFields', () => {
       />,
     );
     const input = screen.getByLabelText(/target delivery date/i) as HTMLInputElement;
-    expect(input.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-    expect(input.value).not.toBe('');
+    expect(input.value).toBe('2026-06-30');
   });
 });
