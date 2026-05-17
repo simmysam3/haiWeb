@@ -33,16 +33,16 @@ describe('TemplateDetailPage', () => {
           enabled: true,
           retention_days: 30,
           last_run_at: null,
-          last_run_id: null,
-          initiator_participant_id: '00000000-0000-0000-0000-000000000001',
+          created_at: new Date().toISOString(),
           scope: {
-            scope_type: 'company',
-            scope_ids: [],
+            kind: 'audit',
+            authorization_basis: 'bilateral',
+            counterparties: ['acme-corp'],
+            signal_types: [],
+            skus: [],
             depth_limit: 1,
             hop_budget: 5,
           },
-          created_at: new Date().toISOString(),
-          created_by_user_id: '00000000-0000-0000-0000-000000000001',
         },
       }),
     } as Response);
@@ -52,7 +52,8 @@ describe('TemplateDetailPage', () => {
     render(ui as React.ReactElement);
     expect(screen.getByRole('heading', { name: /daily-audit/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /run now/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
+    expect(await screen.findByText('acme-corp')).toBeInTheDocument();
+    expect(screen.getByText(/Fixed at creation/i)).toBeInTheDocument();
   });
 
   it('throws NEXT_NOT_FOUND when haiCore returns 404', async () => {

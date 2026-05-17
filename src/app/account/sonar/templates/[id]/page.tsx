@@ -1,8 +1,9 @@
+// src/app/account/sonar/templates/[id]/page.tsx
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { RunTemplate } from '@haiwave/protocol';
-import { TemplateForm } from '../_components/template-form';
+import { TemplateEditor } from '../_components/template-editor';
 import { ManualTriggerButton } from './_components/manual-trigger-button';
 import { TemplateRunHistory } from './_components/template-run-history';
 import { formatCadence } from '../_lib/format-cadence';
@@ -21,15 +22,14 @@ async function loadTemplate(templateId: string): Promise<RunTemplate | null> {
       `${proto}://${host}/api/account/sonar/templates/${templateId}`,
       { headers: { cookie: cookieHeader }, cache: 'no-store' },
     );
-    if (res.status === 404) return null; // genuinely not found → notFound()
+    if (res.status === 404) return null;
     if (!res.ok) {
-      // Auth / 5xx / contract failure — a real error, not "not found".
       throw new Error(`template detail fetch failed: ${res.status}`);
     }
     const payload = (await res.json()) as { template: RunTemplate };
     return payload.template;
   } catch (err) {
-    console.error('[template detail] fetch failed', { templateId, err });
+    console.error('[template detail] fetch failed', err);
     throw err;
   }
 }
@@ -66,12 +66,9 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
         />
       </header>
 
-      <div className="bg-white rounded-xl border border-slate/15 p-6 max-w-2xl">
-        <h2 className="text-sm font-semibold text-charcoal mb-4">Edit configuration</h2>
-        <TemplateForm initial={template} />
-      </div>
+      <TemplateEditor template={template} />
 
-      <section className="space-y-3">
+      <section id="step-history" className="space-y-3 scroll-mt-6">
         <h2 className="text-sm font-semibold text-charcoal">Run history</h2>
         <TemplateRunHistory
           templateId={template.template_id}
