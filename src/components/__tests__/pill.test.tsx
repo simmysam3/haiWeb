@@ -66,19 +66,23 @@ describe('Pill', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('probe_verdict pill resolves a definition and surfaces the dynamic meaning', () => {
+  it('probe_verdict resolves its static definition (not only the dynamic detail)', () => {
     render(
       <Pill
         category="probe_verdict"
         value="no_answer"
-        detail="No usable reply came back."
+        detail="dynamic reason here"
         tone="neutral"
       >
         No answer
       </Pill>,
     );
-    const pill = screen.getByText('No answer');
-    expect(pill).toBeInTheDocument();
-    expect(pill).toHaveAttribute('aria-describedby');
+    expect(screen.getByText('No answer')).toBeInTheDocument();
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    // 'not a decline' appears ONLY in the PILL_DEFINITIONS entry for probe_verdict.no_answer,
+    // never in the dynamic detail — so this assertion is vacuous-proof.
+    expect(tip).toHaveTextContent('not a decline');
   });
 });
