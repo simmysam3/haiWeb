@@ -26,15 +26,13 @@ export function StepRail({
     <nav aria-label="Configuration steps" className="flex flex-col gap-1 min-w-[150px]">
       {steps.map((s, i) => {
         const active = s.state === 'active';
-        const accessibleName =
-          s.state === 'locked' ? `${s.label} (locked)` : s.label;
         return (
           <button
             key={s.id}
             type="button"
-            aria-label={accessibleName}
             aria-current={active ? 'step' : undefined}
             onClick={() => onJump(s.id)}
+            // 'todo' and 'locked' intentionally share the muted treatment; the lock glyph differentiates them
             className={[
               'flex items-center gap-2 text-sm rounded-lg px-2 py-1.5 text-left transition-colors',
               active
@@ -62,6 +60,7 @@ export function StepRail({
               {badge(s.state, i)}
             </span>
             {s.label}
+            {s.state === 'locked' && <span className="sr-only"> (locked)</span>}
           </button>
         );
       })}
