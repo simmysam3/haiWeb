@@ -64,13 +64,24 @@ async function loadPhantomDemand(client: {
   fetchRaw: (path: string, init?: RequestInit) => Promise<Response>;
 }): Promise<{
   byPartner: Map<string, { response_rate: number; window_id: string; name: string | null }>;
+  degraded: boolean;
 }> {
   const latestRes = await client.fetchRaw('/sonar/phantom-demand/reports/latest');
-  if (!latestRes.ok) return { byPartner: new Map() };
+  if (!latestRes.ok) {
+    // 404 means no report has been generated yet — not an error.
+    if (latestRes.status !== 404) {
+      console.error('[cross-modality] phantom-demand /latest fetch failed', { status: latestRes.status });
+      return { byPartner: new Map(), degraded: true };
+    }
+    return { byPartner: new Map(), degraded: false };
+  }
   const { window_id } = (await latestRes.json()) as { window_id: string };
 
   const aggRes = await client.fetchRaw(`/sonar/phantom-demand/reports/${window_id}/aggregate`);
-  if (!aggRes.ok) return { byPartner: new Map() };
+  if (!aggRes.ok) {
+    console.error('[cross-modality] phantom-demand aggregate fetch failed', { window_id, status: aggRes.status });
+    return { byPartner: new Map(), degraded: true };
+  }
   const agg = (await aggRes.json()) as PhantomDemandAggregate;
 
   const byPartner = new Map<string, { response_rate: number; window_id: string; name: string | null }>();
@@ -81,13 +92,13 @@ async function loadPhantomDemand(client: {
       name: c.counterparty_display_name,
     });
   }
-  return { byPartner };
+  return { byPartner, degraded: false };
 }
 
 async function loadWatcher(client: {
   listWatcherRuns: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: string; triggered_at: string }> }>;
   getWatcherRun: (runId: string) => Promise<{ run: unknown; results: WatcherResult[] }>;
-}): Promise<Map<string, WatcherPerPartner>> {
+}): Promise<{ data: Map<string, WatcherPerPartner>; degraded: boolean }> {
   const { runs } = await client.listWatcherRuns({ limit: 5 });
   // listWatcherRuns is newest-first (service orders by triggered_at desc).
   // Merge across recent complete/partial runs so each partner keeps the most
@@ -97,17 +108,26 @@ async function loadWatcher(client: {
   const usable = runs.filter(
     (r) => r.status === 'complete' || r.status === 'partial',
   );
-  if (usable.length === 0) return new Map();
+  if (usable.length === 0) return { data: new Map(), degraded: false };
 
   // Fetch details in parallel; a single failing run must not blank the card.
-  const detailResults = await Promise.all(
-    usable.map((r) =>
-      client.getWatcherRun(r.run_id).then(
-        (d) => d.results,
-        () => [] as WatcherResult[],
-      ),
-    ),
+  // Use allSettled so each rejection is captured and logged individually.
+  const settled = await Promise.allSettled(
+    usable.map((r) => client.getWatcherRun(r.run_id).then((d) => d.results)),
   );
+
+  let anyFailed = false;
+  const detailResults: WatcherResult[][] = settled.map((outcome, i) => {
+    if (outcome.status === 'rejected') {
+      anyFailed = true;
+      console.error('[cross-modality] watcher run-detail fetch failed', {
+        run_id: usable[i].run_id,
+        reason: outcome.reason,
+      });
+      return [] as WatcherResult[];
+    }
+    return outcome.value;
+  });
 
   const byPartner = new Map<string, WatcherPerPartner>();
   // Walk newest → oldest; only fill a field that is still unset, so the
@@ -142,15 +162,50 @@ async function loadWatcher(client: {
       byPartner.set(r.counterparty_participant_id, cur);
     }
   }
-  return byPartner;
+  return { data: byPartner, degraded: anyFailed };
 }
 
 export const GET = withHaiCore(async ({ client }) => {
-  const [audit, pd, watcher] = await Promise.all([
-    loadAudit(client).catch(() => ({ perVendor: new Map<string, PartnerAuditWeight>(), resultsByVendor: new Map() })),
-    loadPhantomDemand(client).catch(() => ({ byPartner: new Map<string, { response_rate: number; window_id: string; name: string | null }>() })),
-    loadWatcher(client).catch(() => new Map<string, WatcherPerPartner>()),
+  const [auditResult, pdResult, watcherResult] = await Promise.allSettled([
+    loadAudit(client),
+    loadPhantomDemand(client),
+    loadWatcher(client),
   ]);
+
+  let audit: Awaited<ReturnType<typeof loadAudit>>;
+  let partialAudit = false;
+  if (auditResult.status === 'rejected') {
+    console.error('[cross-modality] audit load failed', auditResult.reason);
+    audit = { perVendor: new Map<string, PartnerAuditWeight>(), resultsByVendor: new Map() };
+    partialAudit = true;
+  } else {
+    audit = auditResult.value;
+  }
+
+  let pdData: Awaited<ReturnType<typeof loadPhantomDemand>>;
+  let partialPd = false;
+  if (pdResult.status === 'rejected') {
+    console.error('[cross-modality] phantom-demand load failed', pdResult.reason);
+    pdData = { byPartner: new Map<string, { response_rate: number; window_id: string; name: string | null }>(), degraded: false };
+    partialPd = true;
+  } else {
+    pdData = pdResult.value;
+    partialPd = pdResult.value.degraded;
+  }
+
+  let watcherData: Awaited<ReturnType<typeof loadWatcher>>;
+  let partialWatcher = false;
+  if (watcherResult.status === 'rejected') {
+    console.error('[cross-modality] watcher load failed', watcherResult.reason);
+    watcherData = { data: new Map<string, WatcherPerPartner>(), degraded: false };
+    partialWatcher = true;
+  } else {
+    watcherData = watcherResult.value;
+    partialWatcher = watcherResult.value.degraded;
+  }
+
+  const pd = pdData;
+  const watcher = watcherData.data;
 
   const allPartnerIds = new Set<string>();
   for (const id of audit.perVendor.keys()) allPartnerIds.add(id);
@@ -187,5 +242,10 @@ export const GET = withHaiCore(async ({ client }) => {
   return NextResponse.json({
     partners,
     generated_at: new Date().toISOString(),
+    partial: {
+      audit: partialAudit,
+      phantom_demand: partialPd,
+      watcher: partialWatcher,
+    },
   });
 });
