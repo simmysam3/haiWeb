@@ -74,6 +74,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   throttle: {
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
+  signal_type: {
+    lead_time_distribution: 'p50 / p75 / p90 / p95 / p99 fulfilment lead time over the last 90 days.',
+    capacity_utilization_band: 'Latest reported production band: low, moderate, high, or at_capacity.',
+    delivery_event: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
+  },
 };
 
 const _warnedKeys = new Set<string>();

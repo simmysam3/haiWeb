@@ -1,3 +1,5 @@
+'use client';
+
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { Pill, IdChip } from '@/components';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
@@ -36,16 +38,14 @@ function Signals({ types }: { types: string[] }) {
   if (types.length === 0) return EMPTY;
   return (
     <>
-      {types.map((t) => (
-        <Pill
-          key={t}
-          category="signal_type"
-          value={t}
-          detail={SIGNAL_TYPE_LABELS[t as keyof typeof SIGNAL_TYPE_LABELS]?.tooltip}
-        >
-          {SIGNAL_TYPE_LABELS[t as keyof typeof SIGNAL_TYPE_LABELS]?.label ?? t}
-        </Pill>
-      ))}
+      {types.map((t) => {
+        const meta = SIGNAL_TYPE_LABELS[t as keyof typeof SIGNAL_TYPE_LABELS];
+        return (
+          <Pill key={t} category="signal_type" value={t}>
+            {meta?.label ?? t}
+          </Pill>
+        );
+      })}
     </>
   );
 }
