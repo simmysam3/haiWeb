@@ -65,4 +65,20 @@ describe('Pill', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
+
+  it('probe_verdict pill resolves a definition and surfaces the dynamic meaning', () => {
+    render(
+      <Pill
+        category="probe_verdict"
+        value="no_answer"
+        detail="No usable reply came back."
+        tone="neutral"
+      >
+        No answer
+      </Pill>,
+    );
+    const pill = screen.getByText('No answer');
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveAttribute('aria-describedby');
+  });
 });

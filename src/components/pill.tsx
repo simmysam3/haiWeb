@@ -18,6 +18,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     gap: 'No response was recorded — the probe was redacted or the responder was unreachable.',
     unknown: 'The responder completeness was not reported.',
   },
+  probe_verdict: {
+    full: 'The supplier indicated it can meet the full hypothetical quantity.',
+    partial: 'The supplier can cover only part of the hypothetical ask.',
+    declined: 'The supplier indicated it would not fulfill this hypothetical request.',
+    no_answer:
+      'No usable reply was obtained — missing data, not a decline. Supplier availability is unknown.',
+    unusable: 'A response arrived but could not be interpreted.',
+  },
   status: {
     active: 'Active and in good standing.',
     trading_pair: 'A bilaterally established trading relationship.',
