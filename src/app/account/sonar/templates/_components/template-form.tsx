@@ -11,6 +11,7 @@ import type {
 import { CadencePicker } from './cadence-picker';
 import { ScopePicker } from './scope-picker';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
+import { configNoun } from '../_lib/config-noun';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 
@@ -61,6 +62,8 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   const [observationClass, setObservationClass] = useState<ObservationClass>(
     initial?.observation_class ?? defaultObservationClass ?? 'audit',
   );
+  // Per-modality user-facing noun (this form is always single-modality).
+  const noun = configNoun(observationClass);
   const [cadence, setCadence] = useState<Cadence>(
     initial?.cadence ?? { kind: 'manual_only' },
   );
@@ -138,7 +141,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
         const newId = payload?.template?.template_id;
         if (!newId) {
           setError(
-            'Template was created but the server response was malformed. Refresh the templates list to confirm.',
+            `${noun} was created but the server response was malformed. Refresh the list to confirm.`,
           );
           return;
         }
@@ -153,7 +156,12 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
 
   async function handleDelete() {
     if (!isEdit || !initial) return;
-    if (!confirm(`Delete template "${initial.template_name}"? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Delete ${noun.toLowerCase()} "${initial.template_name}"? This cannot be undone.`,
+      )
+    )
+      return;
     setBusy(true);
     setError(null);
     setSessionExpired(false);
@@ -184,7 +192,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   return (
     <div className="space-y-6">
       <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Template name</span>
+        <span className="block mb-1 font-medium">{noun} name</span>
         <input
           type="text"
           value={name}
@@ -255,7 +263,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
           disabled={busy || name.length === 0 || pdIncomplete}
           className="rounded bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
         >
-          {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}
+          {busy ? 'Saving…' : isEdit ? 'Save changes' : `Create ${noun.toLowerCase()}`}
         </button>
         {isEdit && (
           <button

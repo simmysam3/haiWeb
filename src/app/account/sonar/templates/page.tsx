@@ -32,24 +32,25 @@ export default async function TemplatesListPage() {
     <div className="p-6 space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-charcoal">Run Templates</h1>
+          <h1 className="text-xl font-semibold text-charcoal">Configurations</h1>
           <p className="text-sm text-slate mt-1">
-            Reusable observation configurations. Cadence (manual / daily / weekly /
-            event-triggered) is set per template; scheduled templates fire automatically.
+            Saved observation configurations. Cadence (manual / daily / weekly /
+            event-triggered) is set per configuration; scheduled configurations
+            fire automatically.
           </p>
         </div>
         <Link
           href="/account/sonar/templates/new"
           className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
         >
-          New template
+          New configuration
         </Link>
       </header>
 
       {templates.length === 0 ? (
         <p className="text-sm text-slate">
-          No templates yet. Create one or use &ldquo;Save as template&rdquo; from
-          the audit or Watcher dashboard after a manual run.
+          No configurations yet. Create one or use the &ldquo;Save as&hellip;&rdquo;
+          action from the audit or Watcher dashboard after a manual run.
         </p>
       ) : (
         <table className="w-full border-collapse text-sm">

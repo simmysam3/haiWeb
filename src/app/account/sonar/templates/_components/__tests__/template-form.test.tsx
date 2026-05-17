@@ -17,14 +17,14 @@ beforeEach(() => {
 });
 
 describe('TemplateForm — create mode', () => {
-  it('POSTs with the name + scope when "Create template" is clicked', async () => {
+  it('POSTs with the name + scope when "Create audit" is clicked', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ template: { template_id: 'new' } }),
     } as Response);
     render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'my-tmpl');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'my-tmpl');
+    await userEvent.click(screen.getByRole('button', { name: /create audit/i }));
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/account/sonar/templates',
       expect.objectContaining({
@@ -39,8 +39,8 @@ describe('TemplateForm — create mode', () => {
       new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
     );
     render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'x');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'x');
+    await userEvent.click(screen.getByRole('button', { name: /create audit/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/session has expired/i);
     expect(screen.queryByText(/Create failed \(401\)/i)).not.toBeInTheDocument();
     const link = screen.getByRole('link', { name: /sign in again/i });
@@ -63,8 +63,8 @@ describe('TemplateForm — create mode', () => {
       ),
     );
     render(<TemplateForm />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'x');
-    await userEvent.click(screen.getByRole('button', { name: /create template/i }));
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'x');
+    await userEvent.click(screen.getByRole('button', { name: /create audit/i }));
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/scope\.provenance_key_id/);
     expect(alert).toHaveTextContent(/Invalid uuid/);
@@ -97,7 +97,9 @@ describe('TemplateForm — create mode', () => {
 
   it('disables Create for phantom_demand until counterparty AND >=1 sku are set', async () => {
     render(<TemplateForm defaultObservationClass="phantom_demand" />);
-    await userEvent.type(screen.getByLabelText(/template name/i), 'pd-1');
-    expect(screen.getByRole('button', { name: /create template/i })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/demand request name/i), 'pd-1');
+    expect(
+      screen.getByRole('button', { name: /create demand request/i }),
+    ).toBeDisabled();
   });
 });

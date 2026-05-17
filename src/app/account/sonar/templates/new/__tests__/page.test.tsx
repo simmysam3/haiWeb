@@ -13,8 +13,8 @@ describe('NewTemplatePage', () => {
     const Page = (await import('../page')).default;
     const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
-    expect(screen.getByLabelText(/template name/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create template/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/audit name/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create audit/i })).toBeInTheDocument();
   });
 
   it('preselects watcher modality when ?observation_class=watcher', async () => {

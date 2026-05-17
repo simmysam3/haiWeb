@@ -21,7 +21,7 @@ describe('TemplatesListPage', () => {
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
-    expect(screen.getByText(/no templates yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no configurations yet/i)).toBeInTheDocument();
   });
 
   it('renders template rows when list is non-empty', async () => {

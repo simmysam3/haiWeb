@@ -68,9 +68,9 @@ describe('TriggerModal', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it('renders a Save-as-template link with the watcher observation_class', () => {
+  it('renders a Save-as-Watch link with the watcher observation_class', () => {
     render(<TriggerModal onClose={() => {}} onSuccess={() => {}} />);
-    const link = screen.getByRole('link', { name: /save as template instead/i });
+    const link = screen.getByRole('link', { name: /save as watch instead/i });
     expect(link).toHaveAttribute(
       'href',
       '/account/sonar/templates/new?observation_class=watcher',

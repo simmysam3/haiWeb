@@ -43,7 +43,7 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
             href="/account/sonar/templates"
             className="text-sm text-teal hover:underline"
           >
-            ← Templates
+            ← Configurations
           </Link>
           <h1 className="text-xl font-semibold text-charcoal mt-2">
             {template.template_name}
