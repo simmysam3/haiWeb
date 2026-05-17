@@ -59,6 +59,26 @@ function formatOperational(audit: ReturnType<typeof auditPayload>): string | nul
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
+function nodeDisplayName(
+  node: ObservationNode,
+  vendorName: string | null,
+): { label: string; italic: boolean } {
+  if (vendorName) return { label: vendorName, italic: false };
+  if (node.identity_redacted === true) {
+    return { label: 'Vendor Name Not Disclosed', italic: false };
+  }
+  if (node.gap?.kind === 'unauthorized') {
+    return { label: 'Vendor Name Not Disclosed', italic: false };
+  }
+  if (node.gap?.kind === 'non_participant') {
+    return { label: 'Unknown — no network record', italic: false };
+  }
+  if (node.participant_id) {
+    return { label: 'Vendor Name Not Disclosed', italic: false };
+  }
+  return { label: 'Component', italic: true };
+}
+
 export function TreeView({
   node,
   depth = 0,
@@ -66,7 +86,6 @@ export function TreeView({
   node: ObservationNode;
   depth?: number;
 }) {
-  const isParticipant = !!node.participant_id;
   const audit = auditPayload(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
   const originLabel = formatOrigin(audit);
@@ -80,18 +99,21 @@ export function TreeView({
       <summary className="cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50 transition-colors">
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {isParticipant ? (
-            <>
-              <span className="text-sm font-medium text-charcoal">
-                {vendorName ?? 'Unnamed vendor'}
-              </span>
-              {node.participant_id && (
-                <IdChip id={node.participant_id} />
-              )}
-            </>
-          ) : (
-            <span className="text-sm italic text-slate">Component</span>
-          )}
+          {(() => {
+            const { label, italic } = nodeDisplayName(node, vendorName);
+            return (
+              <>
+                <span
+                  className={`text-sm ${italic ? 'italic text-slate' : 'font-medium text-charcoal'}`}
+                >
+                  {label}
+                </span>
+                {vendorName && node.participant_id && (
+                  <IdChip id={node.participant_id} />
+                )}
+              </>
+            );
+          })()}
           {showSynthesis && (
             <Pill tone="slate">{SYNTHESIS_LABEL[node.synthesis_mode]}</Pill>
           )}
