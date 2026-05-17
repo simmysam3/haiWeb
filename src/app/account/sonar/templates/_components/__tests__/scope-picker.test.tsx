@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, fireEvent } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ScopePicker } from '../scope-picker';
@@ -91,29 +91,11 @@ describe('ScopePicker — watcher', () => {
 });
 
 describe('ScopePicker — phantom_demand', () => {
-  it('renders PD scope picker with counterparty + SKU + quantity + timeline', () => {
-    const onChange = vi.fn();
-    render(
-      <ScopePicker
-        observationClass="phantom_demand"
-        value={{
-          kind: 'phantom_demand',
-          authorization_basis: 'bilateral',
-          counterparty: '',
-          skus: [],
-          hypothetical_quantity: 1,
-          hypothetical_timeline: null,
-        }}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.getByLabelText(/Counterparty/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/SKUs/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hypothetical Quantity/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hypothetical Timeline/)).toBeInTheDocument();
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('[]', { status: 200 })));
   });
 
-  it('emits a PhantomDemandScope-shaped value on counterparty change', async () => {
+  it('phantom_demand renders the delegated scope fields (Target Delivery Date, not free-text timeline)', () => {
     const onChange = vi.fn();
     render(
       <ScopePicker
@@ -129,16 +111,8 @@ describe('ScopePicker — phantom_demand', () => {
         onChange={onChange}
       />,
     );
-    // fireEvent.change gives us a single call with the full value
-    const cpInput = screen.getByLabelText(/Counterparty/);
-    await userEvent.clear(cpInput);
-    await userEvent.type(cpInput, 'cp1');
-    // Check that at some point onChange was called with a PD-shaped value
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'phantom_demand',
-        authorization_basis: 'bilateral',
-      }),
-    );
+    expect(screen.getByText(/target delivery date/i)).toBeInTheDocument();
+    expect(screen.getByText('Counterparty')).toBeInTheDocument();
+    expect(screen.getByText('SKUs')).toBeInTheDocument();
   });
 });

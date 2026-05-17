@@ -16,6 +16,8 @@ function setMockClient(overrides: Record<string, any>) {
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
     // v1.30 §7.7: PD activity sourced from listPhantomDemandRuns (not fetchRaw windows)
     listPhantomDemandRuns: vi.fn().mockResolvedValue([]),
+    // commit 13754a1: route now fetches templates to enrich activity titles
+    listRunTemplates: vi.fn().mockResolvedValue({ templates: [] }),
     ...overrides,
   };
 }
@@ -43,7 +45,7 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
       }),
       listWatcherRuns: vi.fn().mockResolvedValue({
         runs: [
-          { run_id: 't1', status: 'complete', triggered_at: '2026-05-09T02:00:00Z', completed_at: '2026-05-09T02:05:00Z', run_origin: 'template_manual' },
+          { run_id: 't1', status: 'complete', triggered_at: '2026-05-09T02:00:00Z', completed_at: '2026-05-09T02:05:00Z', run_origin: 'template_manual', signal_types: ['price_change'], counterparty_filter: null, depth_limit: 1 },
         ],
       }),
     });

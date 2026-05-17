@@ -92,14 +92,30 @@ export function CrossModalityTable({ partners }: Props) {
 
   if (partners.length === 0) {
     return (
-      <div className="rounded-md border border-slate-200 bg-white p-6 text-sm italic text-slate">
-        No partners observed yet
+      <div className="rounded-md border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-4 py-2">
+          <h2 className="text-sm font-semibold text-charcoal">Partners observed by Sonar</h2>
+          <p className="text-xs text-slate">
+            Once you run an audit, phantom-demand probe, or watcher template, each
+            counterparty touched will appear here with its compliance, response, and
+            capacity signals side-by-side.
+          </p>
+        </div>
+        <p className="p-6 text-sm italic text-slate">No partners observed yet.</p>
       </div>
     );
   }
 
   return (
     <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
+      <div className="border-b border-slate-100 px-4 py-2">
+        <h2 className="text-sm font-semibold text-charcoal">Partners observed by Sonar</h2>
+        <p className="text-xs text-slate">
+          Each counterparty Sonar has touched, with audit compliance, phantom-demand
+          response, watcher capacity, and a composite risk score. Click a column header
+          to sort.
+        </p>
+      </div>
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50">
           <tr>

@@ -16,6 +16,7 @@ const VENDOR_B = '00000000-0000-0000-0000-00000000000b';
 function setMockClient(overrides: Record<string, any>) {
   (globalThis as any).__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
+    getAuditRunResults: vi.fn().mockResolvedValue({ results: [] }),
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
     getWatcherRun: vi.fn().mockResolvedValue({ run: {}, results: [] }),
     fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
@@ -49,31 +50,26 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
           },
         ],
       }),
+      getAuditRunResults: vi.fn().mockResolvedValue({
+        results: [
+          {
+            vendor_participant_id: VENDOR_A,
+            tree: { vendor_legal_name: 'A Co' },
+            geo_rollup: [
+              { country_of_origin: 'US', component_count: 6, depth_distribution: {} },
+              { country_of_origin: 'CN', component_count: 4, depth_distribution: {} },
+            ],
+          },
+          {
+            vendor_participant_id: VENDOR_B,
+            tree: { vendor_legal_name: 'B Co' },
+            geo_rollup: [
+              { country_of_origin: 'US', component_count: 10, depth_distribution: {} },
+            ],
+          },
+        ],
+      }),
       fetchRaw: vi.fn(async (path: string) => {
-        if (path === '/sonar/audit/runs/r1/results' || path === '/audit/runs/r1/results') {
-          return new Response(
-            JSON.stringify({
-              results: [
-                {
-                  vendor_participant_id: VENDOR_A,
-                  tree: { vendor_legal_name: 'A Co' },
-                  geo_rollup: [
-                    { country_of_origin: 'US', component_count: 6, depth_distribution: {} },
-                    { country_of_origin: 'CN', component_count: 4, depth_distribution: {} },
-                  ],
-                },
-                {
-                  vendor_participant_id: VENDOR_B,
-                  tree: { vendor_legal_name: 'B Co' },
-                  geo_rollup: [
-                    { country_of_origin: 'US', component_count: 10, depth_distribution: {} },
-                  ],
-                },
-              ],
-            }),
-            { status: 200 },
-          );
-        }
         if (path === '/sonar/phantom-demand/reports/latest') {
           return new Response(JSON.stringify({ window_id: 'w1' }), { status: 200 });
         }
@@ -115,6 +111,17 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     const res = await GET(makeReq(), { params: Promise.resolve({}) });
     const body = await res.json();
     expect(body.partners).toHaveLength(2);
+
+    // Audit results must come from the canonical typed method (which hits
+    // /source-audit/runs/:id/results), NOT a hand-rolled non-existent path.
+    const client = (globalThis as any).__mockClient;
+    expect(client.getAuditRunResults).toHaveBeenCalledWith('r1');
+    const fetchRawPaths = client.fetchRaw.mock.calls.map((c: any[]) => c[0]);
+    expect(
+      fetchRawPaths.some(
+        (p: string) => p.includes('/sonar/audit/runs/') || p === '/audit/runs/r1/results',
+      ),
+    ).toBe(false);
 
     const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);
     expect(a.partner_name).toBe('A Co');

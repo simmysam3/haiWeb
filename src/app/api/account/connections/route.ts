@@ -9,46 +9,161 @@ import { MOCK_ACCESS_REQUESTS } from "@/lib/mock-data";
  *
  * Lists pending connection requests from haiCore. Falls back to mock data.
  */
+interface HaiCorePendingRow {
+  id: string;
+  requesting_participant_id?: string;
+  requesting_name?: string;
+  requested_level?: "approved" | "trading_pair";
+  invite?: boolean;
+  context_message?: string | null;
+  requested_at?: string;
+}
+
+interface HaiCoreLocality {
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+interface HaiCoreCategory {
+  class_id: string;
+  class_name?: string;
+  product_count?: number;
+}
+
+interface HaiCorePublicProfile {
+  participant_id: string;
+  legal_name?: string;
+  dba_name?: string;
+  vendor_description?: string;
+  business_type?: string;
+  locality?: HaiCoreLocality;
+  primary_contact_name?: string;
+  registered_at?: string;
+  categories?: HaiCoreCategory[];
+}
+
+interface HaiCoreBehavioralScore {
+  participant_id: string;
+  // 0-1 scale per protocol spec doc4 §390. Queue card displays on a 0-100
+  // scale ("score / 100"), so we multiply at the BFF.
+  overall_score: number;
+}
+
+function scaleScore(s: number | undefined | null): number | null {
+  if (s == null || Number.isNaN(s)) return null;
+  return Math.round(s * 100);
+}
+
+function ageDays(requestedAt: string): number {
+  const ms = Date.now() - new Date(requestedAt).getTime();
+  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+function locationFrom(loc: HaiCoreLocality | undefined): string {
+  if (!loc) return "";
+  const city = loc.city?.trim();
+  const state = loc.state?.trim();
+  if (city && state) return `${city}, ${state}`;
+  return city ?? state ?? "";
+}
+
+// Quick US Census-region heuristic. Empty string when state isn't recognized
+// (international participants, missing state) so the queue card subtitle doesn't
+// show a placeholder string.
+const STATE_TO_REGION: Record<string, string> = {
+  CT: "Northeast", ME: "Northeast", MA: "Northeast", NH: "Northeast", RI: "Northeast", VT: "Northeast",
+  NJ: "Northeast", NY: "Northeast", PA: "Northeast",
+  IL: "Midwest", IN: "Midwest", MI: "Midwest", OH: "Midwest", WI: "Midwest",
+  IA: "Midwest", KS: "Midwest", MN: "Midwest", MO: "Midwest", NE: "Midwest", ND: "Midwest", SD: "Midwest",
+  DE: "South", FL: "South", GA: "South", MD: "South", NC: "South", SC: "South", VA: "South", WV: "South", DC: "South",
+  AL: "South", KY: "South", MS: "South", TN: "South",
+  AR: "South", LA: "South", OK: "South", TX: "South",
+  AZ: "West", CO: "West", ID: "West", MT: "West", NV: "West", NM: "West", UT: "West", WY: "West",
+  AK: "West", CA: "West", HI: "West", OR: "West", WA: "West",
+};
+
+function regionFrom(loc: HaiCoreLocality | undefined): string {
+  const state = loc?.state?.trim().toUpperCase();
+  if (!state) return "";
+  return STATE_TO_REGION[state] ?? "";
+}
+
+function industryFrom(profile: HaiCorePublicProfile | undefined): string {
+  const top = profile?.categories?.[0];
+  if (top?.class_name) return top.class_name;
+  return profile?.business_type ?? "";
+}
+
+function productLinesFrom(profile: HaiCorePublicProfile | undefined): string[] {
+  return (profile?.categories ?? [])
+    .map((c) => c.class_name)
+    .filter((name): name is string => !!name)
+    .slice(0, 6);
+}
+
+/**
+ * GET /api/account/connections
+ *
+ * Lists pending connection requests from haiCore and enriches each row with
+ * the requester's public company profile and latest behavioral score
+ * (parallel fan-out via /company/:id/profile + /behavioral/score/:id).
+ * Both fetches use Promise.allSettled so a 404 (e.g. participant has no
+ * score yet) or transient 500 doesn't drop the whole queue — that
+ * requester's row just renders with the missing fields blank/null.
+ *
+ * Falls back to mock data when haiCore is unreachable.
+ */
 export const GET = withHaiCore(
   async ({ client }) => {
-    const result = (await client.listPendingRequests()) as unknown as Array<{
-      id: string;
-      company_name?: string;
-      contact_name?: string;
-      message?: string;
-      requested_at?: string;
-      industry?: string;
-      location?: string;
-      business_type?: string;
-      company_description?: string;
-      behavioral_score?: number | null;
-      product_lines?: string[];
-      region?: string;
-      network_member_since?: string | null;
-      request_type?: "approved" | "trading_pair";
-      invite?: boolean;
-      age_days?: number;
-    }>;
+    const rows = (await client.listPendingRequests()) as unknown as HaiCorePendingRow[];
+    if (rows.length === 0) return [];
 
-    // Map haiCore response to the shape the UI expects (MockAccessRequest)
-    return result.map((r) => ({
-      id: r.id,
-      company_name: r.company_name ?? "",
-      contact_name: r.contact_name ?? "",
-      message: r.message ?? "",
-      requested_at: r.requested_at ?? new Date().toISOString(),
-      industry: r.industry ?? "",
-      location: r.location ?? "",
-      business_type: r.business_type ?? "",
-      company_description: r.company_description ?? "",
-      behavioral_score: r.behavioral_score ?? null,
-      product_lines: r.product_lines ?? [],
-      region: r.region ?? "",
-      network_member_since: r.network_member_since ?? null,
-      request_type: r.request_type ?? "approved",
-      invite: r.invite ?? false,
-      age_days: r.age_days ?? 0,
-    }));
+    const [profileResults, scoreResults] = await Promise.all([
+      Promise.allSettled(
+        rows.map((r) =>
+          r.requesting_participant_id
+            ? (client.getCompanyProfile(r.requesting_participant_id) as unknown as Promise<HaiCorePublicProfile>)
+            : Promise.reject(new Error("missing requesting_participant_id")),
+        ),
+      ),
+      Promise.allSettled(
+        rows.map((r) =>
+          r.requesting_participant_id
+            ? (client.getScore(r.requesting_participant_id) as unknown as Promise<HaiCoreBehavioralScore>)
+            : Promise.reject(new Error("missing requesting_participant_id")),
+        ),
+      ),
+    ]);
+
+    return rows.map((r, i) => {
+      const requestedAt = r.requested_at ?? new Date().toISOString();
+      const profileSettled = profileResults[i];
+      const scoreSettled = scoreResults[i];
+      const profile: HaiCorePublicProfile | undefined =
+        profileSettled.status === "fulfilled" ? profileSettled.value : undefined;
+      const score: HaiCoreBehavioralScore | undefined =
+        scoreSettled.status === "fulfilled" ? scoreSettled.value : undefined;
+
+      return {
+        id: r.id,
+        company_name: r.requesting_name ?? profile?.dba_name ?? profile?.legal_name ?? "Unknown participant",
+        contact_name: profile?.primary_contact_name ?? "",
+        message: r.context_message ?? "",
+        requested_at: requestedAt,
+        industry: industryFrom(profile),
+        location: locationFrom(profile?.locality),
+        business_type: profile?.business_type ?? "",
+        company_description: profile?.vendor_description ?? "",
+        behavioral_score: scaleScore(score?.overall_score),
+        product_lines: productLinesFrom(profile),
+        region: regionFrom(profile?.locality),
+        network_member_since: profile?.registered_at ?? null,
+        request_type: r.requested_level ?? "approved",
+        invite: r.invite ?? false,
+        age_days: ageDays(requestedAt),
+      };
+    });
   },
   { fallback: MOCK_ACCESS_REQUESTS },
 );

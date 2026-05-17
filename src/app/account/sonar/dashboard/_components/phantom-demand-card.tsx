@@ -15,7 +15,15 @@ export function PhantomDemandCard({ averageResponseRate, partnerCount }: Props) 
         </Link>
       </div>
       {averageResponseRate === null ? (
-        <p className="text-sm text-slate italic">No runs yet — visit /phantom-demand to start.</p>
+        <p className="text-sm text-slate italic">
+          No runs yet —{' '}
+          <Link
+            href="/account/sonar/templates/new?observation_class=phantom_demand"
+            className="not-italic text-teal hover:underline"
+          >
+            run your first phantom demand probe →
+          </Link>
+        </p>
       ) : (
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <div>

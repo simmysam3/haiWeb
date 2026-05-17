@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Pill } from '@/components/pill';
 
 interface Props {
   nextResumeAt: string; // ISO datetime
@@ -27,9 +28,9 @@ export function ThrottledStatusPill({ nextResumeAt }: Props) {
   }, [nextResumeAt]);
   const ready = countdown === null;
   return (
-    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200">
+    <Pill category="throttle" value="throttled" tone="warn">
       {ready ? 'Throttled · Resuming now' : `Throttled · Resumes in ${countdown}`}
-    </span>
+    </Pill>
   );
 }
 

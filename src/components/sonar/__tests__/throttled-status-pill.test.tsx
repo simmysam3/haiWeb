@@ -18,7 +18,7 @@ describe('ThrottledStatusPill', () => {
   it('renders "Resuming now" when nextResumeAt is in the past', () => {
     const past = new Date(Date.now() - 5000).toISOString();
     render(<ThrottledStatusPill nextResumeAt={past} />);
-    expect(screen.getByText('Throttled · Resuming now')).toBeInTheDocument();
+    expect(screen.getByText(/Resuming now/)).toBeInTheDocument();
   });
 
   it('formats hours correctly for times more than 60 minutes away', () => {
@@ -52,6 +52,16 @@ describe('ThrottledStatusPill', () => {
       vi.advanceTimersByTime(30 * 60_000);
     });
     // After 30+ min elapsed against a 30-min window, should show "Resuming now"
-    expect(screen.getByText('Throttled · Resuming now')).toBeInTheDocument();
+    expect(screen.getByText(/Resuming now/)).toBeInTheDocument();
+  });
+
+  it('shows a countdown label and a definition tooltip', () => {
+    const future = new Date(Date.now() + 10 * 60_000).toISOString();
+    render(<ThrottledStatusPill nextResumeAt={future} />);
+    expect(screen.getByText(/Throttled · Resumes in/)).toBeInTheDocument();
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/hop budget was exhausted/i);
   });
 });

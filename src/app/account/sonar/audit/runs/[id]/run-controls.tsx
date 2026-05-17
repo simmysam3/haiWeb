@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { RunStatus } from '@haiwave/protocol';
 import { useRunStatus } from './use-run-status';
+import { Pill } from '@/components/pill';
 
 const TERMINAL: RunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
 
@@ -13,6 +14,7 @@ interface RunControlsProps {
   initialHopCount: number | null;
   initialGapCount: number | null;
   initialResultsCount: number;
+  errorMessage?: string | null;
 }
 
 export function RunControls({
@@ -21,6 +23,7 @@ export function RunControls({
   initialHopCount,
   initialGapCount,
   initialResultsCount,
+  errorMessage,
 }: RunControlsProps) {
   const router = useRouter();
   const { status, hopCount, gapCount, resultsAvailableCount, error, mutate } =
@@ -85,7 +88,7 @@ export function RunControls({
 
   return (
     <div className="flex items-center gap-4">
-      <StatusPill status={effectiveStatus} cancelling={cancelling} />
+      <StatusPill status={effectiveStatus} cancelling={cancelling} errorMessage={errorMessage} />
       <div className="text-sm text-slate">
         {effectiveResults} {effectiveResults === 1 ? 'result' : 'results'}
         {effectiveHop !== null ? ` · ${effectiveHop} hops` : ''}
@@ -113,9 +116,11 @@ export function RunControls({
 function StatusPill({
   status,
   cancelling,
+  errorMessage,
 }: {
   status: RunStatus;
   cancelling: boolean;
+  errorMessage?: string | null;
 }) {
   if (cancelling && status === 'running') {
     return (
@@ -131,14 +136,14 @@ function StatusPill({
     status === 'partial' ? 'Partial' :
     status === 'failed' ? 'Failed' :
     'Cancelled';
-  const tone =
-    status === 'running' ? 'bg-blue-50 text-blue-700' :
-    status === 'complete' ? 'bg-emerald-50 text-emerald-700' :
-    status === 'partial' ? 'bg-amber-50 text-amber-700' :
-    status === 'failed' ? 'bg-red-50 text-red-700' :
-    'bg-slate-100 text-slate-700';
   return (
-    <span className={`text-xs px-2 py-1 rounded ${tone}`}>{label}</span>
+    <Pill
+      category="run_status"
+      value={status}
+      detail={status === 'failed' ? errorMessage ?? undefined : undefined}
+    >
+      {label}
+    </Pill>
   );
 }
 

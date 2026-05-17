@@ -10,6 +10,9 @@ import type {
 } from '@haiwave/protocol';
 import { CadencePicker } from './cadence-picker';
 import { ScopePicker } from './scope-picker';
+import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
+import { describeApiError } from '@/lib/api-error';
+import { FormError } from '@/components';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -29,7 +32,7 @@ function emptyScope(observationClass: ObservationClass): RunTemplateScope {
       signal_types: [],
       skus: [],
       depth_limit: 1,
-      hop_budget: 5,
+      hop_budget: SYSTEM_AUDIT_HOP_BUDGET,
     };
   }
   if (observationClass === 'watcher') {
@@ -68,7 +71,14 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   const [retentionDays, setRetentionDays] = useState(initial?.retention_days ?? 365);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const router = useRouter();
+
+  async function surfaceFailure(res: Response): Promise<void> {
+    const info = await describeApiError(res);
+    setError(info.message);
+    setSessionExpired(info.sessionExpired);
+  }
 
   function changeObservationClass(next: ObservationClass) {
     setObservationClass(next);
@@ -79,6 +89,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
   async function submit() {
     setBusy(true);
     setError(null);
+    setSessionExpired(false);
     try {
       if (isEdit && initial) {
         const body = {
@@ -96,7 +107,7 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
           },
         );
         if (!res.ok) {
-          setError(`Save failed (${res.status})`);
+          await surfaceFailure(res);
           return;
         }
         router.refresh();
@@ -118,14 +129,23 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
           body: JSON.stringify(body),
         });
         if (!res.ok) {
-          setError(`Create failed (${res.status})`);
+          await surfaceFailure(res);
           return;
         }
-        const payload = (await res.json()) as { template: RunTemplate };
-        router.push(`/account/sonar/templates/${payload.template.template_id}`);
+        const payload = (await res.json().catch(() => null)) as
+          | { template?: { template_id?: string } }
+          | null;
+        const newId = payload?.template?.template_id;
+        if (!newId) {
+          setError(
+            'Template was created but the server response was malformed. Refresh the templates list to confirm.',
+          );
+          return;
+        }
+        router.push(`/account/sonar/templates/${newId}`);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Submit failed');
+    } catch {
+      setError('Network error — could not reach the server. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -135,20 +155,31 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
     if (!isEdit || !initial) return;
     if (!confirm(`Delete template "${initial.template_name}"? This cannot be undone.`)) return;
     setBusy(true);
+    setError(null);
+    setSessionExpired(false);
     try {
       const res = await fetch(
         `/api/account/sonar/templates/${initial.template_id}`,
         { method: 'DELETE' },
       );
       if (!res.ok) {
-        setError(`Delete failed (${res.status})`);
+        await surfaceFailure(res);
         return;
       }
       router.push('/account/sonar/templates');
+    } catch {
+      setError('Network error — could not reach the server. Please try again.');
     } finally {
       setBusy(false);
     }
   }
+
+  // Edit mode never gates on scope (scope is read-only on PATCH).
+  const pdIncomplete =
+    !isEdit &&
+    observationClass === 'phantom_demand' &&
+    scope.kind === 'phantom_demand' &&
+    (scope.counterparty.length === 0 || scope.skus.length === 0);
 
   return (
     <div className="space-y-6">
@@ -182,14 +213,6 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
 
       <CadencePicker value={cadence} onChange={setCadence} />
 
-      {!isEdit && (
-        <ScopePicker
-          observationClass={observationClass}
-          value={scope}
-          onChange={setScope}
-        />
-      )}
-
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
@@ -215,13 +238,21 @@ export function TemplateForm({ initial, defaultObservationClass }: TemplateFormP
         </label>
       </div>
 
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {!isEdit && (
+        <ScopePicker
+          observationClass={observationClass}
+          value={scope}
+          onChange={setScope}
+        />
+      )}
+
+      {error && <FormError message={error} sessionExpired={sessionExpired} />}
 
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={submit}
-          disabled={busy || name.length === 0}
+          disabled={busy || name.length === 0 || pdIncomplete}
           className="rounded bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-60"
         >
           {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}

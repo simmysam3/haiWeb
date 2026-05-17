@@ -5,13 +5,21 @@ import { ResolutionStatusBadge } from '../resolution-status-badge';
 
 describe('ResolutionStatusBadge', () => {
   it.each([
-    ['compliant', 'Compliant', 'text-teal'],
-    ['partially_compliant', 'Partially compliant', 'text-orange'],
+    ['compliant', 'Compliant', 'text-success'],
+    ['partially_compliant', 'Partially compliant', 'text-warning'],
     ['non_compliant', 'Non-compliant', 'text-problem'],
   ] as const)('renders %s with label %s and class containing %s', (status, label, colorClass) => {
     render(<ResolutionStatusBadge resolution_status={status} />);
-    const badge = screen.getByText(label);
-    expect(badge).toBeInTheDocument();
+    const badge = screen.getByTestId('pill');
+    expect(badge).toHaveTextContent(label);
     expect(badge.className).toContain(colorClass);
+  });
+
+  it('carries a definition tooltip', () => {
+    render(<ResolutionStatusBadge resolution_status="non_compliant" />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/failed origin\/disclosure/i);
   });
 });

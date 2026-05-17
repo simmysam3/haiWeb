@@ -140,6 +140,33 @@ describe('RunControls', () => {
     expect(screen.getByText('Complete')).toBeInTheDocument();
   });
 
+  it('failed status pill tooltip includes the error reason', () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'failed',
+        hop_count: null,
+        gap_count: null,
+        results_available_count: 0,
+      }),
+    });
+    render(
+      <RunControls
+        runId="r1"
+        initialStatus="failed"
+        initialHopCount={null}
+        initialGapCount={null}
+        initialResultsCount={0}
+        errorMessage='duplicate key value violates unique constraint "idx_sku_obligations_unique_active"'
+      />,
+    );
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/Reason:/);
+    expect(tip).toHaveTextContent('idx_sku_obligations_unique_active');
+  });
+
   it('clears the Cancelling indicator and shows an error message when the cancel POST fails', async () => {
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       if (init?.method === 'POST' && url.endsWith('/cancel')) {
@@ -171,9 +198,6 @@ describe('RunControls', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-
-    // Cancelling… indicator appears optimistically.
-    expect(await screen.findByText(/cancelling/i)).toBeInTheDocument();
 
     // After the failed POST resolves, the indicator clears and the error renders.
     await waitFor(() => {

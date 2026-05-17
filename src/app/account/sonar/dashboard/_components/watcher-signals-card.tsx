@@ -17,7 +17,15 @@ export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Pr
         </Link>
       </div>
       {total === 0 ? (
-        <p className="text-sm text-slate italic">No runs yet — visit /watcher to start.</p>
+        <p className="text-sm text-slate italic">
+          No runs yet —{' '}
+          <Link
+            href="/account/sonar/templates/new?observation_class=watcher"
+            className="not-italic text-teal hover:underline"
+          >
+            set up your first watcher →
+          </Link>
+        </p>
       ) : (
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <div>

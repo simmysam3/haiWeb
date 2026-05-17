@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope, SignalType } from '@haiwave/protocol';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
+import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
+import { PhantomDemandScopeFields } from './phantom-demand-scope-fields';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -22,7 +24,10 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     const auditValue = value.kind === 'audit' ? value : null;
     const authBasis = auditValue?.authorization_basis ?? 'bilateral';
     const depthLimit = auditValue?.depth_limit ?? 1;
-    const hopBudget = 'hop_budget' in (auditValue ?? {}) ? (auditValue as { hop_budget?: number }).hop_budget ?? 5 : 5;
+    // hop_budget is system-managed (see system-config.ts) — preserve any existing
+    // value on edit but never expose it as a form field. Falls back to the
+    // system default for fresh templates.
+    const hopBudget = 'hop_budget' in (auditValue ?? {}) ? (auditValue as { hop_budget?: number }).hop_budget ?? SYSTEM_AUDIT_HOP_BUDGET : SYSTEM_AUDIT_HOP_BUDGET;
 
     return (
       <div className="space-y-3">
@@ -116,36 +121,6 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
             )
           }
         />
-        <NumberField
-          label="Hop budget"
-          value={hopBudget}
-          min={1}
-          max={50}
-          onChange={(n) =>
-            onChange(
-              authBasis === 'key_scoped'
-                ? {
-                    kind: 'audit',
-                    authorization_basis: 'key_scoped',
-                    provenance_key_id:
-                      auditValue && 'provenance_key_id' in auditValue
-                        ? auditValue.provenance_key_id
-                        : '',
-                    depth_limit: depthLimit,
-                    hop_budget: n,
-                  }
-                : {
-                    kind: 'audit',
-                    authorization_basis: 'bilateral',
-                    counterparties: auditValue && 'counterparties' in auditValue ? auditValue.counterparties : [],
-                    signal_types: auditValue && 'signal_types' in auditValue ? auditValue.signal_types : [],
-                    skus: auditValue && 'skus' in auditValue ? auditValue.skus : [],
-                    depth_limit: depthLimit,
-                    hop_budget: n,
-                  },
-            )
-          }
-        />
         {authBasis === 'bilateral' && (
           <p className="text-xs text-slate">
             Vendor IDs come from active audit scopes; selection UI is configured
@@ -216,94 +191,19 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     );
   }
 
-  // phantom_demand branch
-  const pdValue = value.kind === 'phantom_demand' ? value : null;
-
-  return (
-    <div className="space-y-4">
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Counterparty</span>
-        <input
-          type="text"
-          aria-label="Counterparty"
-          value={pdValue?.counterparty ?? ''}
-          placeholder="Counterparty participant ID"
-          onChange={(e) =>
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: e.target.value,
-              skus: pdValue?.skus ?? [],
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-            })
-          }
-          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
-        />
-      </label>
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">SKUs</span>
-        <input
-          type="text"
-          aria-label="SKUs"
-          value={pdValue?.skus?.join(', ') ?? ''}
-          placeholder="SKU IDs (comma-separated)"
-          onChange={(e) => {
-            const skus = e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean);
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: pdValue?.counterparty ?? '',
-              skus,
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-            });
-          }}
-          className="rounded border border-slate-300 px-2 py-1 text-sm w-full"
-        />
-        <span className="text-xs text-slate">Comma-separated SKU IDs</span>
-      </label>
-      <NumberField
-        label="Hypothetical Quantity"
-        value={pdValue?.hypothetical_quantity ?? 1}
-        min={1}
-        max={999999}
-        onChange={(hypothetical_quantity) =>
-          onChange({
-            kind: 'phantom_demand',
-            authorization_basis: 'bilateral',
-            counterparty: pdValue?.counterparty ?? '',
-            skus: pdValue?.skus ?? [],
-            hypothetical_quantity,
-            hypothetical_timeline: pdValue?.hypothetical_timeline ?? null,
-          })
-        }
-      />
-      <label className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Hypothetical Timeline</span>
-        <input
-          type="datetime-local"
-          aria-label="Hypothetical Timeline"
-          value={pdValue?.hypothetical_timeline ?? ''}
-          onChange={(e) =>
-            onChange({
-              kind: 'phantom_demand',
-              authorization_basis: 'bilateral',
-              counterparty: pdValue?.counterparty ?? '',
-              skus: pdValue?.skus ?? [],
-              hypothetical_quantity: pdValue?.hypothetical_quantity ?? 1,
-              hypothetical_timeline: e.target.value || null,
-            })
-          }
-          className="rounded border border-slate-300 px-2 py-1 text-sm"
-        />
-        <span className="text-xs text-slate">Empty = as soon as possible</span>
-      </label>
-    </div>
-  );
+  // phantom_demand branch — delegated to a dedicated component (v1.31).
+  const pdValue: Extract<RunTemplateScope, { kind: 'phantom_demand' }> =
+    value.kind === 'phantom_demand'
+      ? value
+      : {
+          kind: 'phantom_demand',
+          authorization_basis: 'bilateral',
+          counterparty: '',
+          skus: [],
+          hypothetical_quantity: 1,
+          hypothetical_timeline: null,
+        };
+  return <PhantomDemandScopeFields value={pdValue} onChange={onChange} />;
 }
 
 function NumberField({

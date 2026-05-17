@@ -24,8 +24,12 @@ interface ActivityResponse {
     run_id: string;
     modality: 'audit' | 'watcher' | 'phantom_demand';
     status: string;
+    title: string;
+    summary: string;
+    outcome: string | null;
     triggered_at: string;
     completed_at: string | null;
+    duration_seconds: number | null;
     run_origin: string;
     detail_href: string;
   }>;

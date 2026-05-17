@@ -75,6 +75,7 @@ src/
 - Route handlers in `app/api/` for BFF logic
 - No `any` types. Use `unknown` and narrow.
 - `kebab-case` for file names
+- **Pills/badges:** every pill or status badge MUST render via `components/pill.tsx` (`<Pill>`), never a hand-rolled `rounded-full` span. Each pill carries a definition tooltip. Status/error pills pass `detail` (e.g. `run.error_message`) so the tooltip shows the specific reason. New pill values get a `PILL_DEFINITIONS` entry in `pill.tsx`; a dev `console.warn` fires (once per `category:value`) for any pill with no resolved definition.
 
 ## Requirements Document
 - Full spec: `../haiCore/docs/haiweb-account-requirements.md`

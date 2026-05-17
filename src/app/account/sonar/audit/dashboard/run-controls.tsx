@@ -11,9 +11,13 @@ export function RunControls() {
   function runAudit() {
     setError(null);
     startTransition(async () => {
+      // haiCore POST /runs is a discriminated union on scope_type. A
+      // company-scoped trigger with no scope_ids runs all of the auditor's
+      // active scopes (protocol audit/traversal.ts). Omitting scope_type
+      // 400s with invalid_union_discriminator.
       const res = await fetch('/api/account/audit-runs', {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ scope_type: 'company' }),
       });
       if (!res.ok) {
         setError('Run failed — see server logs.');
@@ -30,7 +34,7 @@ export function RunControls() {
         href="/account/sonar/templates/new?observation_class=audit"
         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
       >
-        Save as template
+        New audit template
       </Link>
       <button
         onClick={runAudit}

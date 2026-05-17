@@ -32,12 +32,16 @@ function ageLabel(days: number) {
 
 export function PartnersPanel() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") ?? "directory";
+  const tabParam = searchParams.get("tab");
+  // The legacy `?tab=directory` deep link no longer maps to a tab; coerce it to active.
+  const initialTab = tabParam && tabParam !== "directory" ? tabParam : "active";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [directory, setDirectory] = useState<MockDirectoryCompany[]>([]);
   const [requests, setRequests] = useState<MockAccessRequest[]>([]);
   const [partners, setPartners] = useState<MockPartner[]>([]);
-  const [search, setSearch] = useState("");
+  const [topSearch, setTopSearch] = useState("");
+  const [searchScope, setSearchScope] = useState<"mine" | "directory">("mine");
+  const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [connectCompany, setConnectCompany] = useState<MockDirectoryCompany | null>(null);
   const [connectMessage, setConnectMessage] = useState("");
   const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
@@ -53,34 +57,45 @@ export function PartnersPanel() {
   const [queueTypeFilter, setQueueTypeFilter] = useState<"all" | "approved" | "trading_pair">("all");
   const [queueInviteFilter, setQueueInviteFilter] = useState<"all" | "with_invite" | "without_invite">("all");
 
-  // ─── BFF API Integration (initial load only) ─────────────
-  // Directory loads once — search filtering is done client-side.
-  // After initial load, local state is the source of truth so that
-  // optimistic updates from actions (approve, connect, etc.) persist.
+  // ─── BFF API Integration ─────────────────────────────────
+  // Pending requests + active partners load once on mount; after that, local
+  // state is the source of truth so optimistic updates persist.
+  // The directory is fetched on-demand from the modal (debounced server-side
+  // search) — pre-loading is impractical because haiCore requires q ≥ 2.
   const [initialLoaded, setInitialLoaded] = useState(false);
-  const directoryApi = useApi<MockDirectoryCompany[]>({ url: '/api/account/directory', fallback: [], enabled: !initialLoaded });
   const connectionsApi = useApi<MockAccessRequest[]>({ url: '/api/account/connections', fallback: [], enabled: !initialLoaded });
   const partnersApi = useApi<MockPartner[]>({ url: '/api/account/partners', fallback: [], enabled: !initialLoaded });
-  // Self-id so we can exclude the logged-in participant from the directory in
-  // the fallback path (the server handler already does this when haiCore is
-  // reachable, but the fallback path doesn't have session context).
-  const profileApi = useApi<{ id?: string }>({ url: '/api/account/profile', fallback: {}, enabled: !initialLoaded });
 
   useEffect(() => {
     if (initialLoaded) return;
-    const allDone = !directoryApi.loading && !connectionsApi.loading && !partnersApi.loading && !profileApi.loading;
+    const allDone = !connectionsApi.loading && !partnersApi.loading;
     if (allDone) {
-      const selfId = profileApi.data?.id;
-      setDirectory(
-        selfId
-          ? directoryApi.data.filter((c) => c.id !== selfId)
-          : directoryApi.data,
-      );
       setRequests(connectionsApi.data);
       setPartners(partnersApi.data);
       setInitialLoaded(true);
     }
-  }, [directoryApi.data, directoryApi.loading, connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, profileApi.data, profileApi.loading, initialLoaded]);
+  }, [connectionsApi.data, connectionsApi.loading, partnersApi.data, partnersApi.loading, initialLoaded]);
+
+  // Directory: debounced query → server fetch when modal is open and q ≥ 2.
+  const [directoryQuery, setDirectoryQuery] = useState("");
+  useEffect(() => {
+    if (!directoryModalOpen) return;
+    const handle = setTimeout(() => setDirectoryQuery(topSearch.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [topSearch, directoryModalOpen]);
+  const canSearchDirectory = directoryModalOpen && directoryQuery.length >= 2;
+  const directorySearchApi = useApi<MockDirectoryCompany[]>({
+    url: `/api/account/directory?q=${encodeURIComponent(directoryQuery)}`,
+    fallback: [],
+    enabled: canSearchDirectory,
+  });
+  // Mirror search results into the local directory state so existing
+  // optimistic-update helpers (updateDirectoryStatus) keep working.
+  useEffect(() => {
+    if (canSearchDirectory && !directorySearchApi.loading) {
+      setDirectory(directorySearchApi.data);
+    }
+  }, [directorySearchApi.data, directorySearchApi.loading, canSearchDirectory]);
 
   // ─── Queue Actions ──────────────────────────────────────────
 
@@ -237,18 +252,46 @@ export function PartnersPanel() {
     return result;
   }, [requests, queueSearch, queueTypeFilter, queueInviteFilter, queueSort]);
 
-  // ─── Directory ──────────────────────────────────────────────
+  // ─── Top Search (scoped) ────────────────────────────────────
+  // Single search input above the tabs with a segmented scope toggle.
+  // Scope "mine" filters the Active partner list inline; scope "directory"
+  // launches the directory modal so discovery doesn't compete with the
+  // management tabs below. Directory results come from the server (debounced
+  // /api/account/directory fetch), so no client-side filter is needed.
 
-  const filteredDirectory = directory.filter((c) =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.industry.toLowerCase().includes(search.toLowerCase()) ||
-    c.location.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredPartners = useMemo(() => {
+    if (searchScope !== "mine" || !topSearch) return partners;
+    const lower = topSearch.toLowerCase();
+    return partners.filter((p) =>
+      p.company_name.toLowerCase().includes(lower) ||
+      p.location.toLowerCase().includes(lower) ||
+      p.industry.toLowerCase().includes(lower),
+    );
+  }, [partners, topSearch, searchScope]);
+
+  function handleScopeChange(next: "mine" | "directory") {
+    setSearchScope(next);
+    if (next === "directory") {
+      setDirectoryModalOpen(true);
+    } else {
+      setDirectoryModalOpen(false);
+      // Surface the filtered list immediately when the user starts searching their partners.
+      if (topSearch && activeTab !== "active") setActiveTab("active");
+    }
+  }
+
+  function handleTopSearchChange(value: string) {
+    setTopSearch(value);
+    if (searchScope === "directory") {
+      setDirectoryModalOpen(true);
+    } else if (value && activeTab !== "active") {
+      setActiveTab("active");
+    }
+  }
 
   // ─── Tabs ───────────────────────────────────────────────────
 
   const tabs = [
-    { key: "directory", label: "Directory", count: directory.length },
     { key: "queue", label: "Approval Queue", count: requests.length },
     { key: "active", label: "Active", count: partners.length },
     { key: "rules", label: "Rules" },
@@ -352,53 +395,57 @@ export function PartnersPanel() {
         </div>
       )}
 
-      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
-
-      {/* Directory Tab */}
-      {activeTab === "directory" && (
-        <div>
-          <div className="mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, industry, or location..."
-              className="w-full px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {filteredDirectory.map((company) => (
-              <Card key={company.id}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-charcoal">{company.company_name}</p>
-                    <p className="text-xs text-slate mt-0.5">{company.location} &middot; {company.industry}</p>
-                    <p className="text-xs text-slate mt-2">{company.description}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  {company.connection_status === "none" ? (
-                    <Button size="sm" onClick={() => setConnectCompany(company)}>
-                      Request Connection
-                    </Button>
-                  ) : (
-                    <StatusBadge status={company.connection_status} />
-                  )}
-                  {(company.connection_status === "approved" ||
-                    company.connection_status === "trading_pair") && (
-                    <Link
-                      href={`/account/partners/${company.id}/catalog`}
-                      className="text-xs text-teal hover:text-navy font-medium"
-                    >
-                      View Catalog &rarr;
-                    </Link>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
+      {/* Scoped Search Bar */}
+      <div className="mb-5 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <input
+          type="text"
+          value={topSearch}
+          onChange={(e) => handleTopSearchChange(e.target.value)}
+          onFocus={() => {
+            if (searchScope === "directory") setDirectoryModalOpen(true);
+          }}
+          placeholder={
+            searchScope === "mine"
+              ? "Search your partners by name, industry, or location..."
+              : "Search the HAIWAVE directory..."
+          }
+          className="flex-1 px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+        />
+        <div
+          role="radiogroup"
+          aria-label="Search scope"
+          className="inline-flex rounded-lg border border-slate/20 p-0.5 bg-slate/5 self-start sm:self-auto"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={searchScope === "mine"}
+            onClick={() => handleScopeChange("mine")}
+            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+              searchScope === "mine"
+                ? "bg-white shadow-sm text-navy font-medium"
+                : "text-slate hover:text-charcoal"
+            }`}
+          >
+            My partners
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={searchScope === "directory"}
+            onClick={() => handleScopeChange("directory")}
+            className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+              searchScope === "directory"
+                ? "bg-white shadow-sm text-navy font-medium"
+                : "text-slate hover:text-charcoal"
+            }`}
+          >
+            Directory
+          </button>
         </div>
-      )}
+      </div>
+
+      <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       {/* Queue Tab — v1.6 Overhaul */}
       {activeTab === "queue" && (
@@ -474,7 +521,7 @@ export function PartnersPanel() {
                           )}
                         </div>
                         <p className="text-xs text-slate mt-0.5">
-                          {req.location} &middot; {req.business_type} &middot; {req.region}
+                          {[req.location, req.business_type, req.region].filter(Boolean).join(" · ")}
                         </p>
                       </div>
                       <div className="flex gap-2 shrink-0">
@@ -569,7 +616,16 @@ export function PartnersPanel() {
       {/* Active Tab */}
       {activeTab === "active" && (
         <div className="bg-white rounded-lg border border-slate/15">
-          <DataTable columns={partnerColumns} data={partners} keyFn={(p) => p.id} emptyMessage="No active partnerships." />
+          <DataTable
+            columns={partnerColumns}
+            data={filteredPartners}
+            keyFn={(p) => p.id}
+            emptyMessage={
+              searchScope === "mine" && topSearch
+                ? `No partners match "${topSearch}".`
+                : "No active partnerships."
+            }
+          />
         </div>
       )}
 
@@ -592,6 +648,68 @@ export function PartnersPanel() {
           industry: profileRequest.industry,
         } : null}
       />
+
+      {/* Directory Modal — discovery for not-yet-connected companies */}
+      <Modal
+        open={directoryModalOpen}
+        onClose={() => setDirectoryModalOpen(false)}
+        title="HAIWAVE Directory"
+        width="max-w-5xl"
+      >
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={topSearch}
+            onChange={(e) => setTopSearch(e.target.value)}
+            placeholder="Search by name, industry, or location..."
+            autoFocus
+            className="w-full px-4 py-2.5 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+          />
+          {!canSearchDirectory ? (
+            <p className="text-sm text-slate text-center py-8">
+              Type at least 2 characters to search the HAIWAVE directory.
+            </p>
+          ) : directorySearchApi.loading ? (
+            <p className="text-sm text-slate text-center py-8">Searching…</p>
+          ) : directory.length === 0 ? (
+            <p className="text-sm text-slate text-center py-8">
+              No companies match &ldquo;{directoryQuery}&rdquo;.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {directory.map((company) => (
+                <Card key={company.id}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-charcoal">{company.company_name}</p>
+                      <p className="text-xs text-slate mt-0.5">{company.location} &middot; {company.industry}</p>
+                      <p className="text-xs text-slate mt-2">{company.description}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    {company.connection_status === "none" ? (
+                      <Button size="sm" onClick={() => setConnectCompany(company)}>
+                        Request Connection
+                      </Button>
+                    ) : (
+                      <StatusBadge status={company.connection_status} />
+                    )}
+                    {(company.connection_status === "approved" ||
+                      company.connection_status === "trading_pair") && (
+                      <Link
+                        href={`/account/partners/${company.id}/catalog`}
+                        className="text-xs text-teal hover:text-navy font-medium"
+                      >
+                        View Catalog &rarr;
+                      </Link>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Connect Modal */}
       <Modal open={!!connectCompany} onClose={() => setConnectCompany(null)} title="Request Connection">
