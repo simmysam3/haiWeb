@@ -6,6 +6,7 @@ import type { RunTemplate } from '@haiwave/protocol';
 import { TemplateEditor } from '../_components/template-editor';
 import { ManualTriggerButton } from './_components/manual-trigger-button';
 import { TemplateRunHistory } from './_components/template-run-history';
+import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
 
 interface DetailPageProps {
@@ -52,7 +53,7 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
             {template.template_name}
           </h1>
           <p className="text-sm text-slate mt-1">
-            {template.observation_class === 'audit' ? 'Audit' : 'Watcher'} ·{' '}
+            {configNoun(template.observation_class)} ·{' '}
             {formatCadence(template.cadence)} · Last run{' '}
             {template.last_run_at
               ? new Date(template.last_run_at).toLocaleString()
