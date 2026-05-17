@@ -48,7 +48,7 @@ export default async function RunsPage() {
   return (
     <div className="p-6 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-charcoal">Runs</h1>
+        <h1 className="text-xl font-semibold text-charcoal">Audit Runs</h1>
         <RunControls />
       </header>
       <PageIntro>
