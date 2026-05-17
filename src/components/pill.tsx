@@ -79,6 +79,9 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     capacity_utilization_band: 'Latest reported production band: low, moderate, high, or at_capacity.',
     delivery_event: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
   },
+  config_provenance: {
+    fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
+  },
 };
 
 const _warnedKeys = new Set<string>();

@@ -1,4 +1,6 @@
+'use client';
 import type { ReactNode } from 'react';
+import { Pill } from '@/components';
 
 export function StepCard({
   id,
@@ -40,8 +42,8 @@ export function StepCard({
           {title}
         </h2>
         {locked && (
-          <span className="ml-auto text-[10px] font-semibold text-orange bg-orange/10 rounded-full px-2.5 py-1">
-            Fixed at creation
+          <span className="ml-auto">
+            <Pill category="config_provenance" value="fixed_at_creation">Fixed at creation</Pill>
           </span>
         )}
       </div>
