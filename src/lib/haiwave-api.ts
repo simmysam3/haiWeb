@@ -375,9 +375,6 @@ export interface HaiwaveClient {
   getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   triggerSelfAudit(): Promise<Record<string, unknown>>;
   resolveComplianceFlag(flagId: string, notes: string): Promise<Record<string, unknown>>;
-  // Phantom Demand (v1.15)
-  getPhantomDemandUsage(billingMonth?: string): Promise<Record<string, unknown>>;
-  getPhantomDemandForecast(): Promise<Record<string, unknown>>;
   // Classification Review Queue (v1.20)
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
@@ -853,14 +850,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("POST", `/noncompliance/flags/${flagId}/resolve`, { notes });
     },
 
-    // ─── Phantom Demand (v1.15) ──────────────────────────
-    getPhantomDemandUsage(billingMonth?: string) {
-      const qs = billingMonth ? `?billing_month=${billingMonth}` : "";
-      return request<Record<string, unknown>>("GET", `/phantom-demand/usage${qs}`);
-    },
-    getPhantomDemandForecast() {
-      return request<Record<string, unknown>>("GET", "/phantom-demand/forecast");
-    },
 
     // ─── Classification Review Queue (v1.20) ────────────────
     async listClassificationResults(participantId, options) {
