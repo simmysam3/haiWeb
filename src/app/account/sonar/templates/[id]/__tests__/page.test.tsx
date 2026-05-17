@@ -62,4 +62,15 @@ describe('TemplateDetailPage', () => {
       'NEXT_NOT_FOUND',
     );
   });
+
+  it('propagates a non-404 failure instead of masking it as not-found', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500 } as Response);
+    const Page = (await import('../page')).default;
+    const err = await Page({ params: Promise.resolve({ id: 'abc' }) }).then(
+      () => null,
+      (e: Error) => e,
+    );
+    expect(err?.message).toMatch(/500/);
+    expect(err?.message).not.toBe('NEXT_NOT_FOUND');
+  });
 });

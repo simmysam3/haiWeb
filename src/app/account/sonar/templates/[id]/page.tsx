@@ -21,13 +21,16 @@ async function loadTemplate(templateId: string): Promise<RunTemplate | null> {
       `${proto}://${host}/api/account/sonar/templates/${templateId}`,
       { headers: { cookie: cookieHeader }, cache: 'no-store' },
     );
-    if (res.status === 404) return null;
-    if (!res.ok) return null;
+    if (res.status === 404) return null; // genuinely not found → notFound()
+    if (!res.ok) {
+      // Auth / 5xx / contract failure — a real error, not "not found".
+      throw new Error(`template detail fetch failed: ${res.status}`);
+    }
     const payload = (await res.json()) as { template: RunTemplate };
     return payload.template;
   } catch (err) {
-    console.error('[template detail] fetch failed', err);
-    return null;
+    console.error('[template detail] fetch failed', { templateId, err });
+    throw err;
   }
 }
 
