@@ -63,10 +63,10 @@ function nodeDisplayName(
   node: ObservationNode,
   vendorName: string | null,
 ): { label: string; italic: boolean } {
-  if (vendorName) return { label: vendorName, italic: false };
   if (node.identity_redacted === true) {
     return { label: 'Vendor Name Not Disclosed', italic: false };
   }
+  if (vendorName) return { label: vendorName, italic: false };
   if (node.gap?.kind === 'unauthorized') {
     return { label: 'Vendor Name Not Disclosed', italic: false };
   }
@@ -88,6 +88,7 @@ export function TreeView({
 }) {
   const audit = auditPayload(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
+  const { label: vendorLabel, italic: vendorLabelItalic } = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
   const plantLabel = formatPlant(audit);
   const operationalLabel = formatOperational(audit);
@@ -99,21 +100,16 @@ export function TreeView({
       <summary className="cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50 transition-colors">
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {(() => {
-            const { label, italic } = nodeDisplayName(node, vendorName);
-            return (
-              <>
-                <span
-                  className={`text-sm ${italic ? 'italic text-slate' : 'font-medium text-charcoal'}`}
-                >
-                  {label}
-                </span>
-                {vendorName && node.participant_id && (
-                  <IdChip id={node.participant_id} />
-                )}
-              </>
-            );
-          })()}
+          <>
+            <span
+              className={`text-sm ${vendorLabelItalic ? 'italic text-slate' : 'font-medium text-charcoal'}`}
+            >
+              {vendorLabel}
+            </span>
+            {vendorName && node.participant_id && !node.identity_redacted && (
+              <IdChip id={node.participant_id} />
+            )}
+          </>
           {showSynthesis && (
             <Pill tone="slate">{SYNTHESIS_LABEL[node.synthesis_mode]}</Pill>
           )}

@@ -21,6 +21,7 @@ export function IdChip({
   return (
     <button
       type="button"
+      data-testid="id-chip"
       onClick={(e) => {
         e.stopPropagation();
         if (!isShort) setExpanded((v) => !v);
