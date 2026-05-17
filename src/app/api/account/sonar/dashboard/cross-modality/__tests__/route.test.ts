@@ -150,6 +150,83 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     expect(b.risk_color).toBe('green');
   });
 
+  it('merges watcher signals across recent runs (newest wins per signal type)', async () => {
+    setMockClient({
+      // Newest-first: t2 (lead-time only) then t1 (capacity only).
+      listWatcherRuns: vi.fn().mockResolvedValue({
+        runs: [
+          { run_id: 't2', status: 'complete', triggered_at: '2026-05-17T18:00:00Z' },
+          { run_id: 't1', status: 'complete', triggered_at: '2026-05-17T16:00:00Z' },
+        ],
+      }),
+      getWatcherRun: vi.fn(async (runId: string) => {
+        if (runId === 't2') {
+          return {
+            run: { run_id: 't2' },
+            results: [
+              {
+                counterparty_participant_id: VENDOR_A,
+                signal_type: 'lead_time_distribution',
+                payload: { percentiles: { p90: 9 } },
+                synthesis_mode: 'direct',
+              },
+            ],
+          };
+        }
+        return {
+          run: { run_id: 't1' },
+          results: [
+            {
+              counterparty_participant_id: VENDOR_A,
+              signal_type: 'capacity_utilization_band',
+              payload: { band: 'at_capacity' },
+              synthesis_mode: 'direct',
+            },
+          ],
+        };
+      }),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+    const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);
+    // lead-time from the newest run, capacity from the older run — neither
+    // shadows the other.
+    expect(a.watcher.lead_time_p90_days).toBe(9);
+    expect(a.watcher.capacity_band).toBe('at_capacity');
+  });
+
+  it('a single failing watcher-run fetch does not blank the card', async () => {
+    setMockClient({
+      listWatcherRuns: vi.fn().mockResolvedValue({
+        runs: [
+          { run_id: 'bad', status: 'complete', triggered_at: '2026-05-17T18:00:00Z' },
+          { run_id: 'good', status: 'complete', triggered_at: '2026-05-17T16:00:00Z' },
+        ],
+      }),
+      getWatcherRun: vi.fn(async (runId: string) => {
+        if (runId === 'bad') throw new Error('haiCore GET …: 500');
+        return {
+          run: { run_id: 'good' },
+          results: [
+            {
+              counterparty_participant_id: VENDOR_A,
+              signal_type: 'lead_time_distribution',
+              payload: { percentiles: { p90: 4 } },
+              synthesis_mode: 'direct',
+            },
+          ],
+        };
+      }),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);
+    expect(a.watcher.lead_time_p90_days).toBe(4);
+  });
+
   it('degrades gracefully when phantom-demand /latest returns 404', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),

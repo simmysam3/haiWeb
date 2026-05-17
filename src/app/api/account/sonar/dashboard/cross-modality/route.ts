@@ -89,28 +89,58 @@ async function loadWatcher(client: {
   getWatcherRun: (runId: string) => Promise<{ run: unknown; results: WatcherResult[] }>;
 }): Promise<Map<string, WatcherPerPartner>> {
   const { runs } = await client.listWatcherRuns({ limit: 5 });
-  const latest = runs.find((r) => r.status === 'complete' || r.status === 'partial');
-  if (!latest) return new Map();
-  const detail = await client.getWatcherRun(latest.run_id);
-  const results = detail.results;
+  // listWatcherRuns is newest-first (service orders by triggered_at desc).
+  // Merge across recent complete/partial runs so each partner keeps the most
+  // recent value *per signal type* — a later run that emitted only
+  // lead_time_distribution must not erase capacity-band context from a
+  // slightly older run that did include it.
+  const usable = runs.filter(
+    (r) => r.status === 'complete' || r.status === 'partial',
+  );
+  if (usable.length === 0) return new Map();
+
+  // Fetch details in parallel; a single failing run must not blank the card.
+  const detailResults = await Promise.all(
+    usable.map((r) =>
+      client.getWatcherRun(r.run_id).then(
+        (d) => d.results,
+        () => [] as WatcherResult[],
+      ),
+    ),
+  );
 
   const byPartner = new Map<string, WatcherPerPartner>();
-  for (const r of results) {
-    if (!r.counterparty_participant_id) continue;
-    const cur = byPartner.get(r.counterparty_participant_id) ?? { capacity_band: null, lead_time_p90_days: null };
-    if (r.signal_type === 'capacity_utilization_band' && r.payload && typeof r.payload === 'object' && 'band' in r.payload) {
-      cur.capacity_band = (r.payload as { band: CapacityBand }).band;
+  // Walk newest → oldest; only fill a field that is still unset, so the
+  // newest run carrying that signal type wins.
+  for (const results of detailResults) {
+    for (const r of results) {
+      if (!r.counterparty_participant_id) continue;
+      const cur = byPartner.get(r.counterparty_participant_id) ?? {
+        capacity_band: null,
+        lead_time_p90_days: null,
+      };
+      if (
+        cur.capacity_band === null &&
+        r.signal_type === 'capacity_utilization_band' &&
+        r.payload &&
+        typeof r.payload === 'object' &&
+        'band' in r.payload
+      ) {
+        cur.capacity_band = (r.payload as { band: CapacityBand }).band;
+      }
+      if (
+        cur.lead_time_p90_days === null &&
+        r.signal_type === 'lead_time_distribution' &&
+        r.payload &&
+        typeof r.payload === 'object' &&
+        'percentiles' in r.payload
+      ) {
+        const p90 = (r.payload as { percentiles: { p90: unknown } }).percentiles
+          ?.p90;
+        if (typeof p90 === 'number') cur.lead_time_p90_days = p90;
+      }
+      byPartner.set(r.counterparty_participant_id, cur);
     }
-    if (
-      r.signal_type === 'lead_time_distribution' &&
-      r.payload &&
-      typeof r.payload === 'object' &&
-      'percentiles' in r.payload
-    ) {
-      const p90 = (r.payload as { percentiles: { p90: unknown } }).percentiles?.p90;
-      if (typeof p90 === 'number') cur.lead_time_p90_days = p90;
-    }
-    byPartner.set(r.counterparty_participant_id, cur);
   }
   return byPartner;
 }
