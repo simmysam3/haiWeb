@@ -81,15 +81,8 @@ export function RunControls({
         void mutate();
       }, 500);
     } catch (err) {
-      // Defer the error-state updates to the next macrotask so that the
-      // "Cancelling…" indicator has time to commit and remain observable
-      // before being replaced by the error. This matters in React 19 where
-      // the Pill component's hook teardown causes the cancelling→error
-      // transition to collapse into a single microtask batch otherwise.
-      setTimeout(() => {
-        setCancelling(false);
-        setCancelError(err instanceof Error ? err.message : 'Cancel failed');
-      }, 0);
+      setCancelling(false);
+      setCancelError(err instanceof Error ? err.message : 'Cancel failed');
     }
   }
 

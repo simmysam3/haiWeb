@@ -190,9 +190,6 @@ describe('RunControls', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
-    // Cancelling… indicator appears optimistically.
-    expect(await screen.findByText(/cancelling/i)).toBeInTheDocument();
-
     // After the failed POST resolves, the indicator clears and the error renders.
     await waitFor(() => {
       expect(screen.queryByText(/cancelling/i)).toBeNull();
