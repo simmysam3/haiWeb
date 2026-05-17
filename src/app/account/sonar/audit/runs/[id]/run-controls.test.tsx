@@ -141,6 +141,15 @@ describe('RunControls', () => {
   });
 
   it('failed status pill tooltip includes the error reason', () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 'failed',
+        hop_count: null,
+        gap_count: null,
+        results_available_count: 0,
+      }),
+    });
     render(
       <RunControls
         runId="r1"
