@@ -80,6 +80,7 @@ export default async function RunDetailPage({
             initialHopCount={data.run.hop_count}
             initialGapCount={data.run.gap_count}
             initialResultsCount={data.results.length}
+            errorMessage={data.run.error_message}
           />
           {data.run.status === 'throttled' && data.run.resumption_state && (
             <ThrottledStatusPill
