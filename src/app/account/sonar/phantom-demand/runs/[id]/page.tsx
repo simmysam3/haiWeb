@@ -17,8 +17,15 @@ export default async function Page({
   try {
     const client = await getServerHaiwaveClient();
     run = await client.getPhantomDemandRun(id);
-  } catch {
-    notFound();
+  } catch (err) {
+    // Only a genuine "run not found / not owned" (haiCore 404) should render
+    // the not-found page. Anything else — auth, 5xx, network, a broken
+    // response contract — is a real failure: log it and let it surface as an
+    // error (500), not a misleading 404. A bare `catch { notFound() }` here
+    // previously masked a camelCase-contract bug as "not found".
+    if ((err as { status?: number }).status === 404) notFound();
+    console.error('[pd-run-detail] fetch failed', { id, err });
+    throw err;
   }
 
   const scope = run.scope_snapshot as {

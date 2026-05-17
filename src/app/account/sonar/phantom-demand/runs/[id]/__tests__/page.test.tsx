@@ -63,6 +63,52 @@ describe('PD run detail page', () => {
     expect(pills.some((p) => p.textContent?.includes('Gap'))).toBe(true);
   });
 
+  it('propagates a non-404 fetch failure instead of masking it as not-found', async () => {
+    vi.resetModules();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const notFound = vi.fn(() => {
+      throw new Error('NEXT_NOT_FOUND');
+    });
+    vi.doMock('next/navigation', () => ({ notFound, redirect: vi.fn() }));
+    vi.doMock('@/lib/server-haiwave-client', () => ({
+      getServerHaiwaveClient: async () => ({
+        getPhantomDemandRun: async () => {
+          throw Object.assign(new Error('haiCore GET …: 500'), { status: 500 });
+        },
+      }),
+    }));
+    const { default: FreshPage } = await import('../page.js');
+    await expect(FreshPage({ params: { id: 'r3' } } as any)).rejects.toThrow(
+      /500/,
+    );
+    expect(notFound).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[pd-run-detail] fetch failed',
+      expect.objectContaining({ id: 'r3' }),
+    );
+    consoleError.mockRestore();
+  });
+
+  it('renders the not-found page on a genuine 404', async () => {
+    vi.resetModules();
+    const notFound = vi.fn(() => {
+      throw new Error('NEXT_NOT_FOUND');
+    });
+    vi.doMock('next/navigation', () => ({ notFound, redirect: vi.fn() }));
+    vi.doMock('@/lib/server-haiwave-client', () => ({
+      getServerHaiwaveClient: async () => ({
+        getPhantomDemandRun: async () => {
+          throw Object.assign(new Error('haiCore GET …: 404'), { status: 404 });
+        },
+      }),
+    }));
+    const { default: FreshPage } = await import('../page.js');
+    await expect(FreshPage({ params: { id: 'r4' } } as any)).rejects.toThrow(
+      'NEXT_NOT_FOUND',
+    );
+    expect(notFound).toHaveBeenCalled();
+  });
+
   it('shows the standard empty state when there are no probe results', async () => {
     vi.resetModules();
     vi.doMock('@/lib/server-haiwave-client', () => ({
