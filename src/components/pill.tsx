@@ -34,6 +34,9 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     offline: 'Not reachable.',
     none: 'No value set.',
     void: 'Voided and no longer valid.',
+    warning: 'A warning condition that requires attention.',
+    verified: 'Verified and confirmed authentic.',
+    unverified: 'Not yet verified.',
     account_owner: 'The account owner; full administrative control.',
     procurement_transact: 'Procurement role permitted to transact.',
     buyer_full_transact: 'Buyer role with full transaction rights.',
@@ -95,8 +98,8 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
   const v = value ?? '';
   if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed'].includes(v)) return 'problem';
-  if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band'].includes(v)) return 'warn';
-  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal'].includes(v)) return 'success';
+  if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning'].includes(v)) return 'warn';
+  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified'].includes(v)) return 'success';
   if (category === 'resolution_class' && v === 'agentic_eligible') return 'info';
   return 'neutral';
 }
