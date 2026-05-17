@@ -151,4 +151,52 @@ describe('PhantomDemandScopeFields', () => {
     const input = screen.getByLabelText(/target delivery date/i) as HTMLInputElement;
     expect(input.value).toBe('2026-06-30');
   });
+
+  it('does not emit a negative quantity (rejects values <= 0)', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 10 }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+      target: { value: '-5' },
+    });
+    // The guard `Number.isInteger(n) && n > 0` must block -5 from propagating.
+    // If this regressed to `Number.isFinite(n)`, onChange WOULD be called with
+    // hypothetical_quantity: -5, and the first assertion would fail.
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('does not emit zero as a quantity (rejects hypothetical_quantity: 0)', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 10 }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+      target: { value: '0' },
+    });
+    // `Number.isFinite(0)` is true, so a regression to that guard would call
+    // onChange with hypothetical_quantity: 0 and break this assertion.
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('restores the last valid quantity on blur after a negative entry', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, hypothetical_quantity: 7 }}
+        onChange={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '-5' } });
+    // During editing the draft is allowed to sit in the field (same as empty),
+    // but blurring must snap back because -5 fails `Number.isInteger(n) || n <= 0`.
+    fireEvent.blur(input);
+    expect(input.value).toBe('7');
+  });
 });
