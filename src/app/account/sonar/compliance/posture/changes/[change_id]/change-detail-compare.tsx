@@ -2,6 +2,7 @@
 
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
+import { IdChip } from '@/components/id-chip';
 import { describeChange, kindLabel, severityTone } from '../_lib/describe-change';
 
 interface CellPanelProps {
@@ -91,7 +92,11 @@ export function ChangeDetailCompare({ detail }: Props) {
             tone={severityTone(change.severity)}
           />
           <span className="ml-2 text-sm font-medium text-navy">
-            {change.vendor_participant_id}
+            {change.vendor_legal_name ? (
+              <span title={change.vendor_participant_id}>{change.vendor_legal_name}</span>
+            ) : (
+              <IdChip id={change.vendor_participant_id} />
+            )}
             {change.component_ref ? (
               <span className="ml-1 font-normal text-slate">· {change.component_ref}</span>
             ) : null}

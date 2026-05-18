@@ -144,4 +144,65 @@ describe('ChangeDetailCompare', () => {
     const desc = screen.getByTestId('change-description');
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
+
+  it('renders vendor_legal_name as the vendor identity in the header when present', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: 'Acme Plastics',
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('Acme Plastics')).toBeInTheDocument();
+  });
+
+  it('retains vendor_participant_id as title attribute when vendor_legal_name is present', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: 'Acme Plastics',
+          },
+        })}
+      />,
+    );
+    const nameEl = screen.getByTitle('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+    expect(nameEl).toBeInTheDocument();
+  });
+
+  it('falls back to vendor_participant_id (via IdChip) when vendor_legal_name is absent', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            // vendor_legal_name intentionally omitted
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
+
+  it('falls back to vendor_participant_id (via IdChip) when vendor_legal_name is null', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: null,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
 });

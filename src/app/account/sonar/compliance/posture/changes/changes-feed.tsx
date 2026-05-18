@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ComplianceChange } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
+import { IdChip } from '@/components/id-chip';
 import { describeChange, kindLabel, severityTone } from './_lib/describe-change';
 
 interface Props {
@@ -46,7 +47,11 @@ export function ChangesFeed({ changes, total }: Props) {
                 />
               </div>
               <p className="text-sm font-medium text-navy">
-                {change.vendor_participant_id}
+                {change.vendor_legal_name ? (
+                  <span title={change.vendor_participant_id}>{change.vendor_legal_name}</span>
+                ) : (
+                  <IdChip id={change.vendor_participant_id} />
+                )}
                 {change.component_ref ? (
                   <span className="ml-1 font-normal text-slate">· {change.component_ref}</span>
                 ) : null}

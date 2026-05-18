@@ -153,4 +153,67 @@ describe('ChangesFeed', () => {
     render(<ChangesFeed changes={[change({})]} />);
     expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
   });
+
+  it('renders vendor_legal_name as subject identity when present', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c-name',
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: 'Acme Plastics',
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText('Acme Plastics')).toBeInTheDocument();
+  });
+
+  it('retains vendor_participant_id as accessible title when vendor_legal_name is present', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c-name-title',
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: 'Acme Plastics',
+          }),
+        ]}
+      />,
+    );
+    // The UUID must be accessible as a title attribute so it remains discoverable
+    const nameEl = screen.getByTitle('a1b2c3d4-e5f6-7890-abcd-ef1234567890');
+    expect(nameEl).toBeInTheDocument();
+  });
+
+  it('falls back to vendor_participant_id when vendor_legal_name is absent', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c-no-name',
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            // vendor_legal_name intentionally omitted
+          }),
+        ]}
+      />,
+    );
+    // IdChip renders the first 6 chars by default
+    expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
+
+  it('falls back to vendor_participant_id when vendor_legal_name is null', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c-null-name',
+            vendor_participant_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+            vendor_legal_name: null,
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
 });
