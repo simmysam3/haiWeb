@@ -62,7 +62,7 @@ describe('RunDetailPage — View Aggregate Report CTA', () => {
     const ui = await Page({ params: Promise.resolve({ id: RUN_ID }) });
     render(ui);
     const link = screen.getByRole('link', { name: /View Aggregate Report/i }) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe(`/account/sonar/audit/reports/${RUN_ID}`);
+    expect(link.getAttribute('href')).toBe(`/account/sonar/compliance/reports/${RUN_ID}`);
   });
 
   it('propagates a non-404 run-fetch failure instead of masking it as not-found', async () => {

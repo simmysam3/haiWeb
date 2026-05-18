@@ -9,5 +9,5 @@ export default async function AuditLanding() {
   if (scopesResult.kind === 'ok' && scopesResult.scopes.length === 0) {
     redirect("/account/sonar/observations?tab=audit");
   }
-  redirect("/account/sonar/audit/dashboard");
+  redirect("/account/sonar/compliance/posture/coverage");
 }

@@ -11,7 +11,7 @@ export function ReportHeader(props: Props) {
     <header className="space-y-3">
       {props.variant === 'per_vendor' && (
         <Link
-          href={`/account/sonar/audit/reports/${props.runId}`}
+          href={`/account/sonar/compliance/reports/${props.runId}`}
           className="inline-block text-xs text-teal hover:text-navy"
         >
           ← Back to aggregate

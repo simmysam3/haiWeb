@@ -46,10 +46,10 @@ describe('ReportHeader (per-vendor)', () => {
     expect(screen.getByText('Vendor A')).toBeInTheDocument();
   });
 
-  it('renders a back-to-aggregate breadcrumb link to /account/sonar/audit/reports/{runId}', () => {
+  it('renders a back-to-aggregate breadcrumb link to /account/sonar/compliance/reports/{runId}', () => {
     render(<ReportHeader variant="per_vendor" header={perVendorHeader} runId={aggregateHeader.run_id} />);
     const link = screen.getByRole('link', { name: /Back to aggregate/i }) as HTMLAnchorElement;
     expect(link).toBeInTheDocument();
-    expect(link.getAttribute('href')).toBe(`/account/sonar/audit/reports/${aggregateHeader.run_id}`);
+    expect(link.getAttribute('href')).toBe(`/account/sonar/compliance/reports/${aggregateHeader.run_id}`);
   });
 });

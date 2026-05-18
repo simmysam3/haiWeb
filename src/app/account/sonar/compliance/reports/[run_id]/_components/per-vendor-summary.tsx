@@ -40,7 +40,7 @@ export function PerVendorSummary({
                 </td>
                 <td className="border-b border-slate/10 py-2 text-right">
                   <Link
-                    href={`/account/sonar/audit/reports/${runId}/vendor/${row.vendor_participant_id}`}
+                    href={`/account/sonar/compliance/reports/${runId}/vendor/${row.vendor_participant_id}`}
                     className="text-teal hover:text-navy"
                   >
                     View →

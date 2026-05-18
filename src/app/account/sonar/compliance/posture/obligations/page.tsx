@@ -51,7 +51,7 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-display text-navy">My Downstream Gaps</h1>
+          <h1 className="text-3xl font-display text-navy">My Obligations</h1>
           <p className="mt-2 text-slate">
             Obligations you have accepted that cannot fully resolve due to
             unresolved sub-tier dependencies.

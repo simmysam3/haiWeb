@@ -19,16 +19,16 @@ describe('PerVendorSummary', () => {
     expect(screen.getByText('Non-compliant')).toBeInTheDocument();
   });
 
-  it('builds trailing link href to /account/sonar/audit/reports/{runId}/vendor/{vendor_id}', () => {
+  it('builds trailing link href to /account/sonar/compliance/reports/{runId}/vendor/{vendor_id}', () => {
     const rows = makeAggregateReport().per_vendor_summary;
     render(<PerVendorSummary rows={rows} runId={FIXTURE_RUN_ID} />);
     const allLinks = screen.getAllByRole('link');
     const hrefs = allLinks.map((a) => a.getAttribute('href'));
     expect(hrefs).toContain(
-      `/account/sonar/audit/reports/${FIXTURE_RUN_ID}/vendor/${FIXTURE_VENDOR_A_ID}`,
+      `/account/sonar/compliance/reports/${FIXTURE_RUN_ID}/vendor/${FIXTURE_VENDOR_A_ID}`,
     );
     expect(hrefs).toContain(
-      `/account/sonar/audit/reports/${FIXTURE_RUN_ID}/vendor/${FIXTURE_VENDOR_B_ID}`,
+      `/account/sonar/compliance/reports/${FIXTURE_RUN_ID}/vendor/${FIXTURE_VENDOR_B_ID}`,
     );
   });
 

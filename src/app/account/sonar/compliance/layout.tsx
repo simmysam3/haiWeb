@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AuditsTabs } from "./audits-tabs";
+import { ComplianceTabs } from "./compliance-tabs";
 import { getActiveScopes } from "./_lib/scopes";
 
 export default async function AuditLayout({ children }: { children: ReactNode }) {
@@ -10,7 +10,7 @@ export default async function AuditLayout({ children }: { children: ReactNode })
   const hasScopes = scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
     <div>
-      <AuditsTabs hasScopes={hasScopes} />
+      <ComplianceTabs hasScopes={hasScopes} />
       {children}
     </div>
   );

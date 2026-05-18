@@ -40,7 +40,7 @@ export default async function PerVendorReportPage({
           Report not yet available — this run is still running.
         </p>
         <Link
-          href={`/account/sonar/audit/runs/${run_id}`}
+          href={`/account/sonar/compliance/runs/${run_id}`}
           className="text-teal hover:text-navy text-sm"
         >
           Back to run detail

@@ -52,7 +52,7 @@ describe('PerVendorReportPage', () => {
     expect(screen.getByText(/reserved for a future release/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Download/i })).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /Back to aggregate/i }) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe(`/account/sonar/audit/reports/${FIXTURE_RUN_ID}`);
+    expect(link.getAttribute('href')).toBe(`/account/sonar/compliance/reports/${FIXTURE_RUN_ID}`);
   });
 
   it('calls notFound() on 404', async () => {

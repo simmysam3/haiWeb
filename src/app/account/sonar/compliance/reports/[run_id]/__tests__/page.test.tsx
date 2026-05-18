@@ -87,6 +87,6 @@ describe('AggregateReportPage', () => {
     expect(screen.getByText(/Report not yet available/i)).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /Back to run detail/i }),
-    ).toHaveAttribute('href', `/account/sonar/audit/runs/${RUN_ID}`);
+    ).toHaveAttribute('href', `/account/sonar/compliance/runs/${RUN_ID}`);
   });
 });
