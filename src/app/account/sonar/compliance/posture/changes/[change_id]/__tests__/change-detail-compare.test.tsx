@@ -59,4 +59,89 @@ describe('ChangeDetailCompare', () => {
     expect(within(desc).getByText(/VN/)).toBeInTheDocument();
     expect(within(desc).getByText(/CN/)).toBeInTheDocument();
   });
+
+  it('renders value_json content instead of "—" for certification_status samples', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            change_kind: 'certification_expired_or_revoked',
+            prior_value: { certification_status: 'valid' },
+            current_value: { certification_status: 'expired' },
+          },
+          prior_cell: {
+            tree: null,
+            samples: [
+              {
+                attribute_kind: 'certification_status',
+                value_numeric: null,
+                value_string: null,
+                value_json: { references: ['SOC 2'] },
+              },
+            ],
+          },
+          current_cell: { tree: null, samples: [] },
+        })}
+      />,
+    );
+    // The prior_cell sample must display the json payload, not "—"
+    expect(screen.getByText(/SOC 2/)).toBeInTheDocument();
+    // The literal em-dash must NOT appear as a sample value
+    const items = screen.getAllByRole('listitem');
+    expect(items.some((el) => el.textContent === '—')).toBe(false);
+  });
+
+  it('describeChange lead_time_degraded shows prior and current lead_time_days', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            change_kind: 'lead_time_degraded',
+            prior_value: { lead_time_days: 7 },
+            current_value: { lead_time_days: 21 },
+          },
+        })}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/7/)).toBeInTheDocument();
+    expect(within(desc).getByText(/21/)).toBeInTheDocument();
+  });
+
+  it('describeChange certification_expired_or_revoked shows prior and current certification_status', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            change_kind: 'certification_expired_or_revoked',
+            prior_value: { certification_status: 'valid' },
+            current_value: { certification_status: 'expired' },
+          },
+        })}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/valid/)).toBeInTheDocument();
+    expect(within(desc).getByText(/expired/)).toBeInTheDocument();
+  });
+
+  it('describeChange gap_added renders its static sentence', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            change_kind: 'gap_added',
+            prior_value: null,
+            current_value: null,
+          },
+        })}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
+  });
 });

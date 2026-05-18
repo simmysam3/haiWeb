@@ -68,7 +68,12 @@ function describeChange(change: ComplianceChange): string {
       return `Maximum traversal depth increased from ${p} to ${c}.`;
     }
     default:
-      return kind;
+      // dev-only warn so new kinds that land in the protocol surface immediately
+      // in the development environment rather than silently emitting raw snake_case.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[describeChange] no description for kind:', kind);
+      }
+      return kindLabel(kind);
   }
 }
 
@@ -91,8 +96,24 @@ function CellPanel({ label, samples, tree }: CellPanelProps) {
           <ul className="space-y-1">
             {samples.map((s, i) => {
               const attrKind = String(s.attribute_kind ?? '—');
-              const rawVal = s.value_numeric ?? s.value_string;
-              const val = rawVal != null ? String(rawVal) : '—';
+
+              // Resolve displayed value in priority order:
+              //   1. value_numeric / value_string (scalar)
+              //   2. value_json (structured payload, e.g. certification_status { references: [...] })
+              //   3. '—' (genuinely no data)
+              // Note: the haiCore cellFor query does NOT project `supported`, so the
+              // "agent declined" distinction is not yet available from this route. When
+              // haiCore projects `supported`, render s.supported === false as "not supported by vendor".
+              const scalarRaw = s.value_numeric ?? s.value_string;
+              let val: string;
+              if (scalarRaw != null) {
+                val = String(scalarRaw);
+              } else if (s.value_json != null) {
+                val = JSON.stringify(s.value_json as Record<string, unknown>);
+              } else {
+                val = '—';
+              }
+
               return (
                 <li key={i} className="flex gap-2 text-sm">
                   <span className="font-medium text-charcoal">{attrKind}:</span>

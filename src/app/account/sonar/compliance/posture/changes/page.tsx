@@ -14,7 +14,7 @@ interface SearchParams {
 
 type FetchResult =
   | { kind: 'ok'; data: ComplianceChangeFeedResponse }
-  | { kind: 'error'; status: number };
+  | { kind: 'error'; status: number; message?: string };
 
 async function fetchChanges(searchParams: SearchParams): Promise<FetchResult> {
   const sp = new URLSearchParams();
@@ -37,8 +37,13 @@ async function fetchChanges(searchParams: SearchParams): Promise<FetchResult> {
     const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
     if (!res.ok) return { kind: 'error', status: res.status };
     return { kind: 'ok', data: (await res.json()) as ComplianceChangeFeedResponse };
-  } catch {
-    return { kind: 'error', status: 0 };
+  } catch (e) {
+    console.error('[changes/page] fetch threw:', e);
+    return {
+      kind: 'error',
+      status: 0,
+      message: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
@@ -69,9 +74,17 @@ export default async function ChangesPage({ searchParams }: PageProps) {
 
       <div className="rounded-lg border border-slate/20 bg-white">
         {result.kind === 'error' ? (
-          <div className="p-12 text-center">
+          <div role="alert" className="p-12 text-center">
             <p className="text-red-900">
-              Couldn&apos;t load compliance changes. The audit service is temporarily unavailable.
+              {result.status === 403
+                ? "You do not have permission to view compliance changes."
+                : result.status === 401
+                ? "Your session has expired. Please sign in again."
+                : result.status >= 500
+                ? "Couldn’t load compliance changes. The audit service is temporarily unavailable."
+                : result.status === 0
+                ? `Couldn’t reach the audit service${result.message ? `: ${result.message}` : "."}`
+                : `Couldn’t load compliance changes (status ${result.status}).`}
             </p>
           </div>
         ) : (

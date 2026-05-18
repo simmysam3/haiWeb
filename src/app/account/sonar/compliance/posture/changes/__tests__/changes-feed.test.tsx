@@ -2,6 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ChangesFeed } from '../changes-feed';
+import { EMITTED_CHANGE_KINDS } from '../filter-pills';
+import { EMITTED_CHANGE_KINDS as PROTOCOL_EMITTED_CHANGE_KINDS } from '@haiwave/protocol';
 import type { ComplianceChange } from '@haiwave/protocol';
 
 const base: ComplianceChange = {
@@ -66,5 +68,67 @@ describe('ChangesFeed', () => {
     const desc = screen.getByTestId('change-description');
     expect(within(desc).getByText(/5/)).toBeInTheDocument();
     expect(within(desc).getByText(/2/)).toBeInTheDocument();
+  });
+
+  it('renders lead_time_degraded description with prior and current lead_time_days', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c4',
+            change_kind: 'lead_time_degraded',
+            prior_value: { lead_time_days: 7 },
+            current_value: { lead_time_days: 21 },
+            severity: 'warning',
+          }),
+        ]}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/7/)).toBeInTheDocument();
+    expect(within(desc).getByText(/21/)).toBeInTheDocument();
+  });
+
+  it('renders certification_expired_or_revoked description with prior and current certification_status', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c5',
+            change_kind: 'certification_expired_or_revoked',
+            prior_value: { certification_status: 'valid' },
+            current_value: { certification_status: 'expired' },
+            severity: 'warning',
+          }),
+        ]}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/valid/)).toBeInTheDocument();
+    expect(within(desc).getByText(/expired/)).toBeInTheDocument();
+  });
+
+  it('renders gap_added with its static sentence', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            change_id: 'c6',
+            change_kind: 'gap_added',
+            prior_value: null,
+            current_value: null,
+            severity: 'warning',
+          }),
+        ]}
+      />,
+    );
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
+  });
+
+  it('filter-pills EMITTED_CHANGE_KINDS mirror matches protocol EMITTED_CHANGE_KINDS exactly', () => {
+    const localSorted = [...EMITTED_CHANGE_KINDS].sort();
+    const protocolSorted = [...PROTOCOL_EMITTED_CHANGE_KINDS].sort();
+    expect(localSorted).toEqual(protocolSorted);
   });
 });

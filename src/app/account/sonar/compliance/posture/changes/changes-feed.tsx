@@ -78,7 +78,12 @@ function describeChange(change: ComplianceChange): string {
       return `Maximum traversal depth increased from ${p} to ${c}.`;
     }
     default:
-      return kind;
+      // dev-only warn so new kinds that land in the protocol surface immediately
+      // in the development environment rather than silently emitting raw snake_case.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[describeChange] no description for kind:', kind);
+      }
+      return kindLabel(kind);
   }
 }
 

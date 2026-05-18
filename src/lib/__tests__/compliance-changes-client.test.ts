@@ -70,4 +70,24 @@ describe('HaiwaveClient compliance-changes methods (v1.34 P4)', () => {
     expect(String(url)).toMatch(/\/sonar\/compliance\/changes\/chg-1$/);
     expect(init.method).toBe('GET');
   });
+
+  it('listComplianceChanges rejects when haiCore returns 500', async () => {
+    mockFetchOnce({ error: 'internal' }, 500);
+    await expect(client.listComplianceChanges()).rejects.toThrow(/500/);
+  });
+
+  it('listComplianceChanges rejects when haiCore returns 404', async () => {
+    mockFetchOnce({ error: 'not_found' }, 404);
+    await expect(client.listComplianceChanges()).rejects.toThrow(/404/);
+  });
+
+  it('getComplianceChange rejects when haiCore returns 500', async () => {
+    mockFetchOnce({ error: 'internal' }, 500);
+    await expect(client.getComplianceChange('chg-bad')).rejects.toThrow(/500/);
+  });
+
+  it('getComplianceChange rejects when haiCore returns 404', async () => {
+    mockFetchOnce({ error: 'not_found' }, 404);
+    await expect(client.getComplianceChange('chg-missing')).rejects.toThrow(/404/);
+  });
 });
