@@ -124,7 +124,7 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
         {authBasis === 'bilateral' && (
           <p className="text-xs text-slate">
             Vendor IDs come from active audit scopes; selection UI is configured
-            from /account/sonar/audit/nominations and is not editable here.
+            from /account/sonar/compliance/posture/nominations and is not editable here.
           </p>
         )}
       </div>
