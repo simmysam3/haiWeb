@@ -71,6 +71,9 @@ import type {
   Modality,
   Posture,
   ObservationClass,
+  ComplianceChangeFeedResponse,
+  ComplianceChangeDetail,
+  ComplianceChangeKind,
 } from '@haiwave/protocol';
 
 import type {
@@ -552,6 +555,14 @@ export interface HaiwaveClient {
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
   fetchRaw(path: string, init?: RequestInit): Promise<Response>;
+  // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
+  listComplianceChanges(filters?: {
+    kind?: ComplianceChangeKind[];
+    partner?: string;
+    from?: string;
+    to?: string;
+  }): Promise<ComplianceChangeFeedResponse>;
+  getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1398,6 +1409,24 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
           current_status: string;
         }>;
       }>('GET', `/sonar/usage/throttle-history${suffix}`);
+    },
+
+    // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
+    listComplianceChanges(filters: {
+      kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
+    } = {}) {
+      const p = new URLSearchParams();
+      (filters.kind ?? []).forEach((k) => p.append('kind', k));
+      if (filters.partner) p.set('partner', filters.partner);
+      if (filters.from) p.set('from', filters.from);
+      if (filters.to) p.set('to', filters.to);
+      const qs = p.toString();
+      return request<ComplianceChangeFeedResponse>(
+        'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`);
+    },
+    getComplianceChange(changeId: string) {
+      return request<ComplianceChangeDetail>(
+        'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`);
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
