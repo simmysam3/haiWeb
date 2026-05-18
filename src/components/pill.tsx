@@ -90,14 +90,15 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
   },
+  // Mirror of CHANGE_KIND_DEFINITION from @haiwave/protocol (v1.34 §3.4 — Pill tooltip source of truth). Cannot value-import the CJS protocol pkg in a client component (Turbopack + file: symlink on Windows). Keep verbatim in sync with packages/protocol/src/audit/compliance-changes.ts.
   change_kind: {
     gap_added: 'A new gap is present at a cell that was previously traversable.',
     gap_resolved: 'A previously open gap is no longer present.',
-    origin_shifted_country: 'The sourcing nation changed for this vendor/product.',
+    origin_shifted_country: 'Country of origin changed for this vendor/product.',
     origin_shifted_plant: 'Plant identifier changed within the same country.',
     vendor_substituted: 'A subcomponent vendor changed.',
     lead_time_degraded: 'Lead time increased beyond the degradation threshold.',
-    lead_time_improved: 'Lead time decreased beyond the improvement threshold.',
+    lead_time_improved: 'Lead time decreased beyond the threshold.',
     certification_expired_or_revoked: 'A referenced certification became expired or revoked.',
     certification_renewed: 'Certification status returned to valid.',
     depth_reduced: 'Maximum traversal depth decreased for this product.',

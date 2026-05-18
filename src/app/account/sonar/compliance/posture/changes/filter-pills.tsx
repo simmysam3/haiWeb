@@ -3,7 +3,11 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { EmittedChangeKind } from '@haiwave/protocol';
 
-// Mirror of EMITTED_CHANGE_KINDS from @haiwave/protocol — v1.34 §5.3 emitted set.
+// Turbopack + file: symlink: inline mirror of EMITTED_CHANGE_KINDS from @haiwave/protocol.
+// Source of truth: packages/protocol/src/audit/compliance-changes.ts — EMITTED_CHANGE_KINDS (v1.34 §5.3).
+// Turbopack cannot value-import the CJS @haiwave/protocol package through the file: symlink on Windows;
+// a direct import will fail at runtime. Keep this list verbatim in sync with EMITTED_CHANGE_KINDS in
+// the protocol package. Do NOT replace with a direct import.
 const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
   'gap_added',
   'gap_resolved',

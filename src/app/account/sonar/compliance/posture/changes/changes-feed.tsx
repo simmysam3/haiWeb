@@ -21,7 +21,7 @@ interface PriorCurrentOrigin {
   country_of_origin?: string;
 }
 interface PriorCurrentPlant {
-  plant_id?: string;
+  plant_identifier?: string;
 }
 interface PriorCurrentLeadTime {
   lead_time_days?: number | string;
@@ -30,7 +30,7 @@ interface PriorCurrentCert {
   certification_status?: string;
 }
 interface PriorCurrentDepth {
-  depth?: number | string;
+  max_depth?: number | string;
 }
 
 function describeChange(change: ComplianceChange): string {
@@ -42,11 +42,11 @@ function describeChange(change: ComplianceChange): string {
     case 'origin_shifted_country': {
       const p = (prior as PriorCurrentOrigin | null)?.country_of_origin ?? '—';
       const c = (current as PriorCurrentOrigin | null)?.country_of_origin ?? '—';
-      return `Origin nation: ${p} → ${c}`;
+      return `Country of origin changed from ${p} to ${c}`;
     }
     case 'origin_shifted_plant': {
-      const p = (prior as PriorCurrentPlant | null)?.plant_id ?? '—';
-      const c = (current as PriorCurrentPlant | null)?.plant_id ?? '—';
+      const p = (prior as PriorCurrentPlant | null)?.plant_identifier ?? '—';
+      const c = (current as PriorCurrentPlant | null)?.plant_identifier ?? '—';
       return `Plant identifier changed from ${p} to ${c}`;
     }
     case 'lead_time_degraded':
@@ -68,13 +68,13 @@ function describeChange(change: ComplianceChange): string {
     case 'vendor_substituted':
       return 'A subcomponent vendor was substituted.';
     case 'depth_reduced': {
-      const p = (prior as PriorCurrentDepth | null)?.depth ?? '—';
-      const c = (current as PriorCurrentDepth | null)?.depth ?? '—';
+      const p = (prior as PriorCurrentDepth | null)?.max_depth ?? '—';
+      const c = (current as PriorCurrentDepth | null)?.max_depth ?? '—';
       return `Maximum traversal depth decreased from ${p} to ${c}.`;
     }
     case 'depth_increased': {
-      const p = (prior as PriorCurrentDepth | null)?.depth ?? '—';
-      const c = (current as PriorCurrentDepth | null)?.depth ?? '—';
+      const p = (prior as PriorCurrentDepth | null)?.max_depth ?? '—';
+      const c = (current as PriorCurrentDepth | null)?.max_depth ?? '—';
       return `Maximum traversal depth increased from ${p} to ${c}.`;
     }
     default:
@@ -127,9 +127,10 @@ export function ChangesFeed({ changes }: Props) {
                   <span className="ml-1 font-normal text-slate">· {change.component_ref}</span>
                 ) : null}
               </p>
-              <p className="text-sm text-slate">{description}</p>
+              <p data-testid="change-description" className="text-sm text-slate">{description}</p>
               <p className="text-xs text-slate/70">{detectedAt}</p>
             </div>
+            {/* detail route added in P4 Task 10 */}
             <Link
               href={`/account/sonar/compliance/posture/changes/${change.change_id}`}
               className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
