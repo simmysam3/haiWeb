@@ -279,7 +279,7 @@ export interface ClassificationOverrideInput {
 }
 
 /**
- * Activation response shape returned by POST /sonar/audit/trust-bypass/activate.
+ * Activation response shape returned by POST /sonar/compliance/trust-bypass/activate.
  * Mirrors the haiCore route handler — the server emits a stripped config
  * (config_id, trust_class, enabled, enabled_at) plus an optional dissolution
  * payload populated only on retroactive activation. The full TrustBypassConfig
@@ -1111,13 +1111,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     getAggregateReport(runId) {
       return request<AggregateReport>(
         'GET',
-        `/sonar/audit/reports/${runId}/aggregate`,
+        `/sonar/compliance/reports/${runId}/aggregate`,
       );
     },
     getPerVendorReport(runId, vendorId) {
       return request<PerVendorReport>(
         'GET',
-        `/sonar/audit/reports/${runId}/company/${vendorId}`,
+        `/sonar/compliance/reports/${runId}/company/${vendorId}`,
       );
     },
 
@@ -1143,25 +1143,25 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listTrustBypassConfigs() {
       return request<{ configs: TrustBypassConfig[] }>(
         'GET',
-        '/sonar/audit/trust-bypass/configs',
+        '/sonar/compliance/trust-bypass/configs',
       );
     },
     getTrustBypassAffectedCounterparties(trustClass) {
       return request<{ counterparties: TrustBypassAffectedCounterparty[] }>(
         'GET',
-        `/sonar/audit/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
+        `/sonar/compliance/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
       );
     },
     activateTrustBypass(body) {
       return request<TrustBypassActivationResponse>(
         'POST',
-        '/sonar/audit/trust-bypass/activate',
+        '/sonar/compliance/trust-bypass/activate',
         body,
       );
     },
     deactivateTrustBypass(body) {
       // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
-      return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
+      return request<void>('POST', '/sonar/compliance/trust-bypass/deactivate', body);
     },
 
     // ─── Modality posture (v1.30 PR-3) ───────────────────────────────────
