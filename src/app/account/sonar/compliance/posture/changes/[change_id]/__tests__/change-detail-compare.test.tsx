@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { ChangeDetailCompare } from '../change-detail-compare';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 
@@ -51,5 +51,12 @@ describe('ChangeDetailCompare', () => {
     );
     const noneEls = screen.getAllByText(/none/i);
     expect(noneEls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows prior→current value delta in the change-description element', () => {
+    render(<ChangeDetailCompare detail={base} />);
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/VN/)).toBeInTheDocument();
+    expect(within(desc).getByText(/CN/)).toBeInTheDocument();
   });
 });
