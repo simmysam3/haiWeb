@@ -338,7 +338,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
             const isExpanded = !!expanded[klass.class_id];
             const productsState = products[klass.class_id];
             const pill = classPillState(klass);
-            const classDeepLink = `/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(vendorId)}&class_id=${encodeURIComponent(klass.class_id)}`;
+            const classDeepLink = `/account/sonar/compliance/posture/nominations/new?vendor=${encodeURIComponent(vendorId)}&class_id=${encodeURIComponent(klass.class_id)}`;
             return (
               <div key={klass.class_id}>
                 <div className="flex items-center gap-3 px-4 py-3">
@@ -374,7 +374,7 @@ export function CatalogTree({ vendorId }: { vendorId: string }) {
                       <ul className="space-y-1">
                         {productsState.products.map((product) => {
                           const productPill = productPillState(product, klass);
-                          const productDeepLink = `/account/sonar/audit/nominations/new?vendor=${encodeURIComponent(vendorId)}&product=${encodeURIComponent(product.external_product_id)}`;
+                          const productDeepLink = `/account/sonar/compliance/posture/nominations/new?vendor=${encodeURIComponent(vendorId)}&product=${encodeURIComponent(product.external_product_id)}`;
                           return (
                             <li
                               key={product.external_product_id}

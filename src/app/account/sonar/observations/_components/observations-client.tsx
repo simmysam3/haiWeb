@@ -38,7 +38,7 @@ interface Props {
 const STICKY_TAB_KEY = 'haiwave.observations.lastTab';
 
 const ADD_HREF: Record<ObservationClass, string> = {
-  audit: '/account/sonar/audit/nominations/new',
+  audit: '/account/sonar/compliance/posture/nominations/new',
   watcher: '/account/sonar/templates/new?observation_class=watcher',
   phantom_demand: '/account/sonar/templates/new?observation_class=phantom_demand',
 };
