@@ -74,6 +74,8 @@ import type {
   ComplianceChangeFeedResponse,
   ComplianceChangeDetail,
   ComplianceChangeKind,
+  WorkingListResponse,
+  WorkingListCategory,
 } from '@haiwave/protocol';
 
 import type {
@@ -563,6 +565,22 @@ export interface HaiwaveClient {
     to?: string;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
+  // ─── Working list (v1.34 P5) ─────────────────────────────────────────
+  listWorkingList(filters?: {
+    categories?: WorkingListCategory[];
+    partner_id?: string;
+    status?: 'open' | 'snoozed' | 'dismissed';
+    sort?: 'recency' | 'oldest_unresolved';
+    page?: number;
+    page_size?: number;
+  }): Promise<WorkingListResponse>;
+  transitionWorkingListItem(
+    canonicalKey: string,
+    body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string },
+  ): Promise<{
+    canonical_key: string; state: string; snooze_until: string | null;
+    dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
+  }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1435,6 +1453,33 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
         return d;
       });
+    },
+
+    // ─── Working list (v1.34 P5) ─────────────────────────────────────────
+    listWorkingList(filters: {
+      categories?: WorkingListCategory[]; partner_id?: string;
+      status?: 'open' | 'snoozed' | 'dismissed';
+      sort?: 'recency' | 'oldest_unresolved'; page?: number; page_size?: number;
+    } = {}) {
+      const p = new URLSearchParams();
+      if (filters.categories?.length) p.set('categories', filters.categories.join(','));
+      if (filters.partner_id) p.set('partner_id', filters.partner_id);
+      if (filters.status) p.set('status', filters.status);
+      if (filters.sort) p.set('sort', filters.sort);
+      if (filters.page) p.set('page', String(filters.page));
+      if (filters.page_size) p.set('page_size', String(filters.page_size));
+      const qs = p.toString();
+      return request<WorkingListResponse>(
+        'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`);
+    },
+    transitionWorkingListItem(
+      canonicalKey: string,
+      body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string },
+    ) {
+      return request<{
+        canonical_key: string; state: string; snooze_until: string | null;
+        dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
+      }>('PUT', `/sonar/compliance/working-list/items/${canonicalKey}/state`, body);
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
