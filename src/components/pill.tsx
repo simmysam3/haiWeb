@@ -98,7 +98,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     origin_shifted_plant: 'Plant identifier changed within the same country.',
     vendor_substituted: 'A subcomponent vendor changed.',
     lead_time_degraded: 'Lead time increased beyond the degradation threshold.',
-    lead_time_improved: 'Lead time decreased beyond the threshold.',
+    lead_time_improved: 'Lead time decreased beyond the degradation threshold.',
     certification_expired_or_revoked: 'A referenced certification became expired or revoked.',
     certification_renewed: 'Certification status returned to valid.',
     depth_reduced: 'Maximum traversal depth decreased for this product.',

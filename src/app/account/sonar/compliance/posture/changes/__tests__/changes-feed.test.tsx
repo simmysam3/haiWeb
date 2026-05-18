@@ -131,4 +131,26 @@ describe('ChangesFeed', () => {
     const protocolSorted = [...PROTOCOL_EMITTED_CHANGE_KINDS].sort();
     expect(localSorted).toEqual(protocolSorted);
   });
+
+  it('renders truncation notice when changes.length < total', () => {
+    const changes = Array.from({ length: 25 }, (_, i) =>
+      change({ change_id: `c${i}`, change_kind: 'gap_added', prior_value: null, current_value: null }),
+    );
+    render(<ChangesFeed changes={changes} total={50} />);
+    expect(screen.getByText(/Showing 25 of 50/)).toBeInTheDocument();
+    expect(screen.getByText(/narrow the filters/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render truncation notice when changes.length === total', () => {
+    const changes = Array.from({ length: 10 }, (_, i) =>
+      change({ change_id: `c${i}`, change_kind: 'gap_added', prior_value: null, current_value: null }),
+    );
+    render(<ChangesFeed changes={changes} total={10} />);
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  });
+
+  it('does NOT render truncation notice when total is not provided', () => {
+    render(<ChangesFeed changes={[change({})]} />);
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  });
 });

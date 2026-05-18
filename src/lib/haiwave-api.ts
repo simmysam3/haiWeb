@@ -1422,11 +1422,19 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.to) p.set('to', filters.to);
       const qs = p.toString();
       return request<ComplianceChangeFeedResponse>(
-        'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`);
+        'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listComplianceChanges: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
     getComplianceChange(changeId: string) {
       return request<ComplianceChangeDetail>(
-        'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`);
+        'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`,
+      ).then((d) => {
+        if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK

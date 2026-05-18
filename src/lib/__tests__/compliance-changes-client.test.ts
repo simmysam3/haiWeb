@@ -90,4 +90,29 @@ describe('HaiwaveClient compliance-changes methods (v1.34 P4)', () => {
     mockFetchOnce({ error: 'not_found' }, 404);
     await expect(client.getComplianceChange('chg-missing')).rejects.toThrow(/404/);
   });
+
+  it('listComplianceChanges rejects with a clear message when haiCore returns 200 with non-JSON body', async () => {
+    vi.fn();
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      new Response('Internal Server Error', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    ) as unknown as typeof fetch;
+    await expect(client.listComplianceChanges()).rejects.toThrow(
+      /listComplianceChanges: haiCore returned no\/non-JSON body/,
+    );
+  });
+
+  it('getComplianceChange rejects with a clear message when haiCore returns 200 with non-JSON body', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      new Response('', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    ) as unknown as typeof fetch;
+    await expect(client.getComplianceChange('chg-1')).rejects.toThrow(
+      /getComplianceChange: haiCore returned no\/non-JSON body/,
+    );
+  });
 });

@@ -88,7 +88,7 @@ export default async function ChangesPage({ searchParams }: PageProps) {
             </p>
           </div>
         ) : (
-          <ChangesFeed changes={result.data.changes} />
+          <ChangesFeed changes={result.data.changes} total={result.data.total} />
         )}
       </div>
     </div>
