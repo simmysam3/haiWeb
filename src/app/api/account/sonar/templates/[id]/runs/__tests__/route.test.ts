@@ -21,6 +21,7 @@ describe('GET /api/account/sonar/templates/[id]/runs', () => {
       getRunTemplate: vi.fn(),
       listAuditRuns: vi.fn(),
       listWatcherRuns: vi.fn(),
+      listPhantomDemandRuns: vi.fn(),
     };
   });
 
@@ -57,6 +58,31 @@ describe('GET /api/account/sonar/templates/[id]/runs', () => {
       limit: 200,
     });
     expect((globalThis as any).__mockClient.listAuditRuns).not.toHaveBeenCalled();
+  });
+
+  it('phantom_demand template: dispatches to listPhantomDemandRuns (bare array; created_at → triggered_at)', async () => {
+    (globalThis as any).__mockClient.getRunTemplate.mockResolvedValue({
+      template: { template_id: 'tP', observation_class: 'phantom_demand', enabled: true },
+    });
+    (globalThis as any).__mockClient.listPhantomDemandRuns.mockResolvedValue([
+      { run_id: 'p1', status: 'complete', created_at: '2026-05-18T04:28:12Z', completed_at: '2026-05-18T04:28:13Z', run_origin: 'template_manual', template_id: 'tP' },
+    ]);
+    const res = await GET(makeReq('tP'), { params: Promise.resolve({ id: 'tP' }) });
+    const body = await res.json();
+    expect(body.runs).toHaveLength(1);
+    expect(body.runs[0]).toEqual({
+      run_id: 'p1',
+      status: 'complete',
+      triggered_at: '2026-05-18T04:28:12Z',
+      completed_at: '2026-05-18T04:28:13Z',
+      run_origin: 'template_manual',
+    });
+    expect((globalThis as any).__mockClient.listPhantomDemandRuns).toHaveBeenCalledWith({
+      template_id: 'tP',
+      limit: 200,
+    });
+    expect((globalThis as any).__mockClient.listAuditRuns).not.toHaveBeenCalled();
+    expect((globalThis as any).__mockClient.listWatcherRuns).not.toHaveBeenCalled();
   });
 
   it('returns slice limited to 25 most-recent runs', async () => {
