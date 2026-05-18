@@ -1466,11 +1466,15 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.partner_id) p.set('partner_id', filters.partner_id);
       if (filters.status) p.set('status', filters.status);
       if (filters.sort) p.set('sort', filters.sort);
-      if (filters.page) p.set('page', String(filters.page));
-      if (filters.page_size) p.set('page_size', String(filters.page_size));
+      if (filters.page !== undefined) p.set('page', String(filters.page));
+      if (filters.page_size !== undefined) p.set('page_size', String(filters.page_size));
       const qs = p.toString();
       return request<WorkingListResponse>(
-        'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`);
+        'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listWorkingList: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
     transitionWorkingListItem(
       canonicalKey: string,
@@ -1479,7 +1483,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{
         canonical_key: string; state: string; snooze_until: string | null;
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
-      }>('PUT', `/sonar/compliance/working-list/items/${canonicalKey}/state`, body);
+      }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body);
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK

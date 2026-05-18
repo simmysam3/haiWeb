@@ -42,7 +42,7 @@ export function FilterPills() {
         {SORTS.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
       </select>
       <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Partner:</span>
-      <input type="text" defaultValue={searchParams.get('partner_id') ?? ''} onBlur={(e) => setParam('partner_id', e.target.value)} placeholder="vendor ID" className="w-32 rounded-md border border-slate/30 px-2 py-1 text-xs" />
+      <input type="text" value={searchParams.get('partner_id') ?? ''} onChange={(e) => setParam('partner_id', e.target.value)} placeholder="vendor ID" className="w-32 rounded-md border border-slate/30 px-2 py-1 text-xs" />
     </div>
   );
 }

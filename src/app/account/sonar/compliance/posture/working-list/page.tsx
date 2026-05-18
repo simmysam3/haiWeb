@@ -23,7 +23,7 @@ async function fetchList(sp: SearchParams): Promise<FetchResult> {
     const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
     if (!res.ok) return { kind: 'error', status: res.status };
     return { kind: 'ok', data: (await res.json()) as WorkingListResponse };
-  } catch { return { kind: 'error', status: 0 }; }
+  } catch (e) { console.error('[working-list/page] fetch threw:', e); return { kind: 'error', status: 0 }; }
 }
 
 interface PageProps { searchParams: Promise<SearchParams>; }
@@ -44,9 +44,9 @@ export default async function WorkingListPage({ searchParams }: PageProps) {
       <FilterPills />
       <div className="rounded-lg border border-slate/20 bg-white">
         {result.kind === 'error' ? (
-          <div className="p-12 text-center"><p className="text-red-900">Couldn&apos;t load the working list. The compliance service is temporarily unavailable.</p></div>
+          <div role="alert" className="p-12 text-center"><p className="text-red-900">Couldn&apos;t load the working list. The compliance service is temporarily unavailable.</p></div>
         ) : (
-          <WorkingListTable items={result.data.items} />
+          <WorkingListTable items={result.data.items} total={result.data.total} />
         )}
       </div>
     </div>

@@ -6,7 +6,7 @@ beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); });
 
 describe('working list client', () => {
   it('listWorkingList builds query params', async () => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 }));
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200, headers: { 'content-type': 'application/json' } }));
     const c = createHaiwaveClient('jwt.tok.en', 'pid-1');
     await c.listWorkingList({ categories: ['gap', 'change'], partner_id: 'v1', status: 'open', sort: 'oldest_unresolved' });
     const url = fetchMock.mock.calls[0][0] as string;

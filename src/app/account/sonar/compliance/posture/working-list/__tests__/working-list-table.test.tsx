@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
+const mockRefresh = vi.fn();
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: mockRefresh }),
 }));
 
 import { WorkingListTable } from '../working-list-table';
 import type { WorkingListItem } from '@haiwave/protocol';
 
 const fetchMock = vi.fn();
-beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); });
+beforeEach(() => { fetchMock.mockReset(); mockRefresh.mockReset(); vi.stubGlobal('fetch', fetchMock); });
 
 const item: WorkingListItem = {
   canonical_key: 'a'.repeat(64), category: 'nomination',
@@ -37,5 +39,15 @@ describe('WorkingListTable', () => {
     expect(url).toContain(`/api/account/sonar/compliance/working-list/items/${item.canonical_key}/state`);
     expect(init.method).toBe('PUT');
     expect(JSON.parse(init.body as string)).toMatchObject({ state: 'dismissed', dismiss_reason: 'not relevant' });
+  });
+  it('on non-ok response shows error text and does NOT call router.refresh', async () => {
+    fetchMock.mockResolvedValue(new Response('Service unavailable', { status: 503 }));
+    render(<WorkingListTable items={[item]} />);
+    // Open snooze to trigger transition directly without needing dismiss flow
+    fireEvent.click(screen.getByRole('button', { name: /snooze/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(mockRefresh).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Service unavailable');
   });
 });

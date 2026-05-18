@@ -5,58 +5,94 @@ import Link from 'next/link';
 import type { WorkingListItem } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 
-interface Props { items: WorkingListItem[]; }
+interface Props { items: WorkingListItem[]; total?: number; }
 
-export function WorkingListTable({ items }: Props) {
+export function WorkingListTable({ items, total }: Props) {
   const router = useRouter();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [dismissKey, setDismissKey] = useState<string | null>(null);
   const [dismissReason, setDismissReason] = useState('');
+  const [transitionError, setTransitionError] = useState<string | null>(null);
 
   async function transition(key: string, body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string }) {
     setBusyKey(key);
+    setTransitionError(null);
     try {
-      await fetch(`/api/account/sonar/compliance/working-list/items/${key}/state`, {
+      const res = await fetch(`/api/account/sonar/compliance/working-list/items/${key}/state`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        setTransitionError(text || `Transition failed: ${res.status}`);
+        return;
+      }
+      setDismissKey(null);
+      setDismissReason('');
       router.refresh();
-    } finally { setBusyKey(null); setDismissKey(null); setDismissReason(''); }
+    } catch (e) {
+      setTransitionError(e instanceof Error ? e.message : 'Transition failed');
+    } finally {
+      setBusyKey(null);
+    }
   }
 
   if (items.length === 0) return <p className="p-12 text-center text-slate">Nothing on your working list.</p>;
 
   return (
-    <div className="divide-y divide-slate/10">
-      {items.map((it) => (
-        <div key={it.canonical_key} className="relative flex items-start justify-between gap-4 px-4 py-4">
-          <div className="flex flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill category="working_list_category" value={it.category}>{it.category}</Pill>
-              {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{it.state}</span>}
+    <div>
+      {transitionError && (
+        <div role="alert" className="flex items-center justify-between gap-2 rounded-t-lg border-b border-problem/30 bg-problem/5 px-4 py-2 text-sm text-problem">
+          <span>{transitionError}</span>
+          <button type="button" onClick={() => setTransitionError(null)} aria-label="Dismiss error" className="ml-2 text-problem/70 hover:text-problem">✕</button>
+        </div>
+      )}
+      {total !== undefined && (
+        <p className="px-4 pt-3 text-xs text-slate">
+          {total > items.length ? `${items.length} of ${total} items` : `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
+        </p>
+      )}
+      <div className="divide-y divide-slate/10">
+        {items.map((it) => (
+          <div key={it.canonical_key} className="relative flex items-start justify-between gap-4 px-4 py-4">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Pill category="working_list_category" value={it.category}>{it.category}</Pill>
+                {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{it.state}</span>}
+              </div>
+              <p className="text-sm font-medium text-navy">{it.subject}</p>
+              <p className="text-sm text-slate">{it.reason}</p>
+              <p className="text-xs text-slate/70">{new Date(it.item_event_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             </div>
-            <p className="text-sm font-medium text-navy">{it.subject}</p>
-            <p className="text-sm text-slate">{it.reason}</p>
-            <p className="text-xs text-slate/70">{new Date(it.item_event_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Link href={it.action_href} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy">Open</Link>
-            {it.state !== 'open' ? (
-              <button type="button" disabled={busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'open' })} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Reopen</button>
-            ) : (
-              <>
-                <button type="button" disabled={busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'snoozed', snooze_until: new Date(Date.now() + 7 * 86400000).toISOString() })} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Snooze 7d</button>
-                <button type="button" onClick={() => setDismissKey(it.canonical_key)} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Dismiss</button>
-              </>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link href={it.action_href} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy">Open</Link>
+              {it.state !== 'open' ? (
+                <button type="button" disabled={busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'open' })} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Reopen</button>
+              ) : (
+                <>
+                  <button type="button" disabled={busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'snoozed', snooze_until: new Date(Date.now() + 7 * 86400000).toISOString() })} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Snooze 7d</button>
+                  <button
+                    type="button"
+                    aria-expanded={dismissKey === it.canonical_key}
+                    onClick={() => setDismissKey(dismissKey === it.canonical_key ? null : it.canonical_key)}
+                    className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal"
+                  >Dismiss</button>
+                </>
+              )}
+            </div>
+            {dismissKey === it.canonical_key && (
+              <div
+                role="group"
+                aria-label="Dismiss item"
+                className="absolute right-8 top-14 z-10 flex flex-col gap-2 rounded-md border border-slate/30 bg-white p-3 shadow"
+                onKeyDown={(e) => { if (e.key === 'Escape') setDismissKey(null); }}
+              >
+                <input type="text" placeholder="Dismiss reason" value={dismissReason} onChange={(e) => setDismissReason(e.target.value)} className="w-56 rounded-md border border-slate/30 px-2 py-1 text-xs" />
+                <button type="button" disabled={!dismissReason || busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'dismissed', dismiss_reason: dismissReason })} className="rounded-md bg-teal px-3 py-1.5 text-xs text-white disabled:opacity-50">Confirm</button>
+              </div>
             )}
           </div>
-          {dismissKey === it.canonical_key && (
-            <div className="absolute right-8 top-14 z-10 flex flex-col gap-2 rounded-md border border-slate/30 bg-white p-3 shadow">
-              <input type="text" placeholder="Dismiss reason" value={dismissReason} onChange={(e) => setDismissReason(e.target.value)} className="w-56 rounded-md border border-slate/30 px-2 py-1 text-xs" />
-              <button type="button" disabled={!dismissReason || busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'dismissed', dismiss_reason: dismissReason })} className="rounded-md bg-teal px-3 py-1.5 text-xs text-white disabled:opacity-50">Confirm</button>
-            </div>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
