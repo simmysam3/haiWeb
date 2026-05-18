@@ -109,6 +109,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     warning: 'Notable change that may require review.',
     critical: 'High-impact change that requires immediate attention.',
   },
+  // sync with @haiwave/protocol WORKING_LIST_CATEGORY_DEFINITION
+  working_list_category: {
+    gap: 'An open compliance gap from the latest snapshot.',
+    change: 'A just-broken change event detected between snapshots.',
+    nomination: 'An outgoing vendor nomination awaiting response.',
+    obligation: 'An incoming customer request awaiting your response.',
+    expiry: 'A provenance key expiring within the warning window.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
