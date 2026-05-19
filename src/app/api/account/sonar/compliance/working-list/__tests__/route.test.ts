@@ -11,6 +11,13 @@ describe('working-list BFF', () => {
     expect(client.listWorkingList).toHaveBeenCalledWith(expect.objectContaining({ categories: ['gap'], sort: 'recency' }));
     expect(res.status).toBe(200);
   });
+  it('GET forwards page and page_size to client.listWorkingList', async () => {
+    const client = { listWorkingList: vi.fn().mockResolvedValue({ items: [], total: 0 }) };
+    const request = { url: 'http://x/api/account/sonar/compliance/working-list?page=2&page_size=25' } as Request;
+    const res = await (GET as unknown as (ctx: { client: typeof client; request: Request }) => Promise<Response>)({ client, request });
+    expect(client.listWorkingList).toHaveBeenCalledWith(expect.objectContaining({ page: 2, page_size: 25 }));
+    expect(res.status).toBe(200);
+  });
   it('PUT forwards body + key to client.transitionWorkingListItem', async () => {
     const client = { transitionWorkingListItem: vi.fn().mockResolvedValue({ canonical_key: 'k', state: 'open' }) };
     const key = 'a'.repeat(64);

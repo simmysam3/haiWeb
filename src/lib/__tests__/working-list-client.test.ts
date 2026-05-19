@@ -17,7 +17,7 @@ describe('working list client', () => {
     expect(url).toContain('sort=oldest_unresolved');
   });
   it('transitionWorkingListItem PUTs the body to the key path', async () => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ canonical_key: 'k', state: 'snoozed' }), { status: 200 }));
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ canonical_key: 'k', state: 'snoozed' }), { status: 200, headers: { 'content-type': 'application/json' } }));
     const c = createHaiwaveClient('jwt.tok.en', 'pid-1');
     await c.transitionWorkingListItem('a'.repeat(64), { state: 'snoozed', snooze_until: '2026-06-01T00:00:00.000Z' });
     const [url, init] = fetchMock.mock.calls[0];

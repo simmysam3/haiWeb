@@ -1483,7 +1483,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{
         canonical_key: string; state: string; snooze_until: string | null;
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
-      }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body);
+      }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
+        if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
