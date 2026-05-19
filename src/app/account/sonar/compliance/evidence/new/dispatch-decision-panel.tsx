@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRunStatus } from '@/app/account/sonar/compliance/runs/[id]/use-run-status';
+import { EvidenceTreeView } from './evidence-tree-view';
 
 export interface DraftWire {
   draft_response_id: string;
@@ -32,6 +33,14 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
   const [error, setError] = useState<string | null>(null);
   const [boundRunId, setBoundRunId] = useState<string | null>(null);
   const [done, setDone] = useState<'cached' | null>(null);
+
+  // Reuses the same useRunStatus SWR key RunWaiting subscribes to (deduped —
+  // not a parallel flag). Lifts the fresh-run terminal state up so the review
+  // stage can render once dispatch is resolved AND the tree is ready.
+  const { status: runStatus } = useRunStatus(boundRunId ?? '');
+  const dispatchResolved = done === 'cached' || boundRunId !== null;
+  const treeReady =
+    done === 'cached' || ['complete', 'partial'].includes(runStatus ?? '');
 
   async function dispatch(decision: 'cached' | 'fresh') {
     setBusy(true); setError(null);
@@ -80,6 +89,13 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
               className="px-4 py-2 rounded bg-charcoal text-white">Run fresh</button>
           </div>
         )}
+
+      {dispatchResolved && treeReady && (
+        <section className="mt-6">
+          <h3 className="font-semibold mb-2">Review &amp; annotate</h3>
+          <EvidenceTreeView draftId={draft.draft_response_id} />
+        </section>
+      )}
     </div>
   );
 }
