@@ -1,5 +1,4 @@
 import { cookies, headers } from 'next/headers';
-import type { AuditRun, AuditRunResult, ClassRollupEntry, GeoRollupEntry } from '@haiwave/protocol';
 import { GeoChart } from './geo-chart';
 import { ClassChart } from './class-chart';
 import { GapsPanel } from './gaps-panel';
@@ -8,16 +7,11 @@ import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { PartnersChart } from './partners-chart';
-import { buildPartnerCompliance, type PartnerComplianceData } from './_lib/partner-compliance';
+import { loadAuditChartData, type AuditChartData } from '../_lib/load-audit-charts';
 import { PageIntro } from '@/components/page-intro';
 import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
 
-interface DashboardData {
-  rollup: GeoRollupEntry[];
-  classRollup: ClassRollupEntry[];
-  gaps: number | null;
-  latestAt: string | null;
-  partnerCompliance: PartnerComplianceData | null;
+interface DashboardData extends AuditChartData {
   // null = count fetch failed (renders an "unavailable" banner via the panel).
   // Distinct from {0,0,0} which means "fetch succeeded, nothing throttled".
   throttledCounts: { audit: number; watcher: number; total: number } | null;
@@ -30,75 +24,25 @@ async function loadDashboard(): Promise<DashboardData> {
   const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
   const baseUrl = `${proto}://${host}`;
 
-  const fetchJson = async <T,>(path: string): Promise<T | null> => {
+  const fetchThrottled = async (): Promise<DashboardData['throttledCounts']> => {
     try {
-      const res = await fetch(`${baseUrl}${path}`, {
+      const res = await fetch(`${baseUrl}/api/account/sonar/runs/throttled/count`, {
         headers: { cookie: cookieHeader },
         cache: 'no-store',
       });
       if (!res.ok) return null;
-      return (await res.json()) as T;
+      return (await res.json()) as DashboardData['throttledCounts'];
     } catch (err) {
-      console.error('[loadDashboard] network failure', { path, err });
+      console.error('[loadDashboard] throttled count failure', err);
       return null;
     }
   };
 
-  const [runsRes, throttledCounts] = await Promise.all([
-    fetchJson<{ runs: AuditRun[] }>('/api/account/audit-runs?limit=25'),
-    fetchJson<{ audit: number; watcher: number; total: number }>(
-      '/api/account/sonar/runs/throttled/count',
-    ),
+  const [charts, throttledCounts] = await Promise.all([
+    loadAuditChartData(baseUrl, cookieHeader),
+    fetchThrottled(),
   ]);
-  // Pass throttledCounts through verbatim — null means "count unavailable" and
-  // the panel renders a degraded-state banner; collapsing to zeros would hide
-  // the failure from the operator.
-  if (!runsRes) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null, throttledCounts };
-
-  const latest = runsRes.runs.find(
-    (r) => r.status === 'complete' || r.status === 'partial',
-  );
-  if (!latest) return { rollup: [], classRollup: [], gaps: null, latestAt: null, partnerCompliance: null, throttledCounts };
-
-  const [resultsRes, classRes] = await Promise.all([
-    fetchJson<{ results: AuditRunResult[] }>(
-      `/api/account/audit-runs/${latest.run_id}/results`,
-    ),
-    fetchJson<{ rollup: ClassRollupEntry[] }>(
-      `/api/account/audit-runs/${latest.run_id}/class-rollup`,
-    ),
-  ]);
-
-  const merged = new Map<string, GeoRollupEntry>();
-  if (resultsRes) {
-    for (const r of resultsRes.results) {
-      for (const e of r.geo_rollup) {
-        const cur = merged.get(e.country_of_origin);
-        if (!cur) {
-          merged.set(e.country_of_origin, {
-            ...e,
-            depth_distribution: { ...e.depth_distribution },
-          });
-        } else {
-          cur.component_count += e.component_count;
-          for (const [d, c] of Object.entries(e.depth_distribution)) {
-            cur.depth_distribution[d] = (cur.depth_distribution[d] ?? 0) + c;
-          }
-        }
-      }
-    }
-  }
-
-  return {
-    rollup: [...merged.values()].sort(
-      (a, b) => b.component_count - a.component_count,
-    ),
-    classRollup: classRes?.rollup ?? [],
-    gaps: latest.gap_count ?? 0,
-    latestAt: latest.triggered_at,
-    partnerCompliance: resultsRes ? buildPartnerCompliance(latest, resultsRes.results) : null,
-    throttledCounts,
-  };
+  return { ...charts, throttledCounts };
 }
 
 export default async function DashboardPage() {
