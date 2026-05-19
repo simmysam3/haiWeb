@@ -5,7 +5,7 @@ import type { TrustBypassActivationRequest } from '@haiwave/protocol';
 /**
  * POST /api/account/sonar/audit/trust-bypass/activate
  *
- * BFF passthrough to haiCore POST /sonar/audit/trust-bypass/activate.
+ * BFF passthrough to haiCore POST /sonar/compliance/trust-bypass/activate.
  * Body: { trust_class, activation_mode, retroactive_acknowledgement }.
  * haiCore enforces the retroactive-acknowledgement refine; we forward 400s
  * verbatim. On success returns { config, dissolution }.

@@ -31,7 +31,7 @@ const TABS: { id: Modality; label: string }[] = [
 ];
 
 const RUN_DETAIL_HREF: Record<Modality, (runId: string) => string> = {
-  audit: (id) => `/account/sonar/audit/reports/${id}`,
+  audit: (id) => `/account/sonar/compliance/reports/${id}`,
   watcher: () => `/account/sonar/watcher/dashboard`,
   phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,
 };
@@ -40,7 +40,7 @@ const RUN_DETAIL_HREF: Record<Modality, (runId: string) => string> = {
 // the browser can't reach Fastify directly and haiCore uses Accept-header
 // negotiation, not a `?format=` querystring). The BFF translates the
 // `?format=` querystring into the appropriate Accept header before
-// forwarding to haiCore. Mirrors `src/app/account/sonar/audit/runs/[id]/_components/download-menu.tsx`.
+// forwarding to haiCore. Mirrors `src/app/account/sonar/compliance/runs/[id]/_components/download-menu.tsx`.
 //
 // watcher + phantom_demand have no per-run report endpoint in v1.30
 // (deferred — see as-built §14.25); their `available_formats` arrive from

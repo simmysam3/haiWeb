@@ -71,6 +71,11 @@ import type {
   Modality,
   Posture,
   ObservationClass,
+  ComplianceChangeFeedResponse,
+  ComplianceChangeDetail,
+  ComplianceChangeKind,
+  WorkingListResponse,
+  WorkingListCategory,
 } from '@haiwave/protocol';
 
 import type {
@@ -80,7 +85,7 @@ import type {
 
 import type {
   DownstreamGapFilters,
-} from '@/app/account/sonar/audit/downstream-gaps/_lib/types';
+} from '@/app/account/sonar/compliance/posture/obligations/_lib/types';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
@@ -279,7 +284,7 @@ export interface ClassificationOverrideInput {
 }
 
 /**
- * Activation response shape returned by POST /sonar/audit/trust-bypass/activate.
+ * Activation response shape returned by POST /sonar/compliance/trust-bypass/activate.
  * Mirrors the haiCore route handler — the server emits a stripped config
  * (config_id, trust_class, enabled, enabled_at) plus an optional dissolution
  * payload populated only on retroactive activation. The full TrustBypassConfig
@@ -552,6 +557,30 @@ export interface HaiwaveClient {
    * (CSV reports). Returns the raw Response so callers can inspect status,
    * forward content-type, and stream the body verbatim. */
   fetchRaw(path: string, init?: RequestInit): Promise<Response>;
+  // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
+  listComplianceChanges(filters?: {
+    kind?: ComplianceChangeKind[];
+    partner?: string;
+    from?: string;
+    to?: string;
+  }): Promise<ComplianceChangeFeedResponse>;
+  getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
+  // ─── Working list (v1.34 P5) ─────────────────────────────────────────
+  listWorkingList(filters?: {
+    categories?: WorkingListCategory[];
+    partner_id?: string;
+    status?: 'open' | 'snoozed' | 'dismissed';
+    sort?: 'recency' | 'oldest_unresolved';
+    page?: number;
+    page_size?: number;
+  }): Promise<WorkingListResponse>;
+  transitionWorkingListItem(
+    canonicalKey: string,
+    body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string },
+  ): Promise<{
+    canonical_key: string; state: string; snooze_until: string | null;
+    dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
+  }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1111,13 +1140,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     getAggregateReport(runId) {
       return request<AggregateReport>(
         'GET',
-        `/sonar/audit/reports/${runId}/aggregate`,
+        `/sonar/compliance/reports/${runId}/aggregate`,
       );
     },
     getPerVendorReport(runId, vendorId) {
       return request<PerVendorReport>(
         'GET',
-        `/sonar/audit/reports/${runId}/company/${vendorId}`,
+        `/sonar/compliance/reports/${runId}/company/${vendorId}`,
       );
     },
 
@@ -1143,25 +1172,25 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listTrustBypassConfigs() {
       return request<{ configs: TrustBypassConfig[] }>(
         'GET',
-        '/sonar/audit/trust-bypass/configs',
+        '/sonar/compliance/trust-bypass/configs',
       );
     },
     getTrustBypassAffectedCounterparties(trustClass) {
       return request<{ counterparties: TrustBypassAffectedCounterparty[] }>(
         'GET',
-        `/sonar/audit/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
+        `/sonar/compliance/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
       );
     },
     activateTrustBypass(body) {
       return request<TrustBypassActivationResponse>(
         'POST',
-        '/sonar/audit/trust-bypass/activate',
+        '/sonar/compliance/trust-bypass/activate',
         body,
       );
     },
     deactivateTrustBypass(body) {
       // haiCore returns 204 No Content; request<T>() returns null for non-JSON.
-      return request<void>('POST', '/sonar/audit/trust-bypass/deactivate', body);
+      return request<void>('POST', '/sonar/compliance/trust-bypass/deactivate', body);
     },
 
     // ─── Modality posture (v1.30 PR-3) ───────────────────────────────────
@@ -1398,6 +1427,66 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
           current_status: string;
         }>;
       }>('GET', `/sonar/usage/throttle-history${suffix}`);
+    },
+
+    // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
+    listComplianceChanges(filters: {
+      kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
+    } = {}) {
+      const p = new URLSearchParams();
+      (filters.kind ?? []).forEach((k) => p.append('kind', k));
+      if (filters.partner) p.set('partner', filters.partner);
+      if (filters.from) p.set('from', filters.from);
+      if (filters.to) p.set('to', filters.to);
+      const qs = p.toString();
+      return request<ComplianceChangeFeedResponse>(
+        'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listComplianceChanges: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getComplianceChange(changeId: string) {
+      return request<ComplianceChangeDetail>(
+        'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`,
+      ).then((d) => {
+        if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+
+    // ─── Working list (v1.34 P5) ─────────────────────────────────────────
+    listWorkingList(filters: {
+      categories?: WorkingListCategory[]; partner_id?: string;
+      status?: 'open' | 'snoozed' | 'dismissed';
+      sort?: 'recency' | 'oldest_unresolved'; page?: number; page_size?: number;
+    } = {}) {
+      const p = new URLSearchParams();
+      if (filters.categories?.length) p.set('categories', filters.categories.join(','));
+      if (filters.partner_id) p.set('partner_id', filters.partner_id);
+      if (filters.status) p.set('status', filters.status);
+      if (filters.sort) p.set('sort', filters.sort);
+      if (filters.page !== undefined) p.set('page', String(filters.page));
+      if (filters.page_size !== undefined) p.set('page_size', String(filters.page_size));
+      const qs = p.toString();
+      return request<WorkingListResponse>(
+        'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listWorkingList: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    transitionWorkingListItem(
+      canonicalKey: string,
+      body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string },
+    ) {
+      return request<{
+        canonical_key: string; state: string; snooze_until: string | null;
+        dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
+      }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
+        if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
