@@ -141,35 +141,7 @@ export function TreeView({
             </Pill>
           )}
           <span className="ml-auto text-[10px] text-slate">depth {node.depth_level}</span>
-          {overlay && (() => {
-            const pid = node.payload.kind === 'audit' ? node.payload.product_id : null;
-            const k = `${node.participant_id ?? ''}|${pid ?? ''}|${node.depth_level}`;
-            const o = overlay.byNodeKey.get(k);
-            if (!o) return null;
-            const isGap = o.attestations.some((a) => a.attestation_kind === 'unsubstantiated_gap');
-            return (
-              <span className="flex flex-wrap items-center gap-1">
-                {o.attestations.map((a, i) => (
-                  <SharedPill key={i} category="attestation_kind" value={a.attestation_kind} />
-                ))}
-                {o.currentAnnotation && (
-                  <SharedPill category="attestation_kind" value="verified_out_of_band" />
-                )}
-                {isGap && overlay.onAnnotate && node.participant_id && pid && (
-                  <button
-                    type="button"
-                    className="text-[10px] underline text-charcoal hover:text-slate"
-                    onClick={() => overlay.onAnnotate!({
-                      vendor: node.participant_id!, componentRef: pid, depth: node.depth_level,
-                      currentAnnotation: o.currentAnnotation,
-                    })}
-                  >
-                    Annotate
-                  </button>
-                )}
-              </span>
-            );
-          })()}
+          {overlay && <NodeOverlay node={node} overlay={overlay} />}
         </div>
 
         {/* Detail rows — only rendered when populated */}
@@ -228,6 +200,45 @@ export function TreeView({
         </div>
       )}
     </details>
+  );
+}
+
+// Attestation/annotation overlay column (v1.34 P8). Only rendered when an
+// overlay is supplied (the shared run-detail surface passes no overlay, so this
+// is inert there). Behaviour is identical to the prior inline IIFE.
+function NodeOverlay({
+  node,
+  overlay,
+}: {
+  node: ObservationNode;
+  overlay: TreeOverlay;
+}) {
+  const pid = node.payload.kind === 'audit' ? node.payload.product_id : null;
+  const k = `${node.participant_id ?? ''}|${pid ?? ''}|${node.depth_level}`;
+  const o = overlay.byNodeKey.get(k);
+  if (!o) return null;
+  const isGap = o.attestations.some((a) => a.attestation_kind === 'unsubstantiated_gap');
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {o.attestations.map((a, i) => (
+        <SharedPill key={i} category="attestation_kind" value={a.attestation_kind} />
+      ))}
+      {o.currentAnnotation && (
+        <SharedPill category="attestation_kind" value="verified_out_of_band" />
+      )}
+      {isGap && overlay.onAnnotate && node.participant_id && pid && (
+        <button
+          type="button"
+          className="text-[10px] underline text-charcoal hover:text-slate"
+          onClick={() => overlay.onAnnotate!({
+            vendor: node.participant_id!, componentRef: pid, depth: node.depth_level,
+            currentAnnotation: o.currentAnnotation,
+          })}
+        >
+          Annotate
+        </button>
+      )}
+    </span>
   );
 }
 
