@@ -16,3 +16,9 @@ export type EvidenceRecipientType = (typeof EVIDENCE_RECIPIENT_TYPES)[number];
 
 export const EVIDENCE_DISPATCH_DECISIONS = ['cached', 'fresh'] as const;
 export type EvidenceDispatchDecision = (typeof EVIDENCE_DISPATCH_DECISIONS)[number];
+
+export const EVIDENCE_ATTESTATION_KINDS = [
+  'first_party_self_declared', 'third_party_audited', 'regulator_attested',
+  'verified_out_of_band', 'unsubstantiated_gap',
+] as const;
+export type EvidenceAttestationKind = (typeof EVIDENCE_ATTESTATION_KINDS)[number];
