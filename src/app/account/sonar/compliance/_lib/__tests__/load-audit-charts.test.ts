@@ -181,7 +181,7 @@ describe('loadAuditChartData', () => {
     });
   });
 
-  it('uses the first complete/partial run for gaps (gap_count ?? 0) and latestAt', async () => {
+  it('coalesces null gap_count to 0 and reports triggered_at as latestAt', async () => {
     stubFetch({
       '/api/account/audit-runs?limit=25': {
         ok: true,
