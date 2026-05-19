@@ -35,7 +35,7 @@ describe('ActivityFeed', () => {
           completed_at: '2026-05-09T03:01:00Z',
           duration_seconds: 60,
           run_origin: 'template_scheduled',
-          detail_href: '/account/sonar/audit/runs/a1',
+          detail_href: '/account/sonar/compliance/runs/a1',
         },
       ],
     };
@@ -66,7 +66,7 @@ describe('ActivityFeed', () => {
           completed_at: null,
           duration_seconds: null,
           run_origin: 'ad_hoc',
-          detail_href: '/account/sonar/audit/runs/a1',
+          detail_href: '/account/sonar/compliance/runs/a1',
         },
       ],
     };

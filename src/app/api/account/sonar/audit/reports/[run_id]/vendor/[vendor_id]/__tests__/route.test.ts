@@ -101,7 +101,7 @@ describe('GET /api/account/sonar/audit/reports/[run_id]/vendor/[vendor_id]', () 
     expect(await res.text()).toBe(csvBody);
     // URL rewrite assertion: HaiWeb /vendor/{id} → haiCore /company/{id}
     expect(fetchRaw).toHaveBeenCalledWith(
-      `/sonar/audit/reports/${RUN_ID}/company/${VENDOR_ID}`,
+      `/sonar/compliance/reports/${RUN_ID}/company/${VENDOR_ID}`,
       { headers: { Accept: 'text/csv' } },
     );
   });

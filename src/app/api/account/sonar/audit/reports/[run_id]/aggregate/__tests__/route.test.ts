@@ -86,7 +86,7 @@ describe('GET /api/account/sonar/audit/reports/[run_id]/aggregate', () => {
     );
     expect(await res.text()).toBe(csvBody);
     expect(fetchRaw).toHaveBeenCalledWith(
-      `/sonar/audit/reports/${RUN_ID}/aggregate`,
+      `/sonar/compliance/reports/${RUN_ID}/aggregate`,
       { headers: { Accept: 'text/csv' } },
     );
   });

@@ -55,7 +55,7 @@ describe('CatalogTree pill state machine', () => {
     const link = screen.getByRole('link', { name: /nominate/i });
     expect(link).toHaveAttribute(
       'href',
-      '/account/sonar/audit/nominations/new?vendor=v1&class_id=c1',
+      '/account/sonar/compliance/posture/nominations/new?vendor=v1&class_id=c1',
     );
   });
 
@@ -67,7 +67,7 @@ describe('CatalogTree pill state machine', () => {
     const productLink = screen.getAllByRole('link', { name: /nominate/i }).at(-1)!;
     expect(productLink).toHaveAttribute(
       'href',
-      '/account/sonar/audit/nominations/new?vendor=v1&product=p1',
+      '/account/sonar/compliance/posture/nominations/new?vendor=v1&product=p1',
     );
   });
 

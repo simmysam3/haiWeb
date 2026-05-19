@@ -90,6 +90,33 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
   },
+  // Mirror of CHANGE_KIND_DEFINITION from @haiwave/protocol (v1.34 §3.4 — Pill tooltip source of truth). Cannot value-import the CJS protocol pkg in a client component (Turbopack + file: symlink on Windows). Keep verbatim in sync with packages/protocol/src/audit/compliance-changes.ts.
+  change_kind: {
+    gap_added: 'A new gap is present at a cell that was previously traversable.',
+    gap_resolved: 'A previously open gap is no longer present.',
+    origin_shifted_country: 'Country of origin changed for this vendor/product.',
+    origin_shifted_plant: 'Plant identifier changed within the same country.',
+    vendor_substituted: 'A subcomponent vendor changed.',
+    lead_time_degraded: 'Lead time increased beyond the degradation threshold.',
+    lead_time_improved: 'Lead time decreased beyond the degradation threshold.',
+    certification_expired_or_revoked: 'A referenced certification became expired or revoked.',
+    certification_renewed: 'Certification status returned to valid.',
+    depth_reduced: 'Maximum traversal depth decreased for this product.',
+    depth_increased: 'Maximum traversal depth increased for this product.',
+  },
+  severity: {
+    info: 'Informational change; no immediate action required.',
+    warning: 'Notable change that may require review.',
+    critical: 'High-impact change that requires immediate attention.',
+  },
+  // sync with @haiwave/protocol WORKING_LIST_CATEGORY_DEFINITION
+  working_list_category: {
+    gap: 'An open compliance gap from the latest snapshot.',
+    change: 'A just-broken change event detected between snapshots.',
+    nomination: 'An outgoing vendor nomination awaiting response.',
+    obligation: 'An incoming customer request awaiting your response.',
+    expiry: 'A provenance key expiring within the warning window.',
+  },
 };
 
 const _warnedKeys = new Set<string>();

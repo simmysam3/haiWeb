@@ -31,6 +31,7 @@ const navSections: NavSection[] = [
     label: "Sonar",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
+      { href: "/account/sonar/compliance/posture/working-list", label: "Compliance" },
       { href: "/account/sonar/observations", label: "Observations" },
       { href: "/account/sonar/reports", label: "Reports" },
     ],

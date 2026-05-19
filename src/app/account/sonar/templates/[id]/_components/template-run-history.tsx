@@ -55,7 +55,7 @@ function statusTone(status: string): string {
 function runDetailHref(klass: ObservationClass, runId: string): string {
   switch (klass) {
     case 'audit':
-      return `/account/sonar/audit/runs/${runId}`;
+      return `/account/sonar/compliance/runs/${runId}`;
     case 'phantom_demand':
       return `/account/sonar/phantom-demand/runs/${runId}`;
     case 'watcher':

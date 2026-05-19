@@ -22,6 +22,37 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/phantom-demand(\/dashboard)?\/?$/,
     to: () => '/account/sonar/observations?tab=phantom_demand',
   },
+  // v1.34 §12.1: legacy /account/sonar/audit/* → /account/sonar/compliance/*.
+  // Specific surfaces first; the catch-all rewrite must stay LAST so the
+  // remapped /dashboard, /nominations and /downstream-gaps targets win.
+  {
+    from: /^\/account\/sonar\/audit\/dashboard\/?$/,
+    to: () => '/account/sonar/compliance/posture/coverage',
+  },
+  {
+    from: /^\/account\/sonar\/audit\/nominations(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/audit\/nominations/,
+        '/account/sonar/compliance/posture/nominations',
+      ),
+  },
+  {
+    from: /^\/account\/sonar\/audit\/downstream-gaps(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/audit\/downstream-gaps/,
+        '/account/sonar/compliance/posture/obligations',
+      ),
+  },
+  {
+    from: /^\/account\/sonar\/audit(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/audit/,
+        '/account/sonar/compliance',
+      ),
+  },
 ];
 
 // Sliding-session refresh ─────────────────────────────────────────────

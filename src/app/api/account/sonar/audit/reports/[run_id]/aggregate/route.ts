@@ -8,7 +8,7 @@ export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, par
   if (format === 'csv') {
     // CSV passthrough: bypass HaiwaveClient.request<T>() (JSON-only).
     const haiCoreRes = await client.fetchRaw(
-      `/sonar/audit/reports/${params.run_id}/aggregate`,
+      `/sonar/compliance/reports/${params.run_id}/aggregate`,
       { headers: { Accept: 'text/csv' } },
     );
     // fetchRaw returns the raw Response and does not throw on non-OK status,
@@ -37,7 +37,7 @@ export const GET = withHaiCore<{ run_id: string }>(async ({ client, request, par
     // PDF passthrough: binary body via arrayBuffer(), not text(). Mirrors the
     // CSV branch but preserves the raw bytes for the browser download.
     const haiCoreRes = await client.fetchRaw(
-      `/sonar/audit/reports/${params.run_id}/aggregate`,
+      `/sonar/compliance/reports/${params.run_id}/aggregate`,
       { headers: { Accept: 'application/pdf' } },
     );
     if (!haiCoreRes.ok) {
