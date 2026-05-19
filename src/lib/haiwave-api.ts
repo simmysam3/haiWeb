@@ -80,6 +80,11 @@ import type {
   CoverageCurrentResponse,
   CoverageTrend,
   EvidenceDraft as EvidenceDraftWire,
+  EvidenceTreeResponse as EvidenceTreeWire,
+  Annotation as AnnotationWire,
+  AnnotationListResponse as AnnotationListWire,
+  CreateAnnotationRequest as CreateAnnotationWire,
+  PatchAnnotationRequest as PatchAnnotationWire,
 } from '@haiwave/protocol';
 
 import type {
@@ -605,6 +610,12 @@ export interface HaiwaveClient {
     draftId: string,
     body: { decision: 'cached' | 'fresh' },
   ): Promise<{ dispatch_decision: 'cached' | 'fresh'; bound_run_id: string | null; source_run_ids: string[] | null }>;
+  getEvidenceTree(draftId: string): Promise<EvidenceTreeWire>;
+  listEvidenceAnnotations(draftId: string): Promise<AnnotationListWire>;
+  createEvidenceAnnotation(draftId: string, body: CreateAnnotationWire): Promise<AnnotationWire>;
+  patchEvidenceAnnotation(
+    draftId: string, annotationId: string, body: PatchAnnotationWire,
+  ): Promise<AnnotationWire>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1548,6 +1559,40 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'POST', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/dispatch`, body,
       ).then((d) => {
         if (d == null) throw new Error('dispatchEvidenceDraft: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getEvidenceTree(draftId) {
+      return request<EvidenceTreeWire>(
+        'GET', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/tree`,
+      ).then((d) => {
+        if (d == null) throw new Error('getEvidenceTree: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    listEvidenceAnnotations(draftId) {
+      return request<AnnotationListWire>(
+        'GET', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/annotations`,
+      ).then((d) => {
+        if (d == null) throw new Error('listEvidenceAnnotations: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    createEvidenceAnnotation(draftId, body) {
+      return request<AnnotationWire>(
+        'POST', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/annotations`, body,
+      ).then((d) => {
+        if (d == null) throw new Error('createEvidenceAnnotation: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    patchEvidenceAnnotation(draftId, annotationId, body) {
+      return request<AnnotationWire>(
+        'PATCH',
+        `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/annotations/${encodeURIComponent(annotationId)}`,
+        body,
+      ).then((d) => {
+        if (d == null) throw new Error('patchEvidenceAnnotation: haiCore returned no/non-JSON body');
         return d;
       });
     },
