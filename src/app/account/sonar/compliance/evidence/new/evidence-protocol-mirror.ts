@@ -22,3 +22,6 @@ export const EVIDENCE_ATTESTATION_KINDS = [
   'verified_out_of_band', 'unsubstantiated_gap',
 ] as const;
 export type EvidenceAttestationKind = (typeof EVIDENCE_ATTESTATION_KINDS)[number];
+
+export const DOCUMENT_FORMATS = ['pdf', 'html', 'json'] as const;
+export type DocumentFormat = (typeof DOCUMENT_FORMATS)[number];
