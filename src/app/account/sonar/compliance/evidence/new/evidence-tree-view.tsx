@@ -77,6 +77,7 @@ export function EvidenceTreeView({ draftId }: { draftId: string }) {
   return (
     <div className="space-y-3">
       {data.tree_roots.map((root, i) => (
+        // EvidenceTreeNode is structurally a superset of ObservationNode; TreeView only reads ObservationNode fields. Cast avoids widening TreeView's prop type (which would leak evidence fields onto the shared run-detail surface — §11.2).
         <TreeView key={i} node={root as never} overlay={overlay} />
       ))}
       {target && (
