@@ -76,6 +76,8 @@ import type {
   ComplianceChangeKind,
   WorkingListResponse,
   WorkingListCategory,
+  CoverageCurrentResponse,
+  CoverageTrend,
 } from '@haiwave/protocol';
 
 import type {
@@ -565,6 +567,9 @@ export interface HaiwaveClient {
     to?: string;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
+  // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
+  getCoverageCurrent(): Promise<CoverageCurrentResponse>;
+  getCoverageTrend(windowDays?: number): Promise<CoverageTrend>;
   // ─── Working list (v1.34 P5) ─────────────────────────────────────────
   listWorkingList(filters?: {
     categories?: WorkingListCategory[];
@@ -1453,6 +1458,23 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
         return d;
       });
+    },
+
+    // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
+    getCoverageCurrent() {
+      return request<CoverageCurrentResponse>('GET', '/sonar/compliance/coverage/current')
+        .then((d) => {
+          if (d == null) throw new Error('getCoverageCurrent: haiCore returned no/non-JSON body');
+          return d;
+        });
+    },
+    getCoverageTrend(windowDays?: number) {
+      const qs = windowDays !== undefined ? `?window_days=${encodeURIComponent(String(windowDays))}` : '';
+      return request<CoverageTrend>('GET', `/sonar/compliance/coverage/trend${qs}`)
+        .then((d) => {
+          if (d == null) throw new Error('getCoverageTrend: haiCore returned no/non-JSON body');
+          return d;
+        });
     },
 
     // ─── Working list (v1.34 P5) ─────────────────────────────────────────
