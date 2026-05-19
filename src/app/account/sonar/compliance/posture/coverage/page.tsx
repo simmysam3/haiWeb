@@ -47,6 +47,10 @@ export default async function CoveragePage() {
     loadAuditChartData(baseUrl, cookieHeader),
   ]);
 
+  // CoverageCurrent (protocol) and CoverageSnapshot (local mirror) are
+  // structurally identical; we cast to the mirror because the client child
+  // CoverageTrendChart must consume the mirror type (Turbopack/file: CJS
+  // constraint, same as posture/changes/filter-pills.tsx) — not a shape fix.
   const snapshot = (currentRes?.snapshot ?? null) as CoverageSnapshot | null;
   const trendPoints = (trendRes?.points ?? []) as CoverageSnapshot[];
 
