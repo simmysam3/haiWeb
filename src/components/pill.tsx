@@ -3,6 +3,18 @@ import { useId, useState } from 'react';
 
 // ── Embedded definitions. Edit copy here. (category → value → definition) ──
 const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
+  attestation_kind: {
+    first_party_self_declared:
+      "The vendor's own origin-manifest declaration, with no external verification.",
+    third_party_audited:
+      'The vendor holds a third-party audit certificate referenced in their origin manifest.',
+    regulator_attested:
+      'The vendor holds a regulator-issued attestation referenced in their origin manifest.',
+    verified_out_of_band:
+      'The responder has annotated this node with an out-of-band attestation they hold directly.',
+    unsubstantiated_gap:
+      'No attestation is available; this node is declared as a known unverified gap.',
+  },
   run_status: {
     running: 'The run is in progress.',
     complete: 'The run finished and all targets were observed.',

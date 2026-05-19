@@ -39,3 +39,37 @@ describe('TreeView label taxonomy', () => {
     expect(screen.getByText('Vendor Name Not Disclosed')).toBeInTheDocument();
   });
 });
+
+describe('TreeView attestation/annotation overlay (v1.34 P8)', () => {
+  const baseAuditNode = node({
+    participant_id: '33333333-3333-3333-3333-333333333333',
+    vendor_legal_name: 'Acme',
+    depth_level: 0,
+    payload: { kind: 'audit', product_id: 'SKU-1', disclosure_data: null, class_ids: [],
+      origin: { country_of_origin: 'US', state_province: null, city: null,
+        plant_address: null, plant_identifier: null, vendor_name: null },
+      operational_status: { lead_time_meets: null, capacity: null, delivery_state: null } },
+  });
+
+  it('overlay absent: renders no attestation pills (run-detail unchanged)', () => {
+    render(<TreeView node={baseAuditNode} />);
+    expect(screen.queryByText(/third party audited/i)).toBeNull();
+  });
+
+  it('overlay present: renders an attestation pill per entry + Annotate on gap', () => {
+    const key = `${baseAuditNode.participant_id}|SKU-1|0`;
+    render(
+      <TreeView
+        node={baseAuditNode}
+        overlay={{
+          byNodeKey: new Map([[key, {
+            attestations: [{ entry_type: null, attestation_kind: 'unsubstantiated_gap' }],
+            currentAnnotation: null,
+          }]]),
+          onAnnotate: () => {},
+        }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /annotate/i })).toBeInTheDocument();
+  });
+});

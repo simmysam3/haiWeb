@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRunStatus } from '@/app/account/sonar/compliance/runs/[id]/use-run-status';
+import { EvidenceTreeView } from './evidence-tree-view';
 
 export interface DraftWire {
   draft_response_id: string;
@@ -32,6 +33,20 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
   const [error, setError] = useState<string | null>(null);
   const [boundRunId, setBoundRunId] = useState<string | null>(null);
   const [done, setDone] = useState<'cached' | null>(null);
+
+  // Reuses the same useRunStatus SWR key RunWaiting subscribes to (deduped —
+  // not a parallel flag). Lifts the fresh-run terminal state up so the review
+  // stage can render once dispatch is resolved AND the tree is ready.
+  const { status: runStatus } = useRunStatus(boundRunId ?? '');
+  const dispatchResolved = done === 'cached' || boundRunId !== null;
+  const treeReady =
+    done === 'cached' || ['complete', 'partial'].includes(runStatus ?? '');
+  // Derived purely from the already-subscribed runStatus (no parallel poll).
+  // A fresh run that ends failed/cancelled never reaches complete/partial, so
+  // treeReady stays false forever — without this the user is stuck on the
+  // indefinite RunWaiting "…" line with no error. Cached path can't fail here.
+  const runFailed =
+    boundRunId !== null && ['failed', 'cancelled'].includes(runStatus ?? '');
 
   async function dispatch(decision: 'cached' | 'fresh') {
     setBusy(true); setError(null);
@@ -70,7 +85,13 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
       )}
       {error && <p className="text-sm text-problem">{error}</p>}
 
-      {boundRunId ? <RunWaiting runId={boundRunId} />
+      {boundRunId && runFailed ? (
+          <div className="rounded border border-problem/30 bg-problem/5 p-3 text-sm text-problem space-y-1">
+            <p className="font-semibold">Fresh run {runStatus}.</p>
+            <p>Run {boundRunId} {runStatus} before evidence could be generated. Review &amp; annotate is unavailable for this run.</p>
+          </div>
+        )
+        : boundRunId ? <RunWaiting runId={boundRunId} />
         : done === 'cached' ? <p className="text-sm text-success">Cached dispatch recorded.</p>
         : (
           <div className="flex gap-3">
@@ -80,6 +101,13 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
               className="px-4 py-2 rounded bg-charcoal text-white">Run fresh</button>
           </div>
         )}
+
+      {dispatchResolved && treeReady && (
+        <section className="mt-6">
+          <h3 className="font-semibold mb-2">Review &amp; annotate</h3>
+          <EvidenceTreeView draftId={draft.draft_response_id} />
+        </section>
+      )}
     </div>
   );
 }
