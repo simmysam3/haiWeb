@@ -1,6 +1,18 @@
 'use client';
-import type { ObservationNode, AuditGapKind, SynthesisMode } from '@haiwave/protocol';
+import type {
+  ObservationNode,
+  AuditGapKind,
+  SynthesisMode,
+  NodeAttestation,
+  Annotation,
+} from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
+import { Pill as SharedPill } from '@/components/pill';
+
+export interface TreeOverlay {
+  byNodeKey: Map<string, { attestations: NodeAttestation[]; currentAnnotation: Annotation | null }>;
+  onAnnotate?: (t: { vendor: string; componentRef: string; depth: number }) => void;
+}
 
 // v1.30: audit-specific fields moved into ObservationNode.payload (a
 // discriminated union by `kind`). For audit-run trees every node should be
@@ -82,9 +94,11 @@ function nodeDisplayName(
 export function TreeView({
   node,
   depth = 0,
+  overlay,
 }: {
   node: ObservationNode;
   depth?: number;
+  overlay?: TreeOverlay;
 }) {
   const audit = auditPayload(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
@@ -122,6 +136,34 @@ export function TreeView({
             </Pill>
           )}
           <span className="ml-auto text-[10px] text-slate">depth {node.depth_level}</span>
+          {overlay && (() => {
+            const pid = node.payload.kind === 'audit' ? node.payload.product_id : null;
+            const k = `${node.participant_id ?? ''}|${pid ?? ''}|${node.depth_level}`;
+            const o = overlay.byNodeKey.get(k);
+            if (!o) return null;
+            const isGap = o.attestations.some((a) => a.attestation_kind === 'unsubstantiated_gap');
+            return (
+              <span className="flex flex-wrap items-center gap-1">
+                {o.attestations.map((a, i) => (
+                  <SharedPill key={i} category="attestation_kind" value={a.attestation_kind} />
+                ))}
+                {o.currentAnnotation && (
+                  <SharedPill category="attestation_kind" value="verified_out_of_band" />
+                )}
+                {isGap && overlay.onAnnotate && node.participant_id && pid && (
+                  <button
+                    type="button"
+                    className="text-[10px] underline text-charcoal hover:text-slate"
+                    onClick={() => overlay.onAnnotate!({
+                      vendor: node.participant_id!, componentRef: pid, depth: node.depth_level,
+                    })}
+                  >
+                    Annotate
+                  </button>
+                )}
+              </span>
+            );
+          })()}
         </div>
 
         {/* Detail rows — only rendered when populated */}
@@ -175,7 +217,7 @@ export function TreeView({
       {node.components.length > 0 && (
         <div className="ml-3 mt-1 border-l border-slate/15 pl-2">
           {node.components.map((c, i) => (
-            <TreeView key={i} node={c} depth={depth + 1} />
+            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} />
           ))}
         </div>
       )}
