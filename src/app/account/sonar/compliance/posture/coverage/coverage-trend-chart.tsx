@@ -51,7 +51,7 @@ export function CoverageTrendChart({ points }: { points: CoverageSnapshot[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate)" opacity={0.15} />
             <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={12} />
             <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} fontSize={12} />
-            <Tooltip formatter={(v: number) => `${v}%`} />
+            <Tooltip formatter={(v) => `${v ?? 0}%`} />
             <Line type="stepAfter" dataKey="complete_pct" name="Complete" stroke="var(--color-teal)" strokeWidth={2} dot />
             <Line type="stepAfter" dataKey="partial_pct" name="Partial" stroke="var(--color-orange)" strokeWidth={2} dot />
             <Line type="stepAfter" dataKey="no_traversal_pct" name="No traversal" stroke="var(--color-slate)" strokeWidth={2} dot />
