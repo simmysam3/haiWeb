@@ -117,6 +117,25 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     obligation: 'An incoming customer request awaiting your response.',
     expiry: 'A provenance key expiring within the warning window.',
   },
+  // sync with @haiwave/protocol EVIDENCE_SCOPE_SHAPE_DEFINITION (v1.34 P7)
+  evidence_scope_shape: {
+    sku_list: 'Scope is an explicit list of SKUs.',
+    product_family: 'Scope is every catalog SKU assigned to a chosen product class.',
+    container_with_sku_list: 'A container/shipment reference annotates an explicit SKU list.',
+  },
+  // sync with @haiwave/protocol EVIDENCE_RECIPIENT_TYPE_DEFINITION (v1.34 P7)
+  evidence_recipient_type: {
+    customs: 'A customs authority (e.g. CBP).',
+    customer_audit: 'A customer running a supplier audit.',
+    regulator: 'A government regulator.',
+    internal_review: 'An internal compliance review.',
+    other: 'Another recipient type.',
+  },
+  // sync with @haiwave/protocol EVIDENCE_DISPATCH_DECISION_DEFINITION (v1.34 P7)
+  evidence_dispatch_decision: {
+    cached: 'Reuses the most recent applicable completed audit run per SKU.',
+    fresh: 'Triggers a new audit run scoped to the entered SKUs.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
