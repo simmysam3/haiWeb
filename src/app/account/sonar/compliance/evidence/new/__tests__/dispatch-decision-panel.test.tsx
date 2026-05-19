@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import { DispatchDecisionPanel, type DraftWire } from '../dispatch-decision-panel';
 
 vi.mock('next/navigation', () => ({
@@ -50,5 +51,37 @@ describe('DispatchDecisionPanel review stage', () => {
     renderPanelWithCachedDispatch();
     fireEvent.click(screen.getByRole('button', { name: /use cached/i }));
     await waitFor(() => expect(screen.getByText(/third party audited/i)).toBeInTheDocument());
+  });
+
+  it('surfaces an error block (run id + failed) when a fresh run resolves to failed', async () => {
+    const FAILED_RUN_ID = 'run-failed-1';
+    global.fetch = vi.fn(async (url: unknown, init?: { method?: string }) => {
+      const u = String(url);
+      if (u.includes('/dispatch') && init?.method === 'POST') {
+        return { ok: true, json: async () => ({ dispatch_decision: 'fresh', bound_run_id: FAILED_RUN_ID, source_run_ids: null }) };
+      }
+      if (u.includes(`/audit-runs/${FAILED_RUN_ID}/status`)) {
+        return { ok: true, json: async () => ({ status: 'failed', hop_count: null, gap_count: null, results_available_count: 0 }) };
+      }
+      if (u.includes('/tree')) {
+        return { ok: true, json: async () => TREE_BODY };
+      }
+      return { ok: true, json: async () => ({}) };
+    }) as never;
+
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DispatchDecisionPanel draft={DRAFT} />
+      </SWRConfig>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /run fresh/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(new RegExp(`${FAILED_RUN_ID}.*failed`, 'i'))).toBeInTheDocument(),
+    );
+    // The review tree must NOT render for a failed run (no tree content, no
+    // "Review & annotate" section heading).
+    expect(screen.queryByText(/third party audited/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /review & annotate/i })).not.toBeInTheDocument();
   });
 });

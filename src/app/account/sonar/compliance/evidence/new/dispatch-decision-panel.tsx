@@ -41,6 +41,12 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
   const dispatchResolved = done === 'cached' || boundRunId !== null;
   const treeReady =
     done === 'cached' || ['complete', 'partial'].includes(runStatus ?? '');
+  // Derived purely from the already-subscribed runStatus (no parallel poll).
+  // A fresh run that ends failed/cancelled never reaches complete/partial, so
+  // treeReady stays false forever — without this the user is stuck on the
+  // indefinite RunWaiting "…" line with no error. Cached path can't fail here.
+  const runFailed =
+    boundRunId !== null && ['failed', 'cancelled'].includes(runStatus ?? '');
 
   async function dispatch(decision: 'cached' | 'fresh') {
     setBusy(true); setError(null);
@@ -79,7 +85,13 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
       )}
       {error && <p className="text-sm text-problem">{error}</p>}
 
-      {boundRunId ? <RunWaiting runId={boundRunId} />
+      {boundRunId && runFailed ? (
+          <div className="rounded border border-problem/30 bg-problem/5 p-3 text-sm text-problem space-y-1">
+            <p className="font-semibold">Fresh run {runStatus}.</p>
+            <p>Run {boundRunId} {runStatus} before evidence could be generated. Review &amp; annotate is unavailable for this run.</p>
+          </div>
+        )
+        : boundRunId ? <RunWaiting runId={boundRunId} />
         : done === 'cached' ? <p className="text-sm text-success">Cached dispatch recorded.</p>
         : (
           <div className="flex gap-3">

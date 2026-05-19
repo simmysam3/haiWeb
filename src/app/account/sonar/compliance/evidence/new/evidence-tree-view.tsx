@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { TreeView, type TreeOverlay } from '@/app/account/sonar/compliance/runs/[id]/tree-view';
-import type { EvidenceTreeResponse, EvidenceTreeNode } from '@haiwave/protocol';
+import type { EvidenceTreeResponse, EvidenceTreeNode, ObservationNode } from '@haiwave/protocol';
 import { AnnotationDrawer, type AnnotationTarget } from './annotation-drawer';
 
 function buildOverlay(
@@ -60,6 +60,9 @@ export function EvidenceTreeView({ draftId }: { draftId: string }) {
     // node's current_annotation (keyed identically to haiCore
     // EvidenceAnnotationService.currentByNode); map it to the drawer's shape so
     // the PATCH branch is reachable. No current annotation → null (create path).
+    // The drawer pre-fills these prior attachment values into editable inputs;
+    // per the haiCore PATCH contract, omitting an attachment field on PATCH is a
+    // deliberate clear (full-replace), so a cleared input clears the attachment.
     setExisting(
       t.currentAnnotation
         ? {
@@ -77,8 +80,13 @@ export function EvidenceTreeView({ draftId }: { draftId: string }) {
   return (
     <div className="space-y-3">
       {data.tree_roots.map((root, i) => (
-        // EvidenceTreeNode is structurally a superset of ObservationNode; TreeView only reads ObservationNode fields. Cast avoids widening TreeView's prop type (which would leak evidence fields onto the shared run-detail surface — §11.2).
-        <TreeView key={i} node={root as never} overlay={overlay} />
+        // EvidenceTreeNode is a structural superset of ObservationNode (adds
+        // attestations + current_annotation). `as ObservationNode` keeps the
+        // structural-compatibility check (vs `as never`, which defeats all
+        // type-checking) while NOT widening TreeView's prop type — widening it
+        // would leak evidence-only fields onto the shared run-detail surface
+        // (§11.2). TreeView only reads the ObservationNode subset.
+        <TreeView key={i} node={root as ObservationNode} overlay={overlay} />
       ))}
       {target && (
         <AnnotationDrawer
