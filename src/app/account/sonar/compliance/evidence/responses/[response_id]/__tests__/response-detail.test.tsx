@@ -105,4 +105,36 @@ describe('ResponseDetail', () => {
       screen.getByText(/regenerated document hash diverges/i),
     ).toBeInTheDocument());
   });
+
+  it('shows indeterminate banner (not divergence) when X-Document-Hash-Matches header absent on 200', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (_k: string) => null,
+      },
+      text: async () => JSON.stringify(DOCUMENT_JSON),
+    })) as never;
+    render(<ResponseDetail response={RESPONSE} />);
+    await waitFor(() => expect(
+      screen.getByText(/hash verification status unavailable/i),
+    ).toBeInTheDocument());
+    expect(screen.queryByText(/regenerated document hash diverges/i)).not.toBeInTheDocument();
+  });
+
+  it('shows error message and no hash banners on 404', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: false,
+      status: 404,
+      headers: {
+        get: (_k: string) => null,
+      },
+    })) as never;
+    render(<ResponseDetail response={RESPONSE} />);
+    await waitFor(() => expect(
+      screen.getByText(/document fetch failed \(404\)/i),
+    ).toBeInTheDocument());
+    expect(screen.queryByText(/regenerated document hash diverges/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hash verification status unavailable/i)).not.toBeInTheDocument();
+  });
 });

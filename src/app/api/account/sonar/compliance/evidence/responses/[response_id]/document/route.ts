@@ -14,8 +14,8 @@ export const GET = withHaiCore<{ response_id: string }>(async ({ client, request
     return NextResponse.json(body, { status: upstream.status });
   }
   const ct = upstream.headers.get('Content-Type') ?? 'application/octet-stream';
-  const hash = upstream.headers.get('X-Document-Hash') ?? '';
-  const matches = upstream.headers.get('X-Document-Hash-Matches') ?? '';
+  const hash = upstream.headers.get('X-Document-Hash');
+  const matches = upstream.headers.get('X-Document-Hash-Matches');
   const ext = format === 'pdf' ? 'pdf' : format === 'html' ? 'html' : 'json';
   const filename = `evidence-response-${params.response_id}.${ext}`;
   const body = format === 'pdf' ? await upstream.arrayBuffer() : await upstream.text();
@@ -24,8 +24,8 @@ export const GET = withHaiCore<{ response_id: string }>(async ({ client, request
     headers: {
       'Content-Type': ct,
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'X-Document-Hash': hash,
-      'X-Document-Hash-Matches': matches,
+      ...(hash !== null ? { 'X-Document-Hash': hash } : {}),
+      ...(matches !== null ? { 'X-Document-Hash-Matches': matches } : {}),
     },
   });
 });

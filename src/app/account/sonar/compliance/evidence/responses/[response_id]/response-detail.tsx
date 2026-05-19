@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { EvidenceResponse } from '@haiwave/protocol';
 import type { CanonicalNode } from '@haiwave/protocol';
+import { Pill } from '@/components/pill';
 
 interface CanonicalDoc {
   tree: CanonicalNode[];
@@ -19,8 +20,9 @@ function CanonicalNodeRow({ node, depth = 0 }: { node: CanonicalNode; depth?: nu
         <span className="ml-2 text-slate">(depth {node.depth_level})</span>
       </div>
       {node.attestations.map((a, i) => (
-        <span key={i} className="inline-block mr-2 mt-0.5 px-1.5 py-0.5 rounded bg-light-gray text-xs text-slate">
-          {a.attestation_kind}{a.entry_type ? ` · ${a.entry_type}` : ''}
+        <span key={i} className="inline-flex items-center gap-1 mr-2">
+          <Pill category="attestation_kind" value={a.attestation_kind} />
+          {a.entry_type && <span className="text-xs text-slate">· {a.entry_type}</span>}
         </span>
       ))}
       {node.annotation && (
@@ -49,9 +51,9 @@ export function ResponseDetail({ response }: { response: EvidenceResponse }) {
     const load = async () => {
       try {
         const res = await fetch(`${docBase}?format=json`);
-        const matches = res.headers.get('X-Document-Hash-Matches');
-        setHashMatches(matches === 'true');
         if (res.ok) {
+          const raw = res.headers.get('X-Document-Hash-Matches');
+          setHashMatches(raw === null ? null : raw === 'true');
           const text = await res.text();
           try {
             setDoc(JSON.parse(text) as CanonicalDoc);
@@ -74,6 +76,11 @@ export function ResponseDetail({ response }: { response: EvidenceResponse }) {
       {hashMatches === false && (
         <div className="rounded border border-amber bg-amber/10 px-4 py-3 text-sm text-amber-800">
           <strong>Warning:</strong> Regenerated document hash diverges from the logged hash — the source data may have changed since export.
+        </div>
+      )}
+      {hashMatches === null && doc !== null && (
+        <div className="rounded border border-slate/20 bg-slate/5 px-4 py-3 text-sm text-slate">
+          Hash verification status unavailable.
         </div>
       )}
 
