@@ -18,6 +18,10 @@
 // with packages/protocol/src/version.ts.
 const PROTOCOL_VERSION = '3.0.0';
 import type {
+  EvidenceDraft as EvidenceDraftWire,
+} from '@haiwave/protocol';
+
+import type {
   ProvenanceKey,
   ProvenanceKeyWithCounts,
   ProvenanceKeyCreationRequest,
@@ -586,6 +590,23 @@ export interface HaiwaveClient {
     canonical_key: string; state: string; snooze_until: string | null;
     dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
   }>;
+  // ─── Evidence draft (v1.34 P7) ───────────────────────────────────────
+  createEvidenceDraft(body: {
+    scope_shape: 'sku_list' | 'product_family' | 'container_with_sku_list';
+    skus?: string[];
+    family_class_node_id?: string;
+    container_ref?: string;
+    recipient_name: string;
+    recipient_org: string;
+    recipient_type: 'customs' | 'customer_audit' | 'regulator' | 'internal_review' | 'other';
+    purpose_narrative?: string;
+    deadline?: string;
+  }): Promise<EvidenceDraftWire>;
+  getEvidenceDraft(draftId: string): Promise<EvidenceDraftWire>;
+  dispatchEvidenceDraft(
+    draftId: string,
+    body: { decision: 'cached' | 'fresh' },
+  ): Promise<{ dispatch_decision: 'cached' | 'fresh'; bound_run_id: string | null; source_run_ids: string[] | null }>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1507,6 +1528,28 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
       }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
         if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+
+    // ─── Evidence draft (v1.34 P7) ───────────────────────────────────────
+    createEvidenceDraft(body) {
+      return request<EvidenceDraftWire>('POST', '/sonar/compliance/evidence/draft', body).then((d) => {
+        if (d == null) throw new Error('createEvidenceDraft: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getEvidenceDraft(draftId) {
+      return request<EvidenceDraftWire>('GET', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}`).then((d) => {
+        if (d == null) throw new Error('getEvidenceDraft: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    dispatchEvidenceDraft(draftId, body) {
+      return request<{ dispatch_decision: 'cached' | 'fresh'; bound_run_id: string | null; source_run_ids: string[] | null }>(
+        'POST', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/dispatch`, body,
+      ).then((d) => {
+        if (d == null) throw new Error('dispatchEvidenceDraft: haiCore returned no/non-JSON body');
         return d;
       });
     },
