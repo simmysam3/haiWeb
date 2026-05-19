@@ -18,7 +18,7 @@ export function WorkingListTable({ items, total }: Props) {
     setBusyKey(key);
     setTransitionError(null);
     try {
-      const res = await fetch(`/api/account/sonar/compliance/working-list/items/${key}/state`, {
+      const res = await fetch(`/api/account/sonar/compliance/working-list/items/${encodeURIComponent(key)}/state`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       if (!res.ok) {
