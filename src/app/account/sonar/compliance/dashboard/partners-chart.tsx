@@ -30,7 +30,7 @@ export function PartnersChart({ data }: { data: PartnerComplianceData | null }) 
   if (data === null) {
     return (
       <Panel className="p-4">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Least compliant partners</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Coverage by Partner</h2>
         <p className="text-sm text-slate">
           No audit data yet. Run an audit to populate the dashboard.
         </p>
@@ -45,7 +45,7 @@ export function PartnersChart({ data }: { data: PartnerComplianceData | null }) 
 
   return (
     <Panel className="p-4">
-      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Least compliant partners</h2>
+      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Coverage by Partner</h2>
 
       <div className="grid grid-cols-3 gap-4 pb-3 mb-3 border-b border-slate/15">
         <StatItem label="Total vendors" value={data.total_vendors_in_scope} />
