@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRunStatus } from '@/app/account/sonar/compliance/runs/[id]/use-run-status';
 import { EvidenceTreeView } from './evidence-tree-view';
+import { ResponseExportDialog } from './response-export-dialog';
 
 export interface DraftWire {
   draft_response_id: string;
@@ -11,6 +12,11 @@ export interface DraftWire {
     total_skus: number; covered_count: number;
     uncovered_skus: string[]; oldest_applicable_run_age_days: number | null;
   };
+  // v1.34 P9: recipient fields carried from the full EvidenceDraftWire for export.
+  recipient_name?: string;
+  recipient_type?: string;
+  source_run_ids?: string[] | null;
+  bound_run_id?: string | null;
 }
 
 function RunWaiting({ runId }: { runId: string }) {
@@ -106,6 +112,18 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
         <section className="mt-6">
           <h3 className="font-semibold mb-2">Review &amp; annotate</h3>
           <EvidenceTreeView draftId={draft.draft_response_id} />
+          <ResponseExportDialog
+            draftId={draft.draft_response_id}
+            recipientName={draft.recipient_name ?? ''}
+            recipientType={(draft.recipient_type ?? 'other') as import('./evidence-protocol-mirror').EvidenceRecipientType}
+            sourceRunSummary={
+              draft.source_run_ids?.length
+                ? `${draft.source_run_ids.length} run(s)`
+                : draft.bound_run_id
+                  ? '1 run'
+                  : 'cached'
+            }
+          />
         </section>
       )}
     </div>
