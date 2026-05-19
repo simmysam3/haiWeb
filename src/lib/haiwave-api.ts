@@ -85,6 +85,9 @@ import type {
   AnnotationListResponse as AnnotationListWire,
   CreateAnnotationRequest as CreateAnnotationWire,
   PatchAnnotationRequest as PatchAnnotationWire,
+  EvidenceResponse as EvidenceResponseWire,
+  EvidenceResponseListResponse as EvidenceResponseListWire,
+  ExportResult as ExportResultWire,
 } from '@haiwave/protocol';
 
 import type {
@@ -616,6 +619,11 @@ export interface HaiwaveClient {
   patchEvidenceAnnotation(
     draftId: string, annotationId: string, body: PatchAnnotationWire,
   ): Promise<AnnotationWire>;
+  exportEvidence(draftId: string): Promise<ExportResultWire>;
+  listEvidenceResponses(): Promise<EvidenceResponseListWire>;
+  getEvidenceResponse(responseId: string): Promise<EvidenceResponseWire>;
+  // document regeneration streams binary/text — handled in the BFF via fetchRaw,
+  // not here (request<T>() is JSON-only, mirrors getAggregateReport precedent).
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1595,6 +1603,21 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         if (d == null) throw new Error('patchEvidenceAnnotation: haiCore returned no/non-JSON body');
         return d;
       });
+    },
+    exportEvidence(draftId) {
+      return request<ExportResultWire>(
+        'POST', `/sonar/compliance/evidence/draft/${encodeURIComponent(draftId)}/export`, {},
+      ).then((d) => { if (d == null) throw new Error('exportEvidence: haiCore returned no/non-JSON body'); return d; });
+    },
+    listEvidenceResponses() {
+      return request<EvidenceResponseListWire>(
+        'GET', '/sonar/compliance/evidence/responses',
+      ).then((d) => { if (d == null) throw new Error('listEvidenceResponses: haiCore returned no/non-JSON body'); return d; });
+    },
+    getEvidenceResponse(responseId) {
+      return request<EvidenceResponseWire>(
+        'GET', `/sonar/compliance/evidence/responses/${encodeURIComponent(responseId)}`,
+      ).then((d) => { if (d == null) throw new Error('getEvidenceResponse: haiCore returned no/non-JSON body'); return d; });
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
