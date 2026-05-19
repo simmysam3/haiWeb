@@ -26,7 +26,7 @@ export function ScopeEntryForm() {
     shape === 'product_family' ? familyClassId.trim().length > 0
     : shape === 'container_with_sku_list' ? skus.length > 0 && containerRef.trim().length > 0
     : skus.length > 0;
-  const canSubmit = !submitting && recipientName.trim() && recipientOrg.trim() && scopeOk;
+  const canSubmit = !submitting && recipientName.trim().length > 0 && recipientOrg.trim().length > 0 && scopeOk;
 
   async function submit() {
     setSubmitting(true); setError(null);
@@ -63,7 +63,7 @@ export function ScopeEntryForm() {
       <div role="tablist" aria-label="Scope shape" className="flex gap-2">
         {EVIDENCE_SCOPE_SHAPES.map((s) => (
           <button
-            key={s} role="tab" aria-selected={shape === s} type="button"
+            key={s} role="tab" id={`tab-${s}`} aria-controls={`panel-${s}`} aria-selected={shape === s} type="button"
             onClick={() => setShape(s)}
             className={`px-3 py-1.5 rounded text-sm ${shape === s ? 'bg-charcoal text-white' : 'bg-slate/10'}`}
           >
@@ -72,25 +72,38 @@ export function ScopeEntryForm() {
         ))}
       </div>
 
-      {shape !== 'product_family' && (
-        <label className="block text-sm">SKUs
-          <textarea aria-label="SKUs" value={skusRaw} onChange={(e) => setSkusRaw(e.target.value)}
-            className="mt-1 w-full border rounded p-2" rows={4}
-            placeholder="One per line, or comma/space separated" />
-        </label>
-      )}
-      {shape === 'product_family' && (
-        <label className="block text-sm">Product class node id
-          <input aria-label="Product family class" value={familyClassId}
-            onChange={(e) => setFamilyClassId(e.target.value)} className="mt-1 w-full border rounded p-2" />
-        </label>
-      )}
-      {shape === 'container_with_sku_list' && (
-        <label className="block text-sm">Container reference
-          <input aria-label="Container reference" value={containerRef}
-            onChange={(e) => setContainerRef(e.target.value)} className="mt-1 w-full border rounded p-2" />
-        </label>
-      )}
+      <div role="tabpanel" id="panel-sku_list" aria-labelledby="tab-sku_list">
+        {shape === 'sku_list' && (
+          <label className="block text-sm">SKUs
+            <textarea aria-label="SKUs" value={skusRaw} onChange={(e) => setSkusRaw(e.target.value)}
+              className="mt-1 w-full border rounded p-2" rows={4}
+              placeholder="One per line, or comma/space separated" />
+          </label>
+        )}
+      </div>
+      <div role="tabpanel" id="panel-product_family" aria-labelledby="tab-product_family">
+        {shape === 'product_family' && (
+          <label className="block text-sm">Product class node id
+            <input aria-label="Product family class" value={familyClassId}
+              onChange={(e) => setFamilyClassId(e.target.value)} className="mt-1 w-full border rounded p-2" />
+          </label>
+        )}
+      </div>
+      <div role="tabpanel" id="panel-container_with_sku_list" aria-labelledby="tab-container_with_sku_list">
+        {shape === 'container_with_sku_list' && (
+          <div className="space-y-3">
+            <label className="block text-sm">SKUs
+              <textarea aria-label="SKUs" value={skusRaw} onChange={(e) => setSkusRaw(e.target.value)}
+                className="mt-1 w-full border rounded p-2" rows={4}
+                placeholder="One per line, or comma/space separated" />
+            </label>
+            <label className="block text-sm">Container reference
+              <input aria-label="Container reference" value={containerRef}
+                onChange={(e) => setContainerRef(e.target.value)} className="mt-1 w-full border rounded p-2" />
+            </label>
+          </div>
+        )}
+      </div>
 
       <fieldset className="space-y-3 border-t pt-4">
         <legend className="text-sm font-medium">Recipient</legend>

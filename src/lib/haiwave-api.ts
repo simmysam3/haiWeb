@@ -17,9 +17,6 @@
 // Windows can't resolve value imports through `file:` symlinks. Keep in sync
 // with packages/protocol/src/version.ts.
 const PROTOCOL_VERSION = '3.0.0';
-import type {
-  EvidenceDraft as EvidenceDraftWire,
-} from '@haiwave/protocol';
 
 import type {
   ProvenanceKey,
@@ -82,6 +79,7 @@ import type {
   WorkingListCategory,
   CoverageCurrentResponse,
   CoverageTrend,
+  EvidenceDraft as EvidenceDraftWire,
 } from '@haiwave/protocol';
 
 import type {

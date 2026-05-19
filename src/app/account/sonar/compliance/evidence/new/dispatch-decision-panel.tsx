@@ -1,11 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRunStatus } from '@/app/account/sonar/compliance/runs/[id]/use-run-status';
 
 export interface DraftWire {
   draft_response_id: string;
-  scope_payload: { resolved_skus: string[]; unknown_skus: string[] };
+  scope_payload: { skus: string[]; resolved_skus: string[]; unknown_skus: string[] };
   dispatch_availability: {
     total_skus: number; covered_count: number;
     uncovered_skus: string[]; oldest_applicable_run_age_days: number | null;
@@ -15,8 +15,14 @@ export interface DraftWire {
 function RunWaiting({ runId }: { runId: string }) {
   const router = useRouter();
   const { status } = useRunStatus(runId);
-  const terminal = status && ['complete', 'partial', 'failed', 'cancelled'].includes(status);
-  if (terminal) { router.refresh(); }
+  const hasFired = useRef(false);
+  const terminal = !!status && ['complete', 'partial', 'failed', 'cancelled'].includes(status);
+  useEffect(() => {
+    if (terminal && !hasFired.current) {
+      hasFired.current = true;
+      router.refresh();
+    }
+  }, [terminal, router]);
   return <p className="text-sm text-slate">Fresh run {runId} — status: {status ?? 'starting'}…</p>;
 }
 
@@ -36,8 +42,12 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
       );
       if (!res.ok) { setError(`Dispatch failed (${res.status})`); return; }
       const out = await res.json() as { dispatch_decision: string; bound_run_id: string | null };
-      if (decision === 'fresh' && out.bound_run_id) setBoundRunId(out.bound_run_id);
-      else setDone('cached');
+      if (decision === 'fresh') {
+        if (out.bound_run_id) setBoundRunId(out.bound_run_id);
+        else setError('Fresh dispatch did not return a run id');
+      } else {
+        setDone('cached');
+      }
     } catch {
       setError('Dispatch failed — network error');
     } finally {
