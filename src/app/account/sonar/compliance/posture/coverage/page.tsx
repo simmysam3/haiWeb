@@ -12,17 +12,22 @@ import { CoverageTrendChart } from './coverage-trend-chart';
 import { PageIntro } from '@/components/page-intro';
 import { Panel } from '@/components';
 
-async function fetchJson<T>(baseUrl: string, path: string, cookieHeader: string): Promise<T | null> {
+type FetchResult<T> =
+  | { kind: 'ok'; data: T }
+  | { kind: 'error'; status: number; message?: string };
+
+async function fetchResult<T>(url: string, cookie: string): Promise<FetchResult<T>> {
   try {
-    const res = await fetch(`${baseUrl}${path}`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch (err) {
-    console.error('[coverage/page] fetch failure', { path, err });
-    return null;
+    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
+    if (!res.ok) return { kind: 'error', status: res.status };
+    return { kind: 'ok', data: (await res.json()) as T };
+  } catch (e) {
+    console.error('[coverage/page] fetch threw:', e);
+    return {
+      kind: 'error',
+      status: 0,
+      message: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
@@ -41,20 +46,52 @@ export default async function CoveragePage() {
   const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
   const baseUrl = `${proto}://${host}`;
 
-  const [currentRes, trendRes, charts] = await Promise.all([
-    fetchJson<CoverageCurrentResponse>(baseUrl, '/api/account/sonar/compliance/coverage/current', cookieHeader),
-    fetchJson<CoverageTrend>(baseUrl, '/api/account/sonar/compliance/coverage/trend', cookieHeader),
+  const [currentResult, trendResult, charts] = await Promise.all([
+    fetchResult<CoverageCurrentResponse>(
+      `${baseUrl}/api/account/sonar/compliance/coverage/current`,
+      cookieHeader,
+    ),
+    fetchResult<CoverageTrend>(
+      `${baseUrl}/api/account/sonar/compliance/coverage/trend`,
+      cookieHeader,
+    ),
     loadAuditChartData(baseUrl, cookieHeader),
   ]);
+
+  // C1/I1: a transport failure (500/401/403/network) on `current` must NOT
+  // collapse into the genuine 0-snapshot onboarding state — that would mask
+  // an outage or scope misconfiguration on a compliance surface. Render a
+  // status-aware whole-coverage error banner instead.
+  if (currentResult.kind === 'error') {
+    return (
+      <div className="p-6">
+        <div role="alert">
+          <Panel className="p-12 text-center">
+            <p className="text-red-900">
+              {currentResult.status === 403
+                ? 'You do not have permission to view compliance coverage.'
+                : currentResult.status === 401
+                ? 'Your session has expired. Please sign in again.'
+                : currentResult.status >= 500
+                ? 'Couldn’t load compliance coverage. The audit service is temporarily unavailable.'
+                : currentResult.status === 0
+                ? `Couldn’t reach the audit service${currentResult.message ? `: ${currentResult.message}` : '.'}`
+                : `Couldn’t load compliance coverage (status ${currentResult.status}).`}
+            </p>
+          </Panel>
+        </div>
+      </div>
+    );
+  }
 
   // CoverageCurrent (protocol) and CoverageSnapshot (local mirror) are
   // structurally identical; we cast to the mirror because the client child
   // CoverageTrendChart must consume the mirror type (Turbopack/file: CJS
   // constraint, same as posture/changes/filter-pills.tsx) — not a shape fix.
-  const snapshot = (currentRes?.snapshot ?? null) as CoverageSnapshot | null;
-  const trendPoints = (trendRes?.points ?? []) as CoverageSnapshot[];
+  const snapshot = (currentResult.data.snapshot ?? null) as CoverageSnapshot | null;
 
-  // P6-D3: 0 completed snapshots → whole-page onboarding empty-state.
+  // P6-D3: 0 completed snapshots (genuine empty) → whole-page onboarding
+  // empty-state. Only reachable when `current` succeeded.
   if (!snapshot) {
     return (
       <div className="p-6 space-y-6">
@@ -82,7 +119,24 @@ export default async function CoveragePage() {
         most recent audit run.
       </PageIntro>
       <CoverageStatsStrip snapshot={snapshot} />
-      <CoverageTrendChart points={trendPoints} />
+      {trendResult.kind === 'error' ? (
+        // Secondary surface: a trend transport failure must not be mistaken
+        // for the genuine "<2 snapshots" onboarding copy in CoverageTrendChart.
+        // Concise status-aware notice (full 403/401 branching is reserved for
+        // the primary `current` surface above).
+        <div role="alert">
+          <Panel className="p-4">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">
+              Coverage trend
+            </h2>
+            <p className="text-sm text-red-900 text-center py-8">
+              Coverage trend is temporarily unavailable.
+            </p>
+          </Panel>
+        </div>
+      ) : (
+        <CoverageTrendChart points={trendResult.data.points as CoverageSnapshot[]} />
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <GeoChart data={charts.rollup} />
         <ClassChart data={charts.classRollup} />

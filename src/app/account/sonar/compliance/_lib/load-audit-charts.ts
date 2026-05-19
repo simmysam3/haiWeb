@@ -4,8 +4,9 @@ import { buildPartnerCompliance, type PartnerComplianceData } from '../dashboard
 /**
  * v1.34 P6 — shared loader for the audit-run-derived charts (Geo / Class /
  * Partners). Sourced from the latest completed audit run via existing BFF
- * endpoints (P6-D5). Extracted verbatim from the Audit Dashboard so the
- * Coverage page reuses it without rebuilding the charts.
+ * endpoints (P6-D5). Extracted from the Audit Dashboard loader —
+ * behaviorally equivalent (early-returns consolidated into EMPTY, log prefix
+ * renamed), now shared by the Dashboard and Coverage pages (P6-D5).
  */
 export interface AuditChartData {
   rollup: GeoRollupEntry[];
