@@ -11,7 +11,12 @@ import { Pill as SharedPill } from '@/components/pill';
 
 export interface TreeOverlay {
   byNodeKey: Map<string, { attestations: NodeAttestation[]; currentAnnotation: Annotation | null }>;
-  onAnnotate?: (t: { vendor: string; componentRef: string; depth: number }) => void;
+  onAnnotate?: (t: {
+    vendor: string;
+    componentRef: string;
+    depth: number;
+    currentAnnotation: Annotation | null;
+  }) => void;
 }
 
 // v1.30: audit-specific fields moved into ObservationNode.payload (a
@@ -156,6 +161,7 @@ export function TreeView({
                     className="text-[10px] underline text-charcoal hover:text-slate"
                     onClick={() => overlay.onAnnotate!({
                       vendor: node.participant_id!, componentRef: pid, depth: node.depth_level,
+                      currentAnnotation: o.currentAnnotation,
                     })}
                   >
                     Annotate

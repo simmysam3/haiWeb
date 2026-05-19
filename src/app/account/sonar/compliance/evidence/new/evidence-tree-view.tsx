@@ -20,10 +20,18 @@ function buildOverlay(
   return { byNodeKey, onAnnotate };
 }
 
+type DrawerExisting = {
+  annotation_id: string;
+  narrative: string;
+  attachment_uri: string | null;
+  attachment_hash: string | null;
+} | null;
+
 export function EvidenceTreeView({ draftId }: { draftId: string }) {
   const [data, setData] = useState<EvidenceTreeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [target, setTarget] = useState<AnnotationTarget | null>(null);
+  const [existing, setExisting] = useState<DrawerExisting>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -45,7 +53,26 @@ export function EvidenceTreeView({ draftId }: { draftId: string }) {
   if (error) return <p className="text-problem text-sm p-4">{error}</p>;
   if (!data) return <p className="text-slate text-sm p-4">Loading tree…</p>;
 
-  const overlay = buildOverlay(data.tree_roots, (t) => setTarget(t));
+  const overlay = buildOverlay(data.tree_roots, (t) => {
+    setTarget({ vendor: t.vendor, componentRef: t.componentRef, depth: t.depth });
+    // §4.5/P8-D5: a node that already has a current annotation EDITs it (PATCH →
+    // new version) rather than creating a duplicate. The overlay carries the
+    // node's current_annotation (keyed identically to haiCore
+    // EvidenceAnnotationService.currentByNode); map it to the drawer's shape so
+    // the PATCH branch is reachable. No current annotation → null (create path).
+    setExisting(
+      t.currentAnnotation
+        ? {
+            annotation_id: t.currentAnnotation.annotation_id,
+            narrative: t.currentAnnotation.narrative,
+            attachment_uri: t.currentAnnotation.attachment_uri,
+            attachment_hash: t.currentAnnotation.attachment_hash,
+          }
+        : null,
+    );
+  });
+
+  const closeDrawer = () => { setTarget(null); setExisting(null); };
 
   return (
     <div className="space-y-3">
@@ -56,9 +83,9 @@ export function EvidenceTreeView({ draftId }: { draftId: string }) {
         <AnnotationDrawer
           draftId={draftId}
           target={target}
-          existing={null}
-          onClose={() => setTarget(null)}
-          onSaved={() => { setTarget(null); void load(); }}
+          existing={existing}
+          onClose={closeDrawer}
+          onSaved={() => { closeDrawer(); void load(); }}
         />
       )}
     </div>
