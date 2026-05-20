@@ -182,6 +182,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning'].includes(v)) return 'warn';
   if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified'].includes(v)) return 'success';
   if (category === 'resolution_class' && v === 'agentic_eligible') return 'info';
+  // working_list_category severity coding
+  if (category === 'working_list_category') {
+    if (['gap', 'obligation', 'expiry'].includes(v)) return 'warn';
+    if (v === 'change') return 'info';
+    // nomination → neutral
+  }
   return 'neutral';
 }
 

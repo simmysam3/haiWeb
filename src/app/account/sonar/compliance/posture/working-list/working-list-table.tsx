@@ -70,14 +70,14 @@ export function WorkingListTable({ items, total }: Props) {
 
   function renderItem(it: WorkingListItem) {
     return (
-      <div key={it.canonical_key} className="relative flex items-start justify-between gap-4 px-4 py-4">
-        <div className="flex flex-1 flex-col gap-1.5">
+      <div key={it.canonical_key} className="relative flex items-start justify-between gap-4 px-4 py-3">
+        <div className="flex flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <Pill category="working_list_category" value={it.category}>{it.category}</Pill>
             {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{stateLabel(it.state)}</span>}
           </div>
           <p className="text-sm font-medium text-navy">{it.subject}</p>
-          <p className="text-sm text-slate">{it.reason}</p>
+          <p className="text-xs text-slate/80">{it.reason}</p>
           <p className="text-xs text-slate/70">{new Date(it.item_event_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
           {it.state === 'dismissed' && (
             <p className="text-xs text-slate/70">
@@ -120,7 +120,12 @@ export function WorkingListTable({ items, total }: Props) {
   const visibleItems = showSuppressed ? items : items.filter((it) => it.state !== 'dismissed');
   const suppressedCount = items.filter((it) => it.state === 'dismissed').length;
 
-  if (visibleItems.length === 0 && suppressedCount === 0) return <p className="p-12 text-center text-slate">Nothing on your working list.</p>;
+  if (visibleItems.length === 0 && suppressedCount === 0) return (
+    <div className="p-12 text-center space-y-2">
+      <p className="text-base font-medium text-navy">Nothing on your working list.</p>
+      <p className="text-sm text-slate">As gaps, changes, nominations, obligations, or expiries appear, they will surface here.</p>
+    </div>
+  );
 
   return (
     <div>
@@ -148,13 +153,16 @@ export function WorkingListTable({ items, total }: Props) {
         )}
       </div>
       {visibleItems.length === 0 ? (
-        <p className="p-12 text-center text-slate">Nothing on your working list.</p>
+        <div className="p-12 text-center space-y-2">
+          <p className="text-base font-medium text-navy">Nothing on your working list.</p>
+          <p className="text-sm text-slate">As gaps, changes, nominations, obligations, or expiries appear, they will surface here.</p>
+        </div>
       ) : (
         groupByPartner(visibleItems).map((g) => (
           <details key={g.partnerId ?? '__unassigned__'} open className="group">
             <summary className="cursor-pointer flex items-center justify-between px-4 py-2 bg-slate/5 hover:bg-slate/10">
-              <span className="font-medium text-navy">{g.partnerName}</span>
-              <span className="text-xs text-slate">{g.items.length} {g.items.length === 1 ? 'item' : 'items'}</span>
+              <span className="font-medium text-charcoal">{g.partnerName}</span>
+              <span className="rounded-full bg-slate/15 px-2 py-0.5 text-xs font-medium text-slate">{g.items.length}</span>
             </summary>
             <div className="divide-y divide-slate/10">
               {g.items.map((it) => renderItem(it))}
