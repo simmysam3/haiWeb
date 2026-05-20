@@ -13,7 +13,7 @@ const tabs: Tab[] = [
   { segment: "posture/working-list", label: "Working list", href: "/account/sonar/compliance/posture/working-list" },
   { segment: "posture/coverage", label: "Coverage", href: "/account/sonar/compliance/posture/coverage" },
   { segment: "posture/nominations", label: "Nominations", href: "/account/sonar/compliance/posture/nominations" },
-  { segment: "posture/obligations", label: "Obligations", href: "/account/sonar/compliance/posture/obligations" },
+  { segment: "posture/obligations", label: "Obligations · Inbound", href: "/account/sonar/compliance/posture/obligations" },
   { segment: "posture/changes", label: "Changes", href: "/account/sonar/compliance/posture/changes" },
   { segment: "evidence/new", label: "New response", href: "/account/sonar/compliance/evidence/new" },
   { segment: "evidence/responses", label: "Responses", href: "/account/sonar/compliance/evidence/responses" },
