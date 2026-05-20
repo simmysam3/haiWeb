@@ -16,7 +16,7 @@ beforeEach(() => { fetchMock.mockReset(); mockRefresh.mockReset(); vi.stubGlobal
 const item: WorkingListItem = {
   canonical_key: 'a'.repeat(64), category: 'nomination',
   subject: 'Nomination · Widget → v1', reason: 'Awaiting response (status: outstanding)',
-  item_event_time: '2026-05-01T00:00:00.000Z', partner_id: 'v1',
+  item_event_time: '2026-05-01T00:00:00.000Z', partner_id: 'v1', partner_legal_name: 'Widget Co',
   action_href: '/account/sonar/compliance/posture/nominations',
   state: 'open', snooze_until: null, dismiss_reason: null, last_transitioned_at: null,
 };
