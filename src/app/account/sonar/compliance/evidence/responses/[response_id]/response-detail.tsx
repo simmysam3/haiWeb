@@ -57,7 +57,12 @@ export function ResponseDetail({ response }: { response: EvidenceResponse }) {
           const text = await res.text();
           try {
             setDoc(JSON.parse(text) as CanonicalDoc);
-          } catch {
+          } catch (parseErr) {
+            setFetchError(
+              parseErr instanceof Error
+                ? `Document JSON parse failed: ${parseErr.message}`
+                : 'Document JSON parse failed (unknown error)',
+            );
             setDoc(null);
           }
         } else {

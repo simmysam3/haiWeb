@@ -69,8 +69,9 @@ export function DispatchDecisionPanel({ draft }: { draft: DraftWire }) {
       } else {
         setDone('cached');
       }
-    } catch {
-      setError('Dispatch failed — network error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      setError(`Dispatch failed — ${msg}`);
     } finally {
       setBusy(false);
     }
