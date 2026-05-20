@@ -32,6 +32,10 @@ export function groupByPartner(items: WorkingListItem[]): PartnerGroup[] {
   return groups;
 }
 
+function stateLabel(state: WorkingListItem['state']): string {
+  return state === 'dismissed' ? 'suppressed' : state;
+}
+
 interface Props { items: WorkingListItem[]; total?: number; }
 
 export function WorkingListTable({ items, total }: Props) {
@@ -40,6 +44,7 @@ export function WorkingListTable({ items, total }: Props) {
   const [dismissKey, setDismissKey] = useState<string | null>(null);
   const [dismissReason, setDismissReason] = useState('');
   const [transitionError, setTransitionError] = useState<string | null>(null);
+  const [showSuppressed, setShowSuppressed] = useState(false);
 
   async function transition(key: string, body: { state: 'open' | 'snoozed' | 'dismissed'; snooze_until?: string; dismiss_reason?: string }) {
     setBusyKey(key);
@@ -69,11 +74,17 @@ export function WorkingListTable({ items, total }: Props) {
         <div className="flex flex-1 flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <Pill category="working_list_category" value={it.category}>{it.category}</Pill>
-            {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{it.state}</span>}
+            {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{stateLabel(it.state)}</span>}
           </div>
           <p className="text-sm font-medium text-navy">{it.subject}</p>
           <p className="text-sm text-slate">{it.reason}</p>
           <p className="text-xs text-slate/70">{new Date(it.item_event_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+          {it.state === 'dismissed' && (
+            <p className="text-xs text-slate/70">
+              Suppressed by {it.dismissed_by_user ?? 'unknown'}
+              {it.dismiss_reason ? <> &mdash; {it.dismiss_reason}</> : null}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link href={it.action_href} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy">Open</Link>
@@ -87,26 +98,29 @@ export function WorkingListTable({ items, total }: Props) {
                 aria-expanded={dismissKey === it.canonical_key}
                 onClick={() => setDismissKey(dismissKey === it.canonical_key ? null : it.canonical_key)}
                 className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal"
-              >Dismiss</button>
+              >Acknowledge &amp; suppress</button>
             </>
           )}
         </div>
         {dismissKey === it.canonical_key && (
           <div
             role="group"
-            aria-label="Dismiss item"
+            aria-label="Acknowledge and suppress"
             className="absolute right-8 top-14 z-10 flex flex-col gap-2 rounded-md border border-slate/30 bg-white p-3 shadow"
             onKeyDown={(e) => { if (e.key === 'Escape') setDismissKey(null); }}
           >
             <input type="text" placeholder="Dismiss reason" value={dismissReason} onChange={(e) => setDismissReason(e.target.value)} className="w-56 rounded-md border border-slate/30 px-2 py-1 text-xs" />
-            <button type="button" disabled={!dismissReason || busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'dismissed', dismiss_reason: dismissReason })} className="rounded-md bg-teal px-3 py-1.5 text-xs text-white disabled:opacity-50">Confirm</button>
+            <button type="button" disabled={!dismissReason || busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'dismissed', dismiss_reason: dismissReason })} className="rounded-md bg-teal px-3 py-1.5 text-xs text-white disabled:opacity-50">Suppress</button>
           </div>
         )}
       </div>
     );
   }
 
-  if (items.length === 0) return <p className="p-12 text-center text-slate">Nothing on your working list.</p>;
+  const visibleItems = showSuppressed ? items : items.filter((it) => it.state !== 'dismissed');
+  const suppressedCount = items.filter((it) => it.state === 'dismissed').length;
+
+  if (visibleItems.length === 0 && suppressedCount === 0) return <p className="p-12 text-center text-slate">Nothing on your working list.</p>;
 
   return (
     <div>
@@ -116,22 +130,38 @@ export function WorkingListTable({ items, total }: Props) {
           <button type="button" onClick={() => setTransitionError(null)} aria-label="Dismiss error" className="ml-2 text-problem/70 hover:text-problem">✕</button>
         </div>
       )}
-      {total !== undefined && (
-        <p className="px-4 pt-3 text-xs text-slate">
-          {total > items.length ? `${items.length} of ${total} items` : `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
-        </p>
+      <div className="flex items-center justify-between gap-2 px-4 pt-3">
+        {total !== undefined && (
+          <p className="text-xs text-slate">
+            {total > items.length ? `${items.length} of ${total} items` : `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
+          </p>
+        )}
+        {suppressedCount > 0 && (
+          <button
+            type="button"
+            aria-pressed={showSuppressed}
+            onClick={() => setShowSuppressed((v) => !v)}
+            className={`rounded-full border px-3 py-1 text-xs ${showSuppressed ? 'border-teal bg-teal/10 text-navy' : 'border-slate/30 text-slate hover:border-slate'}`}
+          >
+            {showSuppressed ? `Hide suppressed (${suppressedCount})` : `Show suppressed (${suppressedCount})`}
+          </button>
+        )}
+      </div>
+      {visibleItems.length === 0 ? (
+        <p className="p-12 text-center text-slate">Nothing on your working list.</p>
+      ) : (
+        groupByPartner(visibleItems).map((g) => (
+          <details key={g.partnerId ?? '__unassigned__'} open className="group">
+            <summary className="cursor-pointer flex items-center justify-between px-4 py-2 bg-slate/5 hover:bg-slate/10">
+              <span className="font-medium text-navy">{g.partnerName}</span>
+              <span className="text-xs text-slate">{g.items.length} {g.items.length === 1 ? 'item' : 'items'}</span>
+            </summary>
+            <div className="divide-y divide-slate/10">
+              {g.items.map((it) => renderItem(it))}
+            </div>
+          </details>
+        ))
       )}
-      {groupByPartner(items).map((g) => (
-        <details key={g.partnerId ?? '__unassigned__'} open className="group">
-          <summary className="cursor-pointer flex items-center justify-between px-4 py-2 bg-slate/5 hover:bg-slate/10">
-            <span className="font-medium text-navy">{g.partnerName}</span>
-            <span className="text-xs text-slate">{g.items.length} {g.items.length === 1 ? 'item' : 'items'}</span>
-          </summary>
-          <div className="divide-y divide-slate/10">
-            {g.items.map((it) => renderItem(it))}
-          </div>
-        </details>
-      ))}
     </div>
   );
 }
