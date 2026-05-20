@@ -12,46 +12,34 @@ import type { CoverageSnapshot } from './coverage-stats-strip';
  * snapshot until the next, never an interpolated diagonal between widely
  * spaced points. <2 points → onboarding empty-state (P6-D3).
  *
- * Tooltip snaps to the nearest data point (NearestDotTooltip) — Recharts'
- * default tooltip surfaces the interpolated value at the hovered X-position
- * along the step-after line, which reads as wrong UX when the user is
- * visually targeting a dot.
+ * NearestDotTooltip reads snapshot_completed_at directly from Recharts'
+ * tooltip payload (locale-safe — no toLocaleDateString round-trip). Phase
+ * 11 finding #10.
  */
 
-/**
- * Find the snapshot whose locale-formatted date is closest to the hovered date label.
- */
-export function findNearestPoint(
-  points: CoverageSnapshot[],
-  hoveredLabel: string
-): CoverageSnapshot | null {
-  if (points.length === 0) return null;
-  const hovered = new Date(hoveredLabel).getTime();
-  if (Number.isNaN(hovered)) return points[0];
-  let best = points[0];
-  let bestDelta = Math.abs(new Date(best.snapshot_completed_at).getTime() - hovered);
-  for (const p of points.slice(1)) {
-    const delta = Math.abs(new Date(p.snapshot_completed_at).getTime() - hovered);
-    if (delta < bestDelta) {
-      best = p;
-      bestDelta = delta;
-    }
-  }
-  return best;
+interface TooltipPayloadEntry {
+  payload?: {
+    snapshot_completed_at?: string;
+    complete_pct?: number;
+    partial_pct?: number;
+    no_traversal_pct?: number;
+  };
 }
 
-function NearestDotTooltip({
-  active, label, points,
-}: { active?: boolean; label?: string; points: CoverageSnapshot[] }) {
-  if (!active || !label) return null;
-  const nearest = findNearestPoint(points, label);
-  if (!nearest) return null;
+export function NearestDotTooltip({
+  active, payload,
+}: { active?: boolean; payload?: TooltipPayloadEntry[] }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const point = payload[0].payload;
+  if (!point?.snapshot_completed_at) return null;
   return (
     <div className="rounded-md border border-slate/30 bg-white p-2 text-xs shadow">
-      <p className="mb-1 font-medium text-navy">{new Date(nearest.snapshot_completed_at).toLocaleDateString()}</p>
-      <p className="text-teal">Complete: {nearest.complete_pct}%</p>
-      <p className="text-orange">Partial: {nearest.partial_pct}%</p>
-      <p className="text-slate">No traversal: {nearest.no_traversal_pct}%</p>
+      <p className="mb-1 font-medium text-navy">
+        {new Date(point.snapshot_completed_at).toLocaleDateString()}
+      </p>
+      <p className="text-teal">Complete: {point.complete_pct ?? 0}%</p>
+      <p className="text-orange">Partial: {point.partial_pct ?? 0}%</p>
+      <p className="text-slate">No traversal: {point.no_traversal_pct ?? 0}%</p>
     </div>
   );
 }
@@ -90,7 +78,7 @@ export function CoverageTrendChart({ points }: { points: CoverageSnapshot[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate)" opacity={0.15} />
             <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={12} />
             <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} fontSize={12} />
-            <Tooltip content={<NearestDotTooltip points={points} />} />
+            <Tooltip content={<NearestDotTooltip />} />
             <Line type="stepAfter" dataKey="complete_pct" name="Complete" stroke="var(--color-teal)" strokeWidth={2} dot />
             <Line type="stepAfter" dataKey="partial_pct" name="Partial" stroke="var(--color-orange)" strokeWidth={2} dot />
             <Line type="stepAfter" dataKey="no_traversal_pct" name="No traversal" stroke="var(--color-slate)" strokeWidth={2} dot />
