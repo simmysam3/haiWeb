@@ -7,6 +7,20 @@ import type { OnNetworkStatus } from './_lib/types';
 const RESOLUTION_OPTIONS: ResolutionClass[] = ['agentic_eligible', 'pending', 'out_of_band'];
 const NETWORK_OPTIONS: OnNetworkStatus[] = ['participant', 'invited', 'not_invited'];
 
+// Tooltip copy: definition first, then the filter action. Mirrors PILL_DEFINITIONS
+// style in components/pill.tsx but inlined here because these are <button> toggles.
+const RESOLUTION_TOOLTIPS: Record<ResolutionClass, string> = {
+  agentic_eligible: 'The gap can be resolved agent-to-agent on the HAIWAVE network. Click to filter to agentic-eligible gaps only.',
+  pending: 'Resolution path not yet determined. Click to filter to pending gaps only.',
+  out_of_band: 'Resolution requires off-network outreach (the counterparty is not a participant). Click to filter to out-of-band gaps only.',
+};
+
+const NETWORK_TOOLTIPS: Record<OnNetworkStatus, string> = {
+  participant: 'The counterparty is an active HAIWAVE participant. Click to filter to participant counterparties only.',
+  invited: 'The counterparty has been invited to join HAIWAVE but has not yet accepted. Click to filter to invited counterparties only.',
+  not_invited: 'The counterparty is not a HAIWAVE participant and has not been invited. Click to filter to not-invited counterparties only.',
+};
+
 export function FilterPills() {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,6 +63,7 @@ export function FilterPills() {
           key={r}
           type="button"
           aria-pressed={isPressed('resolution_class', r)}
+          title={RESOLUTION_TOOLTIPS[r]}
           onClick={() => toggleParam('resolution_class', r)}
           className={`rounded-full border px-3 py-1 text-xs ${
             isPressed('resolution_class', r)
@@ -66,6 +81,7 @@ export function FilterPills() {
           key={n}
           type="button"
           aria-pressed={isPressed('on_network_status', n)}
+          title={NETWORK_TOOLTIPS[n]}
           onClick={() => toggleParam('on_network_status', n)}
           className={`rounded-full border px-3 py-1 text-xs ${
             isPressed('on_network_status', n)
@@ -84,6 +100,7 @@ export function FilterPills() {
         value={minCount}
         onChange={(e) => setMinRequestCount(e.target.value)}
         placeholder="≥1"
+        title="Hide gaps with fewer than N pending requests. Helps focus on the busiest gaps."
         className="w-20 rounded-md border border-slate/30 px-2 py-1 text-xs"
       />
     </div>
