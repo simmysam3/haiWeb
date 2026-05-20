@@ -23,6 +23,24 @@ export const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
   'depth_increased',
 ] as const;
 
+// Tooltip copy: definition first, then the filter action. Mirrors
+// CHANGE_KIND_DEFINITION in PILL_DEFINITIONS (components/pill.tsx) verbatim,
+// with an appended action sentence. Inlined here because these are <button>
+// toggles, not status pills.
+const KIND_TOOLTIPS: Record<EmittedChangeKind, string> = {
+  gap_added: 'A new gap is present at a cell that was previously traversable. Click to filter the feed to gap-added events only.',
+  gap_resolved: 'A previously open gap is no longer present. Click to filter the feed to gap-resolved events only.',
+  origin_shifted_country: 'Country of origin changed for this vendor/product. Click to filter the feed to country-shift events only.',
+  origin_shifted_plant: 'Plant identifier changed within the same country. Click to filter the feed to plant-shift events only.',
+  vendor_substituted: 'A subcomponent vendor changed. Click to filter the feed to vendor-substitution events only.',
+  lead_time_degraded: 'Lead time increased beyond the degradation threshold. Click to filter the feed to lead-time-degraded events only.',
+  lead_time_improved: 'Lead time decreased beyond the degradation threshold. Click to filter the feed to lead-time-improved events only.',
+  certification_expired_or_revoked: 'A referenced certification became expired or revoked. Click to filter the feed to certification-expiry events only.',
+  certification_renewed: 'Certification status returned to valid. Click to filter the feed to certification-renewal events only.',
+  depth_reduced: 'Maximum traversal depth decreased for this product. Click to filter the feed to depth-reduced events only.',
+  depth_increased: 'Maximum traversal depth increased for this product. Click to filter the feed to depth-increased events only.',
+};
+
 export function FilterPills() {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,6 +85,7 @@ export function FilterPills() {
           key={kind}
           type="button"
           aria-pressed={isKindActive(kind)}
+          title={KIND_TOOLTIPS[kind]}
           onClick={() => toggleKind(kind)}
           className={`rounded-full border px-3 py-1 text-xs ${
             isKindActive(kind)
@@ -84,6 +103,7 @@ export function FilterPills() {
         value={partner}
         onChange={(e) => setParam('partner', e.target.value)}
         placeholder="vendor ID"
+        title="Filter the feed to changes involving a specific counterparty (paste a vendor UUID)."
         className="w-32 rounded-md border border-slate/30 px-2 py-1 text-xs"
       />
 
@@ -92,6 +112,7 @@ export function FilterPills() {
         type="date"
         value={from}
         onChange={(e) => setParam('from', e.target.value)}
+        title="Hide changes that occurred before this date."
         className="rounded-md border border-slate/30 px-2 py-1 text-xs"
       />
 
@@ -100,6 +121,7 @@ export function FilterPills() {
         type="date"
         value={to}
         onChange={(e) => setParam('to', e.target.value)}
+        title="Hide changes that occurred after this date."
         className="rounded-md border border-slate/30 px-2 py-1 text-xs"
       />
     </div>

@@ -33,7 +33,7 @@ export default async function NominationsPage() {
   return (
     <div className="p-6">
       <div className="flex items-baseline justify-between mb-4">
-        <h1 className="text-xl font-semibold text-charcoal">My nominations</h1>
+        <h1 className="text-xl font-semibold text-charcoal">My nomination requests</h1>
         <Link
           href="/account/sonar/compliance/posture/nominations/new"
           className="text-sm text-teal hover:text-navy font-medium"

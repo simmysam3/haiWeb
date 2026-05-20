@@ -112,7 +112,7 @@ export function ConfirmStep({
 
       <p className="text-xs text-slate">
         Submitting will create one audit scope per row above. You can disable any of them
-        later from the My Nominations list.
+        later from the My Nomination Requests list.
       </p>
 
       {result && result.failed > 0 && (
