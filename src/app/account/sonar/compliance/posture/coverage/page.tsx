@@ -119,6 +119,25 @@ export default async function CoveragePage() {
         most recent audit run.
       </PageIntro>
       <CoverageStatsStrip snapshot={snapshot} />
+      <Panel className="p-4">
+        <h2 className="font-[family-name:var(--font-display)] text-base font-bold text-navy mb-2">
+          What these numbers mean
+        </h2>
+        <ul className="text-sm text-slate space-y-1.5">
+          <li>
+            <span className="font-medium text-teal">Complete</span>
+            {' '}— products with full evidence captured for every required compliance attribute.
+          </li>
+          <li>
+            <span className="font-medium text-orange">Partial</span>
+            {' '}— products with some but not all required attributes; the gap is recorded as an obligation or working-list item.
+          </li>
+          <li>
+            <span className="font-medium text-slate">No traversal</span>
+            {' '}— products in scope that the audit could not reach (responder declined, edge unauthorized, or no downstream visibility).
+          </li>
+        </ul>
+      </Panel>
       {trendResult.kind === 'error' ? (
         // Secondary surface: a trend transport failure must not be mistaken
         // for the genuine "<2 snapshots" onboarding copy in CoverageTrendChart.
