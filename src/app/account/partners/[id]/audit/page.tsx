@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
-import { ScopeTable } from '../../../sonar/compliance/posture/nominations/scope-table';
+import { ScopeTable } from '../../../sonar/compliance/_components/scope-table';
 
 async function loadScopes(vendorId: string): Promise<AuditScope[]> {
   const cookieHeader = (await cookies()).toString();
@@ -33,7 +33,7 @@ export default async function PartnerAuditPage({
     <div className="space-y-6">
       <section>
         <Link
-          href={`/account/sonar/compliance/posture/nominations/new?vendor=${encodeURIComponent(id)}`}
+          href={`/account/sonar/compliance/requests/new-nomination?vendor=${encodeURIComponent(id)}`}
           className="inline-flex items-center gap-1.5 text-sm font-medium text-teal hover:text-navy"
         >
           Nominate components for audit coverage →

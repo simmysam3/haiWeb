@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { middleware } from '../middleware';
+import { applyRedirects, middleware } from '../middleware';
 
 // Non-redirect paths fall through to the auth branch; with no session cookies
 // they bounce to /login. Stub fetch so the refresh attempt can't make a real
@@ -22,13 +22,16 @@ describe('middleware — v1.34 sonar/audit → sonar/compliance 301 redirects', 
       '/account/sonar/audit/dashboard',
       '/account/sonar/compliance/posture/coverage',
     ],
+    // v1.35: the v1.34 nominations rules now land DIRECTLY on Request
+    // Management instead of /compliance/posture/nominations* (which v1.35
+    // would otherwise 301 onward, creating a double-301 chain).
     [
       '/account/sonar/audit/nominations',
-      '/account/sonar/compliance/posture/nominations',
+      '/account/sonar/compliance/requests?awaiting=them&type=nomination',
     ],
     [
       '/account/sonar/audit/nominations/new',
-      '/account/sonar/compliance/posture/nominations/new',
+      '/account/sonar/compliance/requests/new-nomination',
     ],
     [
       '/account/sonar/audit/downstream-gaps',
@@ -51,7 +54,11 @@ describe('middleware — v1.34 sonar/audit → sonar/compliance 301 redirects', 
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
     expect(loc.origin).toBe('http://localhost:3001');
-    expect(loc.pathname).toBe(to);
+    // Compare pathname+search so entries whose `to` carries a query string
+    // (e.g. v1.35 nominations → requests?awaiting=them&type=nomination)
+    // are matched against the rebuilt Location verbatim. Entries without
+    // a query string compare exactly as before (`search` is '').
+    expect(`${loc.pathname}${loc.search}`).toBe(to);
   });
 
   // Locks in the EXISTING v1.30 redirect-loop behavior: the `to` callback is
@@ -63,5 +70,32 @@ describe('middleware — v1.34 sonar/audit → sonar/compliance 301 redirects', 
     const loc = new URL(res.headers.get('location')!);
     expect(loc.pathname).toBe('/account/sonar/compliance/runs/abc');
     expect(loc.searchParams.get('x')).toBeNull();
+  });
+
+  // v1.35: the v1.34 nominations rules were rewritten to land DIRECTLY on
+  // Request Management — there must be exactly one 301 hop, not the
+  // double-301 chain we'd get if they still pointed at /posture/nominations*.
+  describe('v1.35 chain-collapse: nominations resolve in a single 301', () => {
+    it('/account/sonar/audit/nominations → single 301 to requests?awaiting=them&type=nomination', async () => {
+      const res = await run('/account/sonar/audit/nominations');
+      expect(res.status).toBe(301);
+      const loc = new URL(res.headers.get('location')!);
+      expect(`${loc.pathname}${loc.search}`).toBe(
+        '/account/sonar/compliance/requests?awaiting=them&type=nomination',
+      );
+      // Critically, the target itself must not match any redirect rule —
+      // otherwise we'd be back to a double-301 chain.
+      expect(applyRedirects(loc.pathname)).toBeNull();
+    });
+
+    it('/account/sonar/audit/nominations/new → single 301 to requests/new-nomination', async () => {
+      const res = await run('/account/sonar/audit/nominations/new');
+      expect(res.status).toBe(301);
+      const loc = new URL(res.headers.get('location')!);
+      expect(loc.pathname).toBe(
+        '/account/sonar/compliance/requests/new-nomination',
+      );
+      expect(applyRedirects(loc.pathname)).toBeNull();
+    });
   });
 });

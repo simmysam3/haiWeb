@@ -1,13 +1,62 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import useSWR from "swr";
+import { jsonFetcher } from "@/lib/swr-fetcher";
+import { NavBadge } from "./nav-badge";
+
+const COMPLIANCE_HREF = "/account/sonar/compliance";
 
 interface NavItem {
   href: string;
   label: string;
   indent?: boolean;
+}
+
+interface ComplianceCounts {
+  awaiting_me_count: number;
+  oldest_awaiting_me_age_days: number | null;
+}
+
+function ComplianceNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const { data, error } = useSWR<ComplianceCounts>(
+    "/api/sonar/compliance/requests/counts",
+    jsonFetcher,
+    { refreshInterval: 15_000 },
+  );
+  useEffect(() => {
+    if (error) {
+      console.warn("[ComplianceNavItem] count poll failed", error);
+    }
+  }, [error]);
+  return (
+    <Link
+      href={item.href}
+      className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
+        item.indent ? "pl-10 pr-6" : "px-6"
+      } ${
+        isActive
+          ? "text-white bg-white/10 border-r-2 border-teal"
+          : "text-light-slate hover:text-white hover:bg-white/5"
+      }`}
+    >
+      {item.label}
+      <NavBadge
+        count={data?.awaiting_me_count ?? 0}
+        oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
+      />
+      {error && (
+        <span
+          className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-400"
+          title="Live updates paused"
+          aria-label="Live updates paused"
+        />
+      )}
+    </Link>
+  );
 }
 
 interface NavSection {
@@ -31,7 +80,7 @@ const navSections: NavSection[] = [
     label: "Sonar",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
-      { href: "/account/sonar/compliance/posture/working-list", label: "Compliance" },
+      { href: COMPLIANCE_HREF, label: "Compliance" },
       { href: "/account/sonar/observations", label: "Observations" },
       { href: "/account/sonar/reports", label: "Reports" },
     ],
@@ -108,6 +157,11 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
             </div>
             {section.items.map((item) => {
               const isActive = isItemActive(item);
+              if (item.href === COMPLIANCE_HREF) {
+                return (
+                  <ComplianceNavItem key={item.href} item={item} isActive={isActive} />
+                );
+              }
               return (
                 <Link
                   key={item.href}

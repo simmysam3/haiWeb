@@ -5,10 +5,12 @@ import { shouldRefreshSession } from "@/lib/session-refresh";
 // v1.30 §10: 301 redirects from pre-Sonar URLs to the unified Observations page.
 // Rules are ordered most-specific-first; first match wins.
 const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
-  // Pre-v1.27 monitoring path
+  // v1.35: legacy pre-v1.27 monitoring URL retargeted to Request Management
+  // (was v1.30 Observations; v1.35 Request Management owns inbound nominations
+  // awaiting this org's response).
   {
     from: /^\/account\/monitoring\/audit-nominations(\/.*)?$/,
-    to: () => '/account/sonar/observations?tab=audit',
+    to: () => '/account/sonar/compliance/requests?awaiting=me&type=nomination',
   },
   // Pre-v1.27 phantom-demand paths (if any v1.21 surface URLs still get hit)
   {
@@ -22,6 +24,20 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/phantom-demand(\/dashboard)?\/?$/,
     to: () => '/account/sonar/observations?tab=phantom_demand',
   },
+  // v1.35 — new-nomination form moved into Request Management.
+  // Listed BEFORE the bare /posture/nominations rule so the more-specific
+  // /new path wins (the bare rule's `\/?$` anchor already prevents it from
+  // matching /new, but explicit ordering keeps the intent legible).
+  {
+    from: /^\/account\/sonar\/compliance\/posture\/nominations\/new\/?$/,
+    to: () => '/account/sonar/compliance/requests/new-nomination',
+  },
+  // v1.35 — outbound nominations page consolidated into Request Management.
+  {
+    from: /^\/account\/sonar\/compliance\/posture\/nominations\/?$/,
+    to: () =>
+      '/account/sonar/compliance/requests?awaiting=them&type=nomination',
+  },
   // v1.34 §12.1: legacy /account/sonar/audit/* → /account/sonar/compliance/*.
   // Specific surfaces first; the catch-all rewrite must stay LAST so the
   // remapped /dashboard, /nominations and /downstream-gaps targets win.
@@ -29,13 +45,18 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/audit\/dashboard\/?$/,
     to: () => '/account/sonar/compliance/posture/coverage',
   },
+  // v1.34 nominations rule rewritten in v1.35 to land directly on Request
+  // Management (was: /compliance/posture/nominations which v1.35 then
+  // 301s onward — avoid the double-301 chain).
   {
     from: /^\/account\/sonar\/audit\/nominations(\/.*)?$/,
-    to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/audit\/nominations/,
-        '/account/sonar/compliance/posture/nominations',
-      ),
+    to: (p) => {
+      // /…/nominations/new (and anything else under /new/) → new-nomination
+      if (/\/new(\/.*)?$/.test(p)) {
+        return '/account/sonar/compliance/requests/new-nomination';
+      }
+      return '/account/sonar/compliance/requests?awaiting=them&type=nomination';
+    },
   },
   {
     from: /^\/account\/sonar\/audit\/downstream-gaps(\/.*)?$/,
@@ -54,6 +75,20 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
       ),
   },
 ];
+
+/**
+ * Pure redirect lookup — returns the target path for `pathname` if any rule
+ * matches, otherwise null. Extracted from the Next.js middleware so unit
+ * tests can exercise the rule table without booting NextRequest/fetch.
+ */
+export function applyRedirects(pathname: string): string | null {
+  for (const rule of REDIRECTS) {
+    if (rule.from.test(pathname)) {
+      return rule.to(pathname);
+    }
+  }
+  return null;
+}
 
 // Sliding-session refresh ─────────────────────────────────────────────
 // Login stores the Keycloak access token in `haiwave_session` (maxAge =
@@ -107,11 +142,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   // 301 redirects fire first so bookmarks and external links resolve to the
   // new URL without bouncing through /login (the auth check below).
-  for (const rule of REDIRECTS) {
-    if (rule.from.test(pathname)) {
-      const url = new URL(rule.to(pathname), request.url);
-      return NextResponse.redirect(url, 301);
-    }
+  const redirectTo = applyRedirects(pathname);
+  if (redirectTo !== null) {
+    return NextResponse.redirect(new URL(redirectTo, request.url), 301);
   }
 
   const sessionCookie = request.cookies.get('haiwave_session')?.value;

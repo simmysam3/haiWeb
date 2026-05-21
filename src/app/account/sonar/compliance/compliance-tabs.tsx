@@ -7,17 +7,22 @@ interface Tab {
   segment: string;
   label: string;
   href: string;
+  // The pure path (without query string) used for active-tab detection. For
+  // tabs whose `href` includes a `?…`, this is the path prefix to match;
+  // `pathname` from `usePathname()` carries no query string, so equality
+  // against the full href would never hold.
+  matchPath: string;
 }
 
 const tabs: Tab[] = [
-  { segment: "posture/working-list", label: "Working list", href: "/account/sonar/compliance/posture/working-list" },
-  { segment: "posture/coverage", label: "Coverage", href: "/account/sonar/compliance/posture/coverage" },
-  { segment: "posture/nominations", label: "Nominations", href: "/account/sonar/compliance/posture/nominations" },
-  { segment: "posture/obligations", label: "Obligations · Inbound", href: "/account/sonar/compliance/posture/obligations" },
-  { segment: "posture/changes", label: "Changes", href: "/account/sonar/compliance/posture/changes" },
-  { segment: "evidence/new", label: "New response", href: "/account/sonar/compliance/evidence/new" },
-  { segment: "evidence/responses", label: "Responses", href: "/account/sonar/compliance/evidence/responses" },
-  { segment: "runs", label: "Runs", href: "/account/sonar/compliance/runs" },
+  { segment: "posture/working-list", label: "Working list", href: "/account/sonar/compliance/posture/working-list", matchPath: "/account/sonar/compliance/posture/working-list" },
+  { segment: "posture/coverage", label: "Coverage", href: "/account/sonar/compliance/posture/coverage", matchPath: "/account/sonar/compliance/posture/coverage" },
+  { segment: "requests", label: "Nominations", href: "/account/sonar/compliance/requests?awaiting=them&type=nomination", matchPath: "/account/sonar/compliance/requests" },
+  { segment: "posture/obligations", label: "Obligations · Inbound", href: "/account/sonar/compliance/posture/obligations", matchPath: "/account/sonar/compliance/posture/obligations" },
+  { segment: "posture/changes", label: "Changes", href: "/account/sonar/compliance/posture/changes", matchPath: "/account/sonar/compliance/posture/changes" },
+  { segment: "evidence/new", label: "New response", href: "/account/sonar/compliance/evidence/new", matchPath: "/account/sonar/compliance/evidence/new" },
+  { segment: "evidence/responses", label: "Responses", href: "/account/sonar/compliance/evidence/responses", matchPath: "/account/sonar/compliance/evidence/responses" },
+  { segment: "runs", label: "Runs", href: "/account/sonar/compliance/runs", matchPath: "/account/sonar/compliance/runs" },
 ];
 
 export function ComplianceTabs({ hasScopes }: { hasScopes: boolean }) {
@@ -26,8 +31,9 @@ export function ComplianceTabs({ hasScopes }: { hasScopes: boolean }) {
   return (
     <div className="flex border-b border-slate/15 mb-6">
       {tabs.map((tab) => {
-        const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-        const showStartHere = !hasScopes && tab.segment === "posture/nominations";
+        const isActive =
+          pathname === tab.matchPath || pathname.startsWith(`${tab.matchPath}/`);
+        const showStartHere = !hasScopes && tab.segment === "requests";
         return (
           <Link
             key={tab.segment}

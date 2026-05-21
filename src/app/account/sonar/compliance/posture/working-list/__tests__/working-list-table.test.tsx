@@ -14,10 +14,10 @@ const fetchMock = vi.fn();
 beforeEach(() => { fetchMock.mockReset(); mockRefresh.mockReset(); vi.stubGlobal('fetch', fetchMock); });
 
 const item: WorkingListItem = {
-  canonical_key: 'a'.repeat(64), category: 'nomination',
-  subject: 'Nomination · Widget → v1', reason: 'Awaiting response (status: outstanding)',
+  canonical_key: 'a'.repeat(64), category: 'gap',
+  subject: 'Gap · Widget → v1', reason: 'Coverage missing (status: outstanding)',
   item_event_time: '2026-05-01T00:00:00.000Z', partner_id: 'v1', partner_legal_name: 'Widget Co',
-  action_href: '/account/sonar/compliance/posture/nominations',
+  action_href: '/account/sonar/compliance/posture/coverage',
   state: 'open', snooze_until: null, dismiss_reason: null, last_transitioned_at: null,
   dismissed_by_user: null,
 };
@@ -34,9 +34,9 @@ const dismissedItem: WorkingListItem = {
 describe('WorkingListTable', () => {
   it('renders rows with category Pill + reason + action link', () => {
     render(<WorkingListTable items={[item]} />);
-    expect(screen.getByText('Nomination · Widget → v1')).toBeInTheDocument();
-    expect(screen.getByText(/Awaiting response/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/compliance/posture/nominations');
+    expect(screen.getByText('Gap · Widget → v1')).toBeInTheDocument();
+    expect(screen.getByText(/Coverage missing/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/compliance/posture/coverage');
   });
   it('acknowledge & suppress action requires a reason and PUTs to the BFF', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ state: 'dismissed' }), { status: 200 }));
@@ -69,7 +69,7 @@ describe('WorkingListTable', () => {
 
   it('hides dismissed/suppressed items by default', () => {
     render(<WorkingListTable items={[item, dismissedItem]} />);
-    expect(screen.getByText('Nomination · Widget → v1')).toBeInTheDocument();
+    expect(screen.getByText('Gap · Widget → v1')).toBeInTheDocument();
     // dismissedItem has same subject — but it should not be visible since it shares partner and won't appear
     // Verify the suppressed toggle is present but suppressed row itself is not rendered
     expect(screen.getByRole('button', { name: /show suppressed/i })).toBeInTheDocument();

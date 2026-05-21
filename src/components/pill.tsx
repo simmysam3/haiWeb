@@ -148,6 +148,15 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     cached: 'Reuses the most recent applicable completed audit run per SKU.',
     fresh: 'Triggers a new audit run scoped to the entered SKUs.',
   },
+  // v1.35 Request Management — item-type pills on each RequestRow.
+  // Mirror of @haiwave/protocol RequestManagementItemTypeSchema (3 values, no outbound_obligation by design — see request-management.ts Q3 comment).
+  'request-type': {
+    inbound_nomination:
+      'A counterparty has nominated you for an audit scope. Accept to allow audits, decline to refuse.',
+    outbound_nomination: 'You nominated this counterparty. Awaiting their decision.',
+    inbound_obligation:
+      'A counterparty is asking you to fulfill a SKU-level compliance obligation.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -187,6 +196,11 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (['gap', 'obligation', 'expiry'].includes(v)) return 'warn';
     if (v === 'change') return 'info';
     // nomination → neutral
+  }
+  // v1.35 request-type tones — match working_list_category severity coding
+  if (category === 'request-type') {
+    if (v === 'inbound_obligation') return 'warn';
+    if (v === 'inbound_nomination' || v === 'outbound_nomination') return 'info';
   }
   return 'neutral';
 }
