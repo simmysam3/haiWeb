@@ -3,9 +3,9 @@ import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
-import { fetchBffJson } from '@/lib/server-fetch';
+import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
 
-interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; }
+interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; sku?: string; }
 
 async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams();
@@ -18,11 +18,43 @@ async function fetchList(sp: SearchParams) {
   );
 }
 
+/**
+ * Filter a working-list payload to items matching a SKU identifier. Used to honor
+ * the `?sku=` deep-link emitted by global search (v1.37). `WorkingListItem` has
+ * no dedicated product_id field — gap items embed `auditRunResults.productId`
+ * in `subject`, nomination/obligation items embed `sku_obligations.sku_label`.
+ *
+ * Match is case-insensitive and word-boundary-anchored against the SKU token in
+ * `subject` so `?sku=PROD-1` doesn't collide with `PROD-10`/`PROD-12` in
+ * zero-padded or sequential SKU schemes. Word boundary = any non-`[A-Za-z0-9_-]`
+ * character (or start/end of string) on either side.
+ *
+ * Filter is intentionally client-side in HaiWeb: the haiCore feed has no SKU
+ * filter param yet, and the search emitter (search/page.tsx data fetching) is
+ * out of scope for this follow-up. Items without a SKU in `subject` (change,
+ * expiry) will not match and are effectively excluded when `?sku=` is set —
+ * that is the desired behavior.
+ */
+export function filterBySku(
+  result: FetchResult<WorkingListResponse>,
+  sku: string,
+): FetchResult<WorkingListResponse> {
+  if (result.kind !== 'ok' || !sku) return result;
+  const needle = sku.trim();
+  if (!needle) return result;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|[^A-Za-z0-9_-])${escaped}(?:[^A-Za-z0-9_-]|$)`, 'i');
+  const filtered = result.data.items.filter((it) => re.test(it.subject));
+  return { ...result, data: { items: filtered, total: filtered.length } };
+}
+
 interface PageProps { searchParams: Promise<SearchParams>; }
 
 export default async function WorkingListPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const result = await fetchList(params);
+  const sku = (params.sku ?? '').trim();
+  const raw = await fetchList(params);
+  const result = sku ? filterBySku(raw, sku) : raw;
   return (
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">

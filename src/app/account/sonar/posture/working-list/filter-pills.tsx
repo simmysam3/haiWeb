@@ -37,8 +37,29 @@ export function FilterPills() {
   const activeCats = (searchParams.get('categories') ?? '').split(',').filter(Boolean);
   const status = searchParams.get('status') ?? '';
   const sort = searchParams.get('sort') ?? 'recency';
+  const sku = searchParams.get('sku') ?? '';
+  function clearSku() {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete('sku');
+    router.push(sp.toString() ? `${pathname}?${sp}` : pathname);
+  }
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
+      {sku && (
+        <div className="mb-1 flex w-full flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wider text-slate">Filtered to SKU:</span>
+          <button
+            type="button"
+            onClick={clearSku}
+            title="Click to clear the SKU filter applied by a global-search deep-link."
+            className="inline-flex items-center gap-1 rounded-full border border-teal bg-teal/10 px-3 py-1 text-xs text-navy hover:border-teal-dark"
+          >
+            <span className="font-mono">{sku}</span>
+            <span aria-hidden className="text-slate">×</span>
+            <span className="sr-only">Clear SKU filter</span>
+          </button>
+        </div>
+      )}
       <span className="self-center text-xs uppercase tracking-wider text-slate">Category:</span>
       {CATEGORIES.map((cat) => (
         <button key={cat} type="button" aria-pressed={activeCats.includes(cat)} title={CATEGORY_TOOLTIPS[cat]} onClick={() => toggleCategory(cat)} className={`rounded-full border px-3 py-1 text-xs ${activeCats.includes(cat) ? 'border-teal bg-teal/10 text-navy' : 'border-slate/30 text-slate hover:border-slate'}`}>{cat}</button>
