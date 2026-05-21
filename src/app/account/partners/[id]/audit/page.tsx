@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
-import { ScopeTable } from '../../../sonar/compliance/posture/nominations/scope-table';
+import { ScopeTable } from '../../../sonar/compliance/_components/scope-table';
 
 async function loadScopes(vendorId: string): Promise<AuditScope[]> {
   const cookieHeader = (await cookies()).toString();
