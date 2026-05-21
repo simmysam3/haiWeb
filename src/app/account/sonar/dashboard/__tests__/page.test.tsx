@@ -199,17 +199,18 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
       .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' })
       .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' });
 
-    // Console errors are EXPECTED here — the unwrapBestEffort adapter logs
-    // every transport failure. Silence them so the test output stays
-    // readable.
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // Console warnings are EXPECTED here — the unwrapBestEffort adapter
+    // logs every transport failure at `warn` severity (these are
+    // best-effort overview lanes, not page-fatal). Silence them so the
+    // test output stays readable.
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const { default: Page } = await import('../page');
     render(await Page());
 
     expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
+    expect(consoleWarnSpy).toHaveBeenCalled();
+    consoleWarnSpy.mockRestore();
   });
 });
