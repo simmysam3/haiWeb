@@ -152,7 +152,7 @@ export const GET = withHaiCore(async ({ client }) => {
       completed_at: completedAt,
       duration_seconds: durationSeconds(r.triggered_at, completedAt),
       run_origin: (r as { run_origin?: string }).run_origin ?? 'ad_hoc',
-      detail_href: `/account/sonar/compliance/runs/${r.run_id}`,
+      detail_href: `/account/sonar/posture/runs/${r.run_id}`,
     };
   });
 

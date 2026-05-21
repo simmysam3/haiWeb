@@ -53,7 +53,7 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     const body = await res.json();
     expect(body.events.map((e: any) => e.run_id)).toEqual(['a1', 't1', 'a2']);
     expect(body.events[0].modality).toBe('audit');
-    expect(body.events[0].detail_href).toBe('/account/sonar/compliance/runs/a1');
+    expect(body.events[0].detail_href).toBe('/account/sonar/posture/runs/a1');
     expect(body.events[1].modality).toBe('watcher');
     expect(body.events[1].detail_href).toBe('/account/sonar/watcher/dashboard');
   });
