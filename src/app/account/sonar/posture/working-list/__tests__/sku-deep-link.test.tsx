@@ -73,6 +73,20 @@ describe('filterBySku (sku deep-link plumbing)', () => {
     expect(out.data.total).toBe(0);
   });
 
+  it('does not prefix-match adjacent SKU codes (PROD-1 must not match PROD-10)', () => {
+    const r = okResult([
+      item({ canonical_key: 'a', subject: 'v1 · PROD-1 — origin_missing gap' }),
+      item({ canonical_key: 'b', subject: 'v1 · PROD-10 — origin_missing gap' }),
+      item({ canonical_key: 'c', subject: 'v1 · PROD-12 — origin_missing gap' }),
+      item({ canonical_key: 'd', subject: 'Nomination · PROD-1 → resp1' }),
+    ]);
+    const out = filterBySku(r, 'PROD-1');
+    expect(out.kind).toBe('ok');
+    if (out.kind !== 'ok') return;
+    expect(out.data.items.map((i) => i.canonical_key.replace(/0+$/, ''))).toEqual(['a', 'd']);
+    expect(out.data.total).toBe(2);
+  });
+
   it('passes through error results untouched', () => {
     const err: FetchResult<WorkingListResponse> = { kind: 'error', status: 503, message: 'down' };
     expect(filterBySku(err, 'PROD-1')).toBe(err);

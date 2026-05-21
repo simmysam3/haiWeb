@@ -23,19 +23,28 @@ async function fetchList(sp: SearchParams) {
  * the `?sku=` deep-link emitted by global search (v1.37). `WorkingListItem` has
  * no dedicated product_id field — gap items embed `auditRunResults.productId`
  * in `subject`, nomination/obligation items embed `sku_obligations.sku_label`.
- * A case-insensitive substring match against `subject` covers both reliably.
+ *
+ * Match is case-insensitive and word-boundary-anchored against the SKU token in
+ * `subject` so `?sku=PROD-1` doesn't collide with `PROD-10`/`PROD-12` in
+ * zero-padded or sequential SKU schemes. Word boundary = any non-`[A-Za-z0-9_-]`
+ * character (or start/end of string) on either side.
+ *
  * Filter is intentionally client-side in HaiWeb: the haiCore feed has no SKU
  * filter param yet, and the search emitter (search/page.tsx data fetching) is
- * out of scope for this follow-up.
+ * out of scope for this follow-up. Items without a SKU in `subject` (change,
+ * expiry) will not match and are effectively excluded when `?sku=` is set —
+ * that is the desired behavior.
  */
 export function filterBySku(
   result: FetchResult<WorkingListResponse>,
   sku: string,
 ): FetchResult<WorkingListResponse> {
   if (result.kind !== 'ok' || !sku) return result;
-  const needle = sku.trim().toLowerCase();
+  const needle = sku.trim();
   if (!needle) return result;
-  const filtered = result.data.items.filter((it) => it.subject.toLowerCase().includes(needle));
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|[^A-Za-z0-9_-])${escaped}(?:[^A-Za-z0-9_-]|$)`, 'i');
+  const filtered = result.data.items.filter((it) => re.test(it.subject));
   return { ...result, data: { items: filtered, total: filtered.length } };
 }
 
