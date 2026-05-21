@@ -3,22 +3,45 @@ import { RequestManagementClient } from './request-management-client';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson } from '@/lib/server-fetch';
 
+/**
+ * v.1.37 IA: filter state is URL-driven (FilterBar + DirectionTabs use
+ * router.push to mutate searchParams). The page server-renders the initial
+ * data with the URL params translated into the BFF contract, then hands off
+ * to the client orchestrator which keeps subsequent fetches in sync via SWR.
+ */
 interface SearchParams {
+  direction?: string;
+  // `awaiting` is the v1.35 alias still emitted by the legacy 301 redirects
+  // (middleware.ts: /audit-nominations & /posture/nominations); accept both
+  // names so old bookmarks continue to land correctly.
   awaiting?: string;
+  item_type?: string;
+  // Same legacy-alias pattern for `type`.
   type?: string;
   counterparty?: string;
+  state?: string;
+  age_bucket?: string;
+}
+
+function normalizeDirection(v: string | undefined): 'me' | 'them' | 'all' {
+  return v === 'them' || v === 'all' ? v : 'me';
+}
+
+function normalizeItemType(v: string | undefined): 'nomination' | 'obligation' | 'all' {
+  return v === 'nomination' || v === 'obligation' ? v : 'all';
 }
 
 async function fetchList(sp: SearchParams) {
-  const qs = new URLSearchParams({
-    awaiting: sp.awaiting ?? 'me',
-    type: sp.type ?? 'all',
-    ...(sp.counterparty ? { counterparty: sp.counterparty } : {}),
-  }).toString();
+  const qs = new URLSearchParams();
+  qs.set('awaiting', normalizeDirection(sp.direction ?? sp.awaiting));
+  qs.set('type', normalizeItemType(sp.item_type ?? sp.type));
+  if (sp.counterparty) qs.set('counterparty', sp.counterparty);
+  if (sp.state) qs.set('state', sp.state);
+  if (sp.age_bucket) qs.set('age_bucket', sp.age_bucket);
   // BFF path matches the Task 18 contract that the orchestrator + RequestRow
   // already use (`/api/sonar/compliance/requests`, no `/account/` prefix).
   return fetchBffJson<RequestManagementListResponse>(
-    `/api/sonar/compliance/requests?${qs}`,
+    `/api/sonar/compliance/requests?${qs.toString()}`,
   );
 }
 
@@ -42,12 +65,12 @@ export default async function RequestManagementPage({ searchParams }: PageProps)
         </p>
       </header>
       <PageIntro>
-        Two queues in one view: requests <em>awaiting you</em> (inbound nominations from customers
-        and obligations you owe a response on) and requests <em>awaiting them</em> (outbound
-        nominations you sent to vendors). Use the direction tabs above the list to flip between
-        sides, the item-type pills to narrow to nominations or obligations, and the counterparty
-        filter to focus on a single partner. Row actions (Accept / Decline / Withdraw) update the
-        list immediately.
+        Three queues in one view: <em>Awaiting me</em> (inbound nominations and outstanding
+        obligations addressed to you), <em>Awaiting them</em> (outbound nominations you sent and
+        downstream obligations you assigned), and <em>All</em> (the full active backlog). Use the
+        filter bar to narrow by item type, state, counterparty, or age. Row actions (Accept /
+        Decline / Withdraw) update the list immediately. Picking <em>Declined</em> from the state
+        filter opens the dedicated declined-history view.
       </PageIntro>
       {result.kind === 'error' ? (
         <div role="alert" className="rounded-lg border border-slate/20 bg-white p-12 text-center">
