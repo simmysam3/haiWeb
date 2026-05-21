@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { applyRedirects, middleware } from '../middleware';
+import { applyRedirects, proxy } from '../proxy';
 
 // Non-redirect paths fall through to the auth branch; with no session cookies
 // they bounce to /login. Stub fetch so the refresh attempt can't make a real
@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 function run(path: string) {
-  return middleware(new NextRequest(`http://localhost:3001${path}`));
+  return proxy(new NextRequest(`http://localhost:3001${path}`));
 }
 
 // v1.34 introduced /audit/* → /compliance/* redirects. v1.37 retargeted

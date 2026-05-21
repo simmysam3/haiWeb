@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyRedirects } from './middleware';
+import { applyRedirects } from './proxy';
 
 // These tests cover the v1.35 redirect rules (legacy /audit-nominations
 // monitoring URL + /compliance/posture/nominations consolidation). v1.37
