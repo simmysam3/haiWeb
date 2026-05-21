@@ -16,8 +16,12 @@ import { DeclineDialog } from './decline-dialog';
  *   and is now working it; we don't surface an action here)
  *
  * Endpoint routing per item_type:
- * - inbound_obligation → /requests/obligations/:id/{accept,decline}
- * - inbound_nomination / outbound_nomination → /requests/scopes/:id/{accept,decline,withdraw}
+ * - inbound_obligation → /requests/obligations/:obligation_id/{accept,decline}
+ * - inbound_nomination / outbound_nomination → /requests/scopes/:scope_id/{accept,decline,withdraw}
+ *
+ * v1.36 (protocol 3.11.0): RequestManagementItem is a discriminated union
+ * over `item_type`. We narrow once and pull the type-specific id off the
+ * matched branch (scope_id vs obligation_id).
  *
  * Accept and Withdraw POST `{}` with content-type JSON. On 2xx the
  * orchestrator's SWR poll surfaces authoritative state via `onMutate()`. On
@@ -39,13 +43,23 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isObligation = item.item_type === 'inbound_obligation';
-  const basePath = isObligation
-    ? `/api/sonar/compliance/requests/obligations/${item.item_id}`
-    : `/api/sonar/compliance/requests/scopes/${item.item_id}`;
+  // Discriminated-union narrowing: the obligation branch carries
+  // `obligation_id`; the nomination branches carry `scope_id`. The Withdraw
+  // action is only valid on outbound_nomination, which is necessarily a
+  // nomination branch (guarded by the render condition below).
+  const basePath =
+    item.item_type === 'inbound_obligation'
+      ? `/api/sonar/compliance/requests/obligations/${item.obligation_id}`
+      : `/api/sonar/compliance/requests/scopes/${item.scope_id}`;
   const acceptEndpoint = `${basePath}/accept`;
   const declineEndpoint = `${basePath}/decline`;
-  const withdrawEndpoint = `/api/sonar/compliance/requests/scopes/${item.item_id}/withdraw`;
+  const withdrawEndpoint =
+    item.item_type === 'inbound_obligation'
+      ? // Render gating below ensures Withdraw is never invoked for obligations,
+        // but TypeScript still needs a fallback path on the discriminated branch.
+        // We point at the obligation path defensively — the button won't fire.
+        basePath
+      : `/api/sonar/compliance/requests/scopes/${item.scope_id}/withdraw`;
 
   async function postAction(endpoint: string) {
     setBusy(true);
