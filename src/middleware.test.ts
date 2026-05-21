@@ -34,6 +34,38 @@ describe('v1.35 → v1.37 retargeted redirects', () => {
   });
 });
 
+// v1.37 followup #1: the /audit/nominations rule's inner /new check is
+// anchored to the SUFFIX (the segment after /audit/nominations), not the
+// full pathname. Prevents a nested /…/foo/new from spuriously routing to
+// the new-nomination form.
+describe('v1.37 followup — /audit/nominations /new check is suffix-anchored', () => {
+  it('exact /audit/nominations/new still 301s to /requests/new-nomination', () => {
+    expect(applyRedirects('/account/sonar/audit/nominations/new')).toBe(
+      '/account/sonar/requests/new-nomination',
+    );
+  });
+
+  it('/audit/nominations/new/anything 301s to /requests/new-nomination', () => {
+    expect(
+      applyRedirects('/account/sonar/audit/nominations/new/extra'),
+    ).toBe('/account/sonar/requests/new-nomination');
+  });
+
+  it('nested non-new path with a /new tail does NOT route to new-nomination', () => {
+    // The previous full-pathname check would have falsely matched here.
+    // The suffix-anchored check sends it to the default outbound queue.
+    expect(
+      applyRedirects('/account/sonar/audit/nominations/foo/new'),
+    ).toBe('/account/sonar/requests?awaiting=them&type=nomination');
+  });
+
+  it('bare /audit/nominations still 301s to the outbound queue', () => {
+    expect(applyRedirects('/account/sonar/audit/nominations')).toBe(
+      '/account/sonar/requests?awaiting=them&type=nomination',
+    );
+  });
+});
+
 // v1.37 IA split: every legacy /account/sonar/compliance/* path 301s to its
 // new Request Management or Posture home. The aim is a single 301 hop — no
 // rule's destination may itself match a redirect (verified inline below).
