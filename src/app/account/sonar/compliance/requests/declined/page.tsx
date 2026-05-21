@@ -33,11 +33,11 @@ interface PageProps {
  * Default view: declined items from the last 30 days.
  * `?all=true` query string: full backlog of every declined item ever.
  *
- * Decision-reason note: `RequestManagementItem` (protocol 3.x) does not
- * yet expose `decision_reason`. Reasons are captured by the decline flow
- * and persisted to audit events on haiCore, but the list DTO does not
- * surface them. We render `—` in the Reason column for now and document
- * the follow-up to extend the protocol schema in a later cycle.
+ * v1.35 followup #3 (protocol 3.11.1): `decision_reason` is now surfaced
+ * inline. Sourced from `audit_scopes.decision_reason` for nominations
+ * and `sku_obligations.decline_reason` (migration 0081) for obligations.
+ * Pre-migration historical declines have null decision_reason and render
+ * as `—`.
  */
 export default async function DeclinedRequestsPage({ searchParams }: PageProps) {
   const params = await searchParams;
@@ -121,11 +121,8 @@ export default async function DeclinedRequestsPage({ searchParams }: PageProps) 
                   <td className="px-4 py-3">
                     <Pill category="request-type" value={item.item_type} />
                   </td>
-                  <td
-                    className="px-4 py-3 text-sm text-slate"
-                    title="Decline reasons are stored in audit events; surfacing them in this view is a follow-up."
-                  >
-                    —
+                  <td className="px-4 py-3 text-sm text-slate">
+                    {item.decision_reason ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate">
                     {new Date(item.created_at).toLocaleDateString()}
@@ -135,9 +132,6 @@ export default async function DeclinedRequestsPage({ searchParams }: PageProps) 
               })}
             </tbody>
           </table>
-          <p className="mt-3 px-4 text-xs text-slate">
-            Decline reasons are captured in audit events; surfacing them inline is a follow-up.
-          </p>
         </div>
       )}
     </div>
