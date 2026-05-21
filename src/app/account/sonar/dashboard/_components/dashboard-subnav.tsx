@@ -76,7 +76,14 @@ export function DashboardSubNav() {
       data-testid="dashboard-subnav"
       // `top-0` pins below any browser chrome; the account portal has no
       // fixed top header above the page content, so 0 is correct here.
-      className="sticky top-0 z-10 -mx-6 mb-2 flex gap-1 border-b border-slate/15 bg-white/95 px-6 py-2 backdrop-blur"
+      //
+      // v.1.37 mobile pass: on small screens the row uses `overflow-x-auto`
+      // with `whitespace-nowrap` on each link, so when the bar is too narrow
+      // for all three labels it horizontally scrolls instead of wrapping
+      // (which would push the page content down on every dashboard load).
+      // Touch-target height ≥44px via `py-2.5` on mobile; tighter `py-2` on
+      // ≥md to preserve the slim desktop chrome.
+      className="sticky top-0 z-10 -mx-4 mb-2 flex gap-1 overflow-x-auto border-b border-slate/15 bg-white/95 px-4 py-2.5 backdrop-blur md:-mx-6 md:px-6 md:py-2"
     >
       {sections.map((s) => {
         const isActive = activeId === s.id;
@@ -85,7 +92,7 @@ export function DashboardSubNav() {
             key={s.id}
             href={`#${s.id}`}
             data-active={isActive ? "true" : "false"}
-            className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium transition-colors md:py-1 ${
               isActive
                 ? "bg-teal/10 text-navy"
                 : "text-slate hover:text-charcoal"
