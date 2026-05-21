@@ -1,4 +1,3 @@
-import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import type {
   SearchCounterpartyHit,
@@ -8,6 +7,7 @@ import type {
 } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { PageHeader } from '@/components/page-header';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 /**
  * v1.37 — Full search results page.
@@ -31,23 +31,24 @@ const MIN_QUERY_LEN = 2;
 
 async function loadSearch(q: string): Promise<SearchResponse | null> {
   if (q.trim().length < MIN_QUERY_LEN) return null;
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  try {
-    const url =
-      `${proto}://${host}/api/search?q=${encodeURIComponent(q)}&limit=${FETCH_LIMIT}`;
-    const res = await fetch(url, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
+  // v1.37 follow-up #4: routed through the shared `fetchBffJson` helper so
+  // search speaks the same fetch dialect as the dashboard (cookie
+  // forwarding, base-URL resolution, and `cache: 'no-store'` all
+  // centralized). The page surface stays best-effort: on a transport
+  // failure we collapse to `null` and the caller renders the
+  // "temporarily unavailable" copy — the discriminated `FetchResult`'s
+  // status/message are logged for diagnostics.
+  const result = await fetchBffJson<SearchResponse>(
+    `/api/search?q=${encodeURIComponent(q)}&limit=${FETCH_LIMIT}`,
+  );
+  if (result.kind === 'error') {
+    console.error('[search page] fetch failed', {
+      status: result.status,
+      message: result.message,
     });
-    if (!res.ok) return null;
-    return (await res.json()) as SearchResponse;
-  } catch (err) {
-    console.error('[search page] fetch failed', err);
     return null;
   }
+  return result.data;
 }
 
 function parsePage(raw: string | string[] | undefined): number {
