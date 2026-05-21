@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import type { RequestManagementStateBucket } from '@haiwave/protocol';
 
 /**
  * v.1.37 Request Management — filter bar.
@@ -11,9 +12,11 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
  *
  *  - `item_type`  — nomination | obligation | all   (default: all)
  *  - `state`      — pending | accepted | declined | withdrawn | outstanding |
- *                   resolved   (UX buckets that collapse the protocol's two
- *                   per-branch status enums; default: not-resolved = the
- *                   un-set sentinel, matching prior queue behavior)
+ *                   resolved | blocked   (UX buckets that collapse the
+ *                   protocol's two per-branch status enums; default:
+ *                   not-resolved = the un-set sentinel, matching prior queue
+ *                   behavior. 'blocked' = obligation against a counterparty
+ *                   that isn't a HAIWAVE participant yet.)
  *  - `counterparty` — participant UUID   (default: All)
  *  - `age_bucket` — today | this_week | this_month | older   (default: All)
  *
@@ -42,7 +45,13 @@ interface FilterBarProps {
   counterpartyOptions: CounterpartyOption[];
 }
 
-// Shared UX-state bucket vocab — kept in sync with the BFF route.
+// Shared UX-state bucket vocab — owned by @haiwave/protocol
+// (RequestManagementStateBucketSchema). This client component can't value-
+// import the CJS protocol pkg under Turbopack on Windows (same constraint as
+// pill.tsx), so the literal list is mirrored here; the `StateBucket` type
+// alias is the protocol type, so this array fails to compile if it drifts
+// from the protocol vocabulary.
+type StateBucket = RequestManagementStateBucket;
 const STATE_BUCKETS = [
   'pending',
   'accepted',
@@ -50,8 +59,8 @@ const STATE_BUCKETS = [
   'withdrawn',
   'outstanding',
   'resolved',
-] as const;
-type StateBucket = (typeof STATE_BUCKETS)[number];
+  'blocked',
+] as const satisfies readonly StateBucket[];
 
 const STATE_LABELS: Record<StateBucket, string> = {
   pending: 'Pending',
@@ -60,6 +69,7 @@ const STATE_LABELS: Record<StateBucket, string> = {
   withdrawn: 'Withdrawn',
   outstanding: 'Outstanding',
   resolved: 'Resolved',
+  blocked: 'Blocked (non-participant)',
 };
 
 const AGE_BUCKETS = ['today', 'this_week', 'this_month', 'older'] as const;

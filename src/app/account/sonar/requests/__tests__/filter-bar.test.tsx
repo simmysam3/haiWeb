@@ -69,6 +69,26 @@ describe('FilterBar — v.1.37 IA', () => {
     );
   });
 
+  it('surfaces the blocked (non-participant) state option', () => {
+    render(<FilterBar counterpartyOptions={options} />);
+    expect(
+      screen.getByRole('option', { name: /Blocked \(non-participant\)/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('setting State=blocked pushes ?state=blocked (no /declined redirect)', () => {
+    render(<FilterBar counterpartyOptions={options} />);
+    const stateSelect = screen.getAllByRole('combobox')[1];
+    fireEvent.change(stateSelect, { target: { value: 'blocked' } });
+    expect(mockPush).toHaveBeenCalledWith('/account/sonar/requests?state=blocked');
+  });
+
+  it('renders a chip with the Blocked label when state=blocked is active', () => {
+    currentSearch = 'state=blocked';
+    render(<FilterBar counterpartyOptions={options} />);
+    expect(screen.getByText(/State: Blocked \(non-participant\)/)).toBeInTheDocument();
+  });
+
   it('renders chips for active filters with item type label', () => {
     currentSearch = 'item_type=nomination&counterparty=11111111-1111-1111-1111-111111111111';
     render(<FilterBar counterpartyOptions={options} />);

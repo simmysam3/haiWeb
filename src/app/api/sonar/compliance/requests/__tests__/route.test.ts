@@ -51,6 +51,7 @@ const baseObligation = {
   status: 'outstanding' as const,
 };
 const resolvedObligation = { ...baseObligation, obligation_id: '00000000-0000-0000-0000-000000000101', status: 'fully_resolved' as const };
+const blockedObligation = { ...baseObligation, obligation_id: '00000000-0000-0000-0000-000000000102', status: 'blocked_non_participant' as const };
 
 describe('GET /api/sonar/compliance/requests — v.1.37 IA', () => {
   it('forwards awaiting/type/counterparty to client.listRequests', async () => {
@@ -114,6 +115,36 @@ describe('GET /api/sonar/compliance/requests — v.1.37 IA', () => {
     const body = await res.json();
     expect(body.items).toHaveLength(1);
     expect(body.items[0].obligation_id).toBe(resolvedObligation.obligation_id);
+  });
+
+  it('maps blocked_non_participant to the blocked bucket (NOT outstanding)', async () => {
+    const upstream = mockResponse({
+      items: [baseObligation, blockedObligation],
+      total: 2,
+      awaiting_me_count: 2,
+    });
+    const client = { listRequests: vi.fn().mockResolvedValue(upstream) };
+    // ?state=blocked must survive parsing and match only the blocked obligation.
+    const request = { url: 'http://x/api/sonar/compliance/requests?state=blocked' } as Request;
+    const res = await invoke({ client, request });
+    const body = await res.json();
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].obligation_id).toBe(blockedObligation.obligation_id);
+  });
+
+  it('does NOT fold blocked_non_participant into the outstanding bucket', async () => {
+    const upstream = mockResponse({
+      items: [baseObligation, blockedObligation],
+      total: 2,
+      awaiting_me_count: 2,
+    });
+    const client = { listRequests: vi.fn().mockResolvedValue(upstream) };
+    const request = { url: 'http://x/api/sonar/compliance/requests?state=outstanding' } as Request;
+    const res = await invoke({ client, request });
+    const body = await res.json();
+    // Only the genuine outstanding obligation — the blocked one is excluded.
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].obligation_id).toBe(baseObligation.obligation_id);
   });
 
   it('accepts multi-bucket state filter (comma-separated)', async () => {
