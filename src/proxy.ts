@@ -257,7 +257,7 @@ async function exchangeRefreshToken(
   }
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // 301 redirects fire first so bookmarks and external links resolve to the

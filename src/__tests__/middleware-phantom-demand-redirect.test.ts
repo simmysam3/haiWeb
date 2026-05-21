@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { middleware } from '../middleware';
+import { proxy } from '../proxy';
 
 // The non-redirect paths fall through to the auth branch; with no session
 // cookies they 307 to /login. Stub fetch so the refresh attempt can't make a
@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 function run(path: string) {
-  return middleware(new NextRequest(`http://localhost:3001${path}`));
+  return proxy(new NextRequest(`http://localhost:3001${path}`));
 }
 
 describe('middleware — retired v1.21 PD dashboard redirect', () => {
