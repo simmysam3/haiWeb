@@ -211,10 +211,11 @@ export function GlobalSearch() {
         }}
         onFocus={() => setIsOpen(true)}
         onKeyDown={onKeyDown}
-        // v.1.37 mobile pass: shorter placeholder ≤sm so the input doesn't
-        // get cropped by the narrow header. Touch-target height ≥44px on
-        // mobile via `py-2.5` (WCAG AA), tighter on ≥md to match desktop.
-        placeholder="Search…"
+        // v.1.37 mobile pass: touch-target height ≥44px on mobile via
+        // `py-2.5` (WCAG AA), tighter on ≥md to match desktop. The placeholder
+        // stays descriptive — a plain string can't be made responsive, and the
+        // browser truncates any overflow in the narrower mobile input.
+        placeholder="Search counterparties, SKUs, scopes…"
         autoComplete="off"
         spellCheck={false}
         className="w-full rounded-md border border-slate/30 bg-white px-3 py-2.5 text-base text-navy placeholder:text-slate focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 md:py-1.5 md:text-sm md:placeholder:text-slate"
