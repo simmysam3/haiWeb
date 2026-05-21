@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import type { RequestManagementItem, RequestManagementListResponse } from '@haiwave/protocol';
+import {
+  RequestManagementStateBucketSchema,
+  obligationStatusToBucket,
+  nominationStatusToBucket,
+  type RequestManagementItem,
+  type RequestManagementListResponse,
+  type RequestManagementStateBucket,
+} from '@haiwave/protocol';
 import { withHaiCore } from '@/lib/with-hai-core';
 
 /**
@@ -16,8 +23,9 @@ import { withHaiCore } from '@/lib/with-hai-core';
  *  - type:       nomination | obligation | all
  *  - counterparty: participant UUID
  *  - state:      comma-separated bucket list — pending | accepted | declined |
- *                withdrawn | outstanding | resolved   (UX-facing buckets that
- *                collapse the per-branch status enums)
+ *                withdrawn | outstanding | resolved | blocked   (UX-facing
+ *                buckets that collapse the per-branch status enums; the
+ *                vocabulary + mapping is owned by @haiwave/protocol)
  *  - age_bucket: today | this_week | this_month | older   (single value)
  *
  * Note: the BFF tree intentionally roots this surface at `/api/sonar/...` (no
@@ -30,23 +38,16 @@ import { withHaiCore } from '@/lib/with-hai-core';
  * two per-branch status enums (AuditScopeAcceptanceStatus on nominations,
  * SkuObligationStatus on obligations) onto a small shared vocabulary the
  * user can reason about across both item kinds.
+ *
+ * The vocabulary lives in @haiwave/protocol (RequestManagementStateBucketSchema)
+ * as the single source of truth — we derive the validation set from
+ * `.options` so the BFF can never drift from the protocol again.
  */
-type StateBucket =
-  | 'pending'
-  | 'accepted'
-  | 'declined'
-  | 'withdrawn'
-  | 'outstanding'
-  | 'resolved';
+type StateBucket = RequestManagementStateBucket;
 
-const STATE_BUCKETS: ReadonlySet<StateBucket> = new Set([
-  'pending',
-  'accepted',
-  'declined',
-  'withdrawn',
-  'outstanding',
-  'resolved',
-]);
+const STATE_BUCKETS: ReadonlySet<StateBucket> = new Set(
+  RequestManagementStateBucketSchema.options,
+);
 
 type AgeBucket = 'today' | 'this_week' | 'this_month' | 'older';
 const AGE_BUCKETS: ReadonlySet<AgeBucket> = new Set([
@@ -57,27 +58,12 @@ const AGE_BUCKETS: ReadonlySet<AgeBucket> = new Set([
 ]);
 
 function statusBucket(item: RequestManagementItem): StateBucket {
-  // Nominations: pending | accepted | declined | withdrawn (1:1 with the bucket)
-  // Obligations: outstanding/acknowledged → outstanding,
-  //              partially_resolved/fully_resolved → resolved,
-  //              declined → declined,
-  //              blocked_non_participant → outstanding (still needs handling).
-  if (item.item_type === 'inbound_obligation') {
-    switch (item.status) {
-      case 'partially_resolved':
-      case 'fully_resolved':
-        return 'resolved';
-      case 'declined':
-        return 'declined';
-      case 'outstanding':
-      case 'acknowledged':
-      case 'blocked_non_participant':
-      default:
-        return 'outstanding';
-    }
-  }
-  // Nomination branch — status is AuditScopeAcceptanceStatus, which maps 1:1.
-  return item.status as StateBucket;
+  // Delegate to the protocol mappers (single source of truth). Obligations
+  // collapse SkuObligationStatus (incl. blocked_non_participant → 'blocked');
+  // nominations map AuditScopeAcceptanceStatus 1:1.
+  return item.item_type === 'inbound_obligation'
+    ? obligationStatusToBucket(item.status)
+    : nominationStatusToBucket(item.status);
 }
 
 function ageBucket(item: RequestManagementItem): AgeBucket {
