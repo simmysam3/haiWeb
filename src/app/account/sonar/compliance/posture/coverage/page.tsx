@@ -11,25 +11,7 @@ import { CoverageStatsStrip, type CoverageSnapshot } from './coverage-stats-stri
 import { CoverageTrendChart } from './coverage-trend-chart';
 import { PageIntro } from '@/components/page-intro';
 import { Panel } from '@/components';
-
-type FetchResult<T> =
-  | { kind: 'ok'; data: T }
-  | { kind: 'error'; status: number; message?: string };
-
-async function fetchResult<T>(url: string, cookie: string): Promise<FetchResult<T>> {
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', data: (await res.json()) as T };
-  } catch (e) {
-    console.error('[coverage/page] fetch threw:', e);
-    return {
-      kind: 'error',
-      status: 0,
-      message: e instanceof Error ? e.message : String(e),
-    };
-  }
-}
+import { fetchBffJson } from '@/lib/server-fetch';
 
 export default async function CoveragePage() {
   const scopesResult = await getActiveScopes();
@@ -40,6 +22,9 @@ export default async function CoveragePage() {
     return <div className="p-6"><NoScopesCTA context="dashboard" /></div>;
   }
 
+  // `loadAuditChartData` is a shared loader with its own (baseUrl, cookieHeader)
+  // signature; keep computing those locally for that call. The coverage current/
+  // trend fetches use the shared `fetchBffJson` helper.
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
@@ -47,13 +32,11 @@ export default async function CoveragePage() {
   const baseUrl = `${proto}://${host}`;
 
   const [currentResult, trendResult, charts] = await Promise.all([
-    fetchResult<CoverageCurrentResponse>(
-      `${baseUrl}/api/account/sonar/compliance/coverage/current`,
-      cookieHeader,
+    fetchBffJson<CoverageCurrentResponse>(
+      '/api/account/sonar/compliance/coverage/current',
     ),
-    fetchResult<CoverageTrend>(
-      `${baseUrl}/api/account/sonar/compliance/coverage/trend`,
-      cookieHeader,
+    fetchBffJson<CoverageTrend>(
+      '/api/account/sonar/compliance/coverage/trend',
     ),
     loadAuditChartData(baseUrl, cookieHeader),
   ]);

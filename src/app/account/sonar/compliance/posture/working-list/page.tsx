@@ -1,29 +1,21 @@
-import { headers } from 'next/headers';
 import type { WorkingListResponse } from '@haiwave/protocol';
 import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; }
-type FetchResult = { kind: 'ok'; data: WorkingListResponse } | { kind: 'error'; status: number };
 
-async function fetchList(sp: SearchParams): Promise<FetchResult> {
+async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams();
   if (sp.categories) qs.set('categories', sp.categories);
   if (sp.status) qs.set('status', sp.status);
   if (sp.sort) qs.set('sort', sp.sort);
   if (sp.partner_id) qs.set('partner_id', sp.partner_id);
-  const h = await headers();
-  const cookie = h.get('cookie') ?? '';
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
-  const url = `${protocol}://${host}/api/account/sonar/compliance/working-list?${qs}`;
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', data: (await res.json()) as WorkingListResponse };
-  } catch (e) { console.error('[working-list/page] fetch threw:', e); return { kind: 'error', status: 0 }; }
+  return fetchBffJson<WorkingListResponse>(
+    `/api/account/sonar/compliance/working-list?${qs}`,
+  );
 }
 
 interface PageProps { searchParams: Promise<SearchParams>; }

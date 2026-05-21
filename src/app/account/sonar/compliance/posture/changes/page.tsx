@@ -1,9 +1,9 @@
-import { headers } from 'next/headers';
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 interface SearchParams {
   kind?: string | string[];
@@ -12,11 +12,7 @@ interface SearchParams {
   to?: string;
 }
 
-type FetchResult =
-  | { kind: 'ok'; data: ComplianceChangeFeedResponse }
-  | { kind: 'error'; status: number; message?: string };
-
-async function fetchChanges(searchParams: SearchParams): Promise<FetchResult> {
+async function fetchChanges(searchParams: SearchParams) {
   const sp = new URLSearchParams();
   const kinds = searchParams.kind;
   if (Array.isArray(kinds)) {
@@ -28,23 +24,9 @@ async function fetchChanges(searchParams: SearchParams): Promise<FetchResult> {
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);
 
-  const h = await headers();
-  const cookie = h.get('cookie') ?? '';
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
-  const url = `${protocol}://${host}/api/account/sonar/compliance/changes?${sp}`;
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', data: (await res.json()) as ComplianceChangeFeedResponse };
-  } catch (e) {
-    console.error('[changes/page] fetch threw:', e);
-    return {
-      kind: 'error',
-      status: 0,
-      message: e instanceof Error ? e.message : String(e),
-    };
-  }
+  return fetchBffJson<ComplianceChangeFeedResponse>(
+    `/api/account/sonar/compliance/changes?${sp}`,
+  );
 }
 
 interface PageProps {
