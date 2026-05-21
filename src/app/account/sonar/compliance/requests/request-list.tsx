@@ -40,9 +40,18 @@ export function RequestList({ items, onMutate }: RequestListProps) {
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <RequestRow key={item.item_id} item={item} onMutate={onMutate} />
-          ))}
+          {items.map((item) => {
+            // v1.36 protocol 3.11.0: discriminated union — narrow on item_type
+            // to read the type-specific id. Composite key form (`type:id`)
+            // keeps keys distinct across the (admittedly impossible)
+            // collision case where a scope_id and an obligation_id share
+            // the same UUID.
+            const itemKey =
+              item.item_type === 'inbound_obligation'
+                ? `obligation:${item.obligation_id}`
+                : `scope:${item.scope_id}`;
+            return <RequestRow key={itemKey} item={item} onMutate={onMutate} />;
+          })}
         </tbody>
       </table>
     </div>

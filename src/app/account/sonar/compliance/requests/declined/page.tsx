@@ -105,8 +105,15 @@ export default async function DeclinedRequestsPage({ searchParams }: PageProps) 
               </tr>
             </thead>
             <tbody>
-              {result.data.items.map((item) => (
-                <tr key={item.item_id} className="border-t border-slate/10">
+              {result.data.items.map((item) => {
+                // v1.36 protocol 3.11.0: discriminated union — narrow on
+                // item_type to read the type-specific id for the React key.
+                const itemKey =
+                  item.item_type === 'inbound_obligation'
+                    ? `obligation:${item.obligation_id}`
+                    : `scope:${item.scope_id}`;
+                return (
+                <tr key={itemKey} className="border-t border-slate/10">
                   <td className="px-4 py-3 text-sm text-navy">
                     {item.counterparty_legal_name ?? item.counterparty_id}
                   </td>
@@ -124,7 +131,8 @@ export default async function DeclinedRequestsPage({ searchParams }: PageProps) 
                     {new Date(item.created_at).toLocaleDateString()}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <p className="mt-3 px-4 text-xs text-slate">
