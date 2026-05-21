@@ -43,6 +43,9 @@ export async function CoverageHeaderStrip() {
   }
 
   const arrow = delta === null ? '' : delta > 0 ? '↗' : delta < 0 ? '↘' : '→';
+  // deltaSign prepends '+' for positive deltas only. Negative deltas already
+  // render their sign via `${delta}` (e.g. `-3`), so we omit the explicit '-'.
+  // Zero deltas render bare ("0%") with a '→' arrow.
   const deltaSign = delta !== null && delta > 0 ? '+' : '';
   const deltaText =
     delta === null || priorAge === null
