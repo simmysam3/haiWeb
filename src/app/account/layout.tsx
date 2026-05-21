@@ -26,13 +26,16 @@ export default async function AccountLayout({
            * the input lines up with page content. Placed above (not inside)
            * the per-page max-w container so it stretches across the full
            * main column even when the page content is narrower.
+           *
+           * v.1.37 mobile pass: tighter horizontal padding on phones so the
+           * input has more room; main content padding likewise tightens.
            */}
-          <div className="border-b border-slate/10 bg-white px-8 py-3">
+          <div className="border-b border-slate/10 bg-white px-4 py-3 md:px-8">
             <div className="max-w-[1200px] mx-auto flex justify-end">
               <GlobalSearch />
             </div>
           </div>
-          <div className="max-w-[1200px] mx-auto p-8 w-full">{children}</div>
+          <div className="max-w-[1200px] mx-auto p-4 w-full md:p-8">{children}</div>
         </main>
       </div>
     </div>

@@ -43,6 +43,11 @@ export function FilterPills() {
     sp.delete('sku');
     router.push(sp.toString() ? `${pathname}?${sp}` : pathname);
   }
+  // v.1.37 mobile pass: on small screens the bar collapses to a 2-column
+  // stacked layout (Category pills span full width and wrap; the trailing
+  // Status/Sort/Partner dropdowns each stack label-above-input full-width
+  // for ≥44px touch targets). On ≥md it returns to the inline flex-wrap
+  // row that matches the v1.37 Sonar FilterPills convention.
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
       {sku && (
@@ -52,7 +57,7 @@ export function FilterPills() {
             type="button"
             onClick={clearSku}
             title="Click to clear the SKU filter applied by a global-search deep-link."
-            className="inline-flex items-center gap-1 rounded-full border border-teal bg-teal/10 px-3 py-1 text-xs text-navy hover:border-teal-dark"
+            className="inline-flex items-center gap-1 rounded-full border border-teal bg-teal/10 px-3 py-1.5 text-xs text-navy hover:border-teal-dark md:py-1"
           >
             <span className="font-mono">{sku}</span>
             <span aria-hidden className="text-slate">×</span>
@@ -60,24 +65,32 @@ export function FilterPills() {
           </button>
         </div>
       )}
-      <span className="self-center text-xs uppercase tracking-wider text-slate">Category:</span>
-      {CATEGORIES.map((cat) => (
-        <button key={cat} type="button" aria-pressed={activeCats.includes(cat)} title={CATEGORY_TOOLTIPS[cat]} onClick={() => toggleCategory(cat)} className={`rounded-full border px-3 py-1 text-xs ${activeCats.includes(cat) ? 'border-teal bg-teal/10 text-navy' : 'border-slate/30 text-slate hover:border-slate'}`}>{cat}</button>
-      ))}
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Status:</span>
-      <select value={status} onChange={(e) => setParam('status', e.target.value)} title="Filter by item lifecycle state — open, snoozed (re-surfaces later), or dismissed (acknowledged & suppressed)." className="rounded-md border border-slate/30 px-2 py-1 text-xs">
-        <option value="" title="Show items in any lifecycle state.">all</option>
-        <option value="open" title="Open and unresolved items.">open</option>
-        <option value="snoozed" title="Items snoozed for later; re-surface when their snooze window elapses.">snoozed</option>
-        <option value="dismissed" title="Items acknowledged & suppressed with a reason; hidden from the default working view.">dismissed</option>
-      </select>
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Sort:</span>
-      <select value={sort} onChange={(e) => setParam('sort', e.target.value)} title="Order rows by recency (most recently transitioned first) or oldest_unresolved (longest-open gaps first; open items only)." className="rounded-md border border-slate/30 px-2 py-1 text-xs">
-        <option value="recency" title="Show the most recently transitioned items first.">recency</option>
-        <option value="oldest_unresolved" title="Show the longest-open items first (restricted to open items).">oldest unresolved</option>
-      </select>
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Partner:</span>
-      <input type="text" value={searchParams.get('partner_id') ?? ''} onChange={(e) => setParam('partner_id', e.target.value)} placeholder="vendor ID" title="Filter rows to those involving a specific counterparty (paste a vendor UUID)." className="w-32 rounded-md border border-slate/30 px-2 py-1 text-xs" />
+      <div className="flex w-full flex-wrap items-center gap-2 md:contents">
+        <span className="self-center text-xs uppercase tracking-wider text-slate">Category:</span>
+        {CATEGORIES.map((cat) => (
+          <button key={cat} type="button" aria-pressed={activeCats.includes(cat)} title={CATEGORY_TOOLTIPS[cat]} onClick={() => toggleCategory(cat)} className={`rounded-full border px-3 py-1.5 text-xs md:py-1 ${activeCats.includes(cat) ? 'border-teal bg-teal/10 text-navy' : 'border-slate/30 text-slate hover:border-slate'}`}>{cat}</button>
+        ))}
+      </div>
+      <label className="flex w-full flex-col gap-1 md:contents">
+        <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-4">Status:</span>
+        <select value={status} onChange={(e) => setParam('status', e.target.value)} title="Filter by item lifecycle state — open, snoozed (re-surfaces later), or dismissed (acknowledged & suppressed)." className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs">
+          <option value="" title="Show items in any lifecycle state.">all</option>
+          <option value="open" title="Open and unresolved items.">open</option>
+          <option value="snoozed" title="Items snoozed for later; re-surface when their snooze window elapses.">snoozed</option>
+          <option value="dismissed" title="Items acknowledged & suppressed with a reason; hidden from the default working view.">dismissed</option>
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 md:contents">
+        <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-4">Sort:</span>
+        <select value={sort} onChange={(e) => setParam('sort', e.target.value)} title="Order rows by recency (most recently transitioned first) or oldest_unresolved (longest-open gaps first; open items only)." className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs">
+          <option value="recency" title="Show the most recently transitioned items first.">recency</option>
+          <option value="oldest_unresolved" title="Show the longest-open items first (restricted to open items).">oldest unresolved</option>
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 md:contents">
+        <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-4">Partner:</span>
+        <input type="text" value={searchParams.get('partner_id') ?? ''} onChange={(e) => setParam('partner_id', e.target.value)} placeholder="vendor ID" title="Filter rows to those involving a specific counterparty (paste a vendor UUID)." className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-32 md:py-1 md:text-xs" />
+      </label>
     </div>
   );
 }

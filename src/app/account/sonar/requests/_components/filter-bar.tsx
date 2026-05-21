@@ -184,78 +184,92 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
 
   return (
     <div className="mb-4 space-y-3">
+      {/*
+       * v.1.37 mobile pass: on small screens the filter row stacks each
+       * label above its full-width <select> (2-column grid). On ≥md it
+       * returns to the inline flex-wrap row that mirrors the working-list
+       * FilterPills convention. Touch targets ≥44px via `py-2` on mobile.
+       */}
       <div
         role="group"
         aria-label="Filters"
-        className="flex flex-wrap items-center gap-x-3 gap-y-2"
+        className="grid grid-cols-2 gap-x-3 gap-y-2 md:flex md:flex-wrap md:items-center"
       >
-        <span className="self-center text-xs uppercase tracking-wider text-slate">
-          Item type:
-        </span>
-        <select
-          value={itemTypeRaw}
-          onChange={(e) => setParam('item_type', e.target.value || null)}
-          title="Filter the queue to nominations or obligations only. Default: both."
-          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-        >
-          <option value="">All</option>
-          {ITEM_TYPES.map((v) => (
-            <option key={v} value={v}>
-              {ITEM_TYPE_LABELS[v]}
-            </option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1 md:contents">
+          <span className="text-xs uppercase tracking-wider text-slate md:self-center">
+            Item type:
+          </span>
+          <select
+            value={itemTypeRaw}
+            onChange={(e) => setParam('item_type', e.target.value || null)}
+            title="Filter the queue to nominations or obligations only. Default: both."
+            className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
+          >
+            <option value="">All</option>
+            {ITEM_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {ITEM_TYPE_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <span className="self-center pl-2 text-xs uppercase tracking-wider text-slate">
-          State:
-        </span>
-        <select
-          value={stateDropdownValue}
-          onChange={(e) => setState(e.target.value)}
-          title="Filter by item state. Selecting Declined opens the dedicated declined history view."
-          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-        >
-          <option value="">All</option>
-          {STATE_BUCKETS.map((v) => (
-            <option key={v} value={v}>
-              {STATE_LABELS[v]}
-            </option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1 md:contents">
+          <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-2">
+            State:
+          </span>
+          <select
+            value={stateDropdownValue}
+            onChange={(e) => setState(e.target.value)}
+            title="Filter by item state. Selecting Declined opens the dedicated declined history view."
+            className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
+          >
+            <option value="">All</option>
+            {STATE_BUCKETS.map((v) => (
+              <option key={v} value={v}>
+                {STATE_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <span className="self-center pl-2 text-xs uppercase tracking-wider text-slate">
-          Counterparty:
-        </span>
-        <select
-          value={counterpartyRaw}
-          onChange={(e) => setParam('counterparty', e.target.value || null)}
-          title="Filter to requests involving a single counterparty."
-          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-        >
-          <option value="">All counterparties</option>
-          {counterpartyOptions.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1 md:contents">
+          <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-2">
+            Counterparty:
+          </span>
+          <select
+            value={counterpartyRaw}
+            onChange={(e) => setParam('counterparty', e.target.value || null)}
+            title="Filter to requests involving a single counterparty."
+            className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
+          >
+            <option value="">All counterparties</option>
+            {counterpartyOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <span className="self-center pl-2 text-xs uppercase tracking-wider text-slate">
-          Age:
-        </span>
-        <select
-          value={ageRaw}
-          onChange={(e) => setParam('age_bucket', e.target.value || null)}
-          title="Filter by item age. Today = 0 days; This week = up to 7 days; This month = up to 30 days; Older = beyond 30 days."
-          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-        >
-          <option value="">All</option>
-          {AGE_BUCKETS.map((v) => (
-            <option key={v} value={v}>
-              {AGE_LABELS[v]}
-            </option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1 md:contents">
+          <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-2">
+            Age:
+          </span>
+          <select
+            value={ageRaw}
+            onChange={(e) => setParam('age_bucket', e.target.value || null)}
+            title="Filter by item age. Today = 0 days; This week = up to 7 days; This month = up to 30 days; Older = beyond 30 days."
+            className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
+          >
+            <option value="">All</option>
+            {AGE_BUCKETS.map((v) => (
+              <option key={v} value={v}>
+                {AGE_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {activeChips.length > 0 && (
@@ -266,7 +280,8 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
               type="button"
               onClick={chip.onClear}
               title="Click to remove this filter."
-              className="inline-flex items-center gap-1 rounded-full border border-teal/40 bg-teal/10 px-2.5 py-0.5 text-xs text-navy hover:bg-teal/20"
+              // v.1.37 mobile pass: chip tap target eased slightly on mobile.
+              className="inline-flex items-center gap-1 rounded-full border border-teal/40 bg-teal/10 px-3 py-1 text-xs text-navy hover:bg-teal/20 md:px-2.5 md:py-0.5"
             >
               <span>{chip.label}</span>
               <span aria-hidden="true" className="text-slate">
@@ -279,7 +294,8 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
             <button
               type="button"
               onClick={clearAll}
-              className="text-xs text-teal underline hover:text-navy"
+              // v.1.37 mobile pass: easier-to-tap clear-all link on phones.
+              className="px-2 py-1 text-xs text-teal underline hover:text-navy md:px-0 md:py-0"
             >
               Clear all filters
             </button>

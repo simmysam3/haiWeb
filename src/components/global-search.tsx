@@ -211,10 +211,13 @@ export function GlobalSearch() {
         }}
         onFocus={() => setIsOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder="Search counterparties, SKUs, scopes…"
+        // v.1.37 mobile pass: shorter placeholder ≤sm so the input doesn't
+        // get cropped by the narrow header. Touch-target height ≥44px on
+        // mobile via `py-2.5` (WCAG AA), tighter on ≥md to match desktop.
+        placeholder="Search…"
         autoComplete="off"
         spellCheck={false}
-        className="w-full rounded-md border border-slate/30 bg-white px-3 py-1.5 text-sm text-navy placeholder:text-slate focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30"
+        className="w-full rounded-md border border-slate/30 bg-white px-3 py-2.5 text-base text-navy placeholder:text-slate focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 md:py-1.5 md:text-sm md:placeholder:text-slate"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
         aria-controls="global-search-listbox"
@@ -224,7 +227,10 @@ export function GlobalSearch() {
         <div
           id="global-search-listbox"
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[480px] overflow-y-auto rounded-md border border-slate/20 bg-white shadow-lg"
+          // v.1.37 mobile pass: shorter max-height on small screens so the
+          // dropdown doesn't extend past the viewport on phones with a
+          // visible keyboard. Desktop keeps the original 480px ceiling.
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-y-auto rounded-md border border-slate/20 bg-white shadow-lg md:max-h-[480px]"
         >
           {isLoading && (
             <div className="px-4 py-3 text-sm text-slate">Searching…</div>
@@ -252,7 +258,8 @@ export function GlobalSearch() {
             <button
               type="button"
               onClick={navigateToFullPage}
-              className="block w-full border-t border-slate/10 bg-light-gray px-4 py-2 text-left text-xs font-medium text-teal-dark hover:bg-teal/10"
+              // v.1.37 mobile pass: ≥44px touch target on mobile.
+              className="block w-full border-t border-slate/10 bg-light-gray px-4 py-3 text-left text-xs font-medium text-teal-dark hover:bg-teal/10 md:py-2"
             >
               See all results for {`"${debouncedQuery}"`} →
             </button>
@@ -361,7 +368,11 @@ function SearchSection({
                 onMouseEnter={() => setHighlightedIndex(flatIndex)}
                 role="option"
                 aria-selected={isHighlighted}
-                className={`flex items-center justify-between gap-2 px-4 py-2 text-sm ${
+                // v.1.37 mobile pass: per-row tap target ≥44px on mobile
+                // via `py-3`, tighter on ≥md to match the original density.
+                // Row stacks label/badge on mobile to avoid the pill
+                // wrapping under truncated text.
+                className={`flex flex-col items-start gap-1 px-4 py-3 text-sm md:flex-row md:items-center md:justify-between md:gap-2 md:py-2 ${
                   isHighlighted ? 'bg-teal/10' : 'hover:bg-light-gray'
                 }`}
               >
