@@ -61,8 +61,12 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   {
     from: /^\/account\/sonar\/audit\/nominations(\/.*)?$/,
     to: (p) => {
-      // /…/nominations/new (and anything else under /new/) → new-nomination
-      if (/\/new(\/.*)?$/.test(p)) {
+      // Anchor the /new check to the SUFFIX after /audit/nominations so a
+      // hypothetical nested segment like /audit/nominations/foo/new can't
+      // accidentally route to the new-nomination form. Only an exact
+      // /new or /new/<sub> tail qualifies.
+      const suffix = p.replace(/^\/account\/sonar\/audit\/nominations/, '');
+      if (/^\/new(\/.*)?$/.test(suffix)) {
         return '/account/sonar/requests/new-nomination';
       }
       return '/account/sonar/requests?awaiting=them&type=nomination';
