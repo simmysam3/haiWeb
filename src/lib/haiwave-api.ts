@@ -89,6 +89,7 @@ import type {
   EvidenceResponseListResponse as EvidenceResponseListWire,
   ExportResult as ExportResultWire,
   RequestManagementListResponse,
+  SearchResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -613,6 +614,8 @@ export interface HaiwaveClient {
     days?: number;
     all?: boolean;
   }): Promise<RequestManagementListResponse>;
+  // ─── Unified Global Search (v1.37) ───────────────────────────────────
+  search(q: string, limit?: number): Promise<SearchResponse>;
   // ─── Evidence draft (v1.34 P7) ───────────────────────────────────────
   createEvidenceDraft(body: {
     scope_shape: 'sku_list' | 'product_family' | 'container_with_sku_list';
@@ -1600,6 +1603,17 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET', `/sonar/compliance/requests/declined${qs ? `?${qs}` : ''}`,
       ).then((d) => {
         if (d == null) throw new Error('listDeclinedRequests: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+
+    // ─── Unified Global Search (v1.37) ───────────────────────────────────
+    search(q, limit) {
+      const p = new URLSearchParams();
+      p.set('q', q);
+      if (limit !== undefined) p.set('limit', String(limit));
+      return request<SearchResponse>('GET', `/search?${p.toString()}`).then((d) => {
+        if (d == null) throw new Error('search: haiCore returned no/non-JSON body');
         return d;
       });
     },
