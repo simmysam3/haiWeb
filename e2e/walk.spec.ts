@@ -622,20 +622,22 @@ test.describe("§14 v1.35 Request Management", () => {
         baseURL: HAICORE,
         extraHTTPHeaders: HAICORE_HEADERS,
       });
-      const res = await req.post("/api/v1/test/seed/pending-scope", {
-        data: { vendor_participant_id: TEST_VENDOR_ID },
-      });
-      if (!res.ok()) {
-        const body = await res.text();
+      try {
+        const res = await req.post("/api/v1/test/seed/pending-scope", {
+          data: { vendor_participant_id: TEST_VENDOR_ID },
+        });
+        if (!res.ok()) {
+          const body = await res.text();
+          throw new Error(
+            `Seed harness failed (${res.status()}): ${body.slice(0, 200)}. ` +
+              "Confirm haiCore is running with ENABLE_TEST_SEED=true or NODE_ENV=test.",
+          );
+        }
+        const body = await res.json();
+        seededScopeId = body.scope_id;
+      } finally {
         await req.dispose();
-        throw new Error(
-          `Seed harness failed (${res.status()}): ${body.slice(0, 200)}. ` +
-            "Confirm haiCore is running with ENABLE_TEST_SEED=true or NODE_ENV=test.",
-        );
       }
-      const body = await res.json();
-      seededScopeId = body.scope_id;
-      await req.dispose();
     });
 
     test.afterEach(async ({ playwright }) => {
@@ -658,11 +660,26 @@ test.describe("§14 v1.35 Request Management", () => {
     test("14.8 accept an inbound nomination", async ({ browser }) => {
       // Navigate to the awaiting-me queue; the seeded scope appears as a
       // pending row for the logged-in vendor. Click Accept on the first row
-      // and verify the queue empties (single-row seed).
+      // and verify the queue is one row shorter (or fully empty if the seeded
+      // scope was the sole pending row). Capturing the count before the click
+      // avoids assuming the queue contains only the seeded row — other
+      // ambient pending items for the test user no longer make this flake.
       const page = await loggedInPage(browser);
       await page.goto("/account/sonar/compliance/requests?awaiting=me");
+      const beforeCount = await page.getByRole("row").count();
       await page.getByRole("button", { name: "Accept" }).first().click();
-      await expect(page.getByText(/No items match your filters\./i)).toBeVisible();
+      // Either the row count drops by 1 (other pending items remain) or the
+      // empty-state takes over (the seeded scope was the only row).
+      await expect
+        .poll(async () => {
+          const after = await page.getByRole("row").count();
+          const emptyVisible = await page
+            .getByText(/No items match your filters\./i)
+            .isVisible()
+            .catch(() => false);
+          return after <= beforeCount - 1 || emptyVisible;
+        })
+        .toBe(true);
     });
 
     test("14.9 decline with reason captured (reason visibility = follow-up)", async ({
@@ -677,9 +694,14 @@ test.describe("§14 v1.35 Request Management", () => {
       const page = await loggedInPage(browser);
       await page.goto("/account/sonar/compliance/requests?awaiting=me");
       await page.getByRole("button", { name: "Decline" }).first().click();
-      // Decline dialog: textarea + submit button (see decline-dialog.tsx)
-      await page.locator("textarea").fill("Not our product line");
-      await page.getByRole("button", { name: /^Decline$/ }).click();
+      // Decline dialog: textarea (id=decline-reason, label="Reason (optional)")
+      // + submit Decline button. Scope the submit click to the dialog so we
+      // don't strict-mode-collide with the row's own Decline button, which
+      // remains mounted while the modal is open (see request-row.tsx:100 +
+      // decline-dialog.tsx:121).
+      const declineDialog = page.getByRole("dialog", { name: "Decline request" });
+      await declineDialog.getByLabel("Reason (optional)").fill("Not our product line");
+      await declineDialog.getByRole("button", { name: /^Decline$/ }).click();
       await page.goto("/account/sonar/compliance/requests/declined");
       // Reason cell currently renders "—"; row presence is the only stable
       // assertion. We don't have the counterparty name to anchor on
