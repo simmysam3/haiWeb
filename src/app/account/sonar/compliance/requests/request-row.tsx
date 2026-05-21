@@ -19,10 +19,11 @@ import { DeclineDialog } from './decline-dialog';
  * - inbound_obligation → /requests/obligations/:id/{accept,decline}
  * - inbound_nomination / outbound_nomination → /requests/scopes/:id/{accept,decline,withdraw}
  *
- * Fire-and-forget: Accept and Withdraw POST `{}` with content-type JSON, no
- * error UI; the orchestrator's SWR poll surfaces authoritative state after
- * `onMutate()`. Decline routes through `DeclineDialog` which captures an
- * optional cross-org-visible reason (Task 22) and owns its own error surface.
+ * Accept and Withdraw POST `{}` with content-type JSON. On 2xx the
+ * orchestrator's SWR poll surfaces authoritative state via `onMutate()`. On
+ * non-2xx (or network failure) the row renders an inline error and does NOT
+ * call `onMutate()` — mirrors the v1.34 working-list-table transition surface
+ * (and DeclineDialog, which owns its own error surface for the reason flow).
  *
  * Styling mirrors the v1.34 working-list action surface — outline buttons for
  * secondary actions (Decline / Withdraw), teal solid for the primary Accept
@@ -36,6 +37,7 @@ interface RequestRowProps {
 export function RequestRow({ item, onMutate }: RequestRowProps) {
   const [declineOpen, setDeclineOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isObligation = item.item_type === 'inbound_obligation';
   const basePath = isObligation
@@ -45,15 +47,23 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
   const declineEndpoint = `${basePath}/decline`;
   const withdrawEndpoint = `/api/sonar/compliance/requests/scopes/${item.item_id}/withdraw`;
 
-  async function fireAndForget(endpoint: string) {
+  async function postAction(endpoint: string) {
     setBusy(true);
+    setError(null);
     try {
-      await fetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        setError(text || `Action failed (${res.status})`);
+        return;
+      }
       onMutate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Network error');
     } finally {
       setBusy(false);
     }
@@ -76,7 +86,7 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => fireAndForget(acceptEndpoint)}
+                onClick={() => postAction(acceptEndpoint)}
                 className="rounded-md bg-teal px-3 py-1.5 text-xs font-medium text-white hover:bg-teal/90 disabled:opacity-50"
               >
                 Accept
@@ -96,13 +106,18 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => fireAndForget(withdrawEndpoint)}
+                onClick={() => postAction(withdrawEndpoint)}
                 className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy disabled:opacity-50"
               >
                 Withdraw
               </button>
             )}
         </div>
+        {error && (
+          <p role="alert" className="mt-1 text-sm text-rose-600">
+            {error}
+          </p>
+        )}
         <DeclineDialog
           endpoint={declineEndpoint}
           open={declineOpen}
