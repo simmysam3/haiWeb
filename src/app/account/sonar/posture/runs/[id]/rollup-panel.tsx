@@ -1,6 +1,9 @@
 'use client';
 import type { AuditRunResult, GeoRollupEntry } from '@haiwave/protocol';
-import { GeoChart } from '../../_charts/geo-chart';
+// v1.37 R2 — the Geo chart moved to /dashboard/_charts/ when Coverage left
+// Posture for the Sonar Dashboard. The Posture-side Runs detail still
+// reuses the same component as a per-run geo rollup.
+import { GeoChart } from '../../../dashboard/_charts/geo-chart';
 
 export function RollupPanel({ results }: { results: AuditRunResult[] }) {
   const merged = new Map<string, GeoRollupEntry>();

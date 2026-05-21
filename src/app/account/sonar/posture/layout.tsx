@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PostureTabs } from "./_components/posture-tabs";
+import { CoverageHeaderStrip } from "./_components/coverage-header-strip";
 import { getActiveScopes } from "../_lib/scopes";
 
 export default async function PostureLayout({ children }: { children: ReactNode }) {
@@ -10,6 +11,15 @@ export default async function PostureLayout({ children }: { children: ReactNode 
   const hasScopes = scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
     <div>
+      {/*
+        v1.37 — slim coverage context strip: one row of coverage % + delta +
+        SKU count + a deep-link to the full coverage surface at
+        /sonar/dashboard. Visible on every Posture child page so the
+        workflow always shows the metric you're acting against. Server
+        component; silent-fail on transport errors (Dashboard owns the
+        canonical error banner).
+      */}
+      <CoverageHeaderStrip />
       <PostureTabs hasScopes={hasScopes} />
       {children}
     </div>

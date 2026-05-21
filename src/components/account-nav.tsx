@@ -84,7 +84,8 @@ const navSections: NavSection[] = [
     items: [
       // v1.37: Compliance was split into Request Management + Posture. Order
       // matches the user-facing nav contract: Request Management first
-      // (default Active queue), then Posture (default Coverage), then the
+      // (default Active queue), then Posture (default Working List in R2;
+      // the full Coverage surface moved to Sonar Dashboard), then the
       // existing Dashboard / Observations / Reports.
       { href: REQUESTS_HREF, label: "Request Management" },
       { href: "/account/sonar/posture", label: "Posture" },

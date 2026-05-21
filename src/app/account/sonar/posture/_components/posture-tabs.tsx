@@ -14,22 +14,17 @@ interface Tab {
   matchPath: string;
 }
 
-// v1.37 Posture section nav — the ongoing-state surfaces (Coverage default)
-// plus the per-run audit history under /runs. Coverage lives at the bare
-// /posture root so the default landing mirrors Request Management's "tab[0]
-// is the section's index route" pattern.
+// v1.37 Posture section nav — pure workflow surfaces. Coverage moved to
+// /sonar/dashboard in the second v1.37 restructure; the section root
+// /posture now lands on the Working List (its default landing) and the
+// slim coverage-context strip in `layout.tsx` keeps coverage % visible
+// above the tabs on every child page.
 const tabs: Tab[] = [
-  {
-    segment: "coverage",
-    label: "Coverage",
-    href: "/account/sonar/posture",
-    matchPath: "/account/sonar/posture",
-  },
   {
     segment: "working-list",
     label: "Working list",
-    href: "/account/sonar/posture/working-list",
-    matchPath: "/account/sonar/posture/working-list",
+    href: "/account/sonar/posture",
+    matchPath: "/account/sonar/posture",
   },
   {
     segment: "changes",
@@ -57,16 +52,21 @@ export function PostureTabs({ hasScopes }: { hasScopes: boolean }) {
   return (
     <div className="flex border-b border-slate/15 mb-6">
       {tabs.map((tab) => {
-        // Coverage (the root /posture path) must NOT light up when the user
-        // is on a deeper sibling — prefix-startsWith would otherwise mark
-        // Coverage as active on /posture/working-list, etc. The other tabs
-        // are leaf paths so prefix-startsWith is fine and lets sub-routes
-        // (e.g. /posture/changes/:id) keep the parent tab highlighted.
-        const isActive =
-          tab.matchPath === "/account/sonar/posture"
-            ? pathname === tab.matchPath
-            : pathname === tab.matchPath || pathname.startsWith(`${tab.matchPath}/`);
-        const showStartHere = !hasScopes && tab.segment === "coverage";
+        // The Working List landing (bare /posture path) must NOT light up
+        // when the user is on a deeper sibling — prefix-startsWith would
+        // otherwise mark it as active on /posture/changes, etc. The other
+        // tabs are leaf paths so prefix-startsWith is fine and lets
+        // sub-routes (e.g. /posture/changes/:id) keep the parent tab
+        // highlighted. Also treat the canonical /working-list URL as
+        // equivalent to the bare /posture root so direct navigation to
+        // either resolves to the same active tab.
+        const isWorkingList = tab.matchPath === "/account/sonar/posture";
+        const isActive = isWorkingList
+          ? pathname === tab.matchPath ||
+            pathname === "/account/sonar/posture/working-list" ||
+            pathname.startsWith("/account/sonar/posture/working-list/")
+          : pathname === tab.matchPath || pathname.startsWith(`${tab.matchPath}/`);
+        const showStartHere = !hasScopes && tab.segment === "working-list";
         return (
           <Link
             key={tab.segment}

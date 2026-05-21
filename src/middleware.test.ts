@@ -67,10 +67,17 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/evidence/responses/abc-123',
       '/account/sonar/requests/evidence/responses/abc-123',
     ],
-    // posture/coverage collapses to /posture (coverage IS the section root)
+    // v1.37 R2 — posture/coverage moved to /sonar/dashboard (coverage left
+    // the Posture section in the second v1.37 restructure)
     [
       '/account/sonar/compliance/posture/coverage',
-      '/account/sonar/posture',
+      '/account/sonar/dashboard',
+    ],
+    // v1.37 R2 — direct R1-era /sonar/posture/coverage bookmarks also land
+    // on /sonar/dashboard in a single hop
+    [
+      '/account/sonar/posture/coverage',
+      '/account/sonar/dashboard',
     ],
     // other posture surfaces keep their tail
     [

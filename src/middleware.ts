@@ -48,9 +48,14 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   // v1.34→v1.37 §12.1: legacy /account/sonar/audit/* now lands on the v1.37
   // Posture/Request-Management split. Specific surfaces first; the catch-all
   // /audit rewrite stays LAST and is bypassed by every preceding rule.
+  //
+  // v1.37 R2 — /audit/dashboard now lands on the Sonar Dashboard (where the
+  // full coverage surface lives post-R2), not Posture. Intent of the legacy
+  // URL was "audit dashboard view"; the Sonar Dashboard with coverage on top
+  // is the closer R2 analogue than the workflow-only Posture section.
   {
     from: /^\/account\/sonar\/audit\/dashboard\/?$/,
-    to: () => '/account/sonar/posture',
+    to: () => '/account/sonar/dashboard',
   },
   // v1.34→v1.37: /audit/nominations* lands directly on Request Management.
   {
@@ -118,12 +123,20 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
         '/account/sonar/requests/evidence',
       ),
   },
-  // v1.37 — Posture coverage IS the section root, so /posture/coverage* and
-  // bare /posture both collapse to /sonar/posture. Listed BEFORE the
-  // generic /posture catch-all so the coverage→root mapping wins.
+  // v1.37 R2 — Coverage moved out of Posture and into the Sonar Dashboard.
+  // Legacy /compliance/posture/coverage now lands directly on the new home
+  // at /sonar/dashboard. Listed BEFORE the generic /posture catch-all so
+  // the coverage→dashboard mapping wins.
   {
     from: /^\/account\/sonar\/compliance\/posture\/coverage\/?$/,
-    to: () => '/account/sonar/posture',
+    to: () => '/account/sonar/dashboard',
+  },
+  // v1.37 R2 — same retarget for the post-R1 URL: anyone who bookmarked the
+  // R1-era /sonar/posture/coverage (or links lingering from that brief
+  // window) now lands on /sonar/dashboard in one hop.
+  {
+    from: /^\/account\/sonar\/posture\/coverage\/?$/,
+    to: () => '/account/sonar/dashboard',
   },
   // v1.37 — all other Posture sub-routes (working-list, changes, obligations).
   {

@@ -24,7 +24,7 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
   it.each([
     [
       '/account/sonar/audit/dashboard',
-      '/account/sonar/posture',
+      '/account/sonar/dashboard',
     ],
     // v1.35 carried these directly to Request Management; v1.37 swapped the
     // /compliance/requests target for the new /sonar/requests URL.
@@ -119,7 +119,7 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
     ],
     [
       '/account/sonar/compliance/posture/coverage',
-      '/account/sonar/posture',
+      '/account/sonar/dashboard',
     ],
     [
       '/account/sonar/compliance/posture/working-list',
