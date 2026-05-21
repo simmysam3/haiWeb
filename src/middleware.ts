@@ -45,13 +45,18 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/audit\/dashboard\/?$/,
     to: () => '/account/sonar/compliance/posture/coverage',
   },
+  // v1.34 nominations rule rewritten in v1.35 to land directly on Request
+  // Management (was: /compliance/posture/nominations which v1.35 then
+  // 301s onward — avoid the double-301 chain).
   {
     from: /^\/account\/sonar\/audit\/nominations(\/.*)?$/,
-    to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/audit\/nominations/,
-        '/account/sonar/compliance/posture/nominations',
-      ),
+    to: (p) => {
+      // /…/nominations/new (and anything else under /new/) → new-nomination
+      if (/\/new(\/.*)?$/.test(p)) {
+        return '/account/sonar/compliance/requests/new-nomination';
+      }
+      return '/account/sonar/compliance/requests?awaiting=them&type=nomination';
+    },
   },
   {
     from: /^\/account\/sonar\/audit\/downstream-gaps(\/.*)?$/,
