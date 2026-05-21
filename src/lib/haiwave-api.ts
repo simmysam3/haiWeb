@@ -88,6 +88,7 @@ import type {
   EvidenceResponse as EvidenceResponseWire,
   EvidenceResponseListResponse as EvidenceResponseListWire,
   ExportResult as ExportResultWire,
+  RequestManagementListResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -596,6 +597,22 @@ export interface HaiwaveClient {
     canonical_key: string; state: string; snooze_until: string | null;
     dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
   }>;
+  // ─── Request management (v1.35) ──────────────────────────────────────
+  listRequests(filters?: {
+    awaiting?: 'me' | 'them' | 'all';
+    type?: 'nomination' | 'obligation' | 'all';
+    counterparty?: string;
+  }): Promise<RequestManagementListResponse>;
+  getRequestCounts(): Promise<{
+    total: number;
+    awaiting_me_count: number;
+    awaiting_them_count: number;
+    oldest_awaiting_me_age_days: number | null;
+  }>;
+  listDeclinedRequests(filters?: {
+    days?: number;
+    all?: boolean;
+  }): Promise<RequestManagementListResponse>;
   // ─── Evidence draft (v1.34 P7) ───────────────────────────────────────
   createEvidenceDraft(body: {
     scope_shape: 'sku_list' | 'product_family' | 'container_with_sku_list';
@@ -1545,6 +1562,44 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
       }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
         if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+
+    // ─── Request management (v1.35) ──────────────────────────────────────
+    listRequests(filters = {}) {
+      const p = new URLSearchParams();
+      if (filters.awaiting) p.set('awaiting', filters.awaiting);
+      if (filters.type) p.set('type', filters.type);
+      if (filters.counterparty) p.set('counterparty', filters.counterparty);
+      const qs = p.toString();
+      return request<RequestManagementListResponse>(
+        'GET', `/sonar/compliance/requests${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listRequests: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getRequestCounts() {
+      return request<{
+        total: number;
+        awaiting_me_count: number;
+        awaiting_them_count: number;
+        oldest_awaiting_me_age_days: number | null;
+      }>('GET', '/sonar/compliance/requests/counts').then((d) => {
+        if (d == null) throw new Error('getRequestCounts: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    listDeclinedRequests(filters = {}) {
+      const p = new URLSearchParams();
+      if (filters.days !== undefined) p.set('days', String(filters.days));
+      if (filters.all) p.set('all', 'true');
+      const qs = p.toString();
+      return request<RequestManagementListResponse>(
+        'GET', `/sonar/compliance/requests/declined${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listDeclinedRequests: haiCore returned no/non-JSON body');
         return d;
       });
     },
