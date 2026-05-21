@@ -75,8 +75,15 @@ interface DashboardData {
 function unwrapBestEffort<T>(result: FetchResult<T>, lane: string): T | null {
   if (result.kind === 'ok') return result.data;
   // Log so transport failures don't go silently to /dev/null — matches the
-  // pre-unification local-fetchJson behavior.
-  console.error('[loadDashboard] fetch failed', {
+  // pre-unification local-fetchJson behavior. `warn` (not `error`) because
+  // every callsite is a non-canonical overview lane (cross-modality /
+  // activity / throttled-counts / templates) that degrades gracefully — the
+  // affected panel renders empty/zero and the rest of the dashboard stands.
+  // Operators routinely tune dashboards to ignore `.warn` and alert on
+  // `.error`; keeping these noisy at `.error` would page-fatigue against
+  // a known-survivable failure mode. Canonical lanes (coverage) bypass
+  // this adapter entirely and surface their own status-aware banner.
+  console.warn('[loadDashboard] fetch failed', {
     lane,
     status: result.status,
     message: result.message,
