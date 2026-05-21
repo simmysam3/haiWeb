@@ -1,7 +1,7 @@
-import { headers } from 'next/headers';
 import type { RequestManagementListResponse } from '@haiwave/protocol';
 import { RequestManagementClient } from './request-management-client';
 import { PageIntro } from '@/components/page-intro';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 interface SearchParams {
   awaiting?: string;
@@ -9,32 +9,17 @@ interface SearchParams {
   counterparty?: string;
 }
 
-type FetchResult =
-  | { kind: 'ok'; data: RequestManagementListResponse }
-  | { kind: 'error'; status: number };
-
-async function fetchList(sp: SearchParams): Promise<FetchResult> {
+async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams({
     awaiting: sp.awaiting ?? 'me',
     type: sp.type ?? 'all',
     ...(sp.counterparty ? { counterparty: sp.counterparty } : {}),
   }).toString();
-
-  const h = await headers();
-  const cookie = h.get('cookie') ?? '';
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
   // BFF path matches the Task 18 contract that the orchestrator + RequestRow
   // already use (`/api/sonar/compliance/requests`, no `/account/` prefix).
-  const url = `${protocol}://${host}/api/sonar/compliance/requests?${qs}`;
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', data: (await res.json()) as RequestManagementListResponse };
-  } catch (e) {
-    console.error('[requests/page] fetch threw:', e);
-    return { kind: 'error', status: 0 };
-  }
+  return fetchBffJson<RequestManagementListResponse>(
+    `/api/sonar/compliance/requests?${qs}`,
+  );
 }
 
 interface PageProps {

@@ -1,32 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { ChangeDetailCompare } from './change-detail-compare';
 import { PageIntro } from '@/components/page-intro';
+import { fetchBffJson } from '@/lib/server-fetch';
 
-type FetchResult =
-  | { kind: 'ok'; data: ComplianceChangeDetail }
-  | { kind: 'error'; status: number; message?: string };
-
-async function fetchChangeDetail(changeId: string): Promise<FetchResult> {
-  const h = await headers();
-  const cookie = h.get('cookie') ?? '';
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
-  const url = `${protocol}://${host}/api/account/sonar/compliance/changes/${encodeURIComponent(changeId)}`;
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', data: (await res.json()) as ComplianceChangeDetail };
-  } catch (e) {
-    console.error('[changes/[change_id]/page] fetch threw:', e);
-    return {
-      kind: 'error',
-      status: 0,
-      message: e instanceof Error ? e.message : String(e),
-    };
-  }
+async function fetchChangeDetail(changeId: string) {
+  return fetchBffJson<ComplianceChangeDetail>(
+    `/api/account/sonar/compliance/changes/${encodeURIComponent(changeId)}`,
+  );
 }
 
 interface PageProps {
