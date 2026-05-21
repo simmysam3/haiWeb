@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import type { RequestManagementListResponse } from '@haiwave/protocol';
-import { jsonFetcher } from '@/lib/swr-fetcher';
+import { FetchError, jsonFetcher } from '@/lib/swr-fetcher';
 import { DirectionTabs, type DirectionTabValue } from './direction-tabs';
 import { ItemTypePills, type ItemTypePillValue } from './item-type-pills';
 import { CounterpartyFilter } from './counterparty-filter';
@@ -40,7 +40,7 @@ export function RequestManagementClient({ initialData }: Props) {
     ...(counterparty ? { counterparty } : {}),
   }).toString();
 
-  const { data, mutate } = useSWR<RequestManagementListResponse>(
+  const { data, error, mutate } = useSWR<RequestManagementListResponse>(
     `/api/sonar/compliance/requests?${qs}`,
     jsonFetcher,
     {
@@ -50,9 +50,37 @@ export function RequestManagementClient({ initialData }: Props) {
   );
 
   const items = data?.items ?? [];
+  const isUnauthorized = error instanceof FetchError && error.status === 401;
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div
+          role="alert"
+          className="rounded-md border border-problem/20 bg-problem/5 px-3 py-2 text-sm text-problem"
+        >
+          {isUnauthorized ? (
+            <>
+              Session expired —{' '}
+              <a href="/login" className="underline">
+                sign in again
+              </a>
+              .
+            </>
+          ) : (
+            <>
+              Live updates paused — could not refresh queue.{' '}
+              <button
+                type="button"
+                onClick={() => mutate()}
+                className="underline"
+              >
+                Retry
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <DirectionTabs
         value={direction}
         onChange={setDirection}
