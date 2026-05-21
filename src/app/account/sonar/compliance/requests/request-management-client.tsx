@@ -49,7 +49,21 @@ export function RequestManagementClient({ initialData }: Props) {
     },
   );
 
+  // Unfiltered fetch to populate the CounterpartyFilter dropdown options.
+  // Without this, the dropdown's option set self-prunes once a counterparty
+  // is selected (because the BFF returns only that counterparty's rows),
+  // making it impossible to switch directly between counterparties. Slower
+  // poll: the set of counterparties changes infrequently. Errors are
+  // deliberately not surfaced — a missing/stale dropdown option set is
+  // tolerable; falling back to filtered items preserves the prior behavior.
+  const { data: allData } = useSWR<RequestManagementListResponse>(
+    '/api/sonar/compliance/requests?awaiting=all&type=all',
+    jsonFetcher,
+    { refreshInterval: 60_000 },
+  );
+
   const items = data?.items ?? [];
+  const allCounterpartyOptions = allData?.items ?? data?.items ?? [];
   const isUnauthorized = error instanceof FetchError && error.status === 401;
 
   return (
@@ -91,7 +105,7 @@ export function RequestManagementClient({ initialData }: Props) {
       <div className="flex flex-wrap gap-4">
         <ItemTypePills value={itemType} onChange={setItemType} />
         <CounterpartyFilter
-          items={items}
+          items={allCounterpartyOptions}
           value={counterparty}
           onChange={setCounterparty}
         />
