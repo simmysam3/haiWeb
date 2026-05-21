@@ -3,9 +3,9 @@ import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
-import { fetchBffJson } from '@/lib/server-fetch';
+import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
 
-interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; }
+interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; sku?: string; }
 
 async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams();
@@ -18,11 +18,34 @@ async function fetchList(sp: SearchParams) {
   );
 }
 
+/**
+ * Filter a working-list payload to items matching a SKU identifier. Used to honor
+ * the `?sku=` deep-link emitted by global search (v1.37). `WorkingListItem` has
+ * no dedicated product_id field — gap items embed `auditRunResults.productId`
+ * in `subject`, nomination/obligation items embed `sku_obligations.sku_label`.
+ * A case-insensitive substring match against `subject` covers both reliably.
+ * Filter is intentionally client-side in HaiWeb: the haiCore feed has no SKU
+ * filter param yet, and the search emitter (search/page.tsx data fetching) is
+ * out of scope for this follow-up.
+ */
+export function filterBySku(
+  result: FetchResult<WorkingListResponse>,
+  sku: string,
+): FetchResult<WorkingListResponse> {
+  if (result.kind !== 'ok' || !sku) return result;
+  const needle = sku.trim().toLowerCase();
+  if (!needle) return result;
+  const filtered = result.data.items.filter((it) => it.subject.toLowerCase().includes(needle));
+  return { ...result, data: { items: filtered, total: filtered.length } };
+}
+
 interface PageProps { searchParams: Promise<SearchParams>; }
 
 export default async function WorkingListPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const result = await fetchList(params);
+  const sku = (params.sku ?? '').trim();
+  const raw = await fetchList(params);
+  const result = sku ? filterBySku(raw, sku) : raw;
   return (
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
