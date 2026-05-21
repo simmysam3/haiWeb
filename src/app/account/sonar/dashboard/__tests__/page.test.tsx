@@ -4,14 +4,16 @@ import { render, screen } from '@testing-library/react';
 
 /**
  * v1.37 R2 — the Sonar Dashboard absorbed the full Coverage surface from
- * the old `/sonar/posture` landing. These tests assert the dashboard
- * renders the Coverage section heading + the stats strip + the trend
- * empty-state alongside the pre-R2 cross-modality content.
+ * the old `/sonar/posture` landing. v1.37 polish item 1 then unified ALL
+ * BFF lanes onto `fetchBffJson` (no more local fetchJson null-coalescer);
+ * these tests assert the page still composes correctly after the unify.
  *
- * The page is a server component that pulls from `cookies()`, `headers()`,
- * `fetchBffJson`, and a local `fetchJson` (best-effort raw fetch). We mock
- * the BFF wrapper + raw fetch directly so the test exercises the
- * composition logic without booting Next.js plumbing.
+ * Call order matters: `loadCoverage()` is invoked BEFORE the outer
+ * `Promise.all` (assigned to `coveragePromise` first) so its two internal
+ * `fetchBffJson` calls fire first, then the four best-effort lanes inside
+ * the Promise.all (cross-modality / activity / throttled / templates).
+ * The raw `loadAuditChartData` lane keeps its `global.fetch` mock since
+ * it operates against a different API prefix.
  */
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
 
@@ -29,7 +31,9 @@ vi.mock('next/headers', () => ({
 }));
 
 // RefreshButton (rendered inside ActivityFeed) calls `useRouter()`; the
-// jsdom test env has no app-router context, so we stub it here.
+// jsdom test env has no app-router context, so we stub it here. The sticky
+// sub-nav also calls `usePathname`/`useSearchParams` through the App
+// Router; the stubs cover both.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
   usePathname: () => '/account/sonar/dashboard',
@@ -69,11 +73,27 @@ function snapshot(complete: number) {
   };
 }
 
+/**
+ * Queue the four best-effort lanes (cross-modality / activity / throttled
+ * / templates) as ok-empty so the page renders past them. Coverage current
+ * + trend are queued FIRST because `loadCoverage` fires before the outer
+ * Promise.all (see file-header comment).
+ */
+function queueDefaultBestEffortLanes() {
+  fetchBffJson
+    .mockResolvedValueOnce({
+      kind: 'ok',
+      data: { partners: [], generated_at: '', partial: { audit: false, phantom_demand: false, watcher: false } },
+    })
+    .mockResolvedValueOnce({ kind: 'ok', data: { events: [] } })
+    .mockResolvedValueOnce({ kind: 'ok', data: { audit: 0, watcher: 0, total: 0 } })
+    .mockResolvedValueOnce({ kind: 'ok', data: { templates: [] } });
+}
+
 beforeEach(() => {
   fetchBffJson.mockReset();
-  // Raw fetch returns null payloads (dashboard tolerates that) plus the
-  // audit-runs lane that feeds the Geo/Class/Partners charts. We let
-  // those return empty so the page still renders the structural shells.
+  // `loadAuditChartData` still uses raw `fetch` against a different API
+  // prefix; keep the runs lane empty so the chart shells render.
   global.fetch = vi.fn().mockImplementation(async (url: string) => {
     if (url.includes('/api/account/audit-runs?limit=25')) {
       return new Response(JSON.stringify({ runs: [] }), {
@@ -88,19 +108,18 @@ beforeEach(() => {
   });
 });
 
-describe('UnifiedDashboardPage — v1.37 R2 coverage absorption', () => {
+describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify', () => {
   it('renders the Coverage section heading and the cross-modality overview heading', async () => {
     fetchBffJson
-      // First call: coverage current → snapshot 50% complete.
       .mockResolvedValueOnce({
         kind: 'ok',
         data: { snapshot: snapshot(25) },
       })
-      // Second call: coverage trend → 2 snapshots so the trend chart renders.
       .mockResolvedValueOnce({
         kind: 'ok',
         data: { points: [snapshot(20), snapshot(25)] },
       });
+    queueDefaultBestEffortLanes();
 
     const { default: Page } = await import('../page');
     render(await Page());
@@ -120,6 +139,7 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption', () => {
     fetchBffJson
       .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: null } })
       .mockResolvedValueOnce({ kind: 'ok', data: { points: [] } });
+    queueDefaultBestEffortLanes();
 
     const { default: Page } = await import('../page');
     render(await Page());
@@ -141,6 +161,7 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption', () => {
         message: 'forbidden',
       })
       .mockResolvedValueOnce({ kind: 'ok', data: { points: [] } });
+    queueDefaultBestEffortLanes();
 
     const { default: Page } = await import('../page');
     render(await Page());
@@ -148,5 +169,47 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption', () => {
     expect(
       screen.getByText(/do not have permission to view compliance coverage/i),
     ).toBeInTheDocument();
+  });
+
+  it('renders the sticky sub-nav with all three section anchors', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { points: [] } });
+    queueDefaultBestEffortLanes();
+
+    const { default: Page } = await import('../page');
+    render(await Page());
+
+    const nav = screen.getByTestId('dashboard-subnav');
+    expect(nav).toBeInTheDocument();
+    // Anchor links present (not route changes — in-page jumps).
+    expect(nav.querySelector('a[href="#section-coverage"]')).toBeTruthy();
+    expect(nav.querySelector('a[href="#section-cross-modality"]')).toBeTruthy();
+    expect(nav.querySelector('a[href="#section-activity"]')).toBeTruthy();
+  });
+
+  it('best-effort lanes that error out degrade gracefully (page still renders)', async () => {
+    // Coverage lanes ok, but cross-modality + activity + throttled +
+    // templates all error. The page must still render without throwing.
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { points: [snapshot(20), snapshot(25)] } })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: 'boom' });
+
+    // Console errors are EXPECTED here — the unwrapBestEffort adapter logs
+    // every transport failure. Silence them so the test output stays
+    // readable.
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { default: Page } = await import('../page');
+    render(await Page());
+
+    expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 });

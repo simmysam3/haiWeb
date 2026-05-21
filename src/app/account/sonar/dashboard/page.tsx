@@ -1,5 +1,4 @@
 import { cookies, headers } from 'next/headers';
-import type { CoverageCurrentResponse, CoverageTrend } from '@haiwave/protocol';
 import { PageIntro } from '@/components/page-intro';
 import { Panel } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -7,6 +6,7 @@ import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
 import { CrossModalityTable } from './_components/cross-modality-table';
 import { ActivityFeed } from './_components/activity-feed';
+import { DashboardSubNav } from './_components/dashboard-subnav';
 import { CoverageStatsStrip, type CoverageSnapshot } from './_charts/coverage-stats-strip';
 import { CoverageTrendChart } from './_charts/coverage-trend-chart';
 import { GeoChart } from './_charts/geo-chart';
@@ -16,7 +16,9 @@ import { loadAuditChartData, type AuditChartData } from './_lib/load-audit-chart
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
+import { loadCoverage } from '../_lib/coverage';
 import type { FetchResult } from '@/lib/server-fetch';
+import type { CoverageCurrentResponse, CoverageTrend } from '@haiwave/protocol';
 
 interface CrossModalityResponse {
   partners: Array<{
@@ -60,6 +62,28 @@ interface DashboardData {
   charts: AuditChartData;
 }
 
+/**
+ * Best-effort `FetchResult<T>` → `T | null` adapter. The cross-modality /
+ * activity / throttle / templates lanes on the Dashboard are non-canonical
+ * overview surfaces — a transport failure shouldn't block the page, just
+ * degrade the affected panel (table renders empty, header tiles show
+ * zeros). Use this adapter to flatten the unified `fetchBffJson` result
+ * into the legacy null-on-failure contract those downstream components
+ * already handle (v1.37 polish item 1: unify fetch style on the
+ * dashboard).
+ */
+function unwrapBestEffort<T>(result: FetchResult<T>, lane: string): T | null {
+  if (result.kind === 'ok') return result.data;
+  // Log so transport failures don't go silently to /dev/null — matches the
+  // pre-unification local-fetchJson behavior.
+  console.error('[loadDashboard] fetch failed', {
+    lane,
+    status: result.status,
+    message: result.message,
+  });
+  return null;
+}
+
 async function loadDashboard(): Promise<DashboardData> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
@@ -67,44 +91,36 @@ async function loadDashboard(): Promise<DashboardData> {
   const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
   const baseUrl = `${proto}://${host}`;
 
-  const fetchJson = async <T,>(path: string): Promise<T | null> => {
-    try {
-      const res = await fetch(`${baseUrl}${path}`, {
-        headers: { cookie: cookieHeader },
-        cache: 'no-store',
-      });
-      if (!res.ok) return null;
-      return (await res.json()) as T;
-    } catch (err) {
-      console.error('[loadDashboard] fetch failed', { path, err });
-      return null;
-    }
-  };
-
-  // Coverage uses `fetchBffJson` (discriminated FetchResult) so we can render
-  // a status-aware error banner the same way `posture/page.tsx` did before
-  // v1.37 R2. The cross-modality / activity / throttle / templates lanes
-  // still use the local `fetchJson` null-coalescer since they're best-effort
-  // for the overview panels.
+  // v1.37 polish item 1: all BFF lanes now go through `fetchBffJson` so the
+  // dashboard speaks a single fetch dialect. Coverage uses the discriminated
+  // result directly (status-aware banner); the best-effort lanes adapt to
+  // `T | null` via `unwrapBestEffort` so the existing downstream null
+  // handling stays intact. `loadAuditChartData` keeps its raw `fetch`
+  // because it operates against the broader audit-runs API on a different
+  // path prefix and has lane-specific recovery logic.
+  const coveragePromise = loadCoverage();
   const [
-    crossModality,
-    initialActivity,
-    throttledCounts,
+    crossModalityRes,
+    initialActivityRes,
+    throttledCountsRes,
     templatesRes,
-    coverageCurrent,
-    coverageTrend,
+    coverage,
     charts,
   ] = await Promise.all([
-    fetchJson<CrossModalityResponse>('/api/account/sonar/dashboard/cross-modality'),
-    fetchJson<ActivityResponse>('/api/account/sonar/dashboard/activity'),
-    fetchJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
-    fetchJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
-    fetchBffJson<CoverageCurrentResponse>('/api/account/sonar/compliance/coverage/current'),
-    fetchBffJson<CoverageTrend>('/api/account/sonar/compliance/coverage/trend'),
+    fetchBffJson<CrossModalityResponse>('/api/account/sonar/dashboard/cross-modality'),
+    fetchBffJson<ActivityResponse>('/api/account/sonar/dashboard/activity'),
+    fetchBffJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
+    fetchBffJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
+    coveragePromise,
     loadAuditChartData(baseUrl, cookieHeader),
   ]);
 
-  const enabledTemplateCount = templatesRes?.templates.filter((t) => t.enabled).length ?? 0;
+  const crossModality = unwrapBestEffort(crossModalityRes, 'cross-modality');
+  const initialActivity = unwrapBestEffort(initialActivityRes, 'activity');
+  const throttledCounts = unwrapBestEffort(throttledCountsRes, 'throttled-counts');
+  const templates = unwrapBestEffort(templatesRes, 'templates');
+
+  const enabledTemplateCount = templates?.templates.filter((t) => t.enabled).length ?? 0;
 
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const failedRunsLast30d = initialActivity
@@ -119,8 +135,8 @@ async function loadDashboard(): Promise<DashboardData> {
     throttledCounts,
     enabledTemplateCount,
     failedRunsLast30d,
-    coverageCurrent,
-    coverageTrend,
+    coverageCurrent: coverage.current,
+    coverageTrend: coverage.trend,
     charts,
   };
 }
@@ -168,6 +184,14 @@ export default async function UnifiedDashboardPage() {
         for full detail.
       </PageIntro>
 
+      {/*
+        v1.37 polish item 3: sticky sub-nav so the (now long) dashboard has
+        quick in-page jumps. Sentinel-based highlight tracks the section
+        the user is reading. Pinned `top-0` because the account portal has
+        no fixed top chrome above this page content.
+      */}
+      <DashboardSubNav />
+
       {anyPartial && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
           Risk scores may be incomplete — some signals failed to load. Check server logs for details.
@@ -177,7 +201,11 @@ export default async function UnifiedDashboardPage() {
       {/* Coverage section — full surface absorbed from the old /sonar/posture
           landing in v1.37 R2. Sits at the top of the morning overview so it's
           the first thing the user sees. */}
-      <section aria-labelledby="dashboard-coverage-heading" className="space-y-6">
+      <section
+        id="section-coverage"
+        aria-labelledby="dashboard-coverage-heading"
+        className="space-y-6 scroll-mt-16"
+      >
         <h2
           id="dashboard-coverage-heading"
           className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
@@ -256,7 +284,11 @@ export default async function UnifiedDashboardPage() {
           coverage because coverage is the user's primary morning question
           ("am I covered?") and cross-modality is the deeper drill ("which
           partners are degraded?"). */}
-      <section aria-labelledby="dashboard-overview-heading" className="space-y-6">
+      <section
+        id="section-cross-modality"
+        aria-labelledby="dashboard-overview-heading"
+        className="space-y-6 scroll-mt-16"
+      >
         <h2
           id="dashboard-overview-heading"
           className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
@@ -272,6 +304,22 @@ export default async function UnifiedDashboardPage() {
         />
         <ModalityLens partners={data.crossModality?.partners ?? []} />
         <CrossModalityTable partners={data.crossModality?.partners ?? []} />
+      </section>
+
+      {/* Activity feed — split out of the cross-modality section so it gets
+          its own sub-nav anchor (v1.37 polish item 3). The feed is the
+          third major surface on the dashboard. */}
+      <section
+        id="section-activity"
+        aria-labelledby="dashboard-activity-heading"
+        className="space-y-6 scroll-mt-16"
+      >
+        <h2
+          id="dashboard-activity-heading"
+          className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
+        >
+          Activity
+        </h2>
         <ActivityFeed initial={data.initialActivity} />
       </section>
     </div>
