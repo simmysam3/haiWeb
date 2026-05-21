@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,11 +22,16 @@ interface ComplianceCounts {
 }
 
 function ComplianceNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
-  const { data } = useSWR<ComplianceCounts>(
+  const { data, error } = useSWR<ComplianceCounts>(
     "/api/sonar/compliance/requests/counts",
     jsonFetcher,
     { refreshInterval: 15_000 },
   );
+  useEffect(() => {
+    if (error) {
+      console.warn("[ComplianceNavItem] count poll failed", error);
+    }
+  }, [error]);
   return (
     <Link
       href={item.href}
@@ -42,6 +48,13 @@ function ComplianceNavItem({ item, isActive }: { item: NavItem; isActive: boolea
         count={data?.awaiting_me_count ?? 0}
         oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
       />
+      {error && (
+        <span
+          className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-400"
+          title="Live updates paused"
+          aria-label="Live updates paused"
+        />
+      )}
     </Link>
   );
 }
