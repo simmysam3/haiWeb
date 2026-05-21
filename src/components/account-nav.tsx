@@ -8,7 +8,10 @@ import useSWR from "swr";
 import { jsonFetcher } from "@/lib/swr-fetcher";
 import { NavBadge } from "./nav-badge";
 
-const COMPLIANCE_HREF = "/account/sonar/compliance";
+// v1.37: Sonar IA split — the bilateral-request inbox lives at
+// /account/sonar/requests (Active queue is the section default). The
+// awaiting-me badge polls the same BFF route (counts haven't moved).
+const REQUESTS_HREF = "/account/sonar/requests";
 
 interface NavItem {
   href: string;
@@ -16,20 +19,20 @@ interface NavItem {
   indent?: boolean;
 }
 
-interface ComplianceCounts {
+interface RequestManagementCounts {
   awaiting_me_count: number;
   oldest_awaiting_me_age_days: number | null;
 }
 
-function ComplianceNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
-  const { data, error } = useSWR<ComplianceCounts>(
+function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const { data, error } = useSWR<RequestManagementCounts>(
     "/api/sonar/compliance/requests/counts",
     jsonFetcher,
     { refreshInterval: 15_000 },
   );
   useEffect(() => {
     if (error) {
-      console.warn("[ComplianceNavItem] count poll failed", error);
+      console.warn("[RequestManagementNavItem] count poll failed", error);
     }
   }, [error]);
   return (
@@ -79,8 +82,13 @@ const navSections: NavSection[] = [
   {
     label: "Sonar",
     items: [
+      // v1.37: Compliance was split into Request Management + Posture. Order
+      // matches the user-facing nav contract: Request Management first
+      // (default Active queue), then Posture (default Coverage), then the
+      // existing Dashboard / Observations / Reports.
+      { href: REQUESTS_HREF, label: "Request Management" },
+      { href: "/account/sonar/posture", label: "Posture" },
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
-      { href: COMPLIANCE_HREF, label: "Compliance" },
       { href: "/account/sonar/observations", label: "Observations" },
       { href: "/account/sonar/reports", label: "Reports" },
     ],
@@ -157,9 +165,9 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
             </div>
             {section.items.map((item) => {
               const isActive = isItemActive(item);
-              if (item.href === COMPLIANCE_HREF) {
+              if (item.href === REQUESTS_HREF) {
                 return (
-                  <ComplianceNavItem key={item.href} item={item} isActive={isActive} />
+                  <RequestManagementNavItem key={item.href} item={item} isActive={isActive} />
                 );
               }
               return (

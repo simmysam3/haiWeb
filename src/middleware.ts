@@ -4,13 +4,19 @@ import { shouldRefreshSession } from "@/lib/session-refresh";
 
 // v1.30 §10: 301 redirects from pre-Sonar URLs to the unified Observations page.
 // Rules are ordered most-specific-first; first match wins.
+//
+// v1.37 IA split — Compliance was decomposed into two top-level Sonar
+// sections: Request Management (`/account/sonar/requests/*`) and Posture
+// (`/account/sonar/posture/*`). The legacy `/account/sonar/compliance/*`
+// paths are redirected here. Earlier rules (v1.30/v1.34/v1.35) were
+// retargeted to the NEW v1.37 URLs to preserve the single-301-hop
+// invariant the redirect tests enforce.
 const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
-  // v1.35: legacy pre-v1.27 monitoring URL retargeted to Request Management
-  // (was v1.30 Observations; v1.35 Request Management owns inbound nominations
-  // awaiting this org's response).
+  // v1.35→v1.37: legacy pre-v1.27 monitoring URL retargeted to the v1.37
+  // Request Management active queue (was the v1.35 /compliance/requests URL).
   {
     from: /^\/account\/monitoring\/audit-nominations(\/.*)?$/,
-    to: () => '/account/sonar/compliance/requests?awaiting=me&type=nomination',
+    to: () => '/account/sonar/requests?awaiting=me&type=nomination',
   },
   // Pre-v1.27 phantom-demand paths (if any v1.21 surface URLs still get hit)
   {
@@ -24,38 +30,37 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/phantom-demand(\/dashboard)?\/?$/,
     to: () => '/account/sonar/observations?tab=phantom_demand',
   },
-  // v1.35 — new-nomination form moved into Request Management.
+  // v1.35→v1.37 — new-nomination form lives at /sonar/requests/new-nomination.
   // Listed BEFORE the bare /posture/nominations rule so the more-specific
   // /new path wins (the bare rule's `\/?$` anchor already prevents it from
   // matching /new, but explicit ordering keeps the intent legible).
   {
     from: /^\/account\/sonar\/compliance\/posture\/nominations\/new\/?$/,
-    to: () => '/account/sonar/compliance/requests/new-nomination',
+    to: () => '/account/sonar/requests/new-nomination',
   },
-  // v1.35 — outbound nominations page consolidated into Request Management.
+  // v1.35→v1.37 — outbound nominations page = the awaiting-them filter on
+  // the Request Management active queue.
   {
     from: /^\/account\/sonar\/compliance\/posture\/nominations\/?$/,
     to: () =>
-      '/account/sonar/compliance/requests?awaiting=them&type=nomination',
+      '/account/sonar/requests?awaiting=them&type=nomination',
   },
-  // v1.34 §12.1: legacy /account/sonar/audit/* → /account/sonar/compliance/*.
-  // Specific surfaces first; the catch-all rewrite must stay LAST so the
-  // remapped /dashboard, /nominations and /downstream-gaps targets win.
+  // v1.34→v1.37 §12.1: legacy /account/sonar/audit/* now lands on the v1.37
+  // Posture/Request-Management split. Specific surfaces first; the catch-all
+  // /audit rewrite stays LAST and is bypassed by every preceding rule.
   {
     from: /^\/account\/sonar\/audit\/dashboard\/?$/,
-    to: () => '/account/sonar/compliance/posture/coverage',
+    to: () => '/account/sonar/posture',
   },
-  // v1.34 nominations rule rewritten in v1.35 to land directly on Request
-  // Management (was: /compliance/posture/nominations which v1.35 then
-  // 301s onward — avoid the double-301 chain).
+  // v1.34→v1.37: /audit/nominations* lands directly on Request Management.
   {
     from: /^\/account\/sonar\/audit\/nominations(\/.*)?$/,
     to: (p) => {
       // /…/nominations/new (and anything else under /new/) → new-nomination
       if (/\/new(\/.*)?$/.test(p)) {
-        return '/account/sonar/compliance/requests/new-nomination';
+        return '/account/sonar/requests/new-nomination';
       }
-      return '/account/sonar/compliance/requests?awaiting=them&type=nomination';
+      return '/account/sonar/requests?awaiting=them&type=nomination';
     },
   },
   {
@@ -63,16 +68,114 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     to: (p) =>
       p.replace(
         /^\/account\/sonar\/audit\/downstream-gaps/,
-        '/account/sonar/compliance/posture/obligations',
+        '/account/sonar/posture/obligations',
+      ),
+  },
+  // v1.34→v1.37: /audit/runs|reports|trust-bypass land on their v1.37 homes.
+  // Listed BEFORE the generic /audit catch-all so the specific routes win.
+  {
+    from: /^\/account\/sonar\/audit\/runs(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/audit\/runs/,
+        '/account/sonar/posture/runs',
       ),
   },
   {
-    from: /^\/account\/sonar\/audit(\/.*)?$/,
+    from: /^\/account\/sonar\/audit\/reports(\/.*)?$/,
     to: (p) =>
       p.replace(
-        /^\/account\/sonar\/audit/,
-        '/account/sonar/compliance',
+        /^\/account\/sonar\/audit\/reports/,
+        '/account/sonar/reports',
       ),
+  },
+  {
+    from: /^\/account\/sonar\/audit\/trust-bypass(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/audit\/trust-bypass/,
+        '/account/sonar/posture/trust-bypass',
+      ),
+  },
+  // v1.34 catch-all (everything else under /audit) → v1.37 posture root.
+  // Last in the /audit cluster so the specific rules above win.
+  {
+    from: /^\/account\/sonar\/audit(\/.*)?$/,
+    to: () => '/account/sonar/posture',
+  },
+  // ───────────── v1.37 §1: /sonar/compliance/* → split sections ─────────────
+  // Order: most-specific FIRST. The bare /compliance prefix collapses to
+  // Request Management (active queue is the user-facing default landing).
+  // Sub-paths are rewritten via String#replace so query strings + nested
+  // segments (e.g. /requests/declined?days=30) survive.
+  //
+  // v1.37 — evidence draft/responses moved under Request Management.
+  {
+    from: /^\/account\/sonar\/compliance\/evidence(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/evidence/,
+        '/account/sonar/requests/evidence',
+      ),
+  },
+  // v1.37 — Posture coverage IS the section root, so /posture/coverage* and
+  // bare /posture both collapse to /sonar/posture. Listed BEFORE the
+  // generic /posture catch-all so the coverage→root mapping wins.
+  {
+    from: /^\/account\/sonar\/compliance\/posture\/coverage\/?$/,
+    to: () => '/account/sonar/posture',
+  },
+  // v1.37 — all other Posture sub-routes (working-list, changes, obligations).
+  {
+    from: /^\/account\/sonar\/compliance\/posture(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/posture/,
+        '/account/sonar/posture',
+      ),
+  },
+  // v1.37 — runs moved under Posture (audit history).
+  {
+    from: /^\/account\/sonar\/compliance\/runs(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/runs/,
+        '/account/sonar/posture/runs',
+      ),
+  },
+  // v1.37 — report detail pages moved to the top-level Reports section.
+  {
+    from: /^\/account\/sonar\/compliance\/reports(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/reports/,
+        '/account/sonar/reports',
+      ),
+  },
+  // v1.37 — trust-bypass moved under Posture.
+  {
+    from: /^\/account\/sonar\/compliance\/trust-bypass(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/trust-bypass/,
+        '/account/sonar/posture/trust-bypass',
+      ),
+  },
+  // v1.37 — requests (Active queue + Declined + new-nomination) moved up.
+  {
+    from: /^\/account\/sonar\/compliance\/requests(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/compliance\/requests/,
+        '/account/sonar/requests',
+      ),
+  },
+  // v1.37 catch-all — the bare /compliance hub is gone; lands users on the
+  // Request Management active queue (the default landing page). Last in
+  // the /compliance cluster so every specific rule above wins.
+  {
+    from: /^\/account\/sonar\/compliance(\/.*)?$/,
+    to: () => '/account/sonar/requests',
   },
 ];
 

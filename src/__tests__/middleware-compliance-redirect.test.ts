@@ -16,38 +16,41 @@ function run(path: string) {
   return middleware(new NextRequest(`http://localhost:3001${path}`));
 }
 
-describe('middleware — v1.34 sonar/audit → sonar/compliance 301 redirects', () => {
+// v1.34 introduced /audit/* → /compliance/* redirects. v1.37 retargeted
+// those destinations to the new IA URLs (/sonar/requests and /sonar/posture)
+// so users land directly on the new home in a single 301 hop — no chain
+// through the legacy /compliance prefix.
+describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects', () => {
   it.each([
     [
       '/account/sonar/audit/dashboard',
-      '/account/sonar/compliance/posture/coverage',
+      '/account/sonar/posture',
     ],
-    // v1.35: the v1.34 nominations rules now land DIRECTLY on Request
-    // Management instead of /compliance/posture/nominations* (which v1.35
-    // would otherwise 301 onward, creating a double-301 chain).
+    // v1.35 carried these directly to Request Management; v1.37 swapped the
+    // /compliance/requests target for the new /sonar/requests URL.
     [
       '/account/sonar/audit/nominations',
-      '/account/sonar/compliance/requests?awaiting=them&type=nomination',
+      '/account/sonar/requests?awaiting=them&type=nomination',
     ],
     [
       '/account/sonar/audit/nominations/new',
-      '/account/sonar/compliance/requests/new-nomination',
+      '/account/sonar/requests/new-nomination',
     ],
     [
       '/account/sonar/audit/downstream-gaps',
-      '/account/sonar/compliance/posture/obligations',
+      '/account/sonar/posture/obligations',
     ],
     [
       '/account/sonar/audit/runs/abc',
-      '/account/sonar/compliance/runs/abc',
+      '/account/sonar/posture/runs/abc',
     ],
     [
       '/account/sonar/audit/trust-bypass',
-      '/account/sonar/compliance/trust-bypass',
+      '/account/sonar/posture/trust-bypass',
     ],
     [
       '/account/sonar/audit/reports/r1/vendor/v1',
-      '/account/sonar/compliance/reports/r1/vendor/v1',
+      '/account/sonar/reports/r1/vendor/v1',
     ],
   ])('301s %s → %s', async (from, to) => {
     const res = await run(from);
@@ -68,34 +71,78 @@ describe('middleware — v1.34 sonar/audit → sonar/compliance 301 redirects', 
     const res = await run('/account/sonar/audit/runs/abc?x=1');
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
-    expect(loc.pathname).toBe('/account/sonar/compliance/runs/abc');
+    expect(loc.pathname).toBe('/account/sonar/posture/runs/abc');
     expect(loc.searchParams.get('x')).toBeNull();
   });
 
-  // v1.35: the v1.34 nominations rules were rewritten to land DIRECTLY on
-  // Request Management — there must be exactly one 301 hop, not the
-  // double-301 chain we'd get if they still pointed at /posture/nominations*.
-  describe('v1.35 chain-collapse: nominations resolve in a single 301', () => {
-    it('/account/sonar/audit/nominations → single 301 to requests?awaiting=them&type=nomination', async () => {
+  // v1.37: the v1.34/v1.35 chain through /compliance was collapsed — these
+  // legacy URLs now resolve in a SINGLE 301 hop to the new IA destination.
+  describe('v1.37 chain-collapse: /audit/* lands in one hop', () => {
+    it('/account/sonar/audit/nominations → single 301 to /requests?awaiting=them&type=nomination', async () => {
       const res = await run('/account/sonar/audit/nominations');
       expect(res.status).toBe(301);
       const loc = new URL(res.headers.get('location')!);
       expect(`${loc.pathname}${loc.search}`).toBe(
-        '/account/sonar/compliance/requests?awaiting=them&type=nomination',
+        '/account/sonar/requests?awaiting=them&type=nomination',
       );
       // Critically, the target itself must not match any redirect rule —
       // otherwise we'd be back to a double-301 chain.
       expect(applyRedirects(loc.pathname)).toBeNull();
     });
 
-    it('/account/sonar/audit/nominations/new → single 301 to requests/new-nomination', async () => {
+    it('/account/sonar/audit/nominations/new → single 301 to /requests/new-nomination', async () => {
       const res = await run('/account/sonar/audit/nominations/new');
       expect(res.status).toBe(301);
       const loc = new URL(res.headers.get('location')!);
       expect(loc.pathname).toBe(
-        '/account/sonar/compliance/requests/new-nomination',
+        '/account/sonar/requests/new-nomination',
       );
       expect(applyRedirects(loc.pathname)).toBeNull();
     });
+  });
+});
+
+// v1.37: legacy /compliance/* surfaces redirect to the new split sections.
+// These are NextRequest-driven integration tests (the per-rule unit tests
+// live in middleware.test.ts); we sample each section's prefix to verify
+// the wiring works end-to-end through the response Location header.
+describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
+  it.each([
+    ['/account/sonar/compliance', '/account/sonar/requests'],
+    [
+      '/account/sonar/compliance/requests/declined',
+      '/account/sonar/requests/declined',
+    ],
+    [
+      '/account/sonar/compliance/evidence/responses/abc',
+      '/account/sonar/requests/evidence/responses/abc',
+    ],
+    [
+      '/account/sonar/compliance/posture/coverage',
+      '/account/sonar/posture',
+    ],
+    [
+      '/account/sonar/compliance/posture/working-list',
+      '/account/sonar/posture/working-list',
+    ],
+    [
+      '/account/sonar/compliance/runs/abc',
+      '/account/sonar/posture/runs/abc',
+    ],
+    [
+      '/account/sonar/compliance/trust-bypass',
+      '/account/sonar/posture/trust-bypass',
+    ],
+    [
+      '/account/sonar/compliance/reports/r-1',
+      '/account/sonar/reports/r-1',
+    ],
+  ])('301s %s → %s in a single hop', async (from, to) => {
+    const res = await run(from);
+    expect(res.status).toBe(301);
+    const loc = new URL(res.headers.get('location')!);
+    expect(loc.pathname).toBe(to);
+    // Single-hop invariant: the destination must not itself redirect.
+    expect(applyRedirects(loc.pathname)).toBeNull();
   });
 });
