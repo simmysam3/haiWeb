@@ -88,8 +88,9 @@ const navSections: NavSection[] = [
   },
   {
     // v1.39: Observe surface: Dashboard, Request Management, Posture,
-    // Observations, Configurations (templates). Reports dropped (removed in
-    // v1.40; route still exists but is no longer linked from nav).
+    // Observations, Configurations (templates). Reports dropped — the
+    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
+    // 301-redirects to /account/sonar/audit.
     label: "Sonar Observe",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
