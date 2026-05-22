@@ -18,10 +18,7 @@ describe('RunControls', () => {
     render(<RunControls />);
     expect(screen.getByRole('button', { name: /run audit now/i })).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /new audit/i });
-    expect(link).toHaveAttribute(
-      'href',
-      '/account/sonar/templates/new?observation_class=audit',
-    );
+    expect(link).toHaveAttribute('href', '/account/sonar/audit/new');
   });
 
   it('POSTs a valid company-scoped run trigger (haiCore POST /runs is a discriminated union on scope_type)', async () => {
