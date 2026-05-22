@@ -80,18 +80,23 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Sonar",
+    // v1.39: Sonar IA split — audit surface separated from observe surface.
+    label: "Sonar Audit",
     items: [
-      // v1.37: Compliance was split into Request Management + Posture. Order
-      // matches the user-facing nav contract: Request Management first
-      // (default Active queue), then Posture (default Working List in R2;
-      // the full Coverage surface moved to Sonar Dashboard), then the
-      // existing Dashboard / Observations / Reports.
+      { href: "/account/sonar/audit", label: "Audits" },
+    ],
+  },
+  {
+    // v1.39: Observe surface: Dashboard, Request Management, Posture,
+    // Observations, Configurations (templates). Reports dropped (removed in
+    // v1.40; route still exists but is no longer linked from nav).
+    label: "Sonar Observe",
+    items: [
+      { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
       { href: REQUESTS_HREF, label: "Request Management" },
       { href: "/account/sonar/posture", label: "Posture" },
-      { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
       { href: "/account/sonar/observations", label: "Observations" },
-      { href: "/account/sonar/reports", label: "Reports" },
+      { href: "/account/sonar/templates", label: "Configurations" },
     ],
   },
   {
