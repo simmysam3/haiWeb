@@ -51,7 +51,8 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
   it('returns { run, dispatched_responses: [] } — list items carry no run-linking field in v.1.39', async () => {
     (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    // Even if responses exist, none can be linked to this run (no linking field)
+    // Even if responses exist, none can be linked to this run (no linking field),
+    // so the route no longer fetches them at all — it returns [] directly (forward seam).
     (globalThis as any).__mockClient.listEvidenceResponses.mockResolvedValue({
       responses: [MOCK_RESPONSE_ITEM],
     });
@@ -68,7 +69,9 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
     // No run-linking field → always [] in v.1.39
     expect(body.dispatched_responses).toEqual([]);
     expect((globalThis as any).__mockClient.getAuditRun).toHaveBeenCalledWith(RUN_ID);
-    expect((globalThis as any).__mockClient.listEvidenceResponses).toHaveBeenCalled();
+    // Forward seam: the route returns [] WITHOUT fetching responses (the wasted
+    // listEvidenceResponses call was removed — re-add once a run-link field exists).
+    expect((globalThis as any).__mockClient.listEvidenceResponses).not.toHaveBeenCalled();
   });
 
   it('returns dispatched_responses: [] when response list is empty', async () => {
