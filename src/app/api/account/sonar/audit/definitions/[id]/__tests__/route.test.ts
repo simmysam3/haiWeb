@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+const getRunTemplate = vi.fn();
 const updateRunTemplate = vi.fn();
 const deleteRunTemplate = vi.fn();
 const triggerRunTemplate = vi.fn();
@@ -8,7 +9,7 @@ const triggerRunTemplate = vi.fn();
 vi.mock('@/lib/with-hai-core', () => ({
   withHaiCore: (handler: (ctx: unknown) => unknown) =>
     async (request: NextRequest, routeCtx: { params: Promise<{ id: string }> }) => {
-      const client = { updateRunTemplate, deleteRunTemplate, triggerRunTemplate };
+      const client = { getRunTemplate, updateRunTemplate, deleteRunTemplate, triggerRunTemplate };
       return handler({
         client,
         request,
@@ -19,12 +20,26 @@ vi.mock('@/lib/with-hai-core', () => ({
 }));
 
 beforeEach(() => {
+  getRunTemplate.mockReset();
   updateRunTemplate.mockReset();
   deleteRunTemplate.mockReset();
   triggerRunTemplate.mockReset();
 });
 
 const baseUrl = 'http://localhost/api/account/sonar/audit/definitions';
+
+describe('GET /api/account/sonar/audit/definitions/[id]', () => {
+  it('calls getRunTemplate with the id and returns the result', async () => {
+    getRunTemplate.mockResolvedValue({ template: { template_id: 'def-get-1' } });
+    const { GET } = await import('../route');
+    const res = await GET(
+      new NextRequest(`${baseUrl}/def-get-1`, { method: 'GET' }),
+      { params: Promise.resolve({ id: 'def-get-1' }) },
+    );
+    expect(await res.json()).toEqual({ template: { template_id: 'def-get-1' } });
+    expect(getRunTemplate).toHaveBeenCalledWith('def-get-1');
+  });
+});
 
 describe('PATCH /api/account/sonar/audit/definitions/[id]', () => {
   it('forwards the body to updateRunTemplate with the id', async () => {
