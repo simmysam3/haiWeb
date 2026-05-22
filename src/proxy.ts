@@ -11,6 +11,23 @@ import { shouldRefreshSession } from "@/lib/session-refresh";
 // paths are redirected here. Earlier rules (v1.30/v1.34/v1.35) were
 // retargeted to the NEW v1.37 URLs to preserve the single-301-hop
 // invariant the redirect tests enforce.
+// v1.40 helper — the legacy `/reports[/<run_id>[/vendor/<vendor_id>]]` shape
+// collapses to the v1.39 Audits surface: `/account/sonar/audit[/<run_id>]`.
+// There is NO `/audit/<run_id>/vendor/<vendor_id>` page, so any vendor tail
+// is stripped (a naive prefix-replace would 301 into a 404). `suffix` is the
+// part of the path AFTER the `/reports` segment (e.g. '', '/run-1', or
+// '/run-1/vendor/v-1'). Shared by the bare /reports rule and the two
+// retargeted legacy rules (/audit/reports, /compliance/reports) so the
+// collapse logic lives in one place.
+function reportsPathToAudit(suffix: string): string {
+  // First path segment after /reports (if any) is the run_id; drop the rest.
+  const match = suffix.match(/^\/([^/]+)/);
+  const runId = match?.[1];
+  return runId
+    ? `/account/sonar/audit/${runId}`
+    : '/account/sonar/audit';
+}
+
 const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   // v1.35→v1.37: legacy pre-v1.27 monitoring URL retargeted to the v1.37
   // Request Management active queue (was the v1.35 /compliance/requests URL).
@@ -90,12 +107,15 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
         '/account/sonar/posture/runs',
       ),
   },
+  // v1.40 retarget — this used to land on /account/sonar/reports, but v1.40
+  // makes /sonar/reports a redirect source, which would create an illegal
+  // 2-hop chain. Repoint straight to the FINAL /sonar/audit* destination
+  // (with vendor collapse) so the hop stays single.
   {
     from: /^\/account\/sonar\/audit\/reports(\/.*)?$/,
     to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/audit\/reports/,
-        '/account/sonar/reports',
+      reportsPathToAudit(
+        p.replace(/^\/account\/sonar\/audit\/reports/, ''),
       ),
   },
   {
@@ -106,26 +126,34 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
         '/account/sonar/posture/trust-bypass',
       ),
   },
-  // v1.34 catch-all (everything else under /audit) → v1.37 posture root.
-  // Last in the /audit cluster so the specific rules above win.
-  {
-    from: /^\/account\/sonar\/audit(\/.*)?$/,
-    to: () => '/account/sonar/posture',
-  },
+  // v1.39 — `/account/sonar/audit` is now the LIVE Audits section (bare
+  // /audit, /audit/new, /audit/[run_id], /audit/definitions/[template_id]).
+  // The stale v1.34 catch-all that 301'd everything under /audit to /posture
+  // was removed: it shadowed these real pages and made every v1.40 redirect
+  // target (which lands on /audit*) non-terminal, breaking the single-301-hop
+  // invariant. The six specific /audit/<subpath> legacy rules ABOVE still map
+  // retired sub-paths to their real homes; unknown /audit/* now 404s (correct
+  // for a live section). Live /audit* URLs match no rule and are terminal.
   // ───────────── v1.37 §1: /sonar/compliance/* → split sections ─────────────
   // Order: most-specific FIRST. The bare /compliance prefix collapses to
   // Request Management (active queue is the user-facing default landing).
   // Sub-paths are rewritten via String#replace so query strings + nested
   // segments (e.g. /requests/declined?days=30) survive.
   //
-  // v1.37 — evidence draft/responses moved under Request Management.
+  // v1.37 → v1.40 retarget — evidence draft/responses were retired in v1.40.
+  // This rule used to land on /account/sonar/requests/evidence/*, but those
+  // URLs are now redirect sources themselves (see the v1.40 cluster below),
+  // which would create an illegal 2-hop chain. Repoint straight to the FINAL
+  // v1.39 Audits destination: /new → /audit/new; responses (with or without a
+  // response_id) → /audit (no run↔response backfill exists, so the id drops).
   {
     from: /^\/account\/sonar\/compliance\/evidence(\/.*)?$/,
-    to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/compliance\/evidence/,
-        '/account/sonar/requests/evidence',
-      ),
+    to: (p) => {
+      const suffix = p.replace(/^\/account\/sonar\/compliance\/evidence/, '');
+      return /^\/new(\/.*)?$/.test(suffix)
+        ? '/account/sonar/audit/new'
+        : '/account/sonar/audit';
+    },
   },
   // v1.37 R2 — Coverage moved out of Posture and into the Sonar Dashboard.
   // Legacy /compliance/posture/coverage now lands directly on the new home
@@ -160,13 +188,15 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
         '/account/sonar/posture/runs',
       ),
   },
-  // v1.37 — report detail pages moved to the top-level Reports section.
+  // v1.37 → v1.40 retarget — report detail pages were retired in v1.40 (the
+  // /sonar/reports section they pointed at is now a redirect source). Repoint
+  // straight to the FINAL /sonar/audit* destination (vendor collapse) to keep
+  // the single-301-hop invariant.
   {
     from: /^\/account\/sonar\/compliance\/reports(\/.*)?$/,
     to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/compliance\/reports/,
-        '/account/sonar/reports',
+      reportsPathToAudit(
+        p.replace(/^\/account\/sonar\/compliance\/reports/, ''),
       ),
   },
   // v1.37 — trust-bypass moved under Posture.
@@ -193,6 +223,44 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   {
     from: /^\/account\/sonar\/compliance(\/.*)?$/,
     to: () => '/account/sonar/requests',
+  },
+  // ───────────── v1.40 Sonar Audit retirements ─────────────
+  // Three old Sonar surfaces are retired and 301 to the v1.39 Audits section:
+  //   • /account/sonar/reports[/<run_id>[/vendor/<vendor_id>]]
+  //   • /account/sonar/requests/evidence/new
+  //   • /account/sonar/requests/evidence/responses[/<response_id>]
+  // Ordered most-specific FIRST so the vendor rule wins over the bare-reports
+  // prefix rule. Every destination is terminal (matches no `from` regex) so
+  // the single-301-hop invariant holds. NOTE: the legacy /audit/reports,
+  // /compliance/reports, and /compliance/evidence rules ABOVE were retargeted
+  // to /sonar/audit* directly for the same reason — they used to point into
+  // these now-retired surfaces.
+
+  // /reports vendor sub-page — retired with NO audit successor. There is no
+  // /audit/<run_id>/vendor/<vendor_id> page, so collapse the vendor segment to
+  // the run-detail page. MUST precede the bare /reports rule below.
+  {
+    from: /^\/account\/sonar\/reports\/[^/]+\/vendor\/[^/]+\/?$/,
+    to: (p) =>
+      reportsPathToAudit(p.replace(/^\/account\/sonar\/reports/, '')),
+  },
+  // /reports and /reports/<run_id> → /audit[/<run_id>].
+  {
+    from: /^\/account\/sonar\/reports(\/.*)?$/,
+    to: (p) =>
+      reportsPathToAudit(p.replace(/^\/account\/sonar\/reports/, '')),
+  },
+  // Evidence draft form retired → the new-audit form.
+  {
+    from: /^\/account\/sonar\/requests\/evidence\/new\/?$/,
+    to: () => '/account/sonar/audit/new',
+  },
+  // Evidence responses (list + per-response detail) retired → Audits. A
+  // high-fidelity response_id→run_id mapping was deferred (no backfill), so
+  // both the list and any /<response_id> land on the Audits page.
+  {
+    from: /^\/account\/sonar\/requests\/evidence\/responses(\/.*)?$/,
+    to: () => '/account/sonar/audit',
   },
 ];
 

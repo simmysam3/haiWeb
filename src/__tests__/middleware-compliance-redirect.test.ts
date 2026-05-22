@@ -48,9 +48,12 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
       '/account/sonar/audit/trust-bypass',
       '/account/sonar/posture/trust-bypass',
     ],
+    // v1.40: /audit/reports/* legacy rule retargeted straight to /sonar/audit*
+    // (the old /sonar/reports intermediary is now itself a redirect source).
+    // The vendor sub-path collapses to the run-detail page.
     [
       '/account/sonar/audit/reports/r1/vendor/v1',
-      '/account/sonar/reports/r1/vendor/v1',
+      '/account/sonar/audit/r1',
     ],
   ])('301s %s → %s', async (from, to) => {
     const res = await run(from);
@@ -113,9 +116,12 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/requests/declined',
       '/account/sonar/requests/declined',
     ],
+    // v1.40: evidence responses retired. The legacy /compliance/evidence rule
+    // is retargeted to the v1.39 Audits section in one hop (no run↔response
+    // backfill exists, so the response_id is dropped — pragmatic fallback).
     [
       '/account/sonar/compliance/evidence/responses/abc',
-      '/account/sonar/requests/evidence/responses/abc',
+      '/account/sonar/audit',
     ],
     [
       '/account/sonar/compliance/posture/coverage',
@@ -133,9 +139,10 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/trust-bypass',
       '/account/sonar/posture/trust-bypass',
     ],
+    // v1.40: /compliance/reports/* retargeted straight to /sonar/audit*.
     [
       '/account/sonar/compliance/reports/r-1',
-      '/account/sonar/reports/r-1',
+      '/account/sonar/audit/r-1',
     ],
   ])('301s %s → %s in a single hop', async (from, to) => {
     const res = await run(from);

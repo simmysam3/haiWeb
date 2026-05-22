@@ -86,18 +86,21 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/requests/new-nomination',
       '/account/sonar/requests/new-nomination',
     ],
-    // evidence draft/responses moved under Request Management
+    // v1.40: evidence draft/responses retired. The legacy /compliance/evidence
+    // rule is retargeted past the (now-redirecting) /requests/evidence URLs
+    // straight to the v1.39 Audits section, preserving the single-301-hop
+    // invariant. /new → /audit/new; responses (with or without id) → /audit.
     [
       '/account/sonar/compliance/evidence/new',
-      '/account/sonar/requests/evidence/new',
+      '/account/sonar/audit/new',
     ],
     [
       '/account/sonar/compliance/evidence/responses',
-      '/account/sonar/requests/evidence/responses',
+      '/account/sonar/audit',
     ],
     [
       '/account/sonar/compliance/evidence/responses/abc-123',
-      '/account/sonar/requests/evidence/responses/abc-123',
+      '/account/sonar/audit',
     ],
     // v1.37 R2 — posture/coverage moved to /sonar/dashboard (coverage left
     // the Posture section in the second v1.37 restructure)
@@ -141,14 +144,17 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/trust-bypass',
       '/account/sonar/posture/trust-bypass',
     ],
-    // report detail pages moved up to top-level /reports
+    // v1.40: report detail pages retired. Legacy /compliance/reports/* now
+    // collapses straight to the v1.39 Audits surface in a single hop (the
+    // old /sonar/reports intermediary is itself a redirect source as of v1.40).
     [
       '/account/sonar/compliance/reports/run-1',
-      '/account/sonar/reports/run-1',
+      '/account/sonar/audit/run-1',
     ],
+    // vendor sub-path collapses to the run-detail page (no audit vendor page)
     [
       '/account/sonar/compliance/reports/run-1/vendor/v-1',
-      '/account/sonar/reports/run-1/vendor/v-1',
+      '/account/sonar/audit/run-1',
     ],
   ])('301s %s → %s and target is terminal (no chain)', (from, to) => {
     expect(applyRedirects(from)).toBe(to);
@@ -157,5 +163,62 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
     // the pathname; queries are appended literally to the rewrite target).
     const destPath = to.split('?')[0];
     expect(applyRedirects(destPath)).toBeNull();
+  });
+});
+
+// v1.40: three old Sonar surfaces are retired and 301 to the v1.39 Audits
+// section. The bare /sonar/reports prefix becomes a redirect source, so two
+// pre-existing legacy rules (/audit/reports + /compliance/reports) that used
+// to land on /sonar/reports are retargeted to /sonar/audit* directly to keep
+// the single-301-hop invariant. All targets must be terminal.
+describe('v1.40 Sonar Audit retirements — /reports + /requests/evidence/*', () => {
+  it.each([
+    // /sonar/reports cluster → /sonar/audit (vendor sub-path collapses to run)
+    ['/account/sonar/reports', '/account/sonar/audit'],
+    ['/account/sonar/reports/run-1', '/account/sonar/audit/run-1'],
+    [
+      '/account/sonar/reports/run-1/vendor/v-1',
+      '/account/sonar/audit/run-1',
+    ],
+    // /requests/evidence/* retired → Audits
+    ['/account/sonar/requests/evidence/new', '/account/sonar/audit/new'],
+    [
+      '/account/sonar/requests/evidence/responses',
+      '/account/sonar/audit',
+    ],
+    // response_id→run_id mapping not available; pragmatic fallback to Audits
+    [
+      '/account/sonar/requests/evidence/responses/resp-1',
+      '/account/sonar/audit',
+    ],
+    // retargeted legacy rules now land on /sonar/audit* in a single hop
+    ['/account/sonar/audit/reports', '/account/sonar/audit'],
+    ['/account/sonar/audit/reports/run-1', '/account/sonar/audit/run-1'],
+    [
+      '/account/sonar/audit/reports/run-1/vendor/v-1',
+      '/account/sonar/audit/run-1',
+    ],
+    ['/account/sonar/compliance/reports', '/account/sonar/audit'],
+  ])('301s %s → %s in a single hop', (from, to) => {
+    expect(applyRedirects(from)).toBe(to);
+    const destPath = to.split('?')[0];
+    expect(applyRedirects(destPath)).toBeNull();
+  });
+});
+
+// v1.39 — `/account/sonar/audit` is the LIVE Audits section, not a retired
+// surface. The stale v1.34 catch-all (`/audit/* → /posture`) was removed in
+// v1.40; the bare /audit URL and its real sub-pages must NOT match any
+// redirect rule (a redirect would shadow the live pages AND make the v1.40
+// redirect targets non-terminal). The six specific /audit/<subpath> legacy
+// rules still fire, but they don't collide with these live URLs.
+describe('v1.39 live Audits surface — /audit* URLs are terminal (no redirect)', () => {
+  it.each([
+    '/account/sonar/audit',
+    '/account/sonar/audit/new',
+    '/account/sonar/audit/some-run-id',
+    '/account/sonar/audit/definitions/some-id',
+  ])('%s resolves to null (terminal)', (url) => {
+    expect(applyRedirects(url)).toBeNull();
   });
 });
