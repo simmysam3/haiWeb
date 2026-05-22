@@ -76,13 +76,14 @@ export function HistoryQueue({ initialRows }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
+        {/* Shared 6-col grid — kept identical to scheduled-queue for vertical alignment */}
         <colgroup>
           <col style={{ width: '28%' }} />
-          <col style={{ width: '14%' }} />
           <col style={{ width: '16%' }} />
+          <col style={{ width: '20%' }} />
           <col style={{ width: '16%' }} />
-          <col style={{ width: '14%' }} />
           <col style={{ width: '12%' }} />
+          <col style={{ width: '8%' }} />
         </colgroup>
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wider text-slate">

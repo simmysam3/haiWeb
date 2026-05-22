@@ -41,12 +41,13 @@ export function ScheduledQueue({ rows }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
+        {/* Shared 6-col grid — kept identical to history-queue for vertical alignment */}
         <colgroup>
           <col style={{ width: '28%' }} />
-          <col style={{ width: '18%' }} />
-          <col style={{ width: '22%' }} />
           <col style={{ width: '16%' }} />
-          <col style={{ width: '8%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '16%' }} />
+          <col style={{ width: '12%' }} />
           <col style={{ width: '8%' }} />
         </colgroup>
         <thead>
