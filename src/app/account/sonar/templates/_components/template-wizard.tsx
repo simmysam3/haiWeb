@@ -11,11 +11,12 @@ import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../_lib/config-noun';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
-import { CadencePicker } from './cadence-picker';
+import { CadencePicker } from '../../_components/cadence-picker';
 import { ScopePicker } from './scope-picker';
-import { StepRail, type RailStep } from './step-rail';
-import { StepCard } from './step-card';
-import { NameField, LifecycleFields } from './template-form';
+import { StepRail, type RailStep } from '../../_components/step-rail';
+import { StepCard } from '../../_components/step-card';
+import { NameField } from '../../_components/name-field';
+import { LifecycleFields } from '../../_components/lifecycle-fields';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 

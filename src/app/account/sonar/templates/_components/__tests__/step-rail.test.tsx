@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { StepRail } from '../step-rail';
+import { StepRail } from '../../../_components/step-rail';
 
 const steps = [
   { id: 'identity', label: 'Identity', state: 'done' as const },

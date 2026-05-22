@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NameField, LifecycleFields } from '../template-form';
+import { NameField } from '../../../_components/name-field';
+import { LifecycleFields } from '../../../_components/lifecycle-fields';
 
 describe('NameField', () => {
   it('renders the labelled input and reports changes', async () => {

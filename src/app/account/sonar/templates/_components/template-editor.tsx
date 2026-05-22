@@ -6,11 +6,12 @@ import type { Cadence, RunTemplate } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../_lib/config-noun';
-import { CadencePicker } from './cadence-picker';
-import { StepRail, type RailStep } from './step-rail';
-import { StepCard } from './step-card';
+import { CadencePicker } from '../../_components/cadence-picker';
+import { StepRail, type RailStep } from '../../_components/step-rail';
+import { StepCard } from '../../_components/step-card';
 import { ScopeSummary } from './scope-summary';
-import { NameField, LifecycleFields } from './template-form';
+import { NameField } from '../../_components/name-field';
+import { LifecycleFields } from '../../_components/lifecycle-fields';
 
 const steps: RailStep[] = [
   { id: 'identity', label: 'Identity', state: 'active' },
