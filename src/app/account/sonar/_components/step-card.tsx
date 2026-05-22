@@ -8,6 +8,7 @@ export function StepCard({
   title,
   locked = false,
   dim = false,
+  accent,
   children,
 }: {
   id: string;
@@ -15,8 +16,12 @@ export function StepCard({
   title: string;
   locked?: boolean;
   dim?: boolean;
+  /** Optional accent tint applied to the card border and step badge.
+   *  Currently only 'orange' is supported. Ignored when `locked` is true. */
+  accent?: 'orange';
   children: ReactNode;
 }) {
+  const accentOrange = !locked && accent === 'orange';
   return (
     <section
       id={`step-${id}`}
@@ -24,7 +29,9 @@ export function StepCard({
         'scroll-mt-6 rounded-xl p-5 mb-3',
         locked
           ? 'bg-slate/5 border border-dashed border-slate/25'
-          : 'bg-white border border-slate/15',
+          : accentOrange
+            ? 'bg-white border border-orange/30'
+            : 'bg-white border border-slate/15',
         dim && 'opacity-50',
       ].filter(Boolean).join(' ')}
     >
@@ -33,7 +40,11 @@ export function StepCard({
           aria-hidden
           className={[
             'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-none',
-            locked ? 'bg-slate/20 text-slate' : 'bg-teal/20 text-teal',
+            locked
+              ? 'bg-slate/20 text-slate'
+              : accentOrange
+                ? 'bg-orange/20 text-orange'
+                : 'bg-teal/20 text-teal',
           ].join(' ')}
         >
           {locked ? '\u{1F512}' : index + 1}
