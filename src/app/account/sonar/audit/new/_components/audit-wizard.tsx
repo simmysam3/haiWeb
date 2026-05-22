@@ -16,7 +16,10 @@ import { ForkIndicator } from './fork-indicator';
 
 export interface SourceRunSummary {
   run_id: string;
-  template_id: string;
+  // null for ad-hoc (template-less) re-runs reconstructed from the run's own
+  // scope_snapshot — there is no source definition to reuse or fork from, so
+  // submitting always creates a fresh definition.
+  template_id: string | null;
   template_name: string;
   scope: RunTemplateScope;
   cadence: Cadence;
@@ -88,9 +91,15 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [nameError, setNameError] = useState(false);
   const router = useRouter();
 
-  // Fork mode: source exists + name has been changed from the source template name
+  // Fork mode: a source DEFINITION exists (template_id non-null) + name has
+  // been changed from the source template name. Template-less ad-hoc re-runs
+  // (template_id null) are never "fork" — there is no definition to fork from;
+  // they always create a fresh definition on submit.
   const isForkMode =
-    !!source && name.trim() !== '' && name !== source.template_name;
+    !!source &&
+    source.template_id !== null &&
+    name.trim() !== '' &&
+    name !== source.template_name;
 
   function revertName() {
     if (source) setName(source.template_name);
@@ -128,7 +137,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
     try {
       let templateId: string;
 
-      if (source && !isForkMode) {
+      if (source && source.template_id !== null && !isForkMode) {
         // Reuse existing template — no creation needed.
         templateId = source.template_id;
       } else {

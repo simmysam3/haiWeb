@@ -6,13 +6,8 @@ import { SummaryStrip } from './_components/summary-strip';
 import { EvidenceTreePanel } from './_components/evidence-tree-panel';
 import { DispatchedResponsesTable } from './_components/dispatched-responses-table';
 
-// result_hash is an additive enrichment added in v1.38 — it lives in the DB
-// and is passed through the BFF but is not yet in AuditRunSchema.  Treat it
-// as optional so the page degrades cleanly when the field is absent.
-type AuditRunWire = AuditRun & { result_hash?: string | null };
-
 interface RunDetailPayload {
-  run: AuditRunWire;
+  run: AuditRun;
   dispatched_responses: unknown[];
 }
 
@@ -46,16 +41,21 @@ export default async function AuditRunDetailPage({
 
   const { run, dispatched_responses } = runResult.data;
 
-  // Fetch results for complete/partial runs (best-effort: no results = empty tree)
+  // Fetch results for complete/partial runs. Distinguish a genuine empty
+  // result (run completed with no evidence) from a results-fetch ERROR — the
+  // latter must surface a notice rather than masquerade as an empty tree.
   let results: AuditRunResult[] = [];
+  let resultsLoadFailed = false;
   if (TREE_STATUSES.has(run.status)) {
     const resultsResult = await fetchBffJson<ResultsPayload>(
       `/api/account/audit-runs/${run_id}/results`,
     );
     if (resultsResult.kind === 'ok') {
       results = resultsResult.data.results ?? [];
+    } else {
+      // Fetch errored — don't crash, but don't render a silently-empty tree.
+      resultsLoadFailed = true;
     }
-    // On error: keep results = [] so the tree renders empty rather than throwing
   }
 
   const showTree = TREE_STATUSES.has(run.status);
@@ -68,7 +68,7 @@ export default async function AuditRunDetailPage({
       <RunHeader run={run} />
 
       {/* Summary strip — only meaningful when we have results */}
-      {showTree && (
+      {showTree && !resultsLoadFailed && (
         <SummaryStrip run={run} results={results} />
       )}
 
@@ -109,7 +109,18 @@ export default async function AuditRunDetailPage({
           >
             Evidence tree
           </h2>
-          <EvidenceTreePanel results={results} />
+          {resultsLoadFailed ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-problem/20 bg-problem/5 px-5 py-4 text-sm text-problem"
+            >
+              Couldn&apos;t load the evidence tree for this run. The run
+              completed, but its results couldn&apos;t be fetched — try
+              refreshing the page.
+            </div>
+          ) : (
+            <EvidenceTreePanel results={results} />
+          )}
         </section>
       )}
 
