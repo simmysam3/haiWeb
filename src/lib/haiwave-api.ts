@@ -44,8 +44,6 @@ import type {
   SkuObligation,
   SkuObligationListQuery,
   DownstreamGapEntry,
-  AggregateReport,
-  PerVendorReport,
   TrustBypassConfig,
   TrustClass,
   TrustBypassActivationRequest,
@@ -453,9 +451,6 @@ export interface HaiwaveClient {
   acknowledgeObligation(id: string): Promise<SkuObligation>;
   declineObligation(id: string, notes?: string): Promise<SkuObligation>;
   deferObligation(id: string, notes?: string): Promise<SkuObligation>;
-  // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
-  getAggregateReport(runId: string): Promise<AggregateReport>;
-  getPerVendorReport(runId: string, vendorId: string): Promise<PerVendorReport>;
   // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
   listTrustBypassConfigs(): Promise<{ configs: TrustBypassConfig[] }>;
   getTrustBypassAffectedCounterparties(
@@ -627,7 +622,7 @@ export interface HaiwaveClient {
   listEvidenceResponses(): Promise<EvidenceResponseListWire>;
   getEvidenceResponse(responseId: string): Promise<EvidenceResponseWire>;
   // document regeneration streams binary/text — handled in the BFF via fetchRaw,
-  // not here (request<T>() is JSON-only, mirrors getAggregateReport precedent).
+  // not here (request<T>() is JSON-only).
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -1183,20 +1178,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<SkuObligation>('POST', `/sku-obligations/${id}/defer`, notes ? { notes } : {});
     },
 
-    // ─── Audit reports (v1.27 Phase 8) ───────────────────────────────────
-    getAggregateReport(runId) {
-      return request<AggregateReport>(
-        'GET',
-        `/sonar/compliance/reports/${runId}/aggregate`,
-      );
-    },
-    getPerVendorReport(runId, vendorId) {
-      return request<PerVendorReport>(
-        'GET',
-        `/sonar/compliance/reports/${runId}/company/${vendorId}`,
-      );
-    },
-
     // ─── Trust bypass (v1.28 Phase 2) ────────────────────────────────────
     listTrustBypassConfigs() {
       return request<{ configs: TrustBypassConfig[] }>(
@@ -1656,10 +1637,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK
-    // status (unlike request<T>()). Callers — see sonar/audit/reports/*
-    // route.ts — rely on this to manually decide JSON vs error fallthrough,
-    // typically forwarding 4xx body verbatim and converting unexpected
-    // network failures to 500.
+    // status (unlike request<T>()). Callers — see the phantom-demand report
+    // and evidence document BFF route handlers — rely on this to manually
+    // decide JSON vs error fallthrough, typically forwarding 4xx body
+    // verbatim and converting unexpected network failures to 500.
     fetchRaw(path, init) {
       return fetch(`${haiwaveApiUrl}${path}`, {
         ...init,
@@ -1674,19 +1655,6 @@ export type {
   SkuObligationStatus,
   ResolutionClass,
   DownstreamGapEntry,
-  AggregateReport,
-  PerVendorReport,
-  AggregateReportHeader,
-  PerVendorReportHeader,
-  PostureSummary,
-  CoverageSummary,
-  GeographicRollupRow,
-  GapInventoryEntry,
-  PerVendorSummaryRow,
-  SkuTableRow,
-  GapDetailEntry,
-  ReportFooter,
-  ResolutionStatus,
   ClassRollupEntry,
   TrustBypassConfig,
   TrustClass,
