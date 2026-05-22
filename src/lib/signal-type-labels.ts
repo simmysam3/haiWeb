@@ -19,11 +19,3 @@ export const SIGNAL_TYPE_LABELS: Record<SignalType, SignalTypeLabel> = {
     tooltip: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
   },
 };
-
-export function labelForSignalType(signalType: SignalType): string {
-  return SIGNAL_TYPE_LABELS[signalType].label;
-}
-
-export function tooltipForSignalType(signalType: SignalType): string {
-  return SIGNAL_TYPE_LABELS[signalType].tooltip;
-}

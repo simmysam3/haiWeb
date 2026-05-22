@@ -15,7 +15,6 @@ import type {
   LeadTimeTrendSharingPosture,
   MockParticipant,
   MockApprovalRules,
-  MockAuditEvent,
   MockBlockedCompany,
   MockPricingNode,
 } from "./mock-types";
@@ -34,7 +33,6 @@ export type {
   LeadTimeTrendSharingPosture,
   MockParticipant,
   MockApprovalRules,
-  MockAuditEvent,
   MockBlockedCompany,
   MockPricingNode,
 };
@@ -156,24 +154,6 @@ export const MOCK_SCORE_HISTORY = {
   "30d": [88, 89, 90, 90, 91, 91, 92, 91, 91, 90, 91, 92, 91, 91, 91],
   "60d": [85, 86, 86, 87, 87, 88, 88, 89, 89, 90, 90, 91, 91, 91, 91],
   "90d": [82, 83, 84, 84, 85, 85, 86, 87, 87, 88, 89, 89, 90, 91, 91],
-};
-
-export const MOCK_VENDOR_SCORES = {
-  composite: 93,
-  components: [
-    { label: "Fulfillment Reliability", value: 96 },
-    { label: "Response Time", value: 90 },
-    { label: "Price Adherence", value: 95 },
-    { label: "Agent Uptime", value: 91 },
-    { label: "Exception Rate", value: 88 },
-  ],
-};
-
-export const MOCK_BUYER_SCORES = {
-  composite: 70,
-  components: [
-    { label: "Active Trading Pairs", value: 70 },
-  ],
 };
 
 // ─── Mock Trading Partners ───────────────────────────────────
@@ -318,8 +298,6 @@ export const MOCK_OUTBOUND_POSTURES: MockPosture[] = [
 
 // ─── Mock Pricing Defaults ───────────────────────────────────
 
-export const MOCK_LEAD_TIME_TREND_SHARING: LeadTimeTrendSharingPosture = "not_required";
-
 export const MOCK_PRICING_DEFAULTS = {
   default_currency: "USD",
   default_payment_terms: "Net 30",
@@ -344,47 +322,6 @@ export const MOCK_ADMIN_STATS = {
   outstanding_invoices: 1,
   outstanding_amount: 2400,
   agent_health: { active: 10, jailed: 0, probation: 0, offline: 0 },
-};
-
-// ─── Mock Audit Events ────────────────────────────────────
-
-export const MOCK_AUDIT_EVENTS: MockAuditEvent[] = [
-  { id: "ae-001", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: null, action: "auto_approved_bulk_criteria", timestamp: "2026-02-13T10:00:00Z", retention_class: "standard" },
-  { id: "ae-002", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: "5b8fde49-5cd0-4b82-a47a-b8a11c79664e", action: "auto_approved_new_participant", timestamp: "2026-02-15T08:30:00Z", retention_class: "standard" },
-  { id: "ae-003", event_type: "pricing.updated", actor_id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", actor_type: "participant", participant_id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", action: "updated_pricing_manifest", timestamp: "2026-02-11T15:45:00Z", retention_class: "standard" },
-  { id: "ae-004", event_type: "pricing.updated", actor_id: "e755e710-0680-42d2-a9ee-938456ec7e69", actor_type: "participant", participant_id: "e755e710-0680-42d2-a9ee-938456ec7e69", action: "updated_pricing_manifest", timestamp: "2026-02-10T12:00:00Z", retention_class: "standard" },
-  { id: "ae-005", event_type: "order.placed", actor_id: "8b7ecca6-b704-4d2b-896c-801898135fdf", actor_type: "participant", participant_id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", action: "placed_order", timestamp: "2026-02-09T16:30:00Z", retention_class: "standard" },
-];
-
-// ─── Mock Admin Analytics ─────────────────────────────────
-
-export const MOCK_ADMIN_ANALYTICS = {
-  connections: {
-    approval_rate_30d: 78.5,
-    mean_time_to_approve_hours: 4.2,
-    auto_approval_rate: 62.3,
-    requests_30d: 47,
-    top_requesters: [
-      { participant_id: "32509c89-d9ff-4d4a-b11e-8b09d47b2287", name: "Delta Flow Systems", request_count: 8 },
-      { participant_id: "83f507ee-47c7-4850-9a91-7a9ad539d2cf", name: "W.M. Gore Advanced Materials", request_count: 6 },
-      { participant_id: "5b8fde49-5cd0-4b82-a47a-b8a11c79664e", name: "Lyn-Tron Inc", request_count: 5 },
-    ],
-  },
-  abuse: {
-    active_blocks: 3,
-    blocks_30d: 2,
-    spam_signals: [] as { participant_id: string; name: string; signal_type: string; count: number }[],
-    trust_anomalies: [] as { participant_id: string; name: string; anomaly: string }[],
-  },
-  health: {
-    agent_uptime_pct: 97.2,
-    agents_jailed: 2,
-    agents_probation: 3,
-    heartbeat_success_rate: 98.1,
-    avg_response_time_ms: 245,
-    narrowing_completion_rate: 84.5,
-    rma_volume_30d: 3,
-  },
 };
 
 // ─── Mock Blocked Companies ───────────────────────────────
