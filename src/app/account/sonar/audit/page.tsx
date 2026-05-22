@@ -28,7 +28,7 @@ export default async function AuditListPage() {
 
   return (
     <div className="p-6 space-y-8">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-charcoal">Audits</h1>
           <p className="text-sm text-slate mt-1">
