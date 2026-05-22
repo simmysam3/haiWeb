@@ -142,17 +142,6 @@ export interface MockApprovalRules {
   };
 }
 
-export interface MockAuditEvent {
-  id: string;
-  event_type: string;
-  actor_id: string;
-  actor_type: string;
-  participant_id: string | null;
-  action: string;
-  timestamp: string;
-  retention_class: string;
-}
-
 export interface MockBlockedCompany {
   participant_id: string;
   company_name: string;

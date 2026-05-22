@@ -22,20 +22,10 @@ const TEXT_CLASSES: Record<ScoreTier, string> = {
   low: "text-problem",
 };
 
-const RING_CLASSES: Record<ScoreTier, string> = {
-  high: "border-success",
-  mid: "border-teal",
-  low: "border-problem",
-};
-
 export function scoreBgClass(value: number): string {
   return BG_CLASSES[scoreTier(value)];
 }
 
 export function scoreTextClass(value: number): string {
   return TEXT_CLASSES[scoreTier(value)];
-}
-
-export function scoreRingClass(value: number): string {
-  return RING_CLASSES[scoreTier(value)];
 }
