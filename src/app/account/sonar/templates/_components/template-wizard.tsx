@@ -10,7 +10,6 @@ import type {
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../_lib/config-noun';
-import { SYSTEM_AUDIT_HOP_BUDGET } from '../_lib/system-config';
 import { CadencePicker } from '../../_components/cadence-picker';
 import { ScopePicker } from './scope-picker';
 import { StepRail, type RailStep } from '../../_components/step-rail';
@@ -18,20 +17,9 @@ import { StepCard } from '../../_components/step-card';
 import { NameField } from '../../_components/name-field';
 import { LifecycleFields } from '../../_components/lifecycle-fields';
 
-type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+type ObservationClass = 'watcher' | 'phantom_demand';
 
 function emptyScope(oc: ObservationClass): RunTemplateScope {
-  if (oc === 'audit') {
-    return {
-      kind: 'audit',
-      authorization_basis: 'bilateral',
-      counterparties: [],
-      signal_types: [],
-      skus: [],
-      depth_limit: 1,
-      hop_budget: SYSTEM_AUDIT_HOP_BUDGET,
-    };
-  }
   if (oc === 'watcher') {
     return {
       kind: 'watcher',
@@ -57,7 +45,7 @@ export function TemplateWizard({
   defaultObservationClass?: ObservationClass;
 }) {
   const [observationClass, setObservationClass] = useState<ObservationClass>(
-    defaultObservationClass ?? 'audit',
+    defaultObservationClass ?? 'watcher',
   );
   const noun = configNoun(observationClass);
   const [name, setName] = useState('');
@@ -172,7 +160,6 @@ export function TemplateWizard({
               }
               className="rounded border border-slate-300 px-2 py-1 text-sm"
             >
-              <option value="audit">Audit</option>
               <option value="watcher">Watcher</option>
               <option value="phantom_demand">Phantom Demand</option>
             </select>

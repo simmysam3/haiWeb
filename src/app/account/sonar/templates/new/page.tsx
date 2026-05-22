@@ -6,10 +6,12 @@ interface NewTemplatePageProps {
   searchParams: Promise<{ observation_class?: string }>;
 }
 
+// Audit definitions are created only via the dedicated /audit/new wizard
+// (v.1.40), so the Configurations wizard accepts only watcher / phantom_demand.
 function isObservationClass(
   v: unknown,
-): v is 'audit' | 'watcher' | 'phantom_demand' {
-  return v === 'audit' || v === 'watcher' || v === 'phantom_demand';
+): v is 'watcher' | 'phantom_demand' {
+  return v === 'watcher' || v === 'phantom_demand';
 }
 
 export default async function NewTemplatePage({
