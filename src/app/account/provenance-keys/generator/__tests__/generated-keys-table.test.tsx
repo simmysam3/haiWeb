@@ -9,7 +9,7 @@ const SAMPLE: ProvenanceKeyWithCounts = {
   generator_participant_id: 'p1',
   friendly_name: 'USAGOV Audit',
   key_hash: 'a'.repeat(64),
-  required_fields: ['facility_country'],
+  required_fields: ['state_province'],
   requested_fields: [],
   purpose: null,
   expires_at: null,

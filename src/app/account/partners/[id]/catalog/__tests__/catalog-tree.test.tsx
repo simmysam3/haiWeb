@@ -82,6 +82,9 @@ describe('CatalogTree pill state machine', () => {
       created_by_user_id: null,
       disabled_at: null,
       disabled_by_user_id: null,
+      acceptance_status: 'accepted',
+      responder_decided_at: '2026-04-28T00:00:00Z',
+      decision_reason: null,
     };
     mock({ ...EMPTY_COVERAGE, classes: { c1: true } }, [scope]);
     render(<CatalogTree vendorId="v1" />);
@@ -118,6 +121,9 @@ describe('CatalogTree pill state machine', () => {
       created_by_user_id: null,
       disabled_at: null,
       disabled_by_user_id: null,
+      acceptance_status: 'accepted',
+      responder_decided_at: '2026-04-28T00:00:00Z',
+      decision_reason: null,
     };
     mock({ ...EMPTY_COVERAGE, classes: { c1: true } }, [scope]);
     render(<CatalogTree vendorId="v1" />);

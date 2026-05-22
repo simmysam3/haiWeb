@@ -53,8 +53,11 @@ describe('HaiwaveClient run-template methods', () => {
       enabled: true,
       retention_days: 30,
       scope: {
-        scope_type: 'company' as const,
-        scope_ids: ['00000000-0000-0000-0000-000000000002'],
+        kind: 'audit' as const,
+        authorization_basis: 'bilateral' as const,
+        counterparties: ['00000000-0000-0000-0000-000000000002'],
+        signal_types: ['lead_time_distribution' as const],
+        skus: [],
         depth_limit: 1,
         hop_budget: 5,
       },
