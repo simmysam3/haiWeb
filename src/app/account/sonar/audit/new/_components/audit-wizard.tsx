@@ -6,7 +6,7 @@ import type { Cadence, RunTemplateScope } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../../../templates/_lib/system-config';
-import { CadencePicker } from '../../../_components/cadence-picker';
+import { AuditSchedulePicker } from './audit-schedule-picker';
 import { AuditScopePicker } from '../../../_components/audit-scope-picker';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
@@ -235,12 +235,12 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
           )}
         </StepCard>
 
-        <StepCard id="scope" index={1} title="Scope">
+        <StepCard id="scope" index={1} title="Audit Scope">
           <AuditScopePicker value={scope} onChange={setScope} />
         </StepCard>
 
         <StepCard id="schedule" index={2} title="Schedule">
-          <CadencePicker value={cadence} onChange={setCadence} />
+          <AuditSchedulePicker value={cadence} onChange={setCadence} />
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">

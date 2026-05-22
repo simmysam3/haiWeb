@@ -22,8 +22,7 @@ export function AuditScopePicker({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-charcoal">Audit scope</legend>
+      <fieldset className="space-y-2" aria-label="Authorization basis">
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
             type="radio"
@@ -86,7 +85,7 @@ export function AuditScopePicker({ value, onChange }: Props) {
         label="Depth limit"
         value={depthLimit}
         min={1}
-        max={5}
+        max={10}
         onChange={(n) =>
           onChange(
             authBasis === 'key_scoped'

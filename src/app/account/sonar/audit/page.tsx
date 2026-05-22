@@ -39,7 +39,7 @@ export default async function AuditListPage() {
         </div>
         <Link
           href="/account/sonar/audit/new"
-          className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
+          className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
         >
           + New Audit
         </Link>
