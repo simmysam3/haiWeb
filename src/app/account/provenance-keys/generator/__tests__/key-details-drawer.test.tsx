@@ -8,8 +8,8 @@ const SAMPLE: ProvenanceKeyWithCounts = {
   generator_participant_id: 'p1',
   friendly_name: 'Key 1',
   key_hash: 'a'.repeat(64),
-  required_fields: ['facility_country'],
-  requested_fields: ['facility_region'],
+  required_fields: ['state_province'],
+  requested_fields: ['vendor_name'],
   purpose: null,
   expires_at: null,
   enabled: true,
@@ -35,8 +35,8 @@ describe('KeyDetailsDrawer', () => {
 
   it('renders required + requested fields', async () => {
     render(<KeyDetailsDrawer keyRow={SAMPLE} open={true} onClose={() => {}} onKeyChanged={() => {}} />);
-    expect(screen.getByText(/facility_country/i)).toBeInTheDocument();
-    expect(screen.getByText(/facility_region/i)).toBeInTheDocument();
+    expect(screen.getByText(/state_province/i)).toBeInTheDocument();
+    expect(screen.getByText(/vendor_name/i)).toBeInTheDocument();
   });
 
   it('fetches installations on mount and renders the returned list', async () => {

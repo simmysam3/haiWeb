@@ -34,7 +34,7 @@ describe('HaiwaveClient provenance-key methods', () => {
   });
 
   it('generateKey POSTs to /provenance-keys/ with the body', async () => {
-    const body: ProvenanceKeyCreationRequest = { friendly_name: 'K', required_fields: ['facility_country'], requested_fields: [] };
+    const body: ProvenanceKeyCreationRequest = { friendly_name: 'K', required_fields: ['state_province'], requested_fields: [] };
     const fetchMock = mockFetchOnce({ key: { key_id: 'k1' }, key_value: 'abc' }, 201);
     const res = await client.generateKey(body);
     expect(res.key.key_id).toBe('k1');
@@ -132,11 +132,11 @@ describe('HaiwaveClient provenance-key methods', () => {
 
   it('upsertSharingPolicy PUTs /sharing-policy/ with body', async () => {
     const fetchMock = mockFetchOnce({ policy: { shared_fields: [] }, warnings: [] });
-    await client.upsertSharingPolicy({ shared_fields: ['facility_country'], dry_run: true });
+    await client.upsertSharingPolicy({ shared_fields: ['state_province'], dry_run: true });
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/sharing-policy\/$/);
     expect(init.method).toBe('PUT');
-    expect(JSON.parse(init.body as string)).toEqual({ shared_fields: ['facility_country'], dry_run: true });
+    expect(JSON.parse(init.body as string)).toEqual({ shared_fields: ['state_province'], dry_run: true });
   });
 });
 

@@ -65,7 +65,7 @@ describe('HaiwaveClient compliance-changes methods (v1.34 P4)', () => {
   it('getComplianceChange GETs /sonar/compliance/changes/:id', async () => {
     const fetchMock = mockFetchOnce({ change_id: 'chg-1', change_kind: 'gap_added' });
     const res = await client.getComplianceChange('chg-1');
-    expect((res as { change_id: string }).change_id).toBe('chg-1');
+    expect((res as unknown as { change_id: string }).change_id).toBe('chg-1');
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/sonar\/compliance\/changes\/chg-1$/);
     expect(init.method).toBe('GET');

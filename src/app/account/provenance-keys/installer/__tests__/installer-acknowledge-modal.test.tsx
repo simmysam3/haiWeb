@@ -8,7 +8,7 @@ const INST: ProvenanceKeyInstallation = {
   installation_id: 'i1',
   key_id: 'k1',
   installer_participant_id: 'p',
-  accepted_required_fields: ['facility_country'],
+  accepted_required_fields: ['state_province'],
   accepted_requested_fields: [],
   installed_at: '2026-04-18T00:00:00.000Z',
   updated_at: '2026-04-18T00:00:00.000Z',
@@ -16,17 +16,17 @@ const INST: ProvenanceKeyInstallation = {
   auto_removed_reason: null,
   compliance: {
     status: 'grace_pending',
-    missing_fields: ['manufacturing_date'],
+    missing_fields: ['plant_identifier'],
     grace_deadline: '2026-05-02T00:00:00.000Z',
   },
 };
 
-const POLICY: SharingPolicy = { shared_fields: ['facility_country'] };
+const POLICY: SharingPolicy = { shared_fields: ['state_province'] };
 
 describe('InstallerAcknowledgeModal', () => {
   it('two-step: calls PUT sharing-policy then PATCH installation', async () => {
     const putPolicy = vi.fn().mockResolvedValueOnce(
-      new Response(JSON.stringify({ policy: { shared_fields: ['facility_country', 'manufacturing_date'] }, warnings: [] }), {
+      new Response(JSON.stringify({ policy: { shared_fields: ['state_province', 'plant_identifier'] }, warnings: [] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
