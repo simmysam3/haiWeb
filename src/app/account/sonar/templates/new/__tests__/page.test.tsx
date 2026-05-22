@@ -13,7 +13,7 @@ describe('NewTemplatePage', () => {
     const Page = (await import('../page')).default;
     const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
-    expect(screen.getByLabelText(/audit name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/watch name/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create configuration/i })).toBeInTheDocument();
   });
 

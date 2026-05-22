@@ -25,13 +25,13 @@ describe('TemplateWizard', () => {
     expect(screen.getByText(/name is required/i)).toBeInTheDocument();
   });
 
-  it('POSTs and routes to the new id on a valid audit create', async () => {
+  it('POSTs and routes to the new id on a valid watcher create', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ template: { template_id: 'new-1' } }),
     } as Response);
     render(<TemplateWizard />);
-    await userEvent.type(screen.getByLabelText(/audit name/i), 'my-tmpl');
+    await userEvent.type(screen.getByLabelText(/watch name/i), 'my-tmpl');
     await userEvent.click(
       screen.getByRole('button', { name: /create configuration/i }),
     );

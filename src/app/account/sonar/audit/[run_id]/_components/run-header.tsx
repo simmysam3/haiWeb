@@ -5,18 +5,13 @@ import { useState } from 'react';
 import { Pill } from '@/components/pill';
 import type { AuditRun } from '@haiwave/protocol';
 
-// result_hash is in the DB (v1.38) and returned by the BFF as an additive
-// enrichment field not yet in the AuditRunSchema Zod type. Treat it as
-// optional off the wire shape.
-type AuditRunWire = AuditRun & { result_hash?: string | null };
-
 interface Props {
-  run: AuditRunWire;
+  run: AuditRun;
 }
 
-function formatRunTitle(run: AuditRunWire): string {
+function formatRunTitle(run: AuditRun): string {
   // template_name is not in the AuditRun protocol type; the BFF may enrich it.
-  const enriched = run as AuditRunWire & { template_name?: string | null };
+  const enriched = run as AuditRun & { template_name?: string | null };
   if (enriched.template_name) return enriched.template_name;
   return `Run ${run.run_id.slice(0, 8)}`;
 }

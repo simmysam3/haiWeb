@@ -219,6 +219,59 @@ describe('AuditRunDetailPage — failed run', () => {
   });
 });
 
+describe('AuditRunDetailPage — results-fetch error', () => {
+  it('surfaces a notice (not a silent empty tree) when results fetch errors on a complete run', async () => {
+    vi.resetModules();
+    fetchMock
+      // BFF run detail succeeds
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ run: COMPLETE_RUN, dispatched_responses: [] }),
+      } as Response)
+      // results fetch ERRORS
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: async () => 'boom',
+      } as unknown as Response);
+
+    const Page = (await import('../page')).default;
+    const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
+    render(ui as React.ReactElement);
+
+    // The evidence-tree section still renders its heading...
+    expect(
+      screen.getByRole('heading', { name: /evidence tree/i }),
+    ).toBeInTheDocument();
+    // ...but with an alert notice instead of an empty tree.
+    expect(screen.getByText(/couldn't load the evidence tree/i)).toBeInTheDocument();
+  });
+
+  it('renders an empty tree (no error notice) for a genuinely empty complete run', async () => {
+    vi.resetModules();
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ run: COMPLETE_RUN, dispatched_responses: [] }),
+      } as Response)
+      // results fetch succeeds with an empty list
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [] }),
+      } as Response);
+
+    const Page = (await import('../page')).default;
+    const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
+    render(ui as React.ReactElement);
+
+    expect(
+      screen.getByRole('heading', { name: /evidence tree/i }),
+    ).toBeInTheDocument();
+    // No error notice for a legitimately empty result.
+    expect(screen.queryByText(/couldn't load the evidence tree/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('AuditRunDetailPage — notFound on 404', () => {
   it('throws notFound when the BFF returns 404', async () => {
     vi.resetModules();

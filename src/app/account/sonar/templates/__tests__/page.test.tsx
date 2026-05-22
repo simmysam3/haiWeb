@@ -24,7 +24,7 @@ describe('TemplatesListPage', () => {
     expect(screen.getByText(/no configurations yet/i)).toBeInTheDocument();
   });
 
-  it('renders template rows when list is non-empty', async () => {
+  it('renders non-audit rows and filters out audit-class configs', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -48,13 +48,34 @@ describe('TemplatesListPage', () => {
             created_at: new Date().toISOString(),
             created_by_user_id: '00000000-0000-0000-0000-000000000001',
           },
+          {
+            template_id: 'def',
+            template_name: 'daily-watcher',
+            observation_class: 'watcher',
+            cadence: { kind: 'daily', time_of_day: '02:00' },
+            enabled: true,
+            last_run_at: null,
+            last_run_id: null,
+            initiator_participant_id: '00000000-0000-0000-0000-000000000001',
+            scope: {
+              scope_type: 'company',
+              scope_ids: [],
+              depth_limit: 1,
+              hop_budget: 5,
+            },
+            retention_days: 30,
+            created_at: new Date().toISOString(),
+            created_by_user_id: '00000000-0000-0000-0000-000000000001',
+          },
         ],
       }),
     } as Response);
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
-    expect(screen.getByText('daily-audit')).toBeInTheDocument();
+    // Audit-class configs are managed under /account/sonar/audit and excluded here.
+    expect(screen.queryByText('daily-audit')).not.toBeInTheDocument();
+    expect(screen.getByText('daily-watcher')).toBeInTheDocument();
     expect(screen.getByText(/Daily at 02:00 UTC/)).toBeInTheDocument();
   });
 });

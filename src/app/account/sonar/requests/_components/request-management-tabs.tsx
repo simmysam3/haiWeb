@@ -14,10 +14,12 @@ interface Tab {
   matchPath: string;
 }
 
-// v1.37 Request Management section nav — bilateral request inbox surfaces
-// plus the evidence response fulfillment leg (a request's "produce evidence"
-// outcome lands the user on the evidence draft form, so the response work
-// belongs in the same top-level nav).
+// v1.37 Request Management section nav — bilateral request inbox surfaces.
+// The evidence legs (the "produce evidence" outcome and the responses list)
+// were retired in v1.40: evidence is now authored via the v1.39 audit wizard
+// at /account/sonar/audit/new and reviewed via the Audits history queue +
+// run-detail page, so both the old "New response" draft tab and the
+// "Responses" list tab were dropped from this nav.
 const tabs: Tab[] = [
   {
     segment: "active",
@@ -30,18 +32,6 @@ const tabs: Tab[] = [
     label: "Declined",
     href: "/account/sonar/requests/declined",
     matchPath: "/account/sonar/requests/declined",
-  },
-  {
-    segment: "evidence/new",
-    label: "New response",
-    href: "/account/sonar/requests/evidence/new",
-    matchPath: "/account/sonar/requests/evidence/new",
-  },
-  {
-    segment: "evidence/responses",
-    label: "Responses",
-    href: "/account/sonar/requests/evidence/responses",
-    matchPath: "/account/sonar/requests/evidence/responses",
   },
 ];
 

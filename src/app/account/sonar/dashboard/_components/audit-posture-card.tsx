@@ -20,7 +20,7 @@ export function AuditPostureCard({ totalCompliant, totalNonCompliant, totalParti
         <p className="text-sm text-slate italic">
           No runs yet —{' '}
           <Link
-            href="/account/sonar/templates/new?observation_class=audit"
+            href="/account/sonar/audit/new"
             className="not-italic text-teal hover:underline"
           >
             start your first audit →
