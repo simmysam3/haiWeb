@@ -99,7 +99,7 @@ export default async function RunDetailPage({
           )}
           {data.run.status === 'complete' && (
             <Link
-              href={`/account/sonar/reports/${data.run.run_id}`}
+              href={`/account/sonar/audit/${data.run.run_id}`}
               className="text-teal hover:text-navy text-sm"
             >
               View Aggregate Report →
