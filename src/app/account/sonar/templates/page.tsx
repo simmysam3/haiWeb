@@ -19,7 +19,9 @@ async function loadTemplates(): Promise<RunTemplate[]> {
     });
     if (!res.ok) return [];
     const payload = (await res.json()) as TemplatesPayload;
-    return payload.templates ?? [];
+    const all = payload.templates ?? [];
+    // Audit configs are now managed under /account/sonar/audit, so exclude them here.
+    return all.filter((t) => t.observation_class !== 'audit');
   } catch (err) {
     console.error('[templates list] fetch failed', err);
     return [];
@@ -50,7 +52,7 @@ export default async function TemplatesListPage() {
       {templates.length === 0 ? (
         <p className="text-sm text-slate">
           No configurations yet. Create one or use the &ldquo;Save as&hellip;&rdquo;
-          action from the audit or Watcher dashboard after a manual run.
+          action from the Watcher or Phantom Demand dashboard after a manual run.
         </p>
       ) : (
         <table className="w-full border-collapse text-sm">
