@@ -23,6 +23,13 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     cancelled: 'The run was cancelled by an operator before completing.',
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
+  run_origin: {
+    ad_hoc: 'Triggered manually with no associated run template.',
+    template_manual: 'Triggered manually from a saved run template.',
+    template_scheduled: 'Fired automatically on the template\'s configured schedule.',
+    template_event_triggered: 'Fired automatically when the template\'s trigger event occurred.',
+    evidence_response: 'Triggered as part of an evidence response dispatch.',
+  },
   probe_status: {
     complete: 'The responder returned a full quote for this SKU.',
     partial: 'The responder returned a partial response (some fields missing).',
@@ -53,6 +60,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     suspended: 'Access suspended.',
     past_due: 'Payment is overdue.',
     banned: 'Permanently blocked from the network.',
+    enabled: 'Enabled and will fire on its configured cadence.',
     disabled: 'Disabled and non-functional.',
     fail: 'Did not meet the evaluated criteria.',
     completed: 'Finished successfully.',
@@ -189,7 +197,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   const v = value ?? '';
   if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed'].includes(v)) return 'problem';
   if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning'].includes(v)) return 'warn';
-  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified'].includes(v)) return 'success';
+  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified', 'enabled'].includes(v)) return 'success';
+  // run_origin tones: scheduled/event triggers are info (intentional automation); ad_hoc/manual = neutral
+  if (category === 'run_origin') {
+    if (v === 'template_scheduled' || v === 'template_event_triggered') return 'info';
+    if (v === 'evidence_response') return 'warn';
+  }
   if (category === 'resolution_class' && v === 'agentic_eligible') return 'info';
   // working_list_category severity coding
   if (category === 'working_list_category') {
