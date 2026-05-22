@@ -19,17 +19,43 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// swr mock — RequestManagementNavItem uses useSWR to poll counts; return no
+// data so the link renders in its idle state (no badge, no error indicator).
+vi.mock('swr', () => ({
+  default: () => ({ data: undefined, error: undefined }),
+}));
+
 describe('AccountNav', () => {
-  it('Sonar section is consolidated to Sonar Dashboard + Observations', () => {
+  // v1.39: single Sonar section split into Sonar Audit + Sonar Observe.
+
+  it('Sonar Audit section contains only the Audits link', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    const audits = screen.getByRole('link', { name: 'Audits' });
+    expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
+  });
+
+  it('Sonar Observe section contains Dashboard, Request Management, Posture, Observations, Configurations', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
     expect(dashboard.getAttribute('href')).toBe('/account/sonar/dashboard');
+
+    const requests = screen.getByRole('link', { name: 'Request Management' });
+    expect(requests.getAttribute('href')).toBe('/account/sonar/requests');
+
+    const posture = screen.getByRole('link', { name: 'Posture' });
+    expect(posture.getAttribute('href')).toBe('/account/sonar/posture');
+
     const observations = screen.getByRole('link', { name: 'Observations' });
     expect(observations.getAttribute('href')).toBe('/account/sonar/observations');
-    // The pre-consolidation entries should no longer be present in the sidebar.
-    expect(screen.queryByRole('link', { name: 'Phantom Demand' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Audit Dashboard' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Run Templates' })).toBeNull();
+
+    const configurations = screen.getByRole('link', { name: 'Configurations' });
+    expect(configurations.getAttribute('href')).toBe('/account/sonar/templates');
+  });
+
+  it('Reports link is not present in the nav (dropped in v1.39)', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Reports' })).toBeNull();
   });
 
   it('Monitoring section no longer surfaces the pre-Sonar Audit Nominations entry', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { StepCard } from '../step-card';
+import { StepCard } from '../../../_components/step-card';
 
 describe('StepCard', () => {
   it('renders the title, number badge, and children', () => {

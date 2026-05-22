@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CadencePicker } from '../cadence-picker';
+import { CadencePicker } from '../../../_components/cadence-picker';
 import type { Cadence } from '@haiwave/protocol';
 
 describe('CadencePicker', () => {

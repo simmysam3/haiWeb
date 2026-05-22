@@ -5,24 +5,21 @@ import { useRouter } from 'next/navigation';
 import type { Cadence, RunTemplate } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
-import { configNoun } from '../_lib/config-noun';
-import { CadencePicker } from '../../_components/cadence-picker';
-import { StepRail, type RailStep } from '../../_components/step-rail';
-import { StepCard } from '../../_components/step-card';
-import { ScopeSummary } from './scope-summary';
-import { NameField } from '../../_components/name-field';
-import { LifecycleFields } from '../../_components/lifecycle-fields';
+import { CadencePicker } from '../../../../_components/cadence-picker';
+import { StepRail, type RailStep } from '../../../../_components/step-rail';
+import { StepCard } from '../../../../_components/step-card';
+import { ScopeSummary } from '../../../../templates/_components/scope-summary';
+import { NameField } from '../../../../_components/name-field';
+import { LifecycleFields } from '../../../../_components/lifecycle-fields';
 
 const steps: RailStep[] = [
   { id: 'identity', label: 'Identity', state: 'active' },
   { id: 'scope', label: 'Scope', state: 'locked' },
   { id: 'schedule', label: 'Schedule', state: 'todo' },
   { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
-  { id: 'history', label: 'Run history', state: 'todo' },
 ];
 
-export function TemplateEditor({ template }: { template: RunTemplate }) {
-  const noun = configNoun(template.observation_class);
+export function AuditDefinitionEditor({ template }: { template: RunTemplate }) {
   const [name, setName] = useState(template.template_name);
   const [cadence, setCadence] = useState<Cadence>(template.cadence);
   const [enabled, setEnabled] = useState(template.enabled);
@@ -57,16 +54,19 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
     setError(null);
     setSessionExpired(false);
     try {
-      const res = await fetch(`/api/account/sonar/templates/${template.template_id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          template_name: name,
-          cadence,
-          enabled,
-          retention_days: retentionDays,
-        }),
-      });
+      const res = await fetch(
+        `/api/account/sonar/audit/definitions/${template.template_id}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            template_name: name,
+            cadence,
+            enabled,
+            retention_days: retentionDays,
+          }),
+        },
+      );
       if (!res.ok) {
         const info = await describeApiError(res);
         setError(info.message);
@@ -84,23 +84,24 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
   async function remove() {
     if (
       !confirm(
-        `Delete ${noun.toLowerCase()} "${template.template_name}"? This cannot be undone.`,
+        `Delete audit definition "${template.template_name}"? This cannot be undone.`,
       )
     )
       return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/account/sonar/templates/${template.template_id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(
+        `/api/account/sonar/audit/definitions/${template.template_id}`,
+        { method: 'DELETE' },
+      );
       if (!res.ok) {
         const info = await describeApiError(res);
         setError(info.message);
         setSessionExpired(info.sessionExpired);
         return;
       }
-      router.push('/account/sonar/templates');
+      router.push('/account/sonar/audit');
     } catch {
       setError('Network error — could not reach the server. Please try again.');
     } finally {
@@ -115,13 +116,7 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
       </div>
       <div className="flex-1 max-w-2xl">
         <StepCard id="identity" index={0} title="Identity">
-          <NameField noun={noun} value={name} onChange={setName} />
-          <div className="mt-3 text-sm text-charcoal">
-            <span className="text-[11px] uppercase tracking-wide text-slate mr-2">
-              Modality
-            </span>
-            <span className="font-medium">{noun}</span>
-          </div>
+          <NameField noun="Audit" value={name} onChange={setName} />
         </StepCard>
 
         <StepCard id="scope" index={1} title="Scope" locked>
