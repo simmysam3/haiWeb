@@ -6,7 +6,7 @@ import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
 import { CrossModalityTable } from './_components/cross-modality-table';
 import { ActivityFeed } from './_components/activity-feed';
-import { DashboardSubNav } from './_components/dashboard-subnav';
+import { DashboardTabs } from './_components/dashboard-tabs';
 import { CoverageStatsStrip, type CoverageSnapshot } from './_charts/coverage-stats-strip';
 import { CoverageTrendChart } from './_charts/coverage-trend-chart';
 import { GeoChart } from './_charts/geo-chart';
@@ -191,144 +191,143 @@ export default async function UnifiedDashboardPage() {
         for full detail.
       </PageIntro>
 
-      {/*
-        v1.37 polish item 3: sticky sub-nav so the (now long) dashboard has
-        quick in-page jumps. Sentinel-based highlight tracks the section
-        the user is reading. Pinned `top-0` because the account portal has
-        no fixed top chrome above this page content.
-      */}
-      <DashboardSubNav />
-
       {anyPartial && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
           Risk scores may be incomplete — some signals failed to load. Check server logs for details.
         </p>
       )}
 
-      {/* Coverage section — full surface absorbed from the old /sonar/posture
-          landing in v1.37 R2. Sits at the top of the morning overview so it's
-          the first thing the user sees. */}
-      <section
-        id="section-coverage"
-        aria-labelledby="dashboard-coverage-heading"
-        className="space-y-6 scroll-mt-16"
-      >
-        <h2
-          id="dashboard-coverage-heading"
-          className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
-        >
-          Compliance coverage
-        </h2>
-        {coverageCurrent.kind === 'error' ? (
-          <div role="alert">
-            <Panel className="p-12 text-center">
-              <p className="text-red-900">
-                {coverageCurrent.status === 403
-                  ? 'You do not have permission to view compliance coverage.'
-                  : coverageCurrent.status === 401
-                  ? 'Your session has expired. Please sign in again.'
-                  : coverageCurrent.status >= 500
-                  ? 'Couldn’t load compliance coverage. The audit service is temporarily unavailable.'
-                  : coverageCurrent.status === 0
-                  ? `Couldn’t reach the audit service${coverageCurrent.message ? `: ${coverageCurrent.message}` : '.'}`
-                  : `Couldn’t load compliance coverage (status ${coverageCurrent.status}).`}
-              </p>
-            </Panel>
-          </div>
-        ) : !snapshot ? (
-          <Panel className="p-8">
-            <p className="text-sm text-slate text-center">
-              No completed compliance snapshot yet. Run a compliance audit to
-              populate your coverage view.
-            </p>
-          </Panel>
-        ) : (
-          <>
-            <CoverageStatsStrip snapshot={snapshot} />
-            <Panel className="p-4">
-              <h3 className="font-[family-name:var(--font-display)] text-base font-bold text-navy mb-2">
-                What these numbers mean
-              </h3>
-              <ul className="text-sm text-slate space-y-1.5">
-                <li>
-                  <span className="font-medium text-teal">Complete</span>
-                  {' '}— products with full evidence captured for every required compliance attribute.
-                </li>
-                <li>
-                  <span className="font-medium text-orange">Partial</span>
-                  {' '}— products with some but not all required attributes; the gap is recorded as an obligation or working-list item.
-                </li>
-                <li>
-                  <span className="font-medium text-slate">No traversal</span>
-                  {' '}— products in scope that the audit could not reach (responder declined, edge unauthorized, or no downstream visibility).
-                </li>
-              </ul>
-            </Panel>
-            {data.coverageTrend.kind === 'error' ? (
-              <div role="alert">
-                <Panel className="p-4">
-                  <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">
-                    Coverage trend
-                  </h3>
-                  <p className="text-sm text-red-900 text-center py-8">
-                    Coverage trend is temporarily unavailable.
-                  </p>
-                </Panel>
-              </div>
-            ) : (
-              <CoverageTrendChart points={data.coverageTrend.data.points as CoverageSnapshot[]} />
-            )}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <GeoChart data={data.charts.rollup} />
-              <ClassChart data={data.charts.classRollup} />
-            </div>
-            <PartnersChart data={data.charts.partnerCompliance} />
-          </>
-        )}
-      </section>
-
-      {/* Cross-modality overview — pre-v1.37 dashboard content. Sits below
-          coverage because coverage is the user's primary morning question
-          ("am I covered?") and cross-modality is the deeper drill ("which
-          partners are degraded?"). */}
-      <section
-        id="section-cross-modality"
-        aria-labelledby="dashboard-overview-heading"
-        className="space-y-6 scroll-mt-16"
-      >
-        <h2
-          id="dashboard-overview-heading"
-          className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
-        >
-          Cross-modality overview
-        </h2>
-        <HeaderStrip
-          totalPartners={totalPartners}
-          lastRunAt={lastRunAt}
-          throttledCounts={data.throttledCounts}
-          failedRunsLast30d={data.failedRunsLast30d}
-          enabledTemplateCount={data.enabledTemplateCount}
-        />
-        <ModalityLens partners={data.crossModality?.partners ?? []} />
-        <CrossModalityTable partners={data.crossModality?.partners ?? []} />
-      </section>
-
-      {/* Activity feed — split out of the cross-modality section so it gets
-          its own sub-nav anchor (v1.37 polish item 3). The feed is the
-          third major surface on the dashboard. */}
-      <section
-        id="section-activity"
-        aria-labelledby="dashboard-activity-heading"
-        className="space-y-6 scroll-mt-16"
-      >
-        <h2
-          id="dashboard-activity-heading"
-          className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
-        >
-          Activity
-        </h2>
-        <ActivityFeed initial={data.initialActivity} />
-      </section>
+      {/*
+        v1.41: the three dashboard surfaces are now real tabs (Coverage /
+        Cross-modality / Activity) rather than one long scroll with the old
+        sticky anchor sub-nav. Each section is still rendered server-side and
+        handed to `DashboardTabs` as a content slot, so tab switching is
+        instant (no re-fetch) and the whole dashboard ships in one RSC
+        payload. Coverage stays the default tab — it's the user's primary
+        morning question ("am I covered?").
+      */}
+      <DashboardTabs
+        tabs={[
+          {
+            id: 'section-coverage',
+            label: 'Coverage',
+            content: (
+              <section aria-labelledby="dashboard-coverage-heading" className="space-y-6">
+                <h2
+                  id="dashboard-coverage-heading"
+                  className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
+                >
+                  Compliance coverage
+                </h2>
+                {coverageCurrent.kind === 'error' ? (
+                  <div role="alert">
+                    <Panel className="p-12 text-center">
+                      <p className="text-red-900">
+                        {coverageCurrent.status === 403
+                          ? 'You do not have permission to view compliance coverage.'
+                          : coverageCurrent.status === 401
+                          ? 'Your session has expired. Please sign in again.'
+                          : coverageCurrent.status >= 500
+                          ? 'Couldn’t load compliance coverage. The audit service is temporarily unavailable.'
+                          : coverageCurrent.status === 0
+                          ? `Couldn’t reach the audit service${coverageCurrent.message ? `: ${coverageCurrent.message}` : '.'}`
+                          : `Couldn’t load compliance coverage (status ${coverageCurrent.status}).`}
+                      </p>
+                    </Panel>
+                  </div>
+                ) : !snapshot ? (
+                  <Panel className="p-8">
+                    <p className="text-sm text-slate text-center">
+                      No completed compliance snapshot yet. Run a compliance audit to
+                      populate your coverage view.
+                    </p>
+                  </Panel>
+                ) : (
+                  <>
+                    <CoverageStatsStrip snapshot={snapshot} />
+                    <Panel className="p-4">
+                      <h3 className="font-[family-name:var(--font-display)] text-base font-bold text-navy mb-2">
+                        What these numbers mean
+                      </h3>
+                      <ul className="text-sm text-slate space-y-1.5">
+                        <li>
+                          <span className="font-medium text-teal">Complete</span>
+                          {' '}— products with full evidence captured for every required compliance attribute.
+                        </li>
+                        <li>
+                          <span className="font-medium text-orange">Partial</span>
+                          {' '}— products with some but not all required attributes; the gap is recorded as an obligation or working-list item.
+                        </li>
+                        <li>
+                          <span className="font-medium text-slate">No traversal</span>
+                          {' '}— products in scope that the audit could not reach (responder declined, edge unauthorized, or no downstream visibility).
+                        </li>
+                      </ul>
+                    </Panel>
+                    {data.coverageTrend.kind === 'error' ? (
+                      <div role="alert">
+                        <Panel className="p-4">
+                          <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">
+                            Coverage trend
+                          </h3>
+                          <p className="text-sm text-red-900 text-center py-8">
+                            Coverage trend is temporarily unavailable.
+                          </p>
+                        </Panel>
+                      </div>
+                    ) : (
+                      <CoverageTrendChart points={data.coverageTrend.data.points as CoverageSnapshot[]} />
+                    )}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <GeoChart data={data.charts.rollup} />
+                      <ClassChart data={data.charts.classRollup} />
+                    </div>
+                    <PartnersChart data={data.charts.partnerCompliance} />
+                  </>
+                )}
+              </section>
+            ),
+          },
+          {
+            id: 'section-cross-modality',
+            label: 'Cross-modality',
+            content: (
+              <section aria-labelledby="dashboard-overview-heading" className="space-y-6">
+                <h2
+                  id="dashboard-overview-heading"
+                  className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
+                >
+                  Cross-modality overview
+                </h2>
+                <HeaderStrip
+                  totalPartners={totalPartners}
+                  lastRunAt={lastRunAt}
+                  throttledCounts={data.throttledCounts}
+                  failedRunsLast30d={data.failedRunsLast30d}
+                  enabledTemplateCount={data.enabledTemplateCount}
+                />
+                <ModalityLens partners={data.crossModality?.partners ?? []} />
+                <CrossModalityTable partners={data.crossModality?.partners ?? []} />
+              </section>
+            ),
+          },
+          {
+            id: 'section-activity',
+            label: 'Activity',
+            content: (
+              <section aria-labelledby="dashboard-activity-heading" className="space-y-6">
+                <h2
+                  id="dashboard-activity-heading"
+                  className="font-[family-name:var(--font-display)] text-lg font-bold text-navy"
+                >
+                  Activity
+                </h2>
+                <ActivityFeed initial={data.initialActivity} />
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
