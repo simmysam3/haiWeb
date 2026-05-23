@@ -5,39 +5,53 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/account/sonar/posture',
 }));
 
-import { PostureTabs } from '../posture-tabs';
+import { BacklogTabs } from '../backlog-tabs';
 
-describe('PostureTabs (v1.37 R2 — Coverage removed from Posture)', () => {
-  it('renders the four workflow tabs in order: Working list, Events, Obligations, Watchers', () => {
-    render(<PostureTabs hasScopes={true} />);
+describe('BacklogTabs (v.1.41 Backlog IA — mode switching)', () => {
+  it('renders the three mode tabs in order: Events, Gaps, Obligations', () => {
+    render(<BacklogTabs hasScopes={true} />);
     const links = screen.getAllByRole('link');
     const labels = links.map((l) => l.textContent?.trim() ?? '');
-    // Coverage MUST NOT appear — it lives at /sonar/dashboard post-R2.
-    expect(labels.some((l) => /^Coverage$/.test(l))).toBe(false);
     // Strip any "Start here" badge text suffix.
-    expect(labels[0]).toMatch(/^Working list/);
-    expect(labels[1]).toMatch(/^Events/);
+    expect(labels[0]).toMatch(/^Events/);
+    expect(labels[1]).toMatch(/^Gaps/);
     expect(labels[2]).toMatch(/^Obligations/);
-    expect(labels[3]).toMatch(/^Watchers/);
-    expect(labels).toHaveLength(4);
+    expect(labels).toHaveLength(3);
   });
 
-  it('does NOT render a tab labeled "Coverage"', () => {
-    render(<PostureTabs hasScopes={true} />);
+  it('does NOT render the dropped Working list or Watchers tabs', () => {
+    render(<BacklogTabs hasScopes={true} />);
+    expect(screen.queryByRole('link', { name: /^Working list/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Watchers/i })).toBeNull();
+  });
+
+  it('does NOT render a tab labeled "Coverage" (v1.37 R2 carryover)', () => {
+    render(<BacklogTabs hasScopes={true} />);
     expect(screen.queryByRole('link', { name: /^Coverage$/ })).toBeNull();
   });
 
-  it('points the Working list tab at the bare /sonar/posture (section-root landing)', () => {
-    render(<PostureTabs hasScopes={true} />);
-    const wl = screen.getByRole('link', { name: /Working list/i });
-    expect(wl).toHaveAttribute('href', '/account/sonar/posture');
+  it('points the Events tab at the canonical /sonar/posture/changes URL', () => {
+    // Section root /sonar/posture also renders Events (default landing
+    // via posture/page.tsx re-exporting ChangesPage), but the tab href
+    // is the canonical /changes path so deep-links and bookmarks
+    // resolve consistently.
+    render(<BacklogTabs hasScopes={true} />);
+    const events = screen.getByRole('link', { name: /^Events/i });
+    expect(events).toHaveAttribute('href', '/account/sonar/posture/changes');
   });
 
-  it('renders the "Start here" badge on Working list when no scopes', () => {
-    render(<PostureTabs hasScopes={false} />);
+  it('points the Gaps tab at /sonar/posture/working-list (canonical Gaps URL)', () => {
+    render(<BacklogTabs hasScopes={true} />);
+    const gaps = screen.getByRole('link', { name: /^Gaps/i });
+    expect(gaps).toHaveAttribute('href', '/account/sonar/posture/working-list');
+  });
+
+  it('renders the "Start here" badge on Gaps when no scopes', () => {
+    // Start-here anchors the first-run setup CTA on the working-list-
+    // derived surface (Gaps), not on the default Events landing.
+    render(<BacklogTabs hasScopes={false} />);
     expect(screen.getByText(/Start here/i)).toBeInTheDocument();
-    // Should be inside the Working list link.
-    const wl = screen.getByRole('link', { name: /Working list/i });
-    expect(wl.textContent).toMatch(/Start here/);
+    const gaps = screen.getByRole('link', { name: /Gaps/i });
+    expect(gaps.textContent).toMatch(/Start here/);
   });
 });

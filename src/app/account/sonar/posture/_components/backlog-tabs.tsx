@@ -14,18 +14,19 @@ interface Tab {
   matchPath: string;
 }
 
-// v1.37 Posture section nav — pure workflow surfaces. Coverage moved to
-// /sonar/dashboard in the second v1.37 restructure; the section root
-// /posture now lands on the Working List (its default landing) and the
-// slim coverage-context strip in `layout.tsx` keeps coverage % visible
-// above the tabs on every child page.
+// v.1.41 Backlog IA — mode-switching tabs. Three independent surfaces; no
+// unified default view. The section root /sonar/posture renders Events
+// (its default mode); the Events tab href points at the canonical
+// /sonar/posture/changes URL so both paths keep the Events tab active.
+//
+// Dropped from this list vs the v1.37 Posture tabs:
+//   - "Working list" — the section root IS the backlog; a tab restating
+//     the URL was redundant. Replaced by the Gaps mode (single-category
+//     view of the working-list endpoint).
+//   - "Watchers" — relocated out of Backlog to its own Sonar Observe
+//     sidebar entry in PR-5. Until that PR lands, /sonar/posture/runs is
+//     orphaned from in-section nav (still resolves by direct URL).
 const tabs: Tab[] = [
-  {
-    segment: "working-list",
-    label: "Working list",
-    href: "/account/sonar/posture",
-    matchPath: "/account/sonar/posture",
-  },
   {
     segment: "changes",
     label: "Events",
@@ -33,39 +34,40 @@ const tabs: Tab[] = [
     matchPath: "/account/sonar/posture/changes",
   },
   {
+    segment: "working-list",
+    label: "Gaps",
+    href: "/account/sonar/posture/working-list",
+    matchPath: "/account/sonar/posture/working-list",
+  },
+  {
     segment: "obligations",
-    label: "Obligations · Inbound",
+    label: "Obligations",
     href: "/account/sonar/posture/obligations",
     matchPath: "/account/sonar/posture/obligations",
   },
-  {
-    segment: "runs",
-    label: "Watchers",
-    href: "/account/sonar/posture/runs",
-    matchPath: "/account/sonar/posture/runs",
-  },
 ];
 
-export function PostureTabs({ hasScopes }: { hasScopes: boolean }) {
+export function BacklogTabs({ hasScopes }: { hasScopes: boolean }) {
   const pathname = usePathname();
 
   return (
     <div className="flex border-b border-slate/15 mb-6">
       {tabs.map((tab) => {
-        // The Working List landing (bare /posture path) must NOT light up
-        // when the user is on a deeper sibling — prefix-startsWith would
-        // otherwise mark it as active on /posture/changes, etc. The other
-        // tabs are leaf paths so prefix-startsWith is fine and lets
-        // sub-routes (e.g. /posture/changes/:id) keep the parent tab
-        // highlighted. Also treat the canonical /working-list URL as
-        // equivalent to the bare /posture root so direct navigation to
-        // either resolves to the same active tab.
-        const isWorkingList = tab.matchPath === "/account/sonar/posture";
-        const isActive = isWorkingList
-          ? pathname === tab.matchPath ||
-            pathname === "/account/sonar/posture/working-list" ||
-            pathname.startsWith("/account/sonar/posture/working-list/")
+        // Events is the section-root default — both `/posture` and the
+        // canonical `/posture/changes` (plus any deeper `/changes/:id`)
+        // must light the Events tab. The other tabs are leaf paths so
+        // prefix-startsWith correctly keeps the parent tab highlighted
+        // on sub-routes.
+        const isEvents = tab.matchPath === "/account/sonar/posture/changes";
+        const isActive = isEvents
+          ? pathname === "/account/sonar/posture" ||
+            pathname === tab.matchPath ||
+            pathname.startsWith(`${tab.matchPath}/`)
           : pathname === tab.matchPath || pathname.startsWith(`${tab.matchPath}/`);
+        // "Start here" anchor: the empty-state CTA lives on Gaps (the
+        // working-list-derived surface) — first-run users with no
+        // scopes configured land on Events by default but the actionable
+        // setup flow is reached by clicking Gaps.
         const showStartHere = !hasScopes && tab.segment === "working-list";
         return (
           <Link
