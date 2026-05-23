@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/swr-fetcher';
 import { CurrentHeader } from './current-header';
 import { CompositionBar } from './composition-bar';
 import { TimeseriesChart } from './timeseries-chart';
@@ -29,12 +30,10 @@ interface CurrentPayload {
 
 interface Props { initialCurrent: CurrentPayload | null; }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 export function UsageClient({ initialCurrent }: Props) {
   const [window, setWindow] = useState<1 | 7 | 30>(7);
 
-  const { data: currentData } = useSWR<CurrentPayload>('/api/account/usage/current', fetcher, {
+  const { data: currentData } = useSWR<CurrentPayload>('/api/account/usage/current', jsonFetcher, {
     fallbackData: initialCurrent ?? undefined,
     refreshInterval: 30000,
   });
@@ -42,23 +41,23 @@ export function UsageClient({ initialCurrent }: Props) {
 
   const { data: activeRunsData } = useSWR<{ active_runs: ActiveRunRow[] }>(
     '/api/account/usage/active-runs',
-    fetcher,
+    jsonFetcher,
     { refreshInterval: 10000 },
   );
 
   const { data: timeseriesData } = useSWR<{ buckets: TimeseriesBucket[] }>(
     `/api/account/usage/timeseries?window_days=${window}`,
-    fetcher,
+    jsonFetcher,
   );
 
   const { data: counterpartiesData } = useSWR<{ counterparties: CounterpartyRow[] }>(
     `/api/account/usage/counterparties?window_days=${window}`,
-    fetcher,
+    jsonFetcher,
   );
 
   const { data: throttleData } = useSWR<{ throttle_history: ThrottleHistoryRow[] }>(
     '/api/account/usage/throttle-history?days=30',
-    fetcher,
+    jsonFetcher,
   );
 
   if (!current) {
