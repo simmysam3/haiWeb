@@ -89,7 +89,9 @@ export function ProvenanceDashboard() {
                         <td className="py-3 text-slate">
                           {new Date(m.updated_at).toLocaleDateString()}
                         </td>
-                        <td className="py-3 text-right text-teal text-xs">Inspect →</td>
+                        <td className="py-3 text-right text-teal text-xs">
+                          Inspect <span className="text-lg font-bold align-middle">›</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
