@@ -71,9 +71,10 @@ export function RequestManagementClient({ initialData }: Props) {
 
   // Unfiltered fetch to populate the counterparty dropdown options. Without
   // this, the option set self-prunes once a counterparty is selected (the
-  // filtered list only includes that counterparty's rows). The unfiltered
-  // call also gives us authoritative `total` for the "All" direction tab
-  // even when the active fetch is narrowed.
+  // filtered list only includes that counterparty's rows). Direction-tab
+  // counts now come from the active fetch (the service computes them off
+  // the non-direction-filtered scope so the tab badges line up with each
+  // other and with the visible row count under the current filters).
   const { data: allData } = useSWR<RequestManagementListResponse>(
     '/api/sonar/compliance/requests?awaiting=all&type=all',
     jsonFetcher,
@@ -133,7 +134,7 @@ export function RequestManagementClient({ initialData }: Props) {
       <DirectionTabs
         awaitingMeCount={data?.awaiting_me_count ?? 0}
         awaitingThemCount={data?.awaiting_them_count ?? 0}
-        totalCount={allData?.total ?? data?.total ?? 0}
+        totalCount={data?.total ?? 0}
       />
       <FilterBar counterpartyOptions={counterpartyOptions} />
       {isEmptyFromFilters ? (
