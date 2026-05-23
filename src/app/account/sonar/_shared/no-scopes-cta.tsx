@@ -7,8 +7,8 @@ export function NoScopesCTA({
 }) {
   const copy =
     context === 'dashboard'
-      ? 'Audit dashboards are driven by scopes you configure. Add at least one scope to see geographic rollups and gap data here.'
-      : 'Runs appear here once you configure a scope and trigger an audit. Start by setting up your first scope.';
+      ? 'Dashboards are driven by scopes you configure. Add at least one scope to see geographic rollups and gap data here.'
+      : 'Runs appear here once you configure a scope and trigger a watcher. Start by setting up your first scope.';
   return (
     <div className="rounded-lg border border-slate/15 bg-white p-10 text-center">
       <h2 className="text-lg font-semibold text-charcoal mb-2">

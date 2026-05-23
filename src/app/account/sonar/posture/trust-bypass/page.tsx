@@ -76,7 +76,7 @@ export default function TrustBypassPage() {
         description="Auto-acknowledge inbound nominations from counterparties in selected trust classes. Lower trust classes (unknown / behavioral-only) are never affected. Explicit declines are always preserved."
       />
       <PageIntro>
-        Configure bulk pre-authorization for inbound audit nominations from your most-trusted counterparties so they auto-acknowledge without manual queue review. Enable bypass per trust class (trading pair, premier partner), apply it retroactively, and review the nominations you&apos;ve previously declined that the bypass would have approved.
+        Configure bulk pre-authorization for inbound nominations from your most-trusted counterparties so they auto-acknowledge without manual queue review. Enable bypass per trust class (trading pair, premier partner), apply it retroactively, and review the nominations you&apos;ve previously declined that the bypass would have approved.
       </PageIntro>
 
       {error && (

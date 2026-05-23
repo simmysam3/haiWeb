@@ -48,11 +48,11 @@ export default async function RunsPage() {
   return (
     <div className="p-6 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-charcoal">Audit Runs</h1>
+        <h1 className="text-xl font-semibold text-charcoal">Watchers</h1>
         <RunControls />
       </header>
       <PageIntro>
-        The complete history of supply-chain audit runs you&apos;ve initiated, with their status, trigger source, and result links. Start, cancel, or re-run audits here; the <em>Audit Dashboard</em> is where the latest run&apos;s results are aggregated for review.
+        The complete history of watcher runs across your active scopes — monitoring for product availability, lead-time drift, capacity shifts, and other observable supply-chain signals. Start, cancel, or re-run from here; the <em>Sonar Dashboard</em> aggregates the latest results across all modalities.
       </PageIntro>
       <RunsTable runs={runs} />
     </div>

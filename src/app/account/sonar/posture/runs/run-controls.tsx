@@ -31,17 +31,17 @@ export function RunControls() {
     <div className="flex items-center gap-2">
       {error && <span className="text-xs text-[var(--color-problem)]">{error}</span>}
       <Link
-        href="/account/sonar/audit/new"
+        href="/account/sonar/templates/new?observation_class=watcher"
         className="rounded border border-slate-300 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
       >
-        New Audit
+        New Watcher
       </Link>
       <button
         onClick={runAudit}
         disabled={busy}
         className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium disabled:opacity-60"
       >
-        {busy ? 'Running…' : 'Run audit now'}
+        {busy ? 'Running…' : 'Run now'}
       </button>
     </div>
   );

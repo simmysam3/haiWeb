@@ -24,7 +24,7 @@ export default async function ChangeDetailPage({ params }: PageProps) {
       href="/account/sonar/posture/changes"
       className="inline-flex items-center gap-1 text-sm text-teal hover:text-navy"
     >
-      ← Back to Changes
+      ← Back to Events
     </Link>
   );
 
@@ -45,10 +45,10 @@ export default async function ChangeDetailPage({ params }: PageProps) {
               : result.status === 401
               ? 'Your session has expired. Please sign in again.'
               : result.status >= 500
-              ? "Couldn't load this change. The audit service is temporarily unavailable."
+              ? "Couldn't load this event. The monitoring service is temporarily unavailable."
               : result.status === 0
-              ? `Couldn't reach the audit service${result.message ? `: ${result.message}` : '.'}`
-              : `Couldn't load this change (status ${result.status}).`}
+              ? `Couldn't reach the monitoring service${result.message ? `: ${result.message}` : '.'}`
+              : `Couldn't load this event (status ${result.status}).`}
           </p>
         </div>
       </div>
@@ -59,10 +59,10 @@ export default async function ChangeDetailPage({ params }: PageProps) {
     <div className="px-8 py-10">
       <header className="mb-4">
         {backLink}
-        <h1 className="mt-4 text-3xl font-display text-navy">Change detail</h1>
+        <h1 className="mt-4 text-3xl font-display text-navy">Event detail</h1>
       </header>
       <PageIntro>
-        Side-by-side view of the compliance cell state before and after this change was detected. Samples are attribute observations captured at snapshot time; the subtree shows the raw supply-chain node data when available.
+        Side-by-side view of the cell state before and after this event was detected. Samples are attribute observations captured at snapshot time; the subtree shows the raw supply-chain node data when available.
       </PageIntro>
 
       <ChangeDetailCompare detail={result.data} />

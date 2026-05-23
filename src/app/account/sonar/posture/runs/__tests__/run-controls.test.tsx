@@ -14,11 +14,11 @@ describe('RunControls', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders Run-audit-now and New-Audit buttons', () => {
+  it('renders Run-now and New-Watcher buttons', () => {
     render(<RunControls />);
-    expect(screen.getByRole('button', { name: /run audit now/i })).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /new audit/i });
-    expect(link).toHaveAttribute('href', '/account/sonar/audit/new');
+    expect(screen.getByRole('button', { name: /run now/i })).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /new watcher/i });
+    expect(link).toHaveAttribute('href', '/account/sonar/templates/new?observation_class=watcher');
   });
 
   it('POSTs a valid company-scoped run trigger (haiCore POST /runs is a discriminated union on scope_type)', async () => {
@@ -27,7 +27,7 @@ describe('RunControls', () => {
       .mockResolvedValue(new Response(null, { status: 200 }));
     render(<RunControls />);
 
-    await userEvent.click(screen.getByRole('button', { name: /run audit now/i }));
+    await userEvent.click(screen.getByRole('button', { name: /run now/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0];

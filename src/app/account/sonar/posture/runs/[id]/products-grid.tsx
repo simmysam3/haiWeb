@@ -359,11 +359,11 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
         onClose={() => setSelected(null)}
         title={
           selected
-            ? `Audit tree · ${
+            ? `Observation tree · ${
                 rows.find((e) => e.result.result_id === selected.result_id)
                   ?.vendorName || selected.product_id
               }`
-            : 'Audit tree'
+            : 'Observation tree'
         }
         width="max-w-2xl"
       >

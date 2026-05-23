@@ -28,7 +28,7 @@ const tabs: Tab[] = [
   },
   {
     segment: "changes",
-    label: "Changes",
+    label: "Events",
     href: "/account/sonar/posture/changes",
     matchPath: "/account/sonar/posture/changes",
   },
@@ -40,7 +40,7 @@ const tabs: Tab[] = [
   },
   {
     segment: "runs",
-    label: "Runs",
+    label: "Watchers",
     href: "/account/sonar/posture/runs",
     matchPath: "/account/sonar/posture/runs",
   },

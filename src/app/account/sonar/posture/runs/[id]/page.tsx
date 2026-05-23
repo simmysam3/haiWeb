@@ -121,7 +121,7 @@ export default async function RunDetailPage({
         >
           Couldn&apos;t load this run&apos;s results
           {data.resultsError.status >= 500
-            ? ' — the audit service is temporarily unavailable.'
+            ? ' — the monitoring service is temporarily unavailable.'
             : data.resultsError.status === 403
             ? ' — you do not have permission to view this run.'
             : ` — server returned ${data.resultsError.status}.`}

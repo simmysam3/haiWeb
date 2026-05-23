@@ -41,15 +41,15 @@ export default async function ChangesPage({ searchParams }: PageProps) {
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-display text-navy">Changes</h1>
+          <h1 className="text-3xl font-display text-navy">Events</h1>
           <p className="mt-2 text-slate">
-            Compliance changes detected between snapshots — default window is 14 days.
+            Monitoring events detected between snapshots — default window is 14 days.
           </p>
         </div>
         <RefreshButton />
       </header>
       <PageIntro>
-        A reverse-chronological feed of every change detected between compliance snapshots: origin shifts, gap openings and closures, certification expirations, vendor substitutions, and more. Filter by change kind, partner, or date range. Click Compare on any row to view the before-and-after cell detail.
+        A reverse-chronological alerting feed of every change detected between snapshots: origin shifts, gap openings and closures, certification expirations, vendor substitutions, and more. Filter by event kind, partner, or date range. Click Compare on any row to view the before-and-after cell detail.
       </PageIntro>
 
       <FilterPills />
@@ -59,14 +59,14 @@ export default async function ChangesPage({ searchParams }: PageProps) {
           <div role="alert" className="p-12 text-center">
             <p className="text-red-900">
               {result.status === 403
-                ? "You do not have permission to view compliance changes."
+                ? "You do not have permission to view events."
                 : result.status === 401
                 ? "Your session has expired. Please sign in again."
                 : result.status >= 500
-                ? "Couldn’t load compliance changes. The audit service is temporarily unavailable."
+                ? "Couldn’t load events. The monitoring service is temporarily unavailable."
                 : result.status === 0
-                ? `Couldn’t reach the audit service${result.message ? `: ${result.message}` : "."}`
-                : `Couldn’t load compliance changes (status ${result.status}).`}
+                ? `Couldn’t reach the monitoring service${result.message ? `: ${result.message}` : "."}`
+                : `Couldn’t load events (status ${result.status}).`}
             </p>
           </div>
         ) : (

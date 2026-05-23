@@ -42,7 +42,7 @@ export function RunFailureBanner({
 
       {isPostProcessingConflict && (
         <p>
-          The audit traversal itself appears to have completed; a post-processing
+          The traversal itself appears to have completed; a post-processing
           step hit a duplicate-entry conflict. This is a known backend issue —
           the results above are likely valid.
         </p>
