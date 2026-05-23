@@ -42,7 +42,7 @@ export function KeyNudgeBanner({ vendorId }: { vendorId: string }) {
     <div className="mb-4 border-l-2 border-l-orange pl-3 py-1.5 text-xs text-slate">
       Only country-of-origin is unlocked for this vendor. For state, city, and vendor-identity detail, issue a provenance key and have this vendor install it.{' '}
       <Link href="/account/provenance-keys" className="text-teal hover:text-navy">
-        Generate a key &rarr;
+        Generate a key ›
       </Link>
     </div>
   );

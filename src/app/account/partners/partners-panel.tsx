@@ -362,7 +362,7 @@ export function PartnersPanel() {
             href={`/account/partners/${p.id}/catalog`}
             className="text-xs text-teal hover:text-navy font-medium"
           >
-            View Catalog &rarr;
+            View Catalog ›
           </Link>
           <Link
             href={`/account/sonar/templates/new?observation_class=phantom_demand&counterparty=${encodeURIComponent(p.id)}`}
@@ -602,7 +602,7 @@ export function PartnersPanel() {
                         onClick={() => setProfileRequest(req)}
                         className="text-xs text-teal hover:text-teal-dark font-medium"
                       >
-                        View Full Profile &rarr;
+                        View Full Profile ›
                       </button>
                     </div>
                   </div>
@@ -700,7 +700,7 @@ export function PartnersPanel() {
                         href={`/account/partners/${company.id}/catalog`}
                         className="text-xs text-teal hover:text-navy font-medium"
                       >
-                        View Catalog &rarr;
+                        View Catalog ›
                       </Link>
                     )}
                   </div>
