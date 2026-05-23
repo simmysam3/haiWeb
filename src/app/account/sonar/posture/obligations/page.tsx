@@ -51,7 +51,7 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-display text-navy">My Obligations &middot; Inbound</h1>
+          <h1 className="text-3xl font-display text-navy">Obligations</h1>
           <p className="mt-2 text-slate">
             Inbound requests from your customers asking you to resolve
             downstream gaps in your supply tree — sub-tier vendors off-network,
