@@ -90,6 +90,9 @@ import type {
   ExportResult as ExportResultWire,
   RequestManagementListResponse,
   SearchResponse,
+  GroupedManifestsResponse,
+  ManifestsByClassResponse,
+  ManifestSearchResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -391,6 +394,13 @@ export interface HaiwaveClient {
   getOriginManifest(productId: string): Promise<Record<string, unknown>>;
   getCertifications(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   getProvenanceChain(chainId: string): Promise<Record<string, unknown>>;
+  // v1.41 provenance class-grouped rollup
+  listGroupedManifests(): Promise<GroupedManifestsResponse>;
+  listManifestsByClass(
+    classSlug: string,
+    opts?: { page?: number; pageSize?: number },
+  ): Promise<ManifestsByClassResponse>;
+  searchManifests(q: string, limit?: number): Promise<ManifestSearchResponse>;
   // Compliance (v1.15)
   getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   triggerSelfAudit(): Promise<Record<string, unknown>>;
@@ -916,6 +926,29 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     getProvenanceChain(chainId: string) {
       return request<Record<string, unknown>>("GET", `/provenance/chain/${chainId}`);
+    },
+
+    // ─── Provenance (v1.41 class-grouped rollup) ─────────
+    listGroupedManifests() {
+      return request<GroupedManifestsResponse>('GET', '/provenance/manifest/grouped');
+    },
+    listManifestsByClass(classSlug, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.page !== undefined) params.set('page', String(opts.page));
+      if (opts.pageSize !== undefined) params.set('page_size', String(opts.pageSize));
+      const q = params.toString();
+      return request<ManifestsByClassResponse>(
+        'GET',
+        `/provenance/manifest/grouped/${encodeURIComponent(classSlug)}${q ? `?${q}` : ''}`,
+      );
+    },
+    searchManifests(q, limit) {
+      const params = new URLSearchParams({ q });
+      if (limit !== undefined) params.set('limit', String(limit));
+      return request<ManifestSearchResponse>(
+        'GET',
+        `/provenance/manifest/search?${params.toString()}`,
+      );
     },
 
     // ─── Compliance (v1.15) ──────────────────────────────
