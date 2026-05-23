@@ -32,10 +32,10 @@ export default async function AuditListPage() {
         <div>
           <h1 className="text-xl font-semibold text-charcoal">Audits</h1>
           <p className="text-sm text-slate mt-1">
-            Audits verify where products are sourced from — the provenance of plant and
-            geographic location. Each audit applies to a supplier and an associated set of
-            product SKUs. Schedule recurring audits to fire automatically on their cadence,
-            or trigger ad-hoc runs manually.
+            <strong className="text-charcoal">Supplier ecosystem oversight.</strong>{' '}
+            Verify supplier sourcing claims run by run. Pick a supplier, scope the audit
+            to a whole catalog, a product class, or specific SKUs, then schedule recurring
+            sweeps or fire ad-hoc checks. One supplier per audit — sweep many for breadth.
           </p>
         </div>
         <Link

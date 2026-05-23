@@ -7,10 +7,10 @@ export default function ProvenancePage() {
     <div>
       <PageHeader
         title="Product Provenance"
-        description="Origin manifests and certifications for your products"
+        description="Product-led composition view across your supply chain."
       />
       <PageIntro>
-        Start with one of your products and drill into the component makeup behind it — facilities, subcomponents, country-of-origin, and the regulatory certifications attached. Product-led companion to Audits: where Audits actively verify a supplier&apos;s claims, this surfaces the manifests already declared and published into your network.
+        Inspect what makes up your products. Start at any product you sell and walk down its supply chain — components, subcomponents, manufacturing facilities, country-of-origin, and certifications at every layer. Read-only browse of manifests already declared into your network — the steady-state companion to Audits&apos; active verification.
       </PageIntro>
       <ProvenanceDashboard />
     </div>
