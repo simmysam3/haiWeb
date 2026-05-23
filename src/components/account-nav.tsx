@@ -74,16 +74,20 @@ const navSections: NavSection[] = [
       { href: "/account", label: "Dashboard" },
       { href: "/account/orders", label: "Orders" },
       { href: "/account/scores", label: "Behavioral Scores" },
-      { href: "/account/provenance", label: "Provenance" },
       { href: "/account/compliance", label: "Compliance" },
       { href: "/account/agent-health", label: "Agent Health" },
     ],
   },
   {
     // v1.39: Sonar IA split — audit surface separated from observe surface.
+    // v.1.41: Product Provenance moved under Sonar Audit — it's a
+    // product-led view into supply-chain makeup, the read-only counterpart
+    // to the supplier-led audit-run surface. URL kept at /account/provenance
+    // (no redirect needed — only the nav placement + label changed).
     label: "Sonar Audit",
     items: [
       { href: "/account/sonar/audit", label: "Audits" },
+      { href: "/account/provenance", label: "Product Provenance" },
     ],
   },
   {

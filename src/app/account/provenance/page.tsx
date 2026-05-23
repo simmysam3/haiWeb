@@ -6,11 +6,11 @@ export default function ProvenancePage() {
   return (
     <div>
       <PageHeader
-        title="Provenance"
-        description="Origin manifests and certification status"
+        title="Product Provenance"
+        description="Origin manifests and certifications for your products"
       />
       <PageIntro>
-        Inspect the origin manifests and certifications attached to goods flowing through your network — both what your suppliers have published to you and what you&apos;ve published downstream. Use it to verify country-of-origin claims, regulatory certifications, and component lineage on any SKU at any time.
+        Start with one of your products and drill into the component makeup behind it — facilities, subcomponents, country-of-origin, and the regulatory certifications attached. Product-led companion to Audits: where Audits actively verify a supplier&apos;s claims, this surfaces the manifests already declared and published into your network.
       </PageIntro>
       <ProvenanceDashboard />
     </div>
