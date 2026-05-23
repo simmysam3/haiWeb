@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-export type CountValue = number | { filtered: number; total: number };
+export type CountValue = number | { filtered: number; total: number } | string;
 
 interface Props {
   groupKey: string;
@@ -17,6 +17,7 @@ interface Props {
 
 function renderCount(count: CountValue): string {
   if (typeof count === 'number') return String(count);
+  if (typeof count === 'string') return count;
   return `${count.filtered} of ${count.total}`;
 }
 

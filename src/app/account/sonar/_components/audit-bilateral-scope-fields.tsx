@@ -299,7 +299,7 @@ export function AuditBilateralScopeFields({ counterparties: _ignored, skus, onCh
           const catalog = catalogs.get(cp.counterparty_id);
           const cpCount =
             cpState === 'none'
-              ? cp.product_ids.length
+              ? `${cp.product_ids.length} SKU${cp.product_ids.length === 1 ? '' : 's'}`
               : {
                   filtered: cp.product_ids.filter((id) => selectedSkus.has(id)).length,
                   total: cp.product_ids.length,
@@ -336,7 +336,7 @@ export function AuditBilateralScopeFields({ counterparties: _ignored, skus, onCh
                       const className = catalog.classNames.get(slug) ?? slug;
                       const classCount =
                         classState === 'none'
-                          ? products.length
+                          ? `${products.length} SKU${products.length === 1 ? '' : 's'}`
                           : {
                               filtered: products.filter((p) =>
                                 selectedSkus.has(p.external_product_id),

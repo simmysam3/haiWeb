@@ -79,6 +79,24 @@ describe('<GroupedAccordion>', () => {
     const alphaBtn = screen.getByRole('button', { name: /Collapse Alpha/i });
     expect(alphaBtn.getAttribute('aria-expanded')).toBe('true');
   });
+
+  it('renders count as a custom string for string prop (picker unit labels)', () => {
+    const noop = () => {};
+    render(
+      <GroupedAccordion initialExpanded="none">
+        <AccordionGroupRow
+          groupKey="c"
+          label="WithUnit"
+          count="5 SKUs"
+          expanded={false}
+          onToggle={noop}
+        >
+          {null}
+        </AccordionGroupRow>
+      </GroupedAccordion>
+    );
+    expect(screen.getByText('5 SKUs')).toBeInTheDocument();
+  });
 });
 
 describe('<AccordionLeafRow>', () => {
