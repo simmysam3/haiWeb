@@ -20,7 +20,7 @@ function Harness({ initial = 'none' }: { initial?: 'none' | 'all' }) {
     });
 
   return (
-    <GroupedAccordion expanded={expanded} onToggle={toggle} initialExpanded={initial}>
+    <GroupedAccordion initialExpanded={initial}>
       <AccordionGroupRow
         groupKey="a"
         label="Alpha"
@@ -93,7 +93,7 @@ describe('<AccordionLeafRow>', () => {
         }}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /L/i }));
+    fireEvent.click(screen.getByRole('treeitem', { name: /L/i }));
     expect(clicked).toBe(true);
   });
 });

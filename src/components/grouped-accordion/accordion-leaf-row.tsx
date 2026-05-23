@@ -31,6 +31,8 @@ export function AccordionLeafRow({ controlSlot, label, metaSlot, onClick }: Prop
     return (
       <button
         type="button"
+        role="treeitem"
+        aria-level={2}
         aria-label={labelText || undefined}
         onClick={onClick}
         className="flex w-full items-center gap-2 py-0.5 text-left hover:bg-gray-50 cursor-pointer"

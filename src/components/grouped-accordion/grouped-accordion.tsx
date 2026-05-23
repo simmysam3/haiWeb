@@ -3,8 +3,12 @@
 import type { ReactNode } from 'react';
 
 interface Props {
-  expanded: Set<string>;
-  onToggle: (key: string) => void;
+  /**
+   * Hint metadata for callers managing default state — not consumed by
+   * this component. Documents the intended pattern: 'all' = render all
+   * groups expanded; 'none' = collapsed by default. Callers seed their
+   * own expanded Set accordingly.
+   */
   initialExpanded?: 'all' | 'none';
   children: ReactNode;
 }
@@ -15,14 +19,12 @@ interface Props {
  * (`audit-bilateral-scope-fields.tsx` commit 1440312). Extracted so wizard,
  * provenance, and future consumers stay in sync.
  *
- * `expanded` + `onToggle` are owned by the caller; this component is
- * presentational (it doesn't store state). `initialExpanded` is hint
- * metadata for callers managing default state — the component itself just
- * renders whatever children it's given.
- *
- * Children should be <AccordionGroupRow> instances; the component does not
- * enforce that at the type level (any ReactNode is allowed) so that callers
- * can wrap rows in fragments, conditional renders, etc.
+ * This component is intentionally presentational — it owns no state and
+ * does not coordinate expansion. Callers manage their own `expanded: Set`
+ * and `onToggle` handler, passing them to individual <AccordionGroupRow>
+ * children. This keeps the shell composable: nested accordions, picker
+ * variants with checkboxes, browse variants without — all just wrap
+ * AccordionGroupRow children.
  */
 export function GroupedAccordion({ children }: Props) {
   return (
