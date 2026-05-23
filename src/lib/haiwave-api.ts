@@ -35,6 +35,7 @@ import type {
   AuditScopeCreationRequest,
   AuditScopeCoverage,
   AuditWizardOptionsResponse,
+  AuditExceptionsResponse,
   AuditRun,
   AuditRunResult,
   ClassRollupEntry,
@@ -433,6 +434,8 @@ export interface HaiwaveClient {
   getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
   // v.1.41 audit-wizard restore: counterparty + SKU picker data source.
   getAuditWizardOptions(): Promise<AuditWizardOptionsResponse>;
+  // v.1.41 Audit Exceptions surface: latest non-compliant per (vendor, product).
+  getAuditExceptions(opts?: { windowDays?: number }): Promise<AuditExceptionsResponse>;
   // Audit Runs (v1.25)
   triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
   refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
@@ -1037,6 +1040,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     getAuditWizardOptions() {
       return request<AuditWizardOptionsResponse>('GET', '/audit-scopes/wizard-options');
+    },
+    getAuditExceptions(opts = {}) {
+      const qs =
+        opts.windowDays !== undefined ? `?window_days=${opts.windowDays}` : '';
+      return request<AuditExceptionsResponse>('GET', `/sonar/audit/exceptions${qs}`);
     },
 
     // ─── Audit Runs (v1.25) ──────────────────────────────────

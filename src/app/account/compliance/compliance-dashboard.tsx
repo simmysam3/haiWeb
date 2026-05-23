@@ -8,6 +8,13 @@ import { Tabs } from "@/components/tabs";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
 
+interface ComplianceDashboardProps {
+  // v.1.41 Audit Exceptions: outer container reads the open-flag count
+  // back from this panel so the parent tab badge stays accurate without
+  // duplicating the fetch.
+  onCountChange?: (count: number) => void;
+}
+
 interface ComplianceFlag {
   flag_id: string;
   flagged_vendor_id: string;
@@ -33,7 +40,7 @@ const COMPLIANCE_FALLBACK: ComplianceApiResponse = {
 const PAGE_SIZE = 20;
 type TabKey = "open" | "resolved";
 
-export function ComplianceDashboard() {
+export function ComplianceDashboard({ onCountChange }: ComplianceDashboardProps = {}) {
   const [tab, setTab] = useState<TabKey>("open");
   const [page, setPage] = useState(1);
 
@@ -50,6 +57,11 @@ export function ComplianceDashboard() {
 
   const openCount = data.open_count;
   const resolvedCount = Math.max(0, data.total_count - data.open_count);
+
+  // Surface the open-flag count to the outer Audit Exceptions tab badge.
+  useEffect(() => {
+    onCountChange?.(openCount);
+  }, [openCount, onCountChange]);
   const tabCount = tab === "open" ? openCount : resolvedCount;
   const totalPages = Math.max(1, Math.ceil(tabCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);

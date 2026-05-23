@@ -74,7 +74,6 @@ const navSections: NavSection[] = [
       { href: "/account", label: "Dashboard" },
       { href: "/account/orders", label: "Orders" },
       { href: "/account/scores", label: "Behavioral Scores" },
-      { href: "/account/compliance", label: "Compliance" },
       { href: "/account/agent-health", label: "Agent Health" },
     ],
   },
@@ -84,9 +83,13 @@ const navSections: NavSection[] = [
     // product-led view into supply-chain makeup, the read-only counterpart
     // to the supplier-led audit-run surface. URL kept at /account/provenance
     // (no redirect needed — only the nav placement + label changed).
+    // v.1.41: Compliance moved here + renamed to Audit Exceptions — it's
+    // the exception rollup across audits + inbound activity. URL stays at
+    // /account/compliance.
     label: "Sonar Audit",
     items: [
       { href: "/account/sonar/audit", label: "Audits" },
+      { href: "/account/compliance", label: "Audit Exceptions" },
       { href: "/account/provenance", label: "Product Provenance" },
     ],
   },
