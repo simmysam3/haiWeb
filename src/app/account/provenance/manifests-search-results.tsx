@@ -2,6 +2,7 @@
 
 import type { ManifestSearchMatch, ManifestSkuRow } from '@haiwave/protocol';
 import { AccordionLeafRow } from '@/components/grouped-accordion';
+import { Pill } from '@/components/pill';
 import { ManifestRecencyChip } from './manifest-recency-chip';
 
 interface Props {
@@ -27,18 +28,25 @@ function ClassPills({ slugs, onClick }: { slugs: string[]; onClick: (slug: strin
             e.stopPropagation();
             onClick(slug);
           }}
-          className="rounded-full border border-slate/20 px-1.5 py-0.5 text-[10px] text-slate hover:bg-gray-50"
+          className="cursor-pointer"
         >
-          {slug}
+          <Pill
+            tone="neutral"
+            definition="Jump to this product class"
+            className="text-[10px] px-1.5 py-0.5"
+          >
+            {slug}
+          </Pill>
         </button>
       ))}
       {remainder > 0 && (
-        <span
-          className="rounded-full border border-slate/20 px-1.5 py-0.5 text-[10px] text-slate"
-          title={slugs.slice(3).join(', ')}
+        <Pill
+          tone="neutral"
+          definition={slugs.slice(3).join(', ')}
+          className="text-[10px] px-1.5 py-0.5"
         >
           +{remainder} more
-        </span>
+        </Pill>
       )}
     </span>
   );
