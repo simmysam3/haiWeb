@@ -48,8 +48,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.redirect(
-    new URL("/", process.env.NEXT_PUBLIC_URL || "http://localhost:3000"),
-  );
+  // Derive the redirect base from the inbound request so we stay on the
+  // origin the user is browsing — HaiWeb dev runs on port 3001, so a hardcoded
+  // localhost:3000 fallback bounced sign-outs to the haiCore API port instead
+  // of the portal.
+  const baseUrl = process.env.NEXT_PUBLIC_URL || request.url;
+  const response = NextResponse.redirect(new URL("/login", baseUrl));
   return clearCookies(response);
 }
