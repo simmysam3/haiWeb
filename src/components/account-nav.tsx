@@ -96,7 +96,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
       { href: REQUESTS_HREF, label: "Request Management" },
       { href: "/account/sonar/posture", label: "Posture" },
-      { href: "/account/sonar/observations", label: "Observations" },
+      { href: "/account/sonar/observations", label: "Phantom Demand" },
       { href: "/account/sonar/templates", label: "Configurations" },
     ],
   },

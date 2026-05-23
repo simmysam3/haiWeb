@@ -34,7 +34,7 @@ describe('AccountNav', () => {
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
   });
 
-  it('Sonar Observe section contains Dashboard, Request Management, Posture, Observations, Configurations', () => {
+  it('Sonar Observe section contains Dashboard, Request Management, Posture, Phantom Demand, Configurations', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
@@ -46,8 +46,8 @@ describe('AccountNav', () => {
     const posture = screen.getByRole('link', { name: 'Posture' });
     expect(posture.getAttribute('href')).toBe('/account/sonar/posture');
 
-    const observations = screen.getByRole('link', { name: 'Observations' });
-    expect(observations.getAttribute('href')).toBe('/account/sonar/observations');
+    const phantomDemand = screen.getByRole('link', { name: 'Phantom Demand' });
+    expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');
 
     const configurations = screen.getByRole('link', { name: 'Configurations' });
     expect(configurations.getAttribute('href')).toBe('/account/sonar/templates');
