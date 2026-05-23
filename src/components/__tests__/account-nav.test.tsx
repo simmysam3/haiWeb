@@ -34,7 +34,7 @@ describe('AccountNav', () => {
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
   });
 
-  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Configurations', () => {
+  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Configurations, Watcher Management', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
@@ -55,9 +55,10 @@ describe('AccountNav', () => {
     const configurations = screen.getByRole('link', { name: 'Configurations' });
     expect(configurations.getAttribute('href')).toBe('/account/sonar/templates');
 
-    // v.1.41 Backlog IA: Watcher Management lands in PR-5 alongside the
-    // relocated page itself (avoid shipping a 404 link).
-    expect(screen.queryByRole('link', { name: 'Watcher Management' })).toBeNull();
+    // v.1.41 Backlog IA PR-5: Watchers tab carved out of Backlog into
+    // its own peer entry at /sonar/watchers.
+    const watcherMgmt = screen.getByRole('link', { name: 'Watcher Management' });
+    expect(watcherMgmt.getAttribute('href')).toBe('/account/sonar/watchers');
   });
 
   it('Reports link is not present in the nav (dropped in v1.39)', () => {

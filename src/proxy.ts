@@ -99,12 +99,16 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   },
   // v1.34→v1.37: /audit/runs|reports|trust-bypass land on their v1.37 homes.
   // Listed BEFORE the generic /audit catch-all so the specific routes win.
+  // v.1.41 Backlog IA retarget: the Watchers/Runs surface moved out of
+  // /posture/runs to /sonar/watchers. Point this v1.34→v1.37 rule
+  // STRAIGHT at /sonar/watchers (not at /posture/runs which is now a
+  // redirect source itself) so the single-301-hop invariant holds.
   {
     from: /^\/account\/sonar\/audit\/runs(\/.*)?$/,
     to: (p) =>
       p.replace(
         /^\/account\/sonar\/audit\/runs/,
-        '/account/sonar/posture/runs',
+        '/account/sonar/watchers',
       ),
   },
   // v1.40 retarget — this used to land on /account/sonar/reports, but v1.40
@@ -180,12 +184,15 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
       ),
   },
   // v1.37 — runs moved under Posture (audit history).
+  // v.1.41 Backlog IA retarget: runs moved AGAIN, out to /sonar/watchers.
+  // Point this rule directly at the new home to preserve the single-301-hop
+  // invariant (avoids /compliance/runs → /posture/runs → /sonar/watchers).
   {
     from: /^\/account\/sonar\/compliance\/runs(\/.*)?$/,
     to: (p) =>
       p.replace(
         /^\/account\/sonar\/compliance\/runs/,
-        '/account/sonar/posture/runs',
+        '/account/sonar/watchers',
       ),
   },
   // v1.37 → v1.40 retarget — report detail pages were retired in v1.40 (the
@@ -271,6 +278,21 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
   {
     from: /^\/account\/sonar\/requests\/evidence\/responses(\/.*)?$/,
     to: () => '/account/sonar/audit',
+  },
+  // v.1.41 Backlog IA — the Watchers/Runs surface was carved out of the
+  // Backlog (formerly Posture) section into its own Sonar Observe entry.
+  // Old /posture/runs[/...] URLs (including direct deep-links to a single
+  // run detail) now 301 to /sonar/watchers[/...] in a single hop. The two
+  // upstream v1.34→v1.37 / v1.37 rules that previously landed on
+  // /posture/runs were ALSO retargeted to /sonar/watchers (see above) so
+  // they remain terminal — no rule should produce a /posture/runs path.
+  {
+    from: /^\/account\/sonar\/posture\/runs(\/.*)?$/,
+    to: (p) =>
+      p.replace(
+        /^\/account\/sonar\/posture\/runs/,
+        '/account/sonar/watchers',
+      ),
   },
 ];
 

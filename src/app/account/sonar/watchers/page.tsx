@@ -1,8 +1,8 @@
 import { cookies, headers } from 'next/headers';
 import type { AuditRun } from '@haiwave/protocol';
-import { getActiveScopes } from '../../_lib/scopes';
-import { NoScopesCTA } from '../../_shared/no-scopes-cta';
-import { ScopesErrorBanner } from '../../_shared/scopes-error-banner';
+import { getActiveScopes } from '../_lib/scopes';
+import { NoScopesCTA } from '../_shared/no-scopes-cta';
+import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { RunControls } from './run-controls';
 import { RunsTable } from './runs-table';
 import { PageIntro } from '@/components/page-intro';
@@ -28,7 +28,17 @@ async function loadRuns(): Promise<AuditRun[]> {
   }
 }
 
-export default async function RunsPage() {
+/**
+ * v.1.41 Backlog IA — relocated from /account/sonar/posture/runs.
+ * Watchers are configuration + observation surface for the runs that
+ * generate Backlog items, not a Backlog item themselves; carving them
+ * out of the Backlog section into their own Sonar Observe entry makes
+ * the intent clear.
+ *
+ * URL change: /account/sonar/posture/runs[/...] → /account/sonar/watchers[/...]
+ * Old URLs 301-redirect via proxy.ts so external bookmarks survive.
+ */
+export default async function WatcherManagementPage() {
   const scopesResult = await getActiveScopes();
   if (scopesResult.kind === 'error') {
     return (
@@ -48,11 +58,11 @@ export default async function RunsPage() {
   return (
     <div className="p-6 space-y-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-charcoal">Watchers</h1>
+        <h1 className="text-xl font-semibold text-charcoal">Watcher Management</h1>
         <RunControls />
       </header>
       <PageIntro>
-        The complete history of watcher runs across your active scopes — monitoring for product availability, lead-time drift, capacity shifts, and other observable supply-chain signals. Start, cancel, or re-run from here; the <em>Sonar Dashboard</em> aggregates the latest results across all modalities.
+        Configure and observe the watchers that monitor your active scopes — product availability, lead-time drift, capacity shifts, and other supply-chain signals. Start, cancel, or re-run from here; the <em>Sonar Dashboard</em> aggregates the latest results across all modalities, and detected events surface in the <em>Backlog</em>.
       </PageIntro>
       <RunsTable runs={runs} />
     </div>

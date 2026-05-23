@@ -40,9 +40,11 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
       '/account/sonar/audit/downstream-gaps',
       '/account/sonar/posture/obligations',
     ],
+    // v.1.41 Backlog IA: /audit/runs cluster retargeted from /posture/runs
+    // (now itself a redirect source) straight to /sonar/watchers.
     [
       '/account/sonar/audit/runs/abc',
-      '/account/sonar/posture/runs/abc',
+      '/account/sonar/watchers/abc',
     ],
     [
       '/account/sonar/audit/trust-bypass',
@@ -74,7 +76,7 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
     const res = await run('/account/sonar/audit/runs/abc?x=1');
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
-    expect(loc.pathname).toBe('/account/sonar/posture/runs/abc');
+    expect(loc.pathname).toBe('/account/sonar/watchers/abc');
     expect(loc.searchParams.get('x')).toBeNull();
   });
 
@@ -133,9 +135,11 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/posture/working-list',
       '/account/sonar/posture/working-list',
     ],
+    // v.1.41 Backlog IA: /compliance/runs cluster retargeted to /sonar/watchers
+    // (was /posture/runs, now itself a redirect source).
     [
       '/account/sonar/compliance/runs/abc',
-      '/account/sonar/posture/runs/abc',
+      '/account/sonar/watchers/abc',
     ],
     [
       '/account/sonar/compliance/trust-bypass',
