@@ -32,9 +32,10 @@ export default async function AuditListPage() {
         <div>
           <h1 className="text-xl font-semibold text-charcoal">Audits</h1>
           <p className="text-sm text-slate mt-1">
-            Manage your recurring audit configurations and review the full run history.
-            Scheduled configurations fire automatically on their cadence; ad-hoc runs
-            are triggered manually or via evidence dispatch.
+            Audits verify where products are sourced from — the provenance of plant and
+            geographic location. Each audit applies to a supplier and an associated set of
+            product SKUs. Schedule recurring audits to fire automatically on their cadence,
+            or trigger ad-hoc runs manually.
           </p>
         </div>
         <Link
