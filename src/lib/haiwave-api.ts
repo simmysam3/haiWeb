@@ -34,6 +34,7 @@ import type {
   AuditScope,
   AuditScopeCreationRequest,
   AuditScopeCoverage,
+  AuditWizardOptionsResponse,
   AuditRun,
   AuditRunResult,
   ClassRollupEntry,
@@ -430,6 +431,8 @@ export interface HaiwaveClient {
   }): Promise<{ scopes: AuditScope[] }>;
   deleteAuditScope(scopeId: string): Promise<void>;
   getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
+  // v.1.41 audit-wizard restore: counterparty + SKU picker data source.
+  getAuditWizardOptions(): Promise<AuditWizardOptionsResponse>;
   // Audit Runs (v1.25)
   triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
   refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
@@ -1031,6 +1034,9 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         `/audit-coverage?vendor_id=${encodeURIComponent(vendorId)}`,
       );
+    },
+    getAuditWizardOptions() {
+      return request<AuditWizardOptionsResponse>('GET', '/audit-scopes/wizard-options');
     },
 
     // ─── Audit Runs (v1.25) ──────────────────────────────────

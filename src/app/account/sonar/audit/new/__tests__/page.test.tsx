@@ -70,10 +70,17 @@ const AD_HOC_RUN = {
 describe('NewAuditPage — ad-hoc re-run (template_id null)', () => {
   it('prefills the wizard from the run scope_snapshot instead of a blank wizard', async () => {
     vi.resetModules();
-    // Only the run fetch happens — no template fetch for an ad-hoc run.
+    // Fetches in order:
+    //  1. The run lookup (server-side, page.tsx). No template fetch for ad-hoc.
+    //  2. The wizard-options fetch (client-side, AuditBilateralScopeFields).
+    //     Mocked empty so the picker renders its "no accepted scopes" CTA.
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ run: AD_HOC_RUN, dispatched_responses: [] }),
+    } as Response);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ counterparties: [] }),
     } as Response);
 
     const Page = (await import('../page')).default;
@@ -94,7 +101,9 @@ describe('NewAuditPage — ad-hoc re-run (template_id null)', () => {
       screen.getByRole('button', { name: /run again/i }),
     ).toBeInTheDocument();
 
-    // Exactly one fetch (the run) — no wasted template lookup for ad-hoc.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Two fetches: the run lookup (server) + the wizard-options fetch
+    // (client). Critically, NOT a third for a template — ad-hoc runs skip
+    // the template lookup.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

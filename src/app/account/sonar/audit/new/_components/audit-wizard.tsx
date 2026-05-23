@@ -89,6 +89,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [nameError, setNameError] = useState(false);
+  const [scopeError, setScopeError] = useState(false);
   const router = useRouter();
 
   // Fork mode: a source DEFINITION exists (template_id non-null) + name has
@@ -109,7 +110,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
-    { id: 'scope', label: 'Scope', state: 'todo' },
+    { id: 'scope', label: 'Scope', state: scopeError ? 'error' : 'todo' },
     { id: 'schedule', label: 'Schedule', state: 'todo' },
     { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
   ];
@@ -132,6 +133,24 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
       return;
     }
     setNameError(false);
+
+    // Spec §5.5: bilateral audit scope must include ≥1 counterparty + ≥1 SKU.
+    // key_scoped basis is gated separately by AuditScopePicker's text input.
+    if (scope.authorization_basis === 'bilateral') {
+      if (scope.counterparties.length === 0 || scope.skus.length === 0) {
+        setScopeError(true);
+        setError(
+          scope.counterparties.length === 0 && scope.skus.length === 0
+            ? 'Audit scope: pick at least one counterparty and one SKU.'
+            : scope.counterparties.length === 0
+              ? 'Audit scope: pick at least one counterparty.'
+              : 'Audit scope: pick at least one SKU.',
+        );
+        jump('scope');
+        return;
+      }
+    }
+    setScopeError(false);
 
     setBusy(true);
     try {
