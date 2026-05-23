@@ -37,9 +37,19 @@ export async function POST(request: NextRequest) {
   return clearCookies(NextResponse.json({ success: true }));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const refreshToken = request.cookies.get("haiwave_refresh")?.value;
+
+  if (refreshToken) {
+    try {
+      await endSession(refreshToken);
+    } catch {
+      // Best effort — still clear cookies + redirect.
+    }
+  }
+
   const response = NextResponse.redirect(
-    new URL("/login", process.env.NEXT_PUBLIC_URL || "http://localhost:3000"),
+    new URL("/", process.env.NEXT_PUBLIC_URL || "http://localhost:3000"),
   );
   return clearCookies(response);
 }
