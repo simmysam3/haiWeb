@@ -8,6 +8,13 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 const STATUSES = ['open', 'snoozed', 'dismissed'] as const;
 const SORTS = ['recency', 'oldest_unresolved'] as const;
 
+// v.1.41 Backlog IA: "New" toggle. Fixed 7-day window — surfaces fresh
+// gaps from new product/vendor onboards so users can prioritise net-new
+// work. Items without first_seen_at (gaps predating the change-events
+// writer) are filtered OUT when the toggle is on (server-side decision
+// in haiCore working-list service).
+const NEW_WINDOW_DAYS = 7;
+
 export function FilterPills() {
   const router = useRouter();
   const pathname = usePathname();
@@ -20,6 +27,13 @@ export function FilterPills() {
   const status = searchParams.get('status') ?? '';
   const sort = searchParams.get('sort') ?? 'recency';
   const sku = searchParams.get('sku') ?? '';
+  const newActive = searchParams.get('max_age_days') === String(NEW_WINDOW_DAYS);
+  function toggleNew() {
+    const sp = new URLSearchParams(searchParams.toString());
+    if (newActive) sp.delete('max_age_days');
+    else sp.set('max_age_days', String(NEW_WINDOW_DAYS));
+    router.push(sp.toString() ? `${pathname}?${sp}` : pathname);
+  }
   function clearSku() {
     const sp = new URLSearchParams(searchParams.toString());
     sp.delete('sku');
@@ -66,6 +80,19 @@ export function FilterPills() {
         <span className="text-xs uppercase tracking-wider text-slate md:self-center md:pl-4">Partner:</span>
         <input type="text" value={searchParams.get('partner_id') ?? ''} onChange={(e) => setParam('partner_id', e.target.value)} placeholder="vendor ID" title="Filter rows to those involving a specific counterparty (paste a vendor UUID)." className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-32 md:py-1 md:text-xs" />
       </label>
+      <button
+        type="button"
+        aria-pressed={newActive}
+        onClick={toggleNew}
+        title={`Show only gaps first seen in the last ${NEW_WINDOW_DAYS} days. Useful for working through net-new gaps from a recent product or vendor onboard.`}
+        className={`md:ml-4 rounded-full border px-3 py-1.5 text-xs md:py-1 ${
+          newActive
+            ? 'border-teal bg-teal/10 text-navy'
+            : 'border-slate/30 text-slate hover:border-slate'
+        }`}
+      >
+        New ({NEW_WINDOW_DAYS}d)
+      </button>
     </div>
   );
 }

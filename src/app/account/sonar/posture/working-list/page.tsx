@@ -6,7 +6,7 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
 
-interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; }
+interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
 /**
  * v.1.41 Backlog IA — Gaps mode. The /sonar/posture/working-list URL
@@ -25,6 +25,9 @@ async function fetchList(sp: SearchParams) {
   if (sp.status) qs.set('status', sp.status);
   if (sp.sort) qs.set('sort', sp.sort);
   if (sp.partner_id) qs.set('partner_id', sp.partner_id);
+  // v.1.41 Backlog IA — "New (Nd)" filter pill threads through here.
+  // haiCore clamps to [1, 90] and ignores non-numerics; we just pass it.
+  if (sp.max_age_days) qs.set('max_age_days', sp.max_age_days);
   return fetchBffJson<WorkingListResponse>(
     `/api/account/sonar/compliance/working-list?${qs}`,
   );
@@ -97,6 +100,14 @@ export default async function GapsPage({ searchParams }: PageProps) {
               <em> trend</em>: is your gap count falling week-over-week? The strip at
               the top of this page shows your current open-gap count, week-over-week
               delta, and a 28-day sparkline so you can see direction at a glance.
+            </p>
+            <p>
+              <strong className="font-semibold text-navy">Working net-new gaps.</strong>{' '}
+              When you onboard a new product or vendor, fresh gaps appear all at once;
+              prioritising those first is usually the highest-leverage thing to do.
+              Toggle <em>New (7d)</em> in the filter row to narrow the list to gaps
+              first seen in the last 7 days. Rows that match also carry a small{' '}
+              <em>NEW</em> badge even when the filter is off.
             </p>
           </>
         }
