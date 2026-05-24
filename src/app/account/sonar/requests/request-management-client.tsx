@@ -9,6 +9,7 @@ import { DirectionTabs } from './direction-tabs';
 import { RequestList } from './request-list';
 import { FilterBar } from './_components/filter-bar';
 import { EmptyFiltered } from './_components/empty-filtered';
+import { DeclinedList } from './_components/declined-list';
 
 /**
  * v.1.37 Request Management — client-side orchestrator.
@@ -18,6 +19,11 @@ import { EmptyFiltered } from './_components/empty-filtered';
  * just reads the URL params, derives the BFF query string, and polls. The
  * deprecated item-type pills surface has been removed — item type is now
  * one of the four filters in the FilterBar.
+ *
+ * v.1.41: Declined absorbed into the direction tab strip. When direction is
+ * `declined` the orchestrator polls the dedicated declined endpoint, renders
+ * the read-only `DeclinedList` instead of `RequestList`, and skips the
+ * FilterBar (declined view has no actionable filters today).
  *
  * `fallbackData` carries the server-rendered initial snapshot so the UI stays
  * populated through the first SWR fetch. Row-level mutations
@@ -35,8 +41,8 @@ function mapItemTypeToLegacyParam(itemType: string | null): 'nomination' | 'obli
   return 'all';
 }
 
-function mapDirection(raw: string | null): 'me' | 'them' | 'all' {
-  if (raw === 'them' || raw === 'all') return raw;
+function mapDirection(raw: string | null): 'me' | 'them' | 'all' | 'declined' {
+  if (raw === 'them' || raw === 'all' || raw === 'declined') return raw;
   return 'me';
 }
 
@@ -49,19 +55,27 @@ export function RequestManagementClient({ initialData }: Props) {
   const counterparty = sp.get('counterparty');
   const state = sp.get('state');
   const ageBucket = sp.get('age_bucket');
+  const isDeclined = direction === 'declined';
 
-  const qs = useMemo(() => {
+  // Build the active-queue query string regardless of mode so memoization key
+  // stays stable. When `direction=declined` the SWR key below targets the
+  // declined endpoint instead and ignores this query string entirely.
+  const activeQs = useMemo(() => {
     const out = new URLSearchParams();
-    out.set('awaiting', direction);
+    out.set('awaiting', isDeclined ? 'all' : direction);
     out.set('type', itemType);
     if (counterparty) out.set('counterparty', counterparty);
     if (state) out.set('state', state);
     if (ageBucket) out.set('age_bucket', ageBucket);
     return out.toString();
-  }, [direction, itemType, counterparty, state, ageBucket]);
+  }, [direction, itemType, counterparty, state, ageBucket, isDeclined]);
+
+  const swrKey = isDeclined
+    ? '/api/sonar/compliance/requests/declined?days=30'
+    : `/api/sonar/compliance/requests?${activeQs}`;
 
   const { data, error, mutate } = useSWR<RequestManagementListResponse>(
-    `/api/sonar/compliance/requests?${qs}`,
+    swrKey,
     jsonFetcher,
     {
       fallbackData: initialData,
@@ -74,7 +88,9 @@ export function RequestManagementClient({ initialData }: Props) {
   // filtered list only includes that counterparty's rows). Direction-tab
   // counts now come from the active fetch (the service computes them off
   // the non-direction-filtered scope so the tab badges line up with each
-  // other and with the visible row count under the current filters).
+  // other and with the visible row count under the current filters). Always
+  // hits the active-queue endpoint so the Declined tab still gets accurate
+  // me/them/all badges.
   const { data: allData } = useSWR<RequestManagementListResponse>(
     '/api/sonar/compliance/requests?awaiting=all&type=all',
     jsonFetcher,
@@ -99,8 +115,16 @@ export function RequestManagementClient({ initialData }: Props) {
 
   // Detect "filters reduced the result set to zero" so the empty state can
   // show a Clear-filters CTA instead of the generic "no items" copy.
+  // Declined view ignores filters today, so this gate only applies to the
+  // active-queue modes.
   const filtersActive = Boolean(itemType !== 'all' || counterparty || state || ageBucket);
-  const isEmptyFromFilters = items.length === 0 && filtersActive;
+  const isEmptyFromFilters = !isDeclined && items.length === 0 && filtersActive;
+
+  // Tab counts always source from the unfiltered active-queue feed so the
+  // me/them/all chips stay populated even while viewing Declined.
+  const meCount = isDeclined ? allData?.awaiting_me_count ?? 0 : data?.awaiting_me_count ?? 0;
+  const themCount = isDeclined ? allData?.awaiting_them_count ?? 0 : data?.awaiting_them_count ?? 0;
+  const totalCount = isDeclined ? allData?.total ?? 0 : data?.total ?? 0;
 
   return (
     <div className="space-y-4">
@@ -132,15 +156,21 @@ export function RequestManagementClient({ initialData }: Props) {
         </div>
       )}
       <DirectionTabs
-        awaitingMeCount={data?.awaiting_me_count ?? 0}
-        awaitingThemCount={data?.awaiting_them_count ?? 0}
-        totalCount={data?.total ?? 0}
+        awaitingMeCount={meCount}
+        awaitingThemCount={themCount}
+        totalCount={totalCount}
       />
-      <FilterBar counterpartyOptions={counterpartyOptions} />
-      {isEmptyFromFilters ? (
-        <EmptyFiltered />
+      {isDeclined ? (
+        <DeclinedList items={items} />
       ) : (
-        <RequestList items={items} onMutate={() => mutate()} />
+        <>
+          <FilterBar counterpartyOptions={counterpartyOptions} />
+          {isEmptyFromFilters ? (
+            <EmptyFiltered />
+          ) : (
+            <RequestList items={items} onMutate={() => mutate()} />
+          )}
+        </>
       )}
     </div>
   );

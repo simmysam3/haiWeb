@@ -208,7 +208,17 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
         '/account/sonar/posture/trust-bypass',
       ),
   },
-  // v1.37 — requests (Active queue + Declined + new-nomination) moved up.
+  // v1.41 — Declined collapsed from a sibling page into a direction tab on
+  // the unified Request Management page. Listed BEFORE the generic
+  // /compliance/requests catch-all so the more-specific path wins, and
+  // retargeted past the new /requests/declined redirect so the single-301-hop
+  // invariant holds.
+  {
+    from: /^\/account\/sonar\/compliance\/requests\/declined\/?$/,
+    to: () => '/account/sonar/requests?direction=declined',
+  },
+  // v1.37 — requests (Active queue + new-nomination) moved up. v1.41 carved
+  // Declined out into the more-specific rule above.
   {
     from: /^\/account\/sonar\/compliance\/requests(\/.*)?$/,
     to: (p) =>

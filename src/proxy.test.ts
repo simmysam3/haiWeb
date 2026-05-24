@@ -78,9 +78,12 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/requests',
       '/account/sonar/requests',
     ],
+    // v1.41: Declined collapsed into a direction tab; legacy
+    // /compliance/requests/declined now redirects directly to the tab URL
+    // in one hop (proxy.ts more-specific rule before the catch-all).
     [
       '/account/sonar/compliance/requests/declined',
-      '/account/sonar/requests/declined',
+      '/account/sonar/requests?direction=declined',
     ],
     [
       '/account/sonar/compliance/requests/new-nomination',
