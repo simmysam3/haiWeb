@@ -5,7 +5,7 @@ import type {
   GroupedManifestsResponse,
   ManifestsByClassResponse,
 } from '@haiwave/protocol';
-import { resolveTier, type ManifestsState, type SkusCell, type Tier } from './types.js';
+import { resolveTier, type ManifestsState, type SkusCell, type Tier } from './types';
 
 const PRELOAD_PARALLELISM = 6;
 

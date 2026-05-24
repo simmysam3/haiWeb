@@ -5,7 +5,7 @@ import {
   GroupedAccordion,
   AccordionGroupRow,
   AccordionLeafRow,
-} from '../index.js';
+} from '../index';
 
 function Harness({ initial = 'none' }: { initial?: 'none' | 'all' }) {
   const [expanded, setExpanded] = useState<Set<string>>(

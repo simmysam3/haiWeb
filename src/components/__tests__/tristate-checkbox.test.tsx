@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TristateCheckbox } from '../tristate-checkbox.js';
+import { TristateCheckbox } from '../tristate-checkbox';
 
 describe('<TristateCheckbox>', () => {
   it('shows indeterminate when state="partial"', () => {

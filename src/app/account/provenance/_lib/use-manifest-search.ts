@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ManifestSearchResponse } from '@haiwave/protocol';
-import type { SearchState } from './types.js';
+import type { SearchState } from './types';
 
 const DEBOUNCE_MS = 250;
 

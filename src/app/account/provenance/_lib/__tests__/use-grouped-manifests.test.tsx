@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useGroupedManifests } from '../use-grouped-manifests.js';
+import { useGroupedManifests } from '../use-grouped-manifests';
 
 const fetchMock = vi.fn();
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useManifestSearch } from '../use-manifest-search.js';
+import { useManifestSearch } from '../use-manifest-search';
 
 const fetchMock = vi.fn();
 
