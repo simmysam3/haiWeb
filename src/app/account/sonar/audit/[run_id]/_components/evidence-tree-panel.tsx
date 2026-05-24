@@ -41,7 +41,19 @@ export function EvidenceTreePanel({ results }: Props) {
             </span>
             <span className="text-slate text-[10px]">·</span>
             <span className="text-xs font-semibold text-charcoal">SKU</span>
-            <span className="font-mono text-xs text-slate">{result.product_id}</span>
+            {/*
+              Protocol §AuditRunResultSchema declares product_id as a plain
+              `z.string()`, which permits the empty string — so audit-run
+              result rows with a blank product_id (test seeds, or a writer
+              that didn't propagate the SKU) used to render as silent
+              whitespace. Fall back to a muted "Unknown" so the row still
+              communicates SOMETHING about its identity.
+            */}
+            {result.product_id ? (
+              <span className="font-mono text-xs text-slate">{result.product_id}</span>
+            ) : (
+              <span className="text-xs italic text-slate/70">Unknown</span>
+            )}
           </div>
           <div className="px-2 py-2">
             {/* EvidenceTreeNode is a structural superset of ObservationNode
