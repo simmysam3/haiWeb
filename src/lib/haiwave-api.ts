@@ -575,6 +575,10 @@ export interface HaiwaveClient {
     sort?: 'recency' | 'oldest_unresolved';
     page?: number;
     page_size?: number;
+    // v.1.41 Backlog IA — narrows to items with first_seen_at within
+    // the last N days. Clamped server-side to [1, 90]. Powers the
+    // "New (7d)" filter pill on the Gaps surface.
+    max_age_days?: number;
   }): Promise<WorkingListResponse>;
   transitionWorkingListItem(
     canonicalKey: string,
@@ -1509,6 +1513,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       categories?: WorkingListCategory[]; partner_id?: string;
       status?: 'open' | 'snoozed' | 'dismissed';
       sort?: 'recency' | 'oldest_unresolved'; page?: number; page_size?: number;
+      max_age_days?: number;
     } = {}) {
       const p = new URLSearchParams();
       if (filters.categories?.length) p.set('categories', filters.categories.join(','));
@@ -1517,6 +1522,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.sort) p.set('sort', filters.sort);
       if (filters.page !== undefined) p.set('page', String(filters.page));
       if (filters.page_size !== undefined) p.set('page_size', String(filters.page_size));
+      if (filters.max_age_days !== undefined) p.set('max_age_days', String(filters.max_age_days));
       const qs = p.toString();
       return request<WorkingListResponse>(
         'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`,

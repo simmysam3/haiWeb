@@ -32,6 +32,7 @@ function item(over: { canonical_key: string; subject: string } & Partial<Working
     dismiss_reason: null,
     last_transitioned_at: null,
     dismissed_by_user: null,
+    first_seen_at: null,
     ...rest,
   };
 }
