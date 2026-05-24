@@ -583,6 +583,14 @@ export interface HaiwaveClient {
     canonical_key: string; state: string; snooze_until: string | null;
     dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
   }>;
+  // ─── Gap-count trend (v.1.41 Backlog IA PR-6) ────────────────────────
+  getGapCountTrend(windowDays?: number): Promise<{
+    window_days: number;
+    current_count: number;
+    prior_count: number | null;
+    delta: number | null;
+    series: Array<{ at: string; gap_count: number }>;
+  }>;
   // ─── Request management (v1.35) ──────────────────────────────────────
   listRequests(filters?: {
     awaiting?: 'me' | 'them' | 'all';
@@ -1526,6 +1534,19 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
       }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
         if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getGapCountTrend(windowDays?: number) {
+      const qs = windowDays !== undefined ? `?window=${windowDays}` : '';
+      return request<{
+        window_days: number;
+        current_count: number;
+        prior_count: number | null;
+        delta: number | null;
+        series: Array<{ at: string; gap_count: number }>;
+      }>('GET', `/sonar/compliance/working-list/gap-count-trend${qs}`).then((d) => {
+        if (d == null) throw new Error('getGapCountTrend: haiCore returned no/non-JSON body');
         return d;
       });
     },
