@@ -3,15 +3,17 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { EmittedChangeKind } from '@haiwave/protocol';
 
-// Turbopack + file: symlink: inline mirror of EMITTED_CHANGE_KINDS from @haiwave/protocol.
-// Source of truth: packages/protocol/src/audit/compliance-changes.ts — EMITTED_CHANGE_KINDS (v1.34 §5.3).
-// Turbopack cannot value-import the CJS @haiwave/protocol package through the file: symlink on Windows;
-// a direct import will fail at runtime. Keep this list verbatim in sync with EMITTED_CHANGE_KINDS in
-// the protocol package. Do NOT replace with a direct import.
+// Turbopack + file: symlink: inline mirror of the Events-feed pill set.
+// Source of truth: packages/protocol/src/audit/compliance-changes.ts —
+// EMITTED_CHANGE_KINDS (v1.34 §5.3) MINUS GAP_LIFECYCLE_KINDS (v.1.41
+// Backlog IA — gap_added / gap_resolved describe the gap's own
+// lifecycle and surface on the Gaps tab, not as Events pills).
+// Turbopack cannot value-import the CJS @haiwave/protocol package
+// through the file: symlink on Windows; a direct import will fail at
+// runtime. Keep this list verbatim in sync with the subset above. Do
+// NOT replace with a direct import.
 // exported for test parity assertion (see __tests__/changes-feed.test.tsx)
-export const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
-  'gap_added',
-  'gap_resolved',
+export const EVENT_KIND_PILLS: ReadonlyArray<Exclude<EmittedChangeKind, 'gap_added' | 'gap_resolved'>> = [
   'origin_shifted_country',
   'origin_shifted_plant',
   'vendor_substituted',
@@ -27,9 +29,7 @@ export const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
 // CHANGE_KIND_DEFINITION in PILL_DEFINITIONS (components/pill.tsx) verbatim,
 // with an appended action sentence. Inlined here because these are <button>
 // toggles, not status pills.
-const KIND_TOOLTIPS: Record<EmittedChangeKind, string> = {
-  gap_added: 'A new gap is present at a cell that was previously traversable. Click to filter the feed to gap-added events only.',
-  gap_resolved: 'A previously open gap is no longer present. Click to filter the feed to gap-resolved events only.',
+const KIND_TOOLTIPS: Record<(typeof EVENT_KIND_PILLS)[number], string> = {
   origin_shifted_country: 'Country of origin changed for this vendor/product. Click to filter the feed to country-shift events only.',
   origin_shifted_plant: 'Plant identifier changed within the same country. Click to filter the feed to plant-shift events only.',
   vendor_substituted: 'A subcomponent vendor changed. Click to filter the feed to vendor-substitution events only.',
@@ -80,7 +80,7 @@ export function FilterPills() {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
       <span className="self-center text-xs uppercase tracking-wider text-slate">Kind:</span>
-      {EMITTED_CHANGE_KINDS.map((kind) => (
+      {EVENT_KIND_PILLS.map((kind) => (
         <button
           key={kind}
           type="button"

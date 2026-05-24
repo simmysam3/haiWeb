@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ChangesFeed } from '../changes-feed';
-import { EMITTED_CHANGE_KINDS } from '../filter-pills';
+import { EVENT_KIND_PILLS } from '../filter-pills';
 import { EMITTED_CHANGE_KINDS as PROTOCOL_EMITTED_CHANGE_KINDS } from '@haiwave/protocol';
 import type { ComplianceChange } from '@haiwave/protocol';
 
@@ -126,10 +126,17 @@ describe('ChangesFeed', () => {
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
 
-  it('filter-pills EMITTED_CHANGE_KINDS mirror matches protocol EMITTED_CHANGE_KINDS exactly', () => {
-    const localSorted = [...EMITTED_CHANGE_KINDS].sort();
-    const protocolSorted = [...PROTOCOL_EMITTED_CHANGE_KINDS].sort();
-    expect(localSorted).toEqual(protocolSorted);
+  it('filter-pills EVENT_KIND_PILLS is the protocol EMITTED_CHANGE_KINDS minus gap lifecycle (v.1.41 Backlog IA)', () => {
+    // Gap lifecycle (gap_added / gap_resolved) belongs on the Gaps tab;
+    // they are excluded from Events feed pills + default query results.
+    const GAP_LIFECYCLE = ['gap_added', 'gap_resolved'];
+    const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
+      .filter((k) => !GAP_LIFECYCLE.includes(k))
+      .sort();
+    const actual = [...EVENT_KIND_PILLS].sort();
+    expect(actual).toEqual(expected);
+    expect(actual).not.toContain('gap_added');
+    expect(actual).not.toContain('gap_resolved');
   });
 
   it('renders truncation notice when changes.length < total', () => {
