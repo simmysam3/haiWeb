@@ -23,7 +23,7 @@ export interface DashboardTab {
  * Accessibility: a proper WAI-ARIA tablist with roving `tabIndex` and
  * Left/Right/Home/End keyboard navigation; inactive panels carry `hidden`.
  * Visual treatment matches the route-based tabs elsewhere in Sonar
- * (`backlog-tabs.tsx` / `request-management-tabs.tsx`): teal underline on
+ * (`backlog-tabs.tsx`): teal underline on
  * the active tab. The bar scrolls horizontally on narrow screens rather
  * than wrapping.
  */

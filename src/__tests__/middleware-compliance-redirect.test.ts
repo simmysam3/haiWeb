@@ -112,9 +112,11 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
 describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
   it.each([
     ['/account/sonar/compliance', '/account/sonar/requests'],
+    // v1.41: Declined is a direction tab on /requests, so the legacy
+    // /compliance/requests/declined URL now lands on ?direction=declined.
     [
       '/account/sonar/compliance/requests/declined',
-      '/account/sonar/requests/declined',
+      '/account/sonar/requests?direction=declined',
     ],
     // v1.40: evidence responses retired. The legacy /compliance/evidence rule
     // is retargeted to the v1.39 Audits section in one hop (no run↔response
@@ -148,7 +150,10 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
     const res = await run(from);
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
-    expect(loc.pathname).toBe(to);
+    // Match against pathname + search so destinations that carry a query
+    // string (v.1.41: /compliance/requests/declined → ?direction=declined)
+    // assert correctly.
+    expect(loc.pathname + loc.search).toBe(to);
     // Single-hop invariant: the destination must not itself redirect.
     expect(applyRedirects(loc.pathname)).toBeNull();
   });

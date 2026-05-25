@@ -29,11 +29,12 @@ import type { RequestManagementStateBucket } from '@haiwave/protocol';
  * neighbouring convention and avoids a second click for the most common
  * filter actions.
  *
- * State="Declined" handling: when the user selects state=declined the
- * filter bar redirects to /account/sonar/requests/declined (preserving the
- * other URL params via the query string). The declined view is a separate
- * page so this keeps page concerns cleanly separated. Empty-state CTA on
- * the active queue therefore never has to show a "declined-only" empty.
+ * v.1.41: Declined is now a top-level direction tab
+ * (`?direction=declined`), so it's been removed from this State dropdown to
+ * avoid two-places-do-the-same-thing UX. The `declined` value remains in
+ * the protocol bucket vocab and chip rendering (so legacy `?state=declined`
+ * URLs still render a chip), but the dropdown no longer offers it as a
+ * selectable option.
  */
 
 interface CounterpartyOption {
@@ -134,13 +135,6 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
       pushWithParams(pathname, sp);
       return;
     }
-    // State="Declined" redirects to the dedicated /declined surface, carrying
-    // the other filter params with it so the redirect doesn't lose context.
-    if (value === 'declined' && pathname === '/account/sonar/requests') {
-      sp.delete('state');
-      pushWithParams('/account/sonar/requests/declined', sp);
-      return;
-    }
     setParam('state', value);
   }
 
@@ -231,11 +225,11 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
           <select
             value={stateDropdownValue}
             onChange={(e) => setState(e.target.value)}
-            title="Filter by item state. Selecting Declined opens the dedicated declined history view."
+            title="Filter the active queue by item state. Declined items live on their own direction tab."
             className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
           >
             <option value="">All</option>
-            {STATE_BUCKETS.map((v) => (
+            {STATE_BUCKETS.filter((v) => v !== 'declined').map((v) => (
               <option key={v} value={v}>
                 {STATE_LABELS[v]}
               </option>

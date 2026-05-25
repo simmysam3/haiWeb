@@ -50,7 +50,7 @@ describe('FilterBar — v.1.37 IA', () => {
     expect(mockPush).toHaveBeenCalledWith('/account/sonar/requests?age_bucket=today');
   });
 
-  it('setting State to a non-declined bucket pushes ?state=…', () => {
+  it('setting State to a bucket pushes ?state=…', () => {
     render(<FilterBar counterpartyOptions={options} />);
     const selects = screen.getAllByRole('combobox');
     const stateSelect = selects[1];
@@ -58,15 +58,19 @@ describe('FilterBar — v.1.37 IA', () => {
     expect(mockPush).toHaveBeenCalledWith('/account/sonar/requests?state=pending');
   });
 
-  it('setting State=declined redirects to /declined and drops the state param', () => {
-    currentSearch = 'item_type=nomination';
+  it('omits Declined from the State dropdown (v.1.41: now its own direction tab)', () => {
     render(<FilterBar counterpartyOptions={options} />);
-    const selects = screen.getAllByRole('combobox');
-    const stateSelect = selects[1];
-    fireEvent.change(stateSelect, { target: { value: 'declined' } });
-    expect(mockPush).toHaveBeenCalledWith(
-      '/account/sonar/requests/declined?item_type=nomination',
+    const stateSelect = screen.getAllByRole('combobox')[1];
+    const declinedOption = Array.from(stateSelect.querySelectorAll('option')).find(
+      (o) => o.value === 'declined',
     );
+    expect(declinedOption).toBeUndefined();
+  });
+
+  it('still renders a chip for legacy `?state=declined` URL parameter', () => {
+    currentSearch = 'state=declined';
+    render(<FilterBar counterpartyOptions={options} />);
+    expect(screen.getByText(/State: Declined/)).toBeInTheDocument();
   });
 
   it('surfaces the blocked (non-participant) state option', () => {

@@ -6,18 +6,22 @@ import { Tabs } from '@/components/tabs';
 /**
  * v.1.37 Request Management — direction filter tab strip (URL-driven).
  *
- * Three mutually exclusive values: `me` (action sits with this org), `them`
- * (waiting on the counterparty), `all` (no direction filter). State lives in
- * the URL as `?direction=me|them|all`; default = `me`. Other query params
- * (item_type, state, counterparty, age_bucket) are preserved across tab
+ * Four mutually exclusive values: `me` (action sits with this org), `them`
+ * (waiting on the counterparty), `all` (active backlog, no direction filter),
+ * `declined` (audit-trail of declined items — read-only). State lives in the
+ * URL as `?direction=me|them|all|declined`; default = `me`. Other query
+ * params (item_type, counterparty, age_bucket) are preserved across tab
  * switches so a filtered list stays filtered when you flip direction.
+ *
+ * The Declined tab absorbed the v1.35 `/account/sonar/requests/declined`
+ * page so the unified surface has one tab strip instead of two-level nav.
  *
  * Wraps the project's shared `<Tabs>` primitive so the active/inactive
  * styling, count chip, and underline match every other tabbed surface in the
  * portal (partners, manifests, provenance, etc.).
  */
 
-export type DirectionTabValue = 'me' | 'them' | 'all';
+export type DirectionTabValue = 'me' | 'them' | 'all' | 'declined';
 
 interface DirectionTabsProps {
   awaitingMeCount: number;
@@ -26,7 +30,7 @@ interface DirectionTabsProps {
 }
 
 function isDirection(v: string): v is DirectionTabValue {
-  return v === 'me' || v === 'them' || v === 'all';
+  return v === 'me' || v === 'them' || v === 'all' || v === 'declined';
 }
 
 export function DirectionTabs({
@@ -57,10 +61,14 @@ export function DirectionTabs({
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 
+  // Declined intentionally has no count chip — the active-queue
+  // RequestManagementListResponse doesn't carry a declined count and adding
+  // one is a protocol bump out of scope for this fix.
   const tabs = [
     { key: 'me', label: 'Awaiting me', count: awaitingMeCount },
     { key: 'them', label: 'Awaiting them', count: awaitingThemCount },
     { key: 'all', label: 'All', count: totalCount },
+    { key: 'declined', label: 'Declined' },
   ];
 
   return <Tabs tabs={tabs} active={active} onChange={onChange} />;
