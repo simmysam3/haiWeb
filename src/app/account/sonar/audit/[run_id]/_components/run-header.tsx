@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Pill } from '@/components/pill';
-import type { AuditRun } from '@haiwave/protocol';
+import type { AuditRun, RunStatus, RunOrigin } from '@haiwave/protocol';
 
 interface Props {
   run: AuditRun;
@@ -21,7 +20,29 @@ function formatRunReference(run: AuditRun): string {
   return `Run ${run.run_id.slice(0, 8)}`;
 }
 
-function HashChip({ hash }: { hash: string }) {
+function formatOriginPrefix(origin: RunOrigin | undefined): string {
+  switch (origin) {
+    case 'template_manual': return 'Manual';
+    case 'template_scheduled': return 'Scheduled';
+    case 'template_event_triggered': return 'Event-triggered';
+    case 'ad_hoc': return 'Ad-hoc';
+    case 'evidence_response': return 'Evidence-response';
+    default: return '';
+  }
+}
+
+function formatCompletionVerb(status: RunStatus): string {
+  switch (status) {
+    case 'complete': return 'Completed';
+    case 'partial': return 'Partially completed';
+    case 'failed': return 'Failed';
+    case 'cancelled': return 'Cancelled';
+    case 'throttled': return 'Throttled';
+    case 'running': return '';
+  }
+}
+
+function HashCopy({ hash }: { hash: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -39,7 +60,7 @@ function HashChip({ hash }: { hash: string }) {
       type="button"
       onClick={handleCopy}
       title={copied ? 'Copied!' : `Click to copy full hash: ${hash}`}
-      className="font-mono text-xs text-slate hover:text-navy transition-colors cursor-pointer"
+      className="underline decoration-dotted underline-offset-2 hover:text-navy transition-colors cursor-pointer"
       aria-label={copied ? 'Copied full hash' : 'Copy full result hash'}
     >
       {copied ? 'copied!' : hash.slice(0, 6)}
@@ -51,6 +72,21 @@ export function RunHeader({ run }: Props) {
   const title = formatRunTitle(run);
   const runReference = formatRunReference(run);
   const triggeredAt = new Date(run.triggered_at).toLocaleString();
+
+  const originPrefix = formatOriginPrefix(run.run_origin);
+  const completionVerb = formatCompletionVerb(run.status);
+  // For cancelled runs the terminal timestamp lives on cancelled_at; every
+  // other terminal status uses completed_at.
+  const terminalTimeIso = run.status === 'cancelled'
+    ? run.cancelled_at ?? run.completed_at
+    : run.completed_at;
+  const terminalTime = terminalTimeIso ? new Date(terminalTimeIso).toLocaleString() : null;
+
+  // First clause — opener: "{Origin} run started at <time>." or "Run started
+  // at <time>." when origin is unknown.
+  const opener = originPrefix
+    ? `${originPrefix} run started at ${triggeredAt}.`
+    : `Run started at ${triggeredAt}.`;
 
   return (
     <header className="space-y-3">
@@ -69,9 +105,36 @@ export function RunHeader({ run }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-xl font-semibold text-charcoal">{title}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate">
-            <span title={triggeredAt}>Run at {triggeredAt}</span>
-          </div>
+          {/* One-sentence sub-head replaces the prior pill row. Status + hash
+              are folded into the sentence; the footer still carries the full
+              canonical Run ID / Hash / timestamps. */}
+          <p className="text-xs text-slate">
+            {opener}
+            {completionVerb && terminalTime && (
+              <>
+                {' '}
+                {completionVerb} at {terminalTime}
+                {run.result_hash && (
+                  <>
+                    {' '}with Hash of <HashCopy hash={run.result_hash} />
+                  </>
+                )}
+                .
+              </>
+            )}
+            {completionVerb && !terminalTime && (
+              <>
+                {' '}
+                {completionVerb}.
+              </>
+            )}
+            {run.error_message && (
+              <>
+                {' '}
+                <span className="text-problem">{run.error_message}</span>
+              </>
+            )}
+          </p>
         </div>
 
         {/* Edit / Run Again CTA — opens the wizard prefilled from this run;
@@ -82,24 +145,6 @@ export function RunHeader({ run }: Props) {
         >
           Edit / Run Again
         </Link>
-      </div>
-
-      {/* Pill row: status, origin, result_hash */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Pill
-          category="run_status"
-          value={run.status}
-          detail={run.error_message ?? undefined}
-        />
-        {run.run_origin && (
-          <Pill category="run_origin" value={run.run_origin} />
-        )}
-        {run.result_hash && (
-          <span className="flex items-center gap-1 text-xs text-slate">
-            <span className="font-semibold uppercase tracking-wide text-[10px]">Hash</span>
-            <HashChip hash={run.result_hash} />
-          </span>
-        )}
       </div>
     </header>
   );

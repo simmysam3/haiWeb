@@ -65,7 +65,8 @@ export default async function AuditRunDetailPage({
 
   return (
     <div className="p-6 space-y-8">
-      {/* Header: breadcrumb, title, status pill, run-at, source pill, hash, "Edit / Run Again" */}
+      {/* Header: breadcrumb, audit-name title, one-sentence sub-head (origin /
+          start / completion / hash), "Edit / Run Again" CTA */}
       <RunHeader run={run} />
 
       {/* Summary strip — only meaningful when we have results */}
