@@ -74,12 +74,13 @@ export function RunHeader({ run }: Props) {
           </div>
         </div>
 
-        {/* Run again CTA */}
+        {/* Edit / Run Again CTA — opens the wizard prefilled from this run;
+            user can submit unchanged (re-run) or edit any field first. */}
         <Link
           href={`/account/sonar/audit/new?from_run=${run.run_id}`}
           className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90 transition-colors shrink-0"
         >
-          Run again
+          Edit / Run Again
         </Link>
       </div>
 
