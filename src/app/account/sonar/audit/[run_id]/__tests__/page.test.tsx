@@ -18,6 +18,9 @@ import { render, screen } from '@testing-library/react';
 
 vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('NEXT_NOT_FOUND'); },
+  // Used by InProgressPoller when a run is still running — its detailed
+  // polling behavior is covered in the poller's own test.
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock('next/headers', () => ({
@@ -179,11 +182,18 @@ describe('AuditRunDetailPage — running run', () => {
     vi.resetModules();
     const runningRun = { ...BASE_RUN, status: 'running', completed_at: null, result_hash: null };
 
+    // Server-side payload — once.
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ run: runningRun, dispatched_responses: [] }),
     } as Response);
-    // No results fetch for running run
+    // The InProgressPoller fires a follow-up client fetch on mount. Reply
+    // with the same running-state payload so the poller doesn't trigger a
+    // server re-render mid-test.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ run: runningRun }),
+    } as Response);
 
     const Page = (await import('../page')).default;
     const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
