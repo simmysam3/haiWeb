@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@haiwave/protocol": "file:../haiCore/packages/protocol",
+    "country-flag-icons": "^1.6.17",
     "jose": "^6.1.3",
     "next": "16.1.6",
     "react": "19.2.3",

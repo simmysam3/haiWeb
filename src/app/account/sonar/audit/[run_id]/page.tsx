@@ -10,6 +10,10 @@ import { InProgressPoller } from './_components/in-progress-poller';
 interface RunDetailPayload {
   run: AuditRun;
   dispatched_responses: unknown[];
+  // ISO-2 country code of the auditor's headquarters (e.g. "US"). Drives the
+  // per-SKU domestic-flag badge: SKUs whose geo_rollup resolves entirely to
+  // this country get a flag icon on their header row.
+  auditor_country?: string;
 }
 
 interface ResultsPayload {
@@ -40,7 +44,7 @@ export default async function AuditRunDetailPage({
     notFound();
   }
 
-  const { run, dispatched_responses } = runResult.data;
+  const { run, dispatched_responses, auditor_country } = runResult.data;
 
   // Fetch results for complete/partial runs. Distinguish a genuine empty
   // result (run completed with no evidence) from a results-fetch ERROR — the
@@ -114,7 +118,7 @@ export default async function AuditRunDetailPage({
               refreshing the page.
             </div>
           ) : (
-            <EvidenceTreePanel results={results} />
+            <EvidenceTreePanel results={results} auditorCountry={auditor_country} />
           )}
         </section>
       )}

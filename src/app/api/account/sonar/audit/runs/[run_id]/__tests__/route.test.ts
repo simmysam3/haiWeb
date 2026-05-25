@@ -12,11 +12,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+const MOCK_PARTICIPANT_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
 vi.mock('@/lib/with-hai-core', () => ({
   withHaiCore: (handler: any) => async (req: NextRequest, ctx?: any) => {
     const client = (globalThis as any).__mockClient;
     const params = ctx?.params instanceof Promise ? await ctx.params : (ctx?.params ?? {});
-    return await handler({ client, request: req, session: {}, params });
+    return await handler({
+      client,
+      request: req,
+      session: { participant: { id: MOCK_PARTICIPANT_ID } },
+      params,
+    });
   },
 }));
 
@@ -46,6 +53,7 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
     (globalThis as any).__mockClient = {
       getAuditRun: vi.fn(),
       getRunTemplate: vi.fn(),
+      getCompanyProfile: vi.fn(),
       listEvidenceResponses: vi.fn(),
     };
   });
@@ -133,6 +141,61 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
     expect(res.status).toBe(200);
     expect(body.run.template_name).toBeUndefined();
+  });
+
+  it('returns auditor_country uppercased from the auditor profile locality', async () => {
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
+      id: MOCK_PARTICIPANT_ID,
+      company_name: 'Apex',
+      locality: { city: 'Austin', state: 'TX', country: 'us' },
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.auditor_country).toBe('US');
+    expect((globalThis as any).__mockClient.getCompanyProfile).toHaveBeenCalledWith(MOCK_PARTICIPANT_ID);
+  });
+
+  it('returns undefined auditor_country when the profile has no locality (best-effort)', async () => {
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
+      id: MOCK_PARTICIPANT_ID,
+      company_name: 'Apex',
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.auditor_country).toBeUndefined();
+  });
+
+  it('returns undefined auditor_country when getCompanyProfile rejects (best-effort)', async () => {
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    (globalThis as any).__mockClient.getCompanyProfile.mockRejectedValue(
+      new Error('profile fetch failed'),
+    );
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.auditor_country).toBeUndefined();
   });
 
   it('does not fetch template when run has no template_id', async () => {

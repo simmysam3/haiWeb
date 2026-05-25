@@ -3,7 +3,7 @@ import { withHaiCore } from '@/lib/with-hai-core';
 
 type RouteParams = Record<string, string> & { run_id: string };
 
-export const GET = withHaiCore<RouteParams>(async ({ client, params }) => {
+export const GET = withHaiCore<RouteParams>(async ({ client, params, session }) => {
   const runId = params.run_id;
 
   // Primary payload — essential; let any error propagate so withHaiCore can
@@ -24,6 +24,21 @@ export const GET = withHaiCore<RouteParams>(async ({ client, params }) => {
     }
   }
 
+  // Auditor's domestic country (ISO-2). Drives the per-SKU domestic-flag
+  // badge in the evidence tree: SKUs whose geo_rollup resolves entirely to
+  // this country get a small flag icon on the header row. Best-effort —
+  // a profile lookup failure just hides the badge.
+  let auditor_country: string | undefined;
+  try {
+    const profile = await client.getCompanyProfile(session.participant.id);
+    const locality = (profile as { locality?: { country?: string } }).locality;
+    if (locality?.country) {
+      auditor_country = locality.country.toUpperCase();
+    }
+  } catch {
+    // No profile or fetch failed — badge stays off.
+  }
+
   // Supplementary: responses dispatched from this run.
   //
   // Forward seam: EvidenceResponseListItem (protocol) has no run-linking field
@@ -39,5 +54,6 @@ export const GET = withHaiCore<RouteParams>(async ({ client, params }) => {
   return NextResponse.json({
     run: template_name ? { ...run, template_name } : run,
     dispatched_responses,
+    auditor_country,
   });
 });
