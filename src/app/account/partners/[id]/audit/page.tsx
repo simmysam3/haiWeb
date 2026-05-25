@@ -47,7 +47,7 @@ export default async function PartnerAuditPage({
             href={`/account/partners/${id}/catalog`}
             className="text-xs text-teal hover:text-navy"
           >
-            Configure from Catalog &rarr;
+            Configure from Catalog ›
           </Link>
         </div>
         <p className="text-xs text-slate mb-3">
@@ -80,7 +80,7 @@ export default async function PartnerAuditPage({
             href={`/account/sonar/observations?tab=audit&counterparty=${encodeURIComponent(id)}`}
             className="text-teal underline hover:text-navy"
           >
-            Sonar &rarr; Observations &rarr; Audit
+            Sonar › Observations › Audit
           </Link>
           .
         </p>

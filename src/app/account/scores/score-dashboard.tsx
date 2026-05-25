@@ -366,7 +366,9 @@ function VendorRiskRegister() {
                       ? '—'
                       : `${(v.decline_acceleration * 100).toFixed(1)} pts/Q`}
                   </td>
-                  <td className="py-3 text-right text-teal text-xs pr-2">View →</td>
+                  <td className="py-3 text-right text-teal text-xs pr-2">
+                    View <span className="text-lg font-bold align-middle">›</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

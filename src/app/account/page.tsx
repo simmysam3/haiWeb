@@ -85,14 +85,16 @@ export default async function DashboardPage() {
                     </p>
                     <p className="text-xs text-slate">{req.industry}</p>
                   </div>
-                  <span className="text-xs text-teal font-medium">Review →</span>
+                  <span className="text-xs text-teal font-medium">
+                    Review <span className="text-lg font-bold align-middle">›</span>
+                  </span>
                 </Link>
               ))}
               <Link
                 href="/account/partners?tab=queue"
                 className="block text-sm text-teal-dark hover:underline pt-1"
               >
-                Review &amp; Approve →
+                Review &amp; Approve ›
               </Link>
             </div>
           )}
