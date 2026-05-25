@@ -1,6 +1,7 @@
 import type { WorkingListResponse } from '@haiwave/protocol';
 import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
+import { GapsTrendStrip } from './gaps-trend-strip';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
@@ -93,9 +94,9 @@ export default async function GapsPage({ searchParams }: PageProps) {
               <strong className="font-semibold text-navy">Why this list is long.</strong>{' '}
               Most BOM breakouts surface hundreds of gaps — that&apos;s the cost of
               observability, not a signal of poor compliance. The actionable view is the
-              <em> trend</em>: is your gap count falling week-over-week? PR-6 will add a
-              gap-count trend strip at the top of this page so you can see direction at
-              a glance.
+              <em> trend</em>: is your gap count falling week-over-week? The strip at
+              the top of this page shows your current open-gap count, week-over-week
+              delta, and a 28-day sparkline so you can see direction at a glance.
             </p>
           </>
         }
@@ -103,6 +104,7 @@ export default async function GapsPage({ searchParams }: PageProps) {
         Snooze or dismiss items that aren&apos;t actionable right now; resolved items
         drop off automatically at the next snapshot.
       </PageIntro>
+      <GapsTrendStrip />
       <FilterPills />
       <div className="rounded-lg border border-slate/20 bg-white">
         {result.kind === 'error' ? (
