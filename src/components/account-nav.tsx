@@ -135,11 +135,17 @@ const navSections: NavSection[] = [
     // v.1.41: Compliance moved here + renamed to Audit Exceptions — it's
     // the exception rollup across audits + inbound activity. URL stays at
     // /account/compliance.
+    // v.1.41: Key Management (formerly "Provenance Keys" under Account
+    // Management) moved here as a peer item — provenance keys exist
+    // solely to gate audit visibility, so the configuration surface
+    // belongs with the audit facilities. URL kept at
+    // /account/provenance-keys (only the nav placement + label changed).
     label: "Sonar Audit",
     items: [
       { href: "/account/sonar/audit", label: "Audits" },
       { href: "/account/compliance", label: "Audit Exceptions" },
       { href: "/account/provenance", label: "Product Provenance" },
+      { href: "/account/provenance-keys", label: "Key Management" },
     ],
   },
   {
@@ -171,7 +177,7 @@ const navSections: NavSection[] = [
       { href: "/account/usage", label: "Usage" },
       // Payments deferred to v2 — restore this entry when payments ships.
       // { href: "/account/payments", label: "Payments" },
-      { href: "/account/provenance-keys", label: "Provenance Keys" },
+      // v.1.41: Provenance Keys → Sonar Audit (as "Key Management").
       { href: "/account/data-cleansing", label: "Data Cleansing" },
       { href: "/account/profile", label: "Company Profile" },
     ],
