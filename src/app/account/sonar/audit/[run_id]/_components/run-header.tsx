@@ -10,9 +10,14 @@ interface Props {
 }
 
 function formatRunTitle(run: AuditRun): string {
-  // template_name is not in the AuditRun protocol type; the BFF may enrich it.
+  // template_name is not in the AuditRun protocol type; the BFF enriches it
+  // from the linked RunTemplate so the H1 shows the user-given audit name.
   const enriched = run as AuditRun & { template_name?: string | null };
   if (enriched.template_name) return enriched.template_name;
+  return `Run ${run.run_id.slice(0, 8)}`;
+}
+
+function formatRunReference(run: AuditRun): string {
   return `Run ${run.run_id.slice(0, 8)}`;
 }
 
@@ -44,17 +49,20 @@ function HashChip({ hash }: { hash: string }) {
 
 export function RunHeader({ run }: Props) {
   const title = formatRunTitle(run);
+  const runReference = formatRunReference(run);
   const triggeredAt = new Date(run.triggered_at).toLocaleString();
 
   return (
     <header className="space-y-3">
-      {/* Breadcrumb */}
+      {/* Breadcrumb — keeps the short run-id reference visible above the
+          audit-name H1 so users can still identify the specific run at a
+          glance. */}
       <nav className="flex items-center gap-1 text-xs text-slate" aria-label="Breadcrumb">
         <Link href="/account/sonar/audit" className="hover:text-navy transition-colors">
           Audits
         </Link>
         <span aria-hidden="true">›</span>
-        <span className="text-charcoal truncate">{title}</span>
+        <span className="text-charcoal truncate">{runReference}</span>
       </nav>
 
       {/* Title row */}

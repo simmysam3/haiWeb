@@ -45,6 +45,7 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
     vi.resetModules();
     (globalThis as any).__mockClient = {
       getAuditRun: vi.fn(),
+      getRunTemplate: vi.fn(),
       listEvidenceResponses: vi.fn(),
     };
   });
@@ -89,6 +90,64 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
     expect(body.run).toEqual(MOCK_RUN);
     expect(body.dispatched_responses).toEqual([]);
+  });
+
+  it('enriches run with template_name from the linked template', async () => {
+    const TEMPLATE_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue({
+      ...MOCK_RUN,
+      template_id: TEMPLATE_ID,
+    });
+    (globalThis as any).__mockClient.getRunTemplate.mockResolvedValue({
+      template: { template_id: TEMPLATE_ID, template_name: 'Q1 Coffee Supplier Sweep' },
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.run.template_name).toBe('Q1 Coffee Supplier Sweep');
+    expect((globalThis as any).__mockClient.getRunTemplate).toHaveBeenCalledWith(TEMPLATE_ID);
+  });
+
+  it('returns run without template_name when template fetch rejects (best-effort)', async () => {
+    const TEMPLATE_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue({
+      ...MOCK_RUN,
+      template_id: TEMPLATE_ID,
+    });
+    (globalThis as any).__mockClient.getRunTemplate.mockRejectedValue(
+      new Error('template not found'),
+    );
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.run.template_name).toBeUndefined();
+  });
+
+  it('does not fetch template when run has no template_id', async () => {
+    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      `http://localhost:3001/api/account/sonar/audit/runs/${RUN_ID}`,
+    );
+    const res = await GET(req, { params: Promise.resolve({ run_id: RUN_ID }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.run.template_name).toBeUndefined();
+    expect((globalThis as any).__mockClient.getRunTemplate).not.toHaveBeenCalled();
   });
 
   it('returns run with dispatched_responses: [] when listEvidenceResponses rejects (best-effort resilience)', async () => {
