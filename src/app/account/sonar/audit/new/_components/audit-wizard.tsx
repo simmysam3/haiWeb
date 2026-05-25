@@ -36,7 +36,11 @@ function emptyAuditScope(): AuditScope {
     counterparties: [],
     signal_types: [],
     skus: [],
-    depth_limit: 1,
+    // Default tier depth for new audits. 1 (direct supplier only) was a
+    // conservative starting point but routinely undercaptures sub-tier risk —
+    // depth 4 surfaces enough of the chain to make the run useful without
+    // chewing through the hop budget on a typical catalog.
+    depth_limit: 4,
     hop_budget: SYSTEM_AUDIT_HOP_BUDGET,
   };
 }
