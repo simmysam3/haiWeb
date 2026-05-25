@@ -24,6 +24,9 @@ beforeEach(() => {
   fetchMock.mockReset();
   mockPush.mockReset();
   vi.stubGlobal('fetch', fetchMock);
+  // Reset localStorage between tests — the login page reads
+  // LAST_ACCOUNT_PATH_KEY to honor session stickiness.
+  window.localStorage.clear();
 });
 
 // ---------------------------------------------------------------------------
@@ -186,5 +189,46 @@ describe('LoginPage — autofill regression (FormData vs React state)', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/account'));
+  });
+});
+
+describe('LoginPage — session stickiness (v.1.41)', () => {
+  /** Helper: simulate a successful login and return the redirect target. */
+  async function submitAndCaptureRedirect(): Promise<unknown> {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    render(<LoginPage />);
+    const emailInput = screen.getByPlaceholderText(/you@company.com/i) as HTMLInputElement;
+    const passwordInput = document.querySelector('input[name="password"]') as HTMLInputElement;
+    emailInput.value = 'user@example.com';
+    passwordInput.value = 'correctpassword';
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => expect(mockPush).toHaveBeenCalled());
+    return mockPush.mock.calls[0][0];
+  }
+
+  it('redirects to the stored last-visited account path on success', async () => {
+    window.localStorage.setItem(
+      'haiwave:last-account-path',
+      '/account/sonar/posture/changes?severity=warning',
+    );
+    const target = await submitAndCaptureRedirect();
+    expect(target).toBe('/account/sonar/posture/changes?severity=warning');
+  });
+
+  it('falls back to /account when no last-visited path is stored', async () => {
+    const target = await submitAndCaptureRedirect();
+    expect(target).toBe('/account');
+  });
+
+  it('rejects stored values that do not start with /account (open-redirect guard)', async () => {
+    window.localStorage.setItem('haiwave:last-account-path', 'https://evil.example.com/phish');
+    const target = await submitAndCaptureRedirect();
+    expect(target).toBe('/account');
+  });
+
+  it('rejects protocol-relative URLs (//evil.com) in the stored value', async () => {
+    window.localStorage.setItem('haiwave:last-account-path', '//evil.example.com/phish');
+    const target = await submitAndCaptureRedirect();
+    expect(target).toBe('/account');
   });
 });
