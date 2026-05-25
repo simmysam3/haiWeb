@@ -14,21 +14,7 @@
 import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
 import type { AuditRunResult, GeoRollupEntry } from '@haiwave/protocol';
 import type { ObservationNode } from '@haiwave/protocol';
-import {
-  US, CA, MX, GB, DE, FR, IT, ES, NL, IE, SE, NO, FI, DK, PL,
-  JP, KR, CN, IN, AU, NZ, SG, HK, TW, BR, AR, CL, ZA, TR,
-} from 'country-flag-icons/react/3x2';
-
-// Curated set of plausible HAIWAVE-participant countries. Add new ISO-2
-// entries here (and to the import list above) as more participants onboard.
-// SKUs whose audit resolves to a country outside this map will simply not
-// render a flag badge — silent degrade, no error.
-// Typed by `typeof US` so the map element type matches the package's
-// FlagComponent signature without redeclaring its prop shape.
-const FLAG_COMPONENTS: Record<string, typeof US> = {
-  US, CA, MX, GB, DE, FR, IT, ES, NL, IE, SE, NO, FI, DK, PL,
-  JP, KR, CN, IN, AU, NZ, SG, HK, TW, BR, AR, CL, ZA, TR,
-};
+import { FLAG_COMPONENTS } from '../../_lib/country-flags';
 
 // Sentinel value used by haiCore's geo-rollup builder for components that
 // couldn't be resolved to an ISO-2 country (see GeoRollupEntrySchema in

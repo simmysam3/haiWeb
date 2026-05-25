@@ -5,19 +5,28 @@ import useSWR from 'swr';
 import { Pill } from '@/components/pill';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 import type { AuditRun } from '@haiwave/protocol';
+import { FLAG_COMPONENTS } from '../_lib/country-flags';
+
+// Enriched shape returned by the list BFF. The protocol AuditRun envelope
+// has none of these — they're added route-side and carried as optional
+// fields so older callers still parse cleanly.
+type EnrichedAuditRun = AuditRun & {
+  template_name?: string;
+  domestic_count?: number | null;
+  total_count?: number | null;
+};
 
 interface RunsPayload {
-  runs: AuditRun[];
+  runs: EnrichedAuditRun[];
+  auditor_country?: string;
 }
 
 interface Props {
   initialRows: AuditRun[];
 }
 
-function formatRunLabel(run: AuditRun): string {
-  // template_name is not on the protocol type; the BFF may enrich it.
-  const enriched = run as AuditRun & { template_name?: string | null };
-  if (enriched.template_name) return enriched.template_name;
+function formatRunLabel(run: EnrichedAuditRun): string {
+  if (run.template_name) return run.template_name;
   return `Run ${run.run_id.slice(0, 8)}`;
 }
 
@@ -63,6 +72,8 @@ export function HistoryQueue({ initialRows }: Props) {
   }
 
   const runs = data?.runs ?? [];
+  const auditorCountry = data?.auditor_country;
+  const FlagComponent = auditorCountry ? FLAG_COMPONENTS[auditorCountry] : undefined;
 
   if (runs.length === 0) {
     return (
@@ -76,13 +87,14 @@ export function HistoryQueue({ initialRows }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        {/* Shared 6-col grid — kept identical to scheduled-queue for vertical alignment */}
+        {/* Shared 7-col grid — kept identical to scheduled-queue for vertical alignment */}
         <colgroup>
-          <col style={{ width: '28%' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '16%' }} />
-          <col style={{ width: '20%' }} />
-          <col style={{ width: '16%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '12%' }} />
+          <col style={{ width: '10%' }} />
           <col style={{ width: '8%' }} />
         </colgroup>
         <thead>
@@ -91,6 +103,9 @@ export function HistoryQueue({ initialRows }: Props) {
             <th className="py-2 pr-3">Source</th>
             <th className="py-2 pr-3">Run at</th>
             <th className="py-2 pr-3">Scope</th>
+            <th className="py-2 pr-3" title="SKUs whose components fully resolved to your home country / total SKUs in the run">
+              Domestic
+            </th>
             <th className="py-2 pr-3">Status</th>
             <th className="py-2">Actions</th>
           </tr>
@@ -124,6 +139,31 @@ export function HistoryQueue({ initialRows }: Props) {
               </td>
               <td className="py-2 pr-3 text-slate text-xs">
                 {formatScopeSnapshot(run)}
+              </td>
+              <td className="py-2 pr-3 text-xs">
+                {/* Domestic indicator: shows flag + X/Y for runs that produced
+                    results. "—" for runs that have no results yet (running /
+                    failed / cancelled / throttled) or when the BFF couldn't
+                    compute the counts. */}
+                {run.total_count != null && run.total_count > 0 ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-charcoal"
+                    title={
+                      auditorCountry
+                        ? `${run.domestic_count ?? 0} of ${run.total_count} SKUs fully resolved as ${auditorCountry}-origin`
+                        : `${run.total_count} SKUs (auditor country unknown)`
+                    }
+                  >
+                    {FlagComponent && (
+                      <FlagComponent className="h-3 w-auto rounded-sm shadow-sm" />
+                    )}
+                    <span className="font-mono">
+                      {run.domestic_count ?? 0}/{run.total_count}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-slate">—</span>
+                )}
               </td>
               <td className="py-2 pr-3">
                 <Pill

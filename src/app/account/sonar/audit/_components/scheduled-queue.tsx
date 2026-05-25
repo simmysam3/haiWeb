@@ -41,13 +41,16 @@ export function ScheduledQueue({ rows }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        {/* Shared 6-col grid — kept identical to history-queue for vertical alignment */}
+        {/* Shared 7-col grid — kept identical to history-queue for vertical alignment.
+            The 5th column ("Domestic") is meaningful only on the runs table; here
+            it's a blank placeholder so the two tables align column-for-column. */}
         <colgroup>
-          <col style={{ width: '28%' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '16%' }} />
-          <col style={{ width: '20%' }} />
-          <col style={{ width: '16%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '12%' }} />
+          <col style={{ width: '10%' }} />
           <col style={{ width: '8%' }} />
         </colgroup>
         <thead>
@@ -56,6 +59,7 @@ export function ScheduledQueue({ rows }: Props) {
             <th className="py-2 pr-3">Cadence</th>
             <th className="py-2 pr-3">Next fire</th>
             <th className="py-2 pr-3">Scope</th>
+            <th className="py-2 pr-3" aria-hidden="true"></th>
             <th className="py-2 pr-3">Status</th>
             <th className="py-2">Actions</th>
           </tr>
@@ -83,6 +87,9 @@ export function ScheduledQueue({ rows }: Props) {
               <td className="py-2 pr-3 text-slate text-xs">
                 {formatScope(row.scope)}
               </td>
+              {/* Placeholder cell — keeps the column count aligned with the runs
+                  table; templates have no domestic-resolution indicator. */}
+              <td className="py-2 pr-3" aria-hidden="true"></td>
               <td className="py-2 pr-3">
                 <Pill
                   category="status"
