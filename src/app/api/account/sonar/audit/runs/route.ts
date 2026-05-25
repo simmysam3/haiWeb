@@ -70,6 +70,19 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
   // statuses; everything else has no results to count.
   const STATUSES_WITH_RESULTS = new Set(['complete', 'partial']);
 
+  // Cap to the N most-recent runs to stay inside haiCore's per-participant
+  // rate limit (60 req / 58 s). The history table is used overwhelmingly to
+  // look at recent runs; older rows just render "—" in the indicator
+  // column. Real fix is to denormalize the counts onto the AuditRun row in
+  // haiCore — wire that up when the protocol gets aggregate fields.
+  const RECENT_RUNS_TO_ENRICH = 10;
+  const eligibleIndices = runs
+    .map((run, idx) => ({ run, idx }))
+    .filter(({ run }) => STATUSES_WITH_RESULTS.has(run.status))
+    .slice(0, RECENT_RUNS_TO_ENRICH)
+    .map(({ idx }) => idx);
+  const eligibleIndexSet = new Set(eligibleIndices);
+
   type EnrichedRun = AuditRun & {
     template_name?: string;
     domestic_count?: number | null;
@@ -77,12 +90,12 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
   };
 
   const enrichedRuns: EnrichedRun[] = await Promise.all(
-    runs.map(async (run): Promise<EnrichedRun> => {
+    runs.map(async (run, idx): Promise<EnrichedRun> => {
       const template_name = run.template_id
         ? templateNameById.get(run.template_id)
         : undefined;
 
-      if (!STATUSES_WITH_RESULTS.has(run.status)) {
+      if (!eligibleIndexSet.has(idx)) {
         return { ...run, template_name, domestic_count: null, total_count: null };
       }
 

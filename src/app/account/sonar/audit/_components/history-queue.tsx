@@ -59,7 +59,10 @@ export function HistoryQueue({ initialRows }: Props) {
     jsonFetcher,
     {
       fallbackData: { runs: initialRows },
-      refreshInterval: 15_000,
+      // 60s instead of 15s — the BFF now fans out N+1 to haiCore for per-run
+      // result counts; tighter polling hammers haiCore's 60-req/58s budget
+      // and starves sibling routes (dashboard, throttle-status, compliance).
+      refreshInterval: 60_000,
     },
   );
 
