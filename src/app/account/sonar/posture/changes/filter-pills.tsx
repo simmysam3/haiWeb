@@ -3,6 +3,20 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { EmittedChangeKind } from '@haiwave/protocol';
 
+/**
+ * "Showing" severity dropdown (v.1.41). `all` means no server-side filter;
+ * `critical` is the default landing state — the page shows critical events
+ * only on first load. `info` is reachable from the dropdown by way of `all`
+ * but is not surfaced as its own option per current UX spec.
+ */
+export const SEVERITY_OPTIONS = [
+  { value: 'critical', label: 'Critical Only' },
+  { value: 'warning', label: 'Warning Only' },
+  { value: 'all', label: 'All' },
+] as const;
+export const DEFAULT_SEVERITY = 'critical';
+export const SEVERITY_VALUES: ReadonlySet<string> = new Set(SEVERITY_OPTIONS.map((o) => o.value));
+
 // Turbopack + file: symlink: inline mirror of the Events-feed pill set.
 // Source of truth: packages/protocol/src/audit/compliance-changes.ts —
 // EMITTED_CHANGE_KINDS (v1.34 §5.3) MINUS GAP_LIFECYCLE_KINDS (v.1.41
@@ -80,10 +94,26 @@ export function FilterPills() {
   const partner = searchParams.get('partner') ?? '';
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
+  const rawSeverity = searchParams.get('severity');
+  const severity = rawSeverity && SEVERITY_VALUES.has(rawSeverity) ? rawSeverity : DEFAULT_SEVERITY;
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
-      <span className="self-center text-xs uppercase tracking-wider text-slate">Kind:</span>
+      <span className="self-center text-xs uppercase tracking-wider text-slate">Showing:</span>
+      <select
+        value={severity}
+        onChange={(e) => setParam('severity', e.target.value)}
+        title="Filter the feed by event severity. Defaults to Critical Only."
+        className="rounded-md border border-slate/30 px-2 py-1 text-xs"
+      >
+        {SEVERITY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
+      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Kind:</span>
       {EVENT_KIND_PILLS.map((kind) => (
         <button
           key={kind}
