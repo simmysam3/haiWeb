@@ -34,7 +34,7 @@ describe('AccountNav', () => {
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
   });
 
-  it('Sonar Observe section contains Dashboard, Request Management, Posture, Phantom Demand, Configurations', () => {
+  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Configurations', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
@@ -43,14 +43,21 @@ describe('AccountNav', () => {
     const requests = screen.getByRole('link', { name: 'Request Management' });
     expect(requests.getAttribute('href')).toBe('/account/sonar/requests');
 
-    const posture = screen.getByRole('link', { name: 'Posture' });
-    expect(posture.getAttribute('href')).toBe('/account/sonar/posture');
+    // v.1.41 Backlog IA: Posture renamed to Backlog. URL preserved at
+    // /account/sonar/posture (label-only test phase).
+    const backlog = screen.getByRole('link', { name: 'Backlog' });
+    expect(backlog.getAttribute('href')).toBe('/account/sonar/posture');
+    expect(screen.queryByRole('link', { name: 'Posture' })).toBeNull();
 
     const phantomDemand = screen.getByRole('link', { name: 'Phantom Demand' });
     expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');
 
     const configurations = screen.getByRole('link', { name: 'Configurations' });
     expect(configurations.getAttribute('href')).toBe('/account/sonar/templates');
+
+    // v.1.41 Backlog IA: Watcher Management lands in PR-5 alongside the
+    // relocated page itself (avoid shipping a 404 link).
+    expect(screen.queryByRole('link', { name: 'Watcher Management' })).toBeNull();
   });
 
   it('Reports link is not present in the nav (dropped in v1.39)', () => {
