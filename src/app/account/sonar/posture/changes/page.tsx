@@ -1,6 +1,7 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
-import { FilterPills, DEFAULT_SEVERITY, SEVERITY_VALUES } from './filter-pills';
+import { FilterPills } from './filter-pills';
+import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson } from '@/lib/server-fetch';
