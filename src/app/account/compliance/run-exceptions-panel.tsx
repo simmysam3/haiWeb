@@ -144,7 +144,7 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                           }`
                         : '—'}
                     </td>
-                    <td className="py-3 text-right text-slate">›</td>
+                    <td className="py-3 text-right text-teal text-lg font-bold">›</td>
                   </tr>
                 );
               })}
