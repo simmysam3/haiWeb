@@ -1,18 +1,33 @@
 import type { WorkingListResponse } from '@haiwave/protocol';
 import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
+import { GapsTrendStrip } from './gaps-trend-strip';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
 
-interface SearchParams { categories?: string; status?: string; sort?: string; partner_id?: string; sku?: string; }
+interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
+/**
+ * v.1.41 Backlog IA — Gaps mode. The /sonar/posture/working-list URL
+ * stays canonical but is now hard-scoped to `category=gap`. Cross-
+ * category items (change/nomination/obligation/expiry) live in their
+ * own modes (Events / Obligations / etc.) so the section's three tabs
+ * each show one item-type only — no unified mashup.
+ *
+ * A `?categories=...` query param from a legacy bookmark is silently
+ * ignored. PR-6 adds the trending header strip ("342 open gaps · ↓ 68
+ * vs last week") that contextualises the page beyond a flat list.
+ */
 async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams();
-  if (sp.categories) qs.set('categories', sp.categories);
+  qs.set('categories', 'gap');
   if (sp.status) qs.set('status', sp.status);
   if (sp.sort) qs.set('sort', sp.sort);
   if (sp.partner_id) qs.set('partner_id', sp.partner_id);
+  // v.1.41 Backlog IA — "New (Nd)" filter pill threads through here.
+  // haiCore clamps to [1, 90] and ignores non-numerics; we just pass it.
+  if (sp.max_age_days) qs.set('max_age_days', sp.max_age_days);
   return fetchBffJson<WorkingListResponse>(
     `/api/account/sonar/compliance/working-list?${qs}`,
   );
@@ -22,7 +37,7 @@ async function fetchList(sp: SearchParams) {
  * Filter a working-list payload to items matching a SKU identifier. Used to honor
  * the `?sku=` deep-link emitted by global search (v1.37). `WorkingListItem` has
  * no dedicated product_id field — gap items embed `auditRunResults.productId`
- * in `subject`, nomination/obligation items embed `sku_obligations.sku_label`.
+ * in `subject`.
  *
  * Match is case-insensitive and word-boundary-anchored against the SKU token in
  * `subject` so `?sku=PROD-1` doesn't collide with `PROD-10`/`PROD-12` in
@@ -31,9 +46,7 @@ async function fetchList(sp: SearchParams) {
  *
  * Filter is intentionally client-side in HaiWeb: the haiCore feed has no SKU
  * filter param yet, and the search emitter (search/page.tsx data fetching) is
- * out of scope for this follow-up. Items without a SKU in `subject` (change,
- * expiry) will not match and are effectively excluded when `?sku=` is set —
- * that is the desired behavior.
+ * out of scope for this follow-up.
  */
 export function filterBySku(
   result: FetchResult<WorkingListResponse>,
@@ -50,7 +63,7 @@ export function filterBySku(
 
 interface PageProps { searchParams: Promise<SearchParams>; }
 
-export default async function WorkingListPage({ searchParams }: PageProps) {
+export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
   const raw = await fetchList(params);
@@ -59,8 +72,12 @@ export default async function WorkingListPage({ searchParams }: PageProps) {
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-display text-navy">Working List</h1>
-          <p className="mt-2 text-slate">What to work on this week — gaps, changes, nominations, obligations, and expiries.</p>
+          <h1 className="text-3xl font-display text-navy">Gaps</h1>
+          <p className="mt-2 text-slate">
+            Open compliance gaps from your latest snapshot — sub-tier blanks, missing
+            evidence, observability holes. Resolve by running a fresh check once
+            upstream evidence lands, or acknowledge if it&apos;s a known structural gap.
+          </p>
         </div>
         <RefreshButton />
       </header>
@@ -69,65 +86,40 @@ export default async function WorkingListPage({ searchParams }: PageProps) {
           <>
             <p>
               <strong className="font-semibold text-navy">How to work the queue.</strong>{' '}
-              Read the top of the list first — items are sorted by recency by default; switch to{' '}
-              <em>oldest unresolved</em> when you want to clear stale gaps. For each item:
-              click <strong>Open</strong> to jump to the underlying surface (the run that produced
-              a gap, the partner record behind a nomination, etc.); <strong>Snooze</strong> to push
-              an item out of the way for a week if you can&apos;t act on it now; <strong>Acknowledge
-              &amp; suppress</strong> when you&apos;ve decided the item shouldn&apos;t recur in the
-              queue and want to leave an audit-trail reason. Resolved items drop off automatically
-              at the next snapshot — you don&apos;t need to mark them as such.
+              Items sort by recency by default; switch to <em>oldest unresolved</em> to
+              clear stale gaps. For each item: click <strong>Open</strong> to jump to the
+              underlying audit run; <strong>Snooze</strong> to push an item out of the way
+              for a week when you can&apos;t act now; <strong>Acknowledge &amp; suppress</strong>
+              {' '}to remove a gap permanently with a recorded reason. Resolved gaps drop
+              off automatically at the next snapshot — you don&apos;t need to mark them.
             </p>
             <p>
-              <strong className="font-semibold text-navy">The five item types.</strong>
+              <strong className="font-semibold text-navy">Why this list is long.</strong>{' '}
+              Most BOM breakouts surface hundreds of gaps — that&apos;s the cost of
+              observability, not a signal of poor compliance. The actionable view is the
+              <em> trend</em>: is your gap count falling week-over-week? The strip at
+              the top of this page shows your current open-gap count, week-over-week
+              delta, and a 28-day sparkline so you can see direction at a glance.
             </p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>
-                <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">gap</span>{' '}
-                — an open compliance gap surfaced by your latest audit snapshot. Resolve by running
-                a fresh audit after the upstream evidence lands, or acknowledge if it&apos;s a
-                known structural gap.
-              </li>
-              <li>
-                <span className="rounded-full bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal-dark">change</span>{' '}
-                — a just-broken change event since the prior snapshot (origin shifted, lead time
-                degraded, cert expired, etc.). Treat as an alert; open the Changes feed for
-                before/after detail.
-              </li>
-              <li>
-                <span className="rounded-full bg-slate/15 px-2 py-0.5 text-xs font-medium text-slate">nomination</span>{' '}
-                — a vendor audit you nominated; you&apos;re waiting on them. No action from you
-                until they respond.
-              </li>
-              <li>
-                <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">obligation</span>{' '}
-                — a customer-initiated request you owe a response to. Open it from this row to
-                file the response.
-              </li>
-              <li>
-                <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">expiry</span>{' '}
-                — a provenance key approaching its expiry window. Rotate or renew the key before
-                it expires to avoid a coverage gap.
-              </li>
-            </ul>
             <p>
-              <strong className="font-semibold text-navy">Reading the filter pills.</strong>{' '}
-              The <em>Category</em> row above the table toggles which item types you see — hover a
-              pill to see what each type means. The <em>Status</em> dropdown narrows by lifecycle:
-              <em> open</em> (active), <em>snoozed</em> (will re-surface), or{' '}
-              <em>dismissed</em> (suppressed with a reason). Suppressed items are hidden by
-              default on the table itself; toggle &quot;Show suppressed&quot; on the table to see
-              what was acknowledged + why.
+              <strong className="font-semibold text-navy">Working net-new gaps.</strong>{' '}
+              When you onboard a new product or vendor, fresh gaps appear all at once;
+              prioritising those first is usually the highest-leverage thing to do.
+              Toggle <em>New (7d)</em> in the filter row to narrow the list to gaps
+              first seen in the last 7 days. Rows that match also carry a small{' '}
+              <em>NEW</em> badge even when the filter is off.
             </p>
           </>
         }
       >
-        A single prioritized list of action items computed on demand from your latest compliance snapshot, open nominations and obligations, and upcoming key expiries. Snooze or dismiss items; resolved items drop off automatically at the next snapshot.
+        Snooze or dismiss items that aren&apos;t actionable right now; resolved items
+        drop off automatically at the next snapshot.
       </PageIntro>
+      <GapsTrendStrip />
       <FilterPills />
       <div className="rounded-lg border border-slate/20 bg-white">
         {result.kind === 'error' ? (
-          <div role="alert" className="p-12 text-center"><p className="text-red-900">Couldn&apos;t load the working list. The compliance service is temporarily unavailable.</p></div>
+          <div role="alert" className="p-12 text-center"><p className="text-red-900">Couldn&apos;t load gaps. The compliance service is temporarily unavailable.</p></div>
         ) : (
           <WorkingListTable items={result.data.items} total={result.data.total} />
         )}

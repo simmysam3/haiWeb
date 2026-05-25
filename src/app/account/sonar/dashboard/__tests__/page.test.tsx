@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 /**
  * v1.37 R2 — the Sonar Dashboard absorbed the full Coverage surface from
@@ -31,9 +31,9 @@ vi.mock('next/headers', () => ({
 }));
 
 // RefreshButton (rendered inside ActivityFeed) calls `useRouter()`; the
-// jsdom test env has no app-router context, so we stub it here. The sticky
-// sub-nav also calls `usePathname`/`useSearchParams` through the App
-// Router; the stubs cover both.
+// jsdom test env has no app-router context, so we stub it here. The
+// `usePathname`/`useSearchParams` stubs cover other App-Router consumers
+// that may mount under the dashboard tree.
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
   usePathname: () => '/account/sonar/dashboard',
@@ -109,7 +109,7 @@ beforeEach(() => {
 });
 
 describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify', () => {
-  it('renders the Coverage section heading and the cross-modality overview heading', async () => {
+  it('shows Coverage on the default tab and reveals Cross-modality when its tab is clicked', async () => {
     fetchBffJson
       .mockResolvedValueOnce({
         kind: 'ok',
@@ -124,15 +124,18 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     const { default: Page } = await import('../page');
     render(await Page());
 
-    // Section headings prove the composition: Coverage on top, Cross-modality below.
+    // v1.41: Coverage is the default tab — its heading + stats are visible.
     expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
-    // The full-coverage stats strip renders its tile labels.
     expect(screen.getByText(/Total products/i)).toBeInTheDocument();
     // The 'What these numbers mean' explainer carried forward from R1.
     expect(screen.getByText(/What these numbers mean/i)).toBeInTheDocument();
     // 'Complete' tile + 'Complete' bullet both exist — assert at least one.
     expect(screen.getAllByText(/^Complete$/).length).toBeGreaterThanOrEqual(1);
+
+    // The Cross-modality surface lives behind its tab — clicking it reveals
+    // the overview heading (the panel was rendered but hidden).
+    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
+    expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
   });
 
   it('shows the onboarding empty-state when no completed snapshot exists', async () => {
@@ -147,7 +150,8 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     expect(
       screen.getByText(/No completed compliance snapshot yet/i),
     ).toBeInTheDocument();
-    // The cross-modality section still renders below.
+    // The cross-modality section still composes — it's behind its tab.
+    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
     expect(
       screen.getByRole('heading', { name: /Cross-modality overview/i }),
     ).toBeInTheDocument();
@@ -171,7 +175,7 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     ).toBeInTheDocument();
   });
 
-  it('renders the sticky sub-nav with all three section anchors', async () => {
+  it('renders the tab bar with all three section tabs (v1.41)', async () => {
     fetchBffJson
       .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
       .mockResolvedValueOnce({ kind: 'ok', data: { points: [] } });
@@ -180,12 +184,13 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     const { default: Page } = await import('../page');
     render(await Page());
 
-    const nav = screen.getByTestId('dashboard-subnav');
-    expect(nav).toBeInTheDocument();
-    // Anchor links present (not route changes — in-page jumps).
-    expect(nav.querySelector('a[href="#section-coverage"]')).toBeTruthy();
-    expect(nav.querySelector('a[href="#section-cross-modality"]')).toBeTruthy();
-    expect(nav.querySelector('a[href="#section-activity"]')).toBeTruthy();
+    const tablist = screen.getByRole('tablist', { name: 'Dashboard sections' });
+    expect(tablist).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Coverage' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cross-modality' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Activity' })).toBeInTheDocument();
+    // Coverage is the default-selected tab.
+    expect(screen.getByRole('tab', { name: 'Coverage' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('best-effort lanes that error out degrade gracefully (page still renders)', async () => {
@@ -209,6 +214,8 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     render(await Page());
 
     expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
+    // Cross-modality composed despite its lane erroring — surfaced via its tab.
+    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
     expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
     expect(consoleWarnSpy).toHaveBeenCalled();
     consoleWarnSpy.mockRestore();

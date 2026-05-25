@@ -3,6 +3,28 @@
 import Link from "next/link";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { LAST_ACCOUNT_PATH_KEY } from "@/components/last-path-recorder";
+
+/**
+ * Read the stored last-visited account path and validate it. Anything that
+ * doesn't start with `/account` is rejected so a tampered localStorage value
+ * can't redirect the user to an external origin or to a non-account surface.
+ */
+function readStickyRedirectTarget(): string {
+  if (typeof window === "undefined") return "/account";
+  let stored: string | null = null;
+  try {
+    stored = window.localStorage.getItem(LAST_ACCOUNT_PATH_KEY);
+  } catch {
+    return "/account";
+  }
+  if (!stored) return "/account";
+  // Must be an in-portal path under /account. Reject schemes, protocol-relative
+  // URLs (`//evil.com`), and anything that doesn't start with /account.
+  if (!stored.startsWith("/account")) return "/account";
+  if (stored.startsWith("//")) return "/account";
+  return stored;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +58,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/account");
+      router.push(readStickyRedirectTarget());
     } catch {
       setError("Network error. Please try again.");
     } finally {

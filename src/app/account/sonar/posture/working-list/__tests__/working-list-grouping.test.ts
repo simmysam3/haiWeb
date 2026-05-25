@@ -16,6 +16,7 @@ const item = (partnerId: string | null, name: string | null, key: string): Worki
   dismiss_reason: null,
   last_transitioned_at: null,
   dismissed_by_user: null,
+  first_seen_at: null,
 });
 
 describe('groupByPartner', () => {

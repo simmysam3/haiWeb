@@ -5,6 +5,7 @@ import { RunHeader } from './_components/run-header';
 import { SummaryStrip } from './_components/summary-strip';
 import { EvidenceTreePanel } from './_components/evidence-tree-panel';
 import { DispatchedResponsesTable } from './_components/dispatched-responses-table';
+import { InProgressPoller } from './_components/in-progress-poller';
 
 interface RunDetailPayload {
   run: AuditRun;
@@ -72,16 +73,9 @@ export default async function AuditRunDetailPage({
         <SummaryStrip run={run} results={results} />
       )}
 
-      {/* In-progress placeholder */}
-      {isRunning && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="rounded-lg border border-teal/20 bg-teal/5 px-5 py-8 text-center text-sm text-teal"
-        >
-          Run in progress… Results will appear here when the run completes.
-        </div>
-      )}
+      {/* In-progress placeholder — auto-polls the BFF and triggers a server
+          re-render once the run reaches a terminal status. */}
+      {isRunning && <InProgressPoller runId={run_id} />}
 
       {/* Error / cancelled / throttled state */}
       {showError && (

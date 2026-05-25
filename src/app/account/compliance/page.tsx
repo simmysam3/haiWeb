@@ -1,18 +1,22 @@
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
-import { ComplianceDashboard } from "./compliance-dashboard";
+import { AuditExceptionsDashboard } from "./audit-exceptions-dashboard";
 
-export default function CompliancePage() {
+export default function AuditExceptionsPage() {
   return (
     <div>
       <PageHeader
-        title="Compliance"
-        description="Noncompliance flags and self-audit reports"
+        title="Audit Exceptions"
+        description="Rolled-up view of what needs attention across your audits and inbound activity."
       />
       <PageIntro>
-        Noncompliance flags and self-audit reports your agent has surfaced from inbound activity, ranked by severity. Investigate the underlying transactions and clear flags with resolution notes once an issue is addressed. Rows with reason <span className="font-mono text-xs">vendor_not_on_network</span> mark upstream gaps where the supplier hasn&apos;t joined HAIWAVE — the vendor is shown as &quot;Unknown&quot; by design; the product column shows your own SKU so you know which item to act on.
+        Triage exceptions in one place instead of drilling into each audit run.{' '}
+        <strong>Run exceptions</strong> lists the latest non-compliant result per (vendor, product)
+        across your last 7 days of audit runs. <strong>Activity flags</strong> shows reactive
+        alerts your agent surfaced from inbound activity — BOM-resolution gaps, missing manifests,
+        and counterparties who aren&apos;t on HAIWAVE. Two channels, one inbox.
       </PageIntro>
-      <ComplianceDashboard />
+      <AuditExceptionsDashboard />
     </div>
   );
 }

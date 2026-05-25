@@ -36,6 +36,19 @@ function stateLabel(state: WorkingListItem['state']): string {
   return state === 'dismissed' ? 'suppressed' : state;
 }
 
+// v.1.41 Backlog IA: items with first_seen_at inside this window render a
+// "NEW" badge next to the category pill. Mirrors the "New (7d)" filter
+// pill threshold in filter-pills.tsx — a row only earns the badge if it
+// would survive that filter.
+const NEW_BADGE_WINDOW_DAYS = 7;
+
+function isNew(firstSeenAt: string | null | undefined): boolean {
+  if (!firstSeenAt) return false;
+  const t = new Date(firstSeenAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return t >= Date.now() - NEW_BADGE_WINDOW_DAYS * 86_400_000;
+}
+
 interface Props { items: WorkingListItem[]; total?: number; }
 
 export function WorkingListTable({ items, total }: Props) {
@@ -74,6 +87,14 @@ export function WorkingListTable({ items, total }: Props) {
         <div className="flex flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <Pill category="working_list_category" value={it.category}>{it.category}</Pill>
+            {isNew(it.first_seen_at) && (
+              <span
+                className="rounded-full bg-teal/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-dark"
+                title={`First seen ${new Date(it.first_seen_at!).toLocaleDateString()} — inside the ${NEW_BADGE_WINDOW_DAYS}-day "new" window.`}
+              >
+                NEW
+              </span>
+            )}
             {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{stateLabel(it.state)}</span>}
           </div>
           <p className="text-sm font-medium text-navy">{it.subject}</p>

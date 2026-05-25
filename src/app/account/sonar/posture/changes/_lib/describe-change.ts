@@ -1,24 +1,6 @@
 import type { ComplianceChange, ComplianceChangeKind } from '@haiwave/protocol';
 import type { PillProps } from '@/components/pill';
 
-// ─── Helper interfaces for prior/current value shapes ──────────────────────
-
-export interface PriorCurrentOrigin {
-  country_of_origin?: string;
-}
-export interface PriorCurrentPlant {
-  plant_identifier?: string;
-}
-export interface PriorCurrentLeadTime {
-  lead_time_days?: number | string;
-}
-export interface PriorCurrentCert {
-  certification_status?: string;
-}
-export interface PriorCurrentDepth {
-  max_depth?: number | string;
-}
-
 // ─── kindLabel ─────────────────────────────────────────────────────────────
 
 export function kindLabel(kind: ComplianceChangeKind): string {
@@ -35,34 +17,69 @@ export function severityTone(severity: string): NonNullable<PillProps['tone']> {
   return 'info';
 }
 
+// ─── Tolerant key pickers ──────────────────────────────────────────────────
+//
+// The haiCore diff service emits spec keys (country_of_origin, lead_time_days,
+// certification_status, plant_identifier). The dev seed script
+// (`scripts/seed-request-workflows.ts`) emits short keys (country, days,
+// status, plant). Production data is always spec-shape, but local dev had a
+// gap because describeChange only knew the spec keys → it rendered "—" for
+// the seeded rows. Each picker accepts both shapes so the feed reads
+// correctly in either environment.
+
+function pickStr(obj: unknown, keys: readonly string[]): string | undefined {
+  if (obj == null || typeof obj !== 'object') return undefined;
+  const rec = obj as Record<string, unknown>;
+  for (const k of keys) {
+    const v = rec[k];
+    if (v != null && v !== '' && v !== '<null>') return String(v);
+  }
+  return undefined;
+}
+
+function pickNum(obj: unknown, keys: readonly string[]): number | undefined {
+  if (obj == null || typeof obj !== 'object') return undefined;
+  const rec = obj as Record<string, unknown>;
+  for (const k of keys) {
+    const v = rec[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return undefined;
+}
+
 // ─── describeChange ────────────────────────────────────────────────────────
 
 export function describeChange(change: ComplianceChange): string {
   const kind = change.change_kind;
-  const prior = change.prior_value as Record<string, unknown> | null;
-  const current = change.current_value as Record<string, unknown> | null;
+  const prior = change.prior_value;
+  const current = change.current_value;
+  const MISSING = '—';
 
   switch (kind) {
     case 'origin_shifted_country': {
-      const p = (prior as PriorCurrentOrigin | null)?.country_of_origin ?? '—';
-      const c = (current as PriorCurrentOrigin | null)?.country_of_origin ?? '—';
+      const p = pickStr(prior, ['country_of_origin', 'country']) ?? MISSING;
+      const c = pickStr(current, ['country_of_origin', 'country']) ?? MISSING;
       return `Country of origin changed from ${p} to ${c}`;
     }
     case 'origin_shifted_plant': {
-      const p = (prior as PriorCurrentPlant | null)?.plant_identifier ?? '—';
-      const c = (current as PriorCurrentPlant | null)?.plant_identifier ?? '—';
+      const p = pickStr(prior, ['plant_identifier', 'plant']) ?? MISSING;
+      const c = pickStr(current, ['plant_identifier', 'plant']) ?? MISSING;
       return `Plant identifier changed from ${p} to ${c}`;
     }
     case 'lead_time_degraded':
     case 'lead_time_improved': {
-      const p = (prior as PriorCurrentLeadTime | null)?.lead_time_days ?? '—';
-      const c = (current as PriorCurrentLeadTime | null)?.lead_time_days ?? '—';
-      return `Lead time ${p} → ${c} days`;
+      const p = pickNum(prior, ['lead_time_days', 'days']);
+      const c = pickNum(current, ['lead_time_days', 'days']);
+      return `Lead time ${p ?? MISSING} → ${c ?? MISSING} days`;
     }
     case 'certification_expired_or_revoked':
     case 'certification_renewed': {
-      const p = (prior as PriorCurrentCert | null)?.certification_status ?? '—';
-      const c = (current as PriorCurrentCert | null)?.certification_status ?? '—';
+      const p = pickStr(prior, ['certification_status', 'status']) ?? MISSING;
+      const c = pickStr(current, ['certification_status', 'status']) ?? MISSING;
       return `Certification ${p} → ${c}`;
     }
     case 'gap_added':
@@ -72,13 +89,13 @@ export function describeChange(change: ComplianceChange): string {
     case 'vendor_substituted':
       return 'A subcomponent vendor was substituted.';
     case 'depth_reduced': {
-      const p = (prior as PriorCurrentDepth | null)?.max_depth ?? '—';
-      const c = (current as PriorCurrentDepth | null)?.max_depth ?? '—';
+      const p = pickNum(prior, ['max_depth']) ?? MISSING;
+      const c = pickNum(current, ['max_depth']) ?? MISSING;
       return `Maximum traversal depth decreased from ${p} to ${c}.`;
     }
     case 'depth_increased': {
-      const p = (prior as PriorCurrentDepth | null)?.max_depth ?? '—';
-      const c = (current as PriorCurrentDepth | null)?.max_depth ?? '—';
+      const p = pickNum(prior, ['max_depth']) ?? MISSING;
+      const c = pickNum(current, ['max_depth']) ?? MISSING;
       return `Maximum traversal depth increased from ${p} to ${c}.`;
     }
     default:

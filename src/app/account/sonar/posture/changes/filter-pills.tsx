@@ -3,15 +3,31 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { EmittedChangeKind } from '@haiwave/protocol';
 
-// Turbopack + file: symlink: inline mirror of EMITTED_CHANGE_KINDS from @haiwave/protocol.
-// Source of truth: packages/protocol/src/audit/compliance-changes.ts — EMITTED_CHANGE_KINDS (v1.34 §5.3).
-// Turbopack cannot value-import the CJS @haiwave/protocol package through the file: symlink on Windows;
-// a direct import will fail at runtime. Keep this list verbatim in sync with EMITTED_CHANGE_KINDS in
-// the protocol package. Do NOT replace with a direct import.
+/**
+ * "Showing" severity dropdown (v.1.41). `all` means no server-side filter;
+ * `critical` is the default landing state — the page shows critical events
+ * only on first load. `info` is reachable from the dropdown by way of `all`
+ * but is not surfaced as its own option per current UX spec.
+ */
+export const SEVERITY_OPTIONS = [
+  { value: 'critical', label: 'Critical Only' },
+  { value: 'warning', label: 'Warning Only' },
+  { value: 'all', label: 'All' },
+] as const;
+export const DEFAULT_SEVERITY = 'critical';
+export const SEVERITY_VALUES: ReadonlySet<string> = new Set(SEVERITY_OPTIONS.map((o) => o.value));
+
+// Turbopack + file: symlink: inline mirror of the Events-feed pill set.
+// Source of truth: packages/protocol/src/audit/compliance-changes.ts —
+// EMITTED_CHANGE_KINDS (v1.34 §5.3) MINUS GAP_LIFECYCLE_KINDS (v.1.41
+// Backlog IA — gap_added / gap_resolved describe the gap's own
+// lifecycle and surface on the Gaps tab, not as Events pills).
+// Turbopack cannot value-import the CJS @haiwave/protocol package
+// through the file: symlink on Windows; a direct import will fail at
+// runtime. Keep this list verbatim in sync with the subset above. Do
+// NOT replace with a direct import.
 // exported for test parity assertion (see __tests__/changes-feed.test.tsx)
-export const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
-  'gap_added',
-  'gap_resolved',
+export const EVENT_KIND_PILLS: ReadonlyArray<Exclude<EmittedChangeKind, 'gap_added' | 'gap_resolved'>> = [
   'origin_shifted_country',
   'origin_shifted_plant',
   'vendor_substituted',
@@ -27,9 +43,7 @@ export const EMITTED_CHANGE_KINDS: readonly EmittedChangeKind[] = [
 // CHANGE_KIND_DEFINITION in PILL_DEFINITIONS (components/pill.tsx) verbatim,
 // with an appended action sentence. Inlined here because these are <button>
 // toggles, not status pills.
-const KIND_TOOLTIPS: Record<EmittedChangeKind, string> = {
-  gap_added: 'A new gap is present at a cell that was previously traversable. Click to filter the feed to gap-added events only.',
-  gap_resolved: 'A previously open gap is no longer present. Click to filter the feed to gap-resolved events only.',
+const KIND_TOOLTIPS: Record<(typeof EVENT_KIND_PILLS)[number], string> = {
   origin_shifted_country: 'Country of origin changed for this vendor/product. Click to filter the feed to country-shift events only.',
   origin_shifted_plant: 'Plant identifier changed within the same country. Click to filter the feed to plant-shift events only.',
   vendor_substituted: 'A subcomponent vendor changed. Click to filter the feed to vendor-substitution events only.',
@@ -56,6 +70,9 @@ export function FilterPills() {
       for (const v of existing) sp.append('kind', v);
       sp.append('kind', kind);
     }
+    // Filter change shrinks/shifts the result set — page N could now be past
+    // the end. Reset to page 1 so the user sees results, not an empty page.
+    sp.delete('page');
     router.push(`${pathname}?${sp}`);
   }
 
@@ -66,6 +83,7 @@ export function FilterPills() {
     } else {
       sp.delete(key);
     }
+    sp.delete('page');
     router.push(`${pathname}?${sp}`);
   }
 
@@ -76,11 +94,27 @@ export function FilterPills() {
   const partner = searchParams.get('partner') ?? '';
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
+  const rawSeverity = searchParams.get('severity');
+  const severity = rawSeverity && SEVERITY_VALUES.has(rawSeverity) ? rawSeverity : DEFAULT_SEVERITY;
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
-      <span className="self-center text-xs uppercase tracking-wider text-slate">Kind:</span>
-      {EMITTED_CHANGE_KINDS.map((kind) => (
+      <span className="self-center text-xs uppercase tracking-wider text-slate">Showing:</span>
+      <select
+        value={severity}
+        onChange={(e) => setParam('severity', e.target.value)}
+        title="Filter the feed by event severity. Defaults to Critical Only."
+        className="rounded-md border border-slate/30 px-2 py-1 text-xs"
+      >
+        {SEVERITY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
+      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Kind:</span>
+      {EVENT_KIND_PILLS.map((kind) => (
         <button
           key={kind}
           type="button"

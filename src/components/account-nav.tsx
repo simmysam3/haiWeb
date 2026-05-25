@@ -13,6 +13,11 @@ import { NavBadge } from "./nav-badge";
 // awaiting-me badge polls the same BFF route (counts haven't moved).
 const REQUESTS_HREF = "/account/sonar/requests";
 
+// v.1.41 Backlog IA: Sonar Observe > Posture renamed to Backlog. URL kept
+// at /account/sonar/posture (label-only test per spec). The Backlog nav
+// item carries an events-only badge — see BacklogNavItem.
+const BACKLOG_HREF = "/account/sonar/posture";
+
 interface NavItem {
   href: string;
   label: string;
@@ -22,6 +27,11 @@ interface NavItem {
 interface RequestManagementCounts {
   awaiting_me_count: number;
   oldest_awaiting_me_age_days: number | null;
+}
+
+interface BacklogEventsCount {
+  events_count: number;
+  oldest_age_days: number | null;
 }
 
 function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
@@ -62,6 +72,45 @@ function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive:
   );
 }
 
+/**
+ * Backlog sidebar entry — events-only count badge.
+ *
+ * Per v.1.41 Backlog IA spec Decision 11: no polling interval. Change
+ * events surface at most nightly, so live polling would add request
+ * volume for no signal. SWR's default revalidation (on mount / focus /
+ * reconnect) is sufficient; users who want a fresh count can refresh
+ * the page.
+ */
+function BacklogNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const { data, error } = useSWR<BacklogEventsCount>(
+    "/api/account/sonar/backlog/events-count",
+    jsonFetcher,
+  );
+  useEffect(() => {
+    if (error) {
+      console.warn("[BacklogNavItem] events count fetch failed", error);
+    }
+  }, [error]);
+  return (
+    <Link
+      href={item.href}
+      className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
+        item.indent ? "pl-10 pr-6" : "px-6"
+      } ${
+        isActive
+          ? "text-white bg-white/10 border-r-2 border-teal"
+          : "text-light-slate hover:text-white hover:bg-white/5"
+      }`}
+    >
+      {item.label}
+      <NavBadge
+        count={data?.events_count ?? 0}
+        oldestAgeDays={data?.oldest_age_days ?? null}
+      />
+    </Link>
+  );
+}
+
 interface NavSection {
   label: string;
   items: NavItem[];
@@ -74,16 +123,29 @@ const navSections: NavSection[] = [
       { href: "/account", label: "Dashboard" },
       { href: "/account/orders", label: "Orders" },
       { href: "/account/scores", label: "Behavioral Scores" },
-      { href: "/account/provenance", label: "Provenance" },
-      { href: "/account/compliance", label: "Compliance" },
       { href: "/account/agent-health", label: "Agent Health" },
     ],
   },
   {
     // v1.39: Sonar IA split — audit surface separated from observe surface.
+    // v.1.41: Product Provenance moved under Sonar Audit — it's a
+    // product-led view into supply-chain makeup, the read-only counterpart
+    // to the supplier-led audit-run surface. URL kept at /account/provenance
+    // (no redirect needed — only the nav placement + label changed).
+    // v.1.41: Compliance moved here + renamed to Audit Exceptions — it's
+    // the exception rollup across audits + inbound activity. URL stays at
+    // /account/compliance.
+    // v.1.41: Key Management (formerly "Provenance Keys" under Account
+    // Management) moved here as a peer item — provenance keys exist
+    // solely to gate audit visibility, so the configuration surface
+    // belongs with the audit facilities. URL kept at
+    // /account/provenance-keys (only the nav placement + label changed).
     label: "Sonar Audit",
     items: [
       { href: "/account/sonar/audit", label: "Audits" },
+      { href: "/account/compliance", label: "Audit Exceptions" },
+      { href: "/account/provenance", label: "Product Provenance" },
+      { href: "/account/provenance-keys", label: "Key Management" },
     ],
   },
   {
@@ -91,13 +153,18 @@ const navSections: NavSection[] = [
     // Observations, Configurations (templates). Reports dropped — the
     // /account/sonar/reports route was deleted in v1.40; the legacy URL now
     // 301-redirects to /account/sonar/audit.
+    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
+    // Posture → Backlog (label-only; URL stays /sonar/posture per the
+    // label-only test phase). Watcher Management is a peer entry now that
+    // its destination page exists at /sonar/watchers (PR-5).
     label: "Sonar Observe",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
       { href: REQUESTS_HREF, label: "Request Management" },
-      { href: "/account/sonar/posture", label: "Posture" },
-      { href: "/account/sonar/observations", label: "Observations" },
+      { href: BACKLOG_HREF, label: "Backlog" },
+      { href: "/account/sonar/observations", label: "Phantom Demand" },
       { href: "/account/sonar/templates", label: "Configurations" },
+      { href: "/account/sonar/watchers", label: "Watcher Management" },
     ],
   },
   {
@@ -111,7 +178,7 @@ const navSections: NavSection[] = [
       { href: "/account/usage", label: "Usage" },
       // Payments deferred to v2 — restore this entry when payments ships.
       // { href: "/account/payments", label: "Payments" },
-      { href: "/account/provenance-keys", label: "Provenance Keys" },
+      // v.1.41: Provenance Keys → Sonar Audit (as "Key Management").
       { href: "/account/data-cleansing", label: "Data Cleansing" },
       { href: "/account/profile", label: "Company Profile" },
     ],
@@ -175,6 +242,11 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
               if (item.href === REQUESTS_HREF) {
                 return (
                   <RequestManagementNavItem key={item.href} item={item} isActive={isActive} />
+                );
+              }
+              if (item.href === BACKLOG_HREF) {
+                return (
+                  <BacklogNavItem key={item.href} item={item} isActive={isActive} />
                 );
               }
               return (

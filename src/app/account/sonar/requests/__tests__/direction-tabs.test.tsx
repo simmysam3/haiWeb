@@ -17,14 +17,15 @@ beforeEach(() => {
   currentSearch = '';
 });
 
-describe('DirectionTabs — v.1.37 IA', () => {
-  it('renders three tabs with counts', () => {
+describe('DirectionTabs — v.1.37 IA (v.1.41: + Declined tab)', () => {
+  it('renders four tabs with counts on me/them/all (no count chip on declined)', () => {
     render(
       <DirectionTabs awaitingMeCount={3} awaitingThemCount={5} totalCount={12} />,
     );
     expect(screen.getByRole('button', { name: /Awaiting me/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Awaiting them/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Declined/ })).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
@@ -40,6 +41,12 @@ describe('DirectionTabs — v.1.37 IA', () => {
     render(<DirectionTabs awaitingMeCount={0} awaitingThemCount={0} totalCount={0} />);
     fireEvent.click(screen.getByRole('button', { name: /^All/ }));
     expect(mockPush).toHaveBeenCalledWith('/account/sonar/requests?direction=all');
+  });
+
+  it('clicking Declined pushes ?direction=declined', () => {
+    render(<DirectionTabs awaitingMeCount={0} awaitingThemCount={0} totalCount={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Declined/ }));
+    expect(mockPush).toHaveBeenCalledWith('/account/sonar/requests?direction=declined');
   });
 
   it('clicking Me clears the direction param (me is implicit default)', () => {

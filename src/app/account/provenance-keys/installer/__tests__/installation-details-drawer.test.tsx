@@ -7,8 +7,8 @@ const INST: ProvenanceKeyInstallation = {
   installation_id: 'i1',
   key_id: 'k1',
   installer_participant_id: 'installer-abc',
-  accepted_required_fields: ['facility_country'],
-  accepted_requested_fields: ['facility_name'],
+  accepted_required_fields: ['state_province'],
+  accepted_requested_fields: ['vendor_name'],
   installed_at: '2026-04-18T00:00:00.000Z',
   updated_at: '2026-04-18T00:00:00.000Z',
   removed_at: null,
@@ -16,7 +16,7 @@ const INST: ProvenanceKeyInstallation = {
   compliance: { status: 'compliant', missing_fields: [], grace_deadline: null },
 };
 
-const POLICY: SharingPolicy = { shared_fields: ['facility_country'] };
+const POLICY: SharingPolicy = { shared_fields: ['state_province'] };
 
 describe('InstallationDetailsDrawer', () => {
   it('renders accepted required + requested fields', () => {
@@ -29,8 +29,8 @@ describe('InstallationDetailsDrawer', () => {
         onChanged={() => {}}
       />,
     );
-    expect(screen.getByText(/facility_country/i)).toBeInTheDocument();
-    expect(screen.getByText(/facility_name/i)).toBeInTheDocument();
+    expect(screen.getByText(/state_province/i)).toBeInTheDocument();
+    expect(screen.getByText(/vendor_name/i)).toBeInTheDocument();
   });
 
   it('renders an Uninstall action button', () => {

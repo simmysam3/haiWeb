@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { AccountNav } from "@/components/account-nav";
 import { ThrottleHeaderIndicator } from "@/components/throttle-header-indicator";
 import { GlobalSearch } from "@/components/global-search";
+import { LastPathRecorder } from "@/components/last-path-recorder";
 
 export default async function AccountLayout({
   children,
@@ -16,6 +17,7 @@ export default async function AccountLayout({
 
   return (
     <div className="min-h-screen flex flex-col">
+      <LastPathRecorder />
       <ThrottleHeaderIndicator />
       <div className="flex flex-1">
         <AccountNav userName={userName} userEmail={userEmail} />

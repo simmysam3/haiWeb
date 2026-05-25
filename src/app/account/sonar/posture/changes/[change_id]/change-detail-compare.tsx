@@ -4,6 +4,7 @@ import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
 import { describeChange, kindLabel, severityTone } from '../_lib/describe-change';
+import { ChangeStateSummary } from './state-summary';
 
 interface CellPanelProps {
   label: string;
@@ -113,10 +114,22 @@ export function ChangeDetailCompare({ detail }: Props) {
         </p>
       </div>
 
-      {/* Side-by-side Prior / Current */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <CellPanel label="Prior" samples={prior_cell.samples} tree={prior_cell.tree} />
-        <CellPanel label="Current" samples={current_cell.samples} tree={current_cell.tree} />
+      {/* Business-readable summary of the new state, ahead of the raw JSON. */}
+      <ChangeStateSummary change={change} />
+
+      {/* Side-by-side Prior / Current — supporting evidence behind the summary. */}
+      <div>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate">
+          Supporting evidence
+        </h2>
+        <p className="mb-3 text-xs text-slate/70">
+          Raw cell observations captured at snapshot time. Use the summary above
+          to make a decision; this section is here as backing detail.
+        </p>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <CellPanel label="Prior" samples={prior_cell.samples} tree={prior_cell.tree} />
+          <CellPanel label="Current" samples={current_cell.samples} tree={current_cell.tree} />
+        </div>
       </div>
     </div>
   );

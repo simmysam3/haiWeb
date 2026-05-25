@@ -40,7 +40,11 @@ function makeRollup(entries: Array<[string, number]>): GeoRollupEntry[] {
 }
 
 function makeTree(vendorLegalName: string | null): ObservationNode {
-  return {
+  // Mock uses the v1.30-pre flat shape (product_id/origin/etc. at top level)
+  // rather than the current payload-discriminated shape. The lib consumes it
+  // fine at runtime (covered by passing vitest suite); cast to bypass the
+  // type-level excess-property check without restructuring the whole mock.
+  return ({
     participant_id: null,
     vendor_legal_name: vendorLegalName,
     product_id: null,
@@ -63,7 +67,7 @@ function makeTree(vendorLegalName: string | null): ObservationNode {
     components: [],
     gap: null,
     synthesis_mode: 'direct',
-  };
+  } as unknown as ObservationNode);
 }
 
 function makeResult(args: {

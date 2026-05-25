@@ -1,66 +1,49 @@
 import { cookies, headers } from 'next/headers';
-import type { ObservationClass } from '@haiwave/protocol';
 import { ObservationsClient } from './_components/observations-client';
 
 interface ObservationsPayload {
-  tab: ObservationClass;
   runs: unknown[];
   templates: unknown[];
 }
 
-async function loadObservations(tab: ObservationClass): Promise<ObservationsPayload> {
+async function loadPhantomDemand(): Promise<ObservationsPayload> {
   const cookieHeader = (await cookies()).toString();
   const reqHeaders = await headers();
   const host = reqHeaders.get('host') ?? 'localhost:3001';
   const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
   try {
-    const res = await fetch(`${proto}://${host}/api/account/sonar/observations?tab=${tab}`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return { tab, runs: [], templates: [] };
-    return (await res.json()) as ObservationsPayload;
+    const res = await fetch(
+      `${proto}://${host}/api/account/sonar/observations?tab=phantom_demand`,
+      { headers: { cookie: cookieHeader }, cache: 'no-store' },
+    );
+    if (!res.ok) return { runs: [], templates: [] };
+    const data = (await res.json()) as { runs?: unknown[]; templates?: unknown[] };
+    return { runs: data.runs ?? [], templates: data.templates ?? [] };
   } catch (err) {
     console.error('[observations list] fetch failed', err);
-    return { tab, runs: [], templates: [] };
+    return { runs: [], templates: [] };
   }
 }
 
-const VALID_TABS: ReadonlySet<string> = new Set(['audit', 'watcher', 'phantom_demand']);
-
-function normalizeTab(raw: string | string[] | undefined): ObservationClass {
-  const candidate = Array.isArray(raw) ? raw[0] : raw;
-  if (candidate && VALID_TABS.has(candidate)) return candidate as ObservationClass;
-  return 'audit';
-}
-
-export default async function ObservationsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    tab?: string;
-    status?: string;
-    date_range?: string;
-    search?: string;
-    counterparty?: string;
-  }>;
-}) {
-  const params = await searchParams;
-  const tab = normalizeTab(params.tab);
-  const payload = await loadObservations(tab);
+export default async function ObservationsPage() {
+  const payload = await loadPhantomDemand();
 
   return (
     <div className="p-6 space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-charcoal">Observations</h1>
+        <h1 className="text-xl font-semibold text-charcoal">Phantom Demand</h1>
         <p className="text-sm text-slate mt-1">
-          Unified view of audit, Watcher, and Phantom Demand runs + configurations.
-          Use the tabs to switch modalities.
+          Procurement questions — ask trading partners &ldquo;if I needed N units of X,
+          when could you deliver?&rdquo; without committing to an order.
         </p>
       </header>
 
+      <div className="rounded border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate">
+        Placeholder surface. A dedicated Phantom Demand workspace is planned for the next release;
+        this page will evolve into that home.
+      </div>
+
       <ObservationsClient
-        initialTab={tab}
         initialRuns={payload.runs}
         initialTemplates={payload.templates}
       />

@@ -40,9 +40,11 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
       '/account/sonar/audit/downstream-gaps',
       '/account/sonar/posture/obligations',
     ],
+    // v.1.41 Backlog IA: /audit/runs cluster retargeted from /posture/runs
+    // (now itself a redirect source) straight to /sonar/watchers.
     [
       '/account/sonar/audit/runs/abc',
-      '/account/sonar/posture/runs/abc',
+      '/account/sonar/watchers/abc',
     ],
     [
       '/account/sonar/audit/trust-bypass',
@@ -74,7 +76,7 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
     const res = await run('/account/sonar/audit/runs/abc?x=1');
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
-    expect(loc.pathname).toBe('/account/sonar/posture/runs/abc');
+    expect(loc.pathname).toBe('/account/sonar/watchers/abc');
     expect(loc.searchParams.get('x')).toBeNull();
   });
 
@@ -112,9 +114,11 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
 describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
   it.each([
     ['/account/sonar/compliance', '/account/sonar/requests'],
+    // v1.41: Declined is a direction tab on /requests, so the legacy
+    // /compliance/requests/declined URL now lands on ?direction=declined.
     [
       '/account/sonar/compliance/requests/declined',
-      '/account/sonar/requests/declined',
+      '/account/sonar/requests?direction=declined',
     ],
     // v1.40: evidence responses retired. The legacy /compliance/evidence rule
     // is retargeted to the v1.39 Audits section in one hop (no run↔response
@@ -131,9 +135,11 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/posture/working-list',
       '/account/sonar/posture/working-list',
     ],
+    // v.1.41 Backlog IA: /compliance/runs cluster retargeted to /sonar/watchers
+    // (was /posture/runs, now itself a redirect source).
     [
       '/account/sonar/compliance/runs/abc',
-      '/account/sonar/posture/runs/abc',
+      '/account/sonar/watchers/abc',
     ],
     [
       '/account/sonar/compliance/trust-bypass',
@@ -148,7 +154,10 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
     const res = await run(from);
     expect(res.status).toBe(301);
     const loc = new URL(res.headers.get('location')!);
-    expect(loc.pathname).toBe(to);
+    // Match against pathname + search so destinations that carry a query
+    // string (v.1.41: /compliance/requests/declined → ?direction=declined)
+    // assert correctly.
+    expect(loc.pathname + loc.search).toBe(to);
     // Single-hop invariant: the destination must not itself redirect.
     expect(applyRedirects(loc.pathname)).toBeNull();
   });

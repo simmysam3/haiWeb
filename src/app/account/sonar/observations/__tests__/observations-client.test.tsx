@@ -1,88 +1,40 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { ObservationsClient } from '../_components/observations-client';
 
-const mockRouter = { push: vi.fn(), replace: vi.fn() };
-let mockSearchParams = new URLSearchParams();
-vi.mock('next/navigation', () => ({
-  useRouter: () => mockRouter,
-  useSearchParams: () => mockSearchParams,
-  usePathname: () => '/account/sonar/observations',
-}));
-
-describe('ObservationsClient', () => {
-  beforeEach(() => {
-    mockRouter.push.mockClear();
-    mockRouter.replace.mockClear();
-    mockSearchParams = new URLSearchParams();
-    if (typeof window !== 'undefined') {
-      window.localStorage?.clear?.();
-    }
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('renders three tabs (audit, watcher, phantom_demand)', () => {
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    expect(screen.getByRole('tab', { name: /audit/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /watcher/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /phantom\s*demand/i })).toBeInTheDocument();
-  });
-
-  it('marks the initialTab as selected', () => {
-    render(<ObservationsClient initialTab="watcher" initialRuns={[]} initialTemplates={[]} />);
-    const watcherTab = screen.getByRole('tab', { name: /watcher/i });
-    expect(watcherTab.getAttribute('aria-selected')).toBe('true');
-  });
-
-  it('navigates with ?tab=X when a different tab is clicked', () => {
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    fireEvent.click(screen.getByRole('tab', { name: /watcher/i }));
-    expect(mockRouter.push).toHaveBeenCalledWith(
-      expect.stringContaining('?tab=watcher'),
-    );
-  });
-
+describe('ObservationsClient (Phantom Demand placeholder)', () => {
   it('shows empty state when both runs and templates are empty', () => {
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    expect(screen.getByText(/create your first/i)).toBeInTheDocument();
+    render(<ObservationsClient initialRuns={[]} initialTemplates={[]} />);
+    expect(screen.getByText(/create your first phantom demand probe/i)).toBeInTheDocument();
   });
 
-  it('renders a row when runs exist', () => {
+  it('renders a run row when runs exist', () => {
     const runs = [
-      { id: 'r1', scope_summary: 'Test SKU vs Acme', status: 'completed', hops_consumed: 5 },
+      { id: 'r1', scope_summary: 'Probe SKU vs Acme', status: 'completed', hops_consumed: 5 },
     ];
-    render(<ObservationsClient initialTab="audit" initialRuns={runs} initialTemplates={[]} />);
-    expect(screen.getByText(/Test SKU vs Acme/i)).toBeInTheDocument();
+    render(<ObservationsClient initialRuns={runs} initialTemplates={[]} />);
+    expect(screen.getByText(/Probe SKU vs Acme/i)).toBeInTheDocument();
   });
 
-  it('replaces URL with last-used tab from localStorage when no ?tab= is present', () => {
-    window.localStorage.setItem('haiwave.observations.lastTab', 'watcher');
-    mockSearchParams = new URLSearchParams();
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    expect(mockRouter.replace).toHaveBeenCalledWith(
-      expect.stringContaining('?tab=watcher'),
-    );
+  it('renders a template row when templates exist', () => {
+    const templates = [
+      {
+        template_id: 't1',
+        template_name: 'Weekly probe',
+        observation_class: 'phantom_demand' as const,
+        cadence: { kind: 'weekly' },
+        enabled: true,
+      },
+    ];
+    render(<ObservationsClient initialRuns={[]} initialTemplates={templates} />);
+    expect(screen.getByText(/Weekly probe/i)).toBeInTheDocument();
   });
 
-  it('does not redirect when ?tab= is already in the URL (querystring wins)', () => {
-    window.localStorage.setItem('haiwave.observations.lastTab', 'watcher');
-    mockSearchParams = new URLSearchParams('tab=audit');
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    expect(mockRouter.replace).not.toHaveBeenCalled();
-  });
-
-  it('does not redirect when localStorage matches the server initialTab', () => {
-    window.localStorage.setItem('haiwave.observations.lastTab', 'audit');
-    mockSearchParams = new URLSearchParams();
-    render(<ObservationsClient initialTab="audit" initialRuns={[]} initialTemplates={[]} />);
-    expect(mockRouter.replace).not.toHaveBeenCalled();
-  });
-
-  it('writes the active tab to localStorage on mount', () => {
-    render(<ObservationsClient initialTab="phantom_demand" initialRuns={[]} initialTemplates={[]} />);
-    expect(window.localStorage.getItem('haiwave.observations.lastTab')).toBe('phantom_demand');
+  it('Add CTA points at the Phantom Demand template wizard', () => {
+    render(<ObservationsClient initialRuns={[]} initialTemplates={[]} />);
+    const links = screen.getAllByRole('link');
+    expect(
+      links.some((a) => a.getAttribute('href') === '/account/sonar/templates/new?observation_class=phantom_demand'),
+    ).toBe(true);
   });
 });

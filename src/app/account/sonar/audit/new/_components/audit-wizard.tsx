@@ -6,7 +6,7 @@ import type { Cadence, RunTemplateScope } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../../../templates/_lib/system-config';
-import { CadencePicker } from '../../../_components/cadence-picker';
+import { AuditSchedulePicker } from './audit-schedule-picker';
 import { AuditScopePicker } from '../../../_components/audit-scope-picker';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
@@ -36,7 +36,11 @@ function emptyAuditScope(): AuditScope {
     counterparties: [],
     signal_types: [],
     skus: [],
-    depth_limit: 1,
+    // Default tier depth for new audits. 1 (direct supplier only) was a
+    // conservative starting point but routinely undercaptures sub-tier risk —
+    // depth 4 surfaces enough of the chain to make the run useful without
+    // chewing through the hop budget on a typical catalog.
+    depth_limit: 4,
     hop_budget: SYSTEM_AUDIT_HOP_BUDGET,
   };
 }
@@ -89,6 +93,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [nameError, setNameError] = useState(false);
+  const [scopeError, setScopeError] = useState(false);
   const router = useRouter();
 
   // Fork mode: a source DEFINITION exists (template_id non-null) + name has
@@ -109,7 +114,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
-    { id: 'scope', label: 'Scope', state: 'todo' },
+    { id: 'scope', label: 'Scope', state: scopeError ? 'error' : 'todo' },
     { id: 'schedule', label: 'Schedule', state: 'todo' },
     { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
   ];
@@ -132,6 +137,24 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
       return;
     }
     setNameError(false);
+
+    // Spec §5.5: bilateral audit scope must include ≥1 counterparty + ≥1 SKU.
+    // key_scoped basis is gated separately by AuditScopePicker's text input.
+    if (scope.authorization_basis === 'bilateral') {
+      if (scope.counterparties.length === 0 || scope.skus.length === 0) {
+        setScopeError(true);
+        setError(
+          scope.counterparties.length === 0 && scope.skus.length === 0
+            ? 'Audit scope: pick at least one counterparty and one SKU.'
+            : scope.counterparties.length === 0
+              ? 'Audit scope: pick at least one counterparty.'
+              : 'Audit scope: pick at least one SKU.',
+        );
+        jump('scope');
+        return;
+      }
+    }
+    setScopeError(false);
 
     setBusy(true);
     try {
@@ -235,12 +258,12 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
           )}
         </StepCard>
 
-        <StepCard id="scope" index={1} title="Scope">
+        <StepCard id="scope" index={1} title="Audit Scope">
           <AuditScopePicker value={scope} onChange={setScope} />
         </StepCard>
 
         <StepCard id="schedule" index={2} title="Schedule">
-          <CadencePicker value={cadence} onChange={setCadence} />
+          <AuditSchedulePicker value={cadence} onChange={setCadence} />
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">

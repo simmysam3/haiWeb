@@ -6,7 +6,7 @@ import type { ThrottleHistoryRow } from './types';
 interface Props { rows: ThrottleHistoryRow[]; }
 
 const RUN_HREF: Record<ThrottleHistoryRow['observation_class'], (id: string) => string> = {
-  audit: (id) => `/account/sonar/posture/runs/${id}`,
+  audit: (id) => `/account/sonar/watchers/${id}`,
   watcher: (id) => `/account/sonar/templates/${id}`,
   phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,
 };

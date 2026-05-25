@@ -28,18 +28,19 @@ export default async function AuditListPage() {
 
   return (
     <div className="p-6 space-y-8">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-charcoal">Audits</h1>
           <p className="text-sm text-slate mt-1">
-            Manage your recurring audit configurations and review the full run history.
-            Scheduled configurations fire automatically on their cadence; ad-hoc runs
-            are triggered manually or via evidence dispatch.
+            <strong className="text-charcoal">Supplier ecosystem oversight.</strong>{' '}
+            Verify supplier sourcing claims run by run. Pick a supplier, scope the audit
+            to a whole catalog, a product class, or specific SKUs, then schedule recurring
+            sweeps or fire ad-hoc checks. One supplier per audit — sweep many for breadth.
           </p>
         </div>
         <Link
           href="/account/sonar/audit/new"
-          className="rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
+          className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
         >
           + New Audit
         </Link>

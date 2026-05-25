@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 
 const mockClient = {
   getSharingPolicy: vi.fn(),
@@ -20,8 +21,8 @@ describe('/api/account/sharing-policy', () => {
   it('GET delegates to client.getSharingPolicy', async () => {
     mockClient.getSharingPolicy.mockResolvedValueOnce({ shared_fields: ['facility_country'] });
     const { GET } = await import('../route');
-    const request = new Request('http://localhost/x', { method: 'GET' });
-    const res = await GET(request);
+    const request = new NextRequest('http://localhost/x', { method: 'GET' });
+    const res = await GET(request, { params: Promise.resolve({}) });
     const json = await res.json();
     expect(json.shared_fields).toEqual(['facility_country']);
   });
@@ -30,12 +31,12 @@ describe('/api/account/sharing-policy', () => {
     mockClient.upsertSharingPolicy.mockResolvedValueOnce({ policy: { shared_fields: [] }, warnings: [] });
     const { PUT } = await import('../route');
     const body = { shared_fields: [], dry_run: true };
-    const request = new Request('http://localhost/x', {
+    const request = new NextRequest('http://localhost/x', {
       method: 'PUT',
       body: JSON.stringify(body),
       headers: { 'content-type': 'application/json' },
     });
-    const res = await PUT(request);
+    const res = await PUT(request, { params: Promise.resolve({}) });
     expect(mockClient.upsertSharingPolicy).toHaveBeenCalledWith(body);
     expect(res.status).toBe(200);
   });

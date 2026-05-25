@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 
 const mockClient = {
   updateInstallation: vi.fn(),
@@ -26,7 +27,7 @@ describe('/api/account/provenance-keys/installations/[installationId]', () => {
     mockClient.updateInstallation.mockResolvedValueOnce({ installation_id: 'i1' });
     const { PATCH } = await import('../route');
     const body = { accepted_requested_fields: ['facility_country'] };
-    const request = new Request('http://localhost/x', {
+    const request = new NextRequest('http://localhost/x', {
       method: 'PATCH',
       body: JSON.stringify(body),
       headers: { 'content-type': 'application/json' },
@@ -39,7 +40,7 @@ describe('/api/account/provenance-keys/installations/[installationId]', () => {
   it('DELETE forwards installationId to removeInstallation', async () => {
     mockClient.removeInstallation.mockResolvedValueOnce({ installation_id: 'i1', removed_at: 'now' });
     const { DELETE } = await import('../route');
-    const request = new Request('http://localhost/x', { method: 'DELETE' });
+    const request = new NextRequest('http://localhost/x', { method: 'DELETE' });
     const res = await DELETE(request, { params: Promise.resolve({ installationId: 'i1' }) });
     expect(mockClient.removeInstallation).toHaveBeenCalledWith('i1');
     expect(res.status).toBe(200);

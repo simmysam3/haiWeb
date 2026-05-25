@@ -14,7 +14,7 @@ function inst(id: string, status: 'grace_pending' | 'non_compliant', deadline: s
     updated_at: '2026-04-18T00:00:00.000Z',
     removed_at: null,
     auto_removed_reason: null,
-    compliance: { status, missing_fields: ['manufacturing_date'], grace_deadline: deadline },
+    compliance: { status, missing_fields: ['plant_identifier'], grace_deadline: deadline },
   };
 }
 

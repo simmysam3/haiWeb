@@ -1,8 +1,16 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+
+// The Pager subcomponent inside ChangesFeed reads URL state via next/navigation.
+// jsdom has no App Router context, so stub the two hooks it touches.
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/account/sonar/posture/changes',
+}));
+
 import { ChangesFeed } from '../changes-feed';
-import { EMITTED_CHANGE_KINDS } from '../filter-pills';
+import { EVENT_KIND_PILLS } from '../filter-pills';
 import { EMITTED_CHANGE_KINDS as PROTOCOL_EMITTED_CHANGE_KINDS } from '@haiwave/protocol';
 import type { ComplianceChange } from '@haiwave/protocol';
 
@@ -126,32 +134,57 @@ describe('ChangesFeed', () => {
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
 
-  it('filter-pills EMITTED_CHANGE_KINDS mirror matches protocol EMITTED_CHANGE_KINDS exactly', () => {
-    const localSorted = [...EMITTED_CHANGE_KINDS].sort();
-    const protocolSorted = [...PROTOCOL_EMITTED_CHANGE_KINDS].sort();
-    expect(localSorted).toEqual(protocolSorted);
+  it('filter-pills EVENT_KIND_PILLS is the protocol EMITTED_CHANGE_KINDS minus gap lifecycle (v.1.41 Backlog IA)', () => {
+    // Gap lifecycle (gap_added / gap_resolved) belongs on the Gaps tab;
+    // they are excluded from Events feed pills + default query results.
+    const GAP_LIFECYCLE = ['gap_added', 'gap_resolved'];
+    const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
+      .filter((k) => !GAP_LIFECYCLE.includes(k))
+      .sort();
+    const actual = [...EVENT_KIND_PILLS].sort();
+    expect(actual).toEqual(expected);
+    expect(actual).not.toContain('gap_added');
+    expect(actual).not.toContain('gap_resolved');
   });
 
-  it('renders truncation notice when changes.length < total', () => {
+  it('renders pager when total exceeds pageSize', () => {
     const changes = Array.from({ length: 25 }, (_, i) =>
       change({ change_id: `c${i}`, change_kind: 'gap_added', prior_value: null, current_value: null }),
     );
-    render(<ChangesFeed changes={changes} total={50} />);
-    expect(screen.getByText(/Showing 25 of 50/)).toBeInTheDocument();
-    expect(screen.getByText(/narrow the filters/i)).toBeInTheDocument();
+    render(<ChangesFeed changes={changes} total={50} page={1} pageSize={25} />);
+    expect(screen.getByText(/Showing 1–25 of 50/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
+    // Page 1: Prev disabled, Next enabled
+    expect(screen.getByText('Next ›').tagName).toBe('A');
   });
 
-  it('does NOT render truncation notice when changes.length === total', () => {
+  it('renders correct page range on a middle page', () => {
+    const changes = Array.from({ length: 25 }, (_, i) =>
+      change({ change_id: `c${i + 25}`, change_kind: 'gap_added', prior_value: null, current_value: null }),
+    );
+    render(<ChangesFeed changes={changes} total={100} page={2} pageSize={25} />);
+    expect(screen.getByText(/Showing 26–50 of 100/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 2 of 4/)).toBeInTheDocument();
+  });
+
+  it('does NOT render pager when total <= pageSize', () => {
     const changes = Array.from({ length: 10 }, (_, i) =>
       change({ change_id: `c${i}`, change_kind: 'gap_added', prior_value: null, current_value: null }),
     );
-    render(<ChangesFeed changes={changes} total={10} />);
+    render(<ChangesFeed changes={changes} total={10} page={1} pageSize={25} />);
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Page/)).not.toBeInTheDocument();
+  });
+
+  it('does NOT render pager when total or pageSize is not provided', () => {
+    render(<ChangesFeed changes={[change({})]} />);
     expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
   });
 
-  it('does NOT render truncation notice when total is not provided', () => {
-    render(<ChangesFeed changes={[change({})]} />);
-    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  it('renders "paged past end" empty state when navigating beyond the last page', () => {
+    render(<ChangesFeed changes={[]} total={30} page={5} pageSize={25} />);
+    expect(screen.getByText(/No events on page 5/)).toBeInTheDocument();
+    expect(screen.getByText(/only 30 match/)).toBeInTheDocument();
   });
 
   it('renders vendor_legal_name as subject identity when present', () => {

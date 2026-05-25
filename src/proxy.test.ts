@@ -78,9 +78,12 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/requests',
       '/account/sonar/requests',
     ],
+    // v1.41: Declined collapsed into a direction tab; legacy
+    // /compliance/requests/declined now redirects directly to the tab URL
+    // in one hop (proxy.ts more-specific rule before the catch-all).
     [
       '/account/sonar/compliance/requests/declined',
-      '/account/sonar/requests/declined',
+      '/account/sonar/requests?direction=declined',
     ],
     [
       '/account/sonar/compliance/requests/new-nomination',
@@ -131,14 +134,16 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/compliance/posture/obligations',
       '/account/sonar/posture/obligations',
     ],
-    // runs moved under posture; trust-bypass moved under posture
+    // runs moved under posture (v1.37), then to /sonar/watchers (v.1.41).
+    // The /compliance/runs rule targets /sonar/watchers directly to keep the
+    // single-301-hop invariant; trust-bypass moved under posture (unchanged).
     [
       '/account/sonar/compliance/runs',
-      '/account/sonar/posture/runs',
+      '/account/sonar/watchers',
     ],
     [
       '/account/sonar/compliance/runs/run-abc',
-      '/account/sonar/posture/runs/run-abc',
+      '/account/sonar/watchers/run-abc',
     ],
     [
       '/account/sonar/compliance/trust-bypass',
@@ -220,5 +225,34 @@ describe('v1.39 live Audits surface — /audit* URLs are terminal (no redirect)'
     '/account/sonar/audit/definitions/some-id',
   ])('%s resolves to null (terminal)', (url) => {
     expect(applyRedirects(url)).toBeNull();
+  });
+});
+
+// v.1.41 Backlog IA: the Watchers/Runs surface was carved out of the Backlog
+// (formerly Posture) section into its own /sonar/watchers entry. Old
+// /posture/runs deep-links must 301 directly to /sonar/watchers in a single
+// hop. The two upstream v1.34→v1.37 / v1.37 rules that previously landed on
+// /posture/runs were also retargeted to /sonar/watchers so they remain
+// terminal — no rule produces a /posture/runs path.
+describe('v.1.41 Backlog IA — /posture/runs cluster → /sonar/watchers', () => {
+  it.each([
+    // Direct /posture/runs deep-link redirects
+    ['/account/sonar/posture/runs', '/account/sonar/watchers'],
+    ['/account/sonar/posture/runs/run-abc', '/account/sonar/watchers/run-abc'],
+    // Retargeted upstream rules: /audit/runs and /compliance/runs land on
+    // /sonar/watchers in a single hop (not on the now-redirected
+    // /posture/runs intermediate).
+    ['/account/sonar/audit/runs', '/account/sonar/watchers'],
+    ['/account/sonar/audit/runs/run-xyz', '/account/sonar/watchers/run-xyz'],
+  ])('301s %s → %s in a single hop', (from, to) => {
+    expect(applyRedirects(from)).toBe(to);
+    // Target is terminal — destination resolves to no redirect.
+    const destPath = to.split('?')[0];
+    expect(applyRedirects(destPath)).toBeNull();
+  });
+
+  it('/sonar/watchers and /sonar/watchers/<id> are terminal (no redirect)', () => {
+    expect(applyRedirects('/account/sonar/watchers')).toBeNull();
+    expect(applyRedirects('/account/sonar/watchers/run-abc')).toBeNull();
   });
 });

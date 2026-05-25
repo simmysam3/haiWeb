@@ -15,6 +15,14 @@ import type { CoverageSnapshot } from './coverage-stats-strip';
  * NearestDotTooltip reads snapshot_completed_at directly from Recharts'
  * tooltip payload (locale-safe — no toLocaleDateString round-trip). Phase
  * 11 finding #10.
+ *
+ * v1.41 fix: the X axis plots the numeric snapshot timestamp (`t`) on a
+ * continuous time scale, NOT a `toLocaleDateString()` category. The category
+ * form collapsed every snapshot from the same calendar day onto ONE band
+ * (e.g. 52 snapshots → 1 "5/18/2026" tick), so Recharts could not resolve a
+ * hovered dot back to its source row and the tooltip surfaced a mismatched
+ * (often zero-pct) datum. A unique numeric x gives every snapshot its own
+ * position, so hover → correct row → real percentages.
  */
 
 interface TooltipPayloadEntry {
@@ -60,7 +68,7 @@ export function CoverageTrendChart({ points }: { points: CoverageSnapshot[] }) {
   }
 
   const data = points.map((p) => ({
-    date: new Date(p.snapshot_completed_at).toLocaleDateString(),
+    t: new Date(p.snapshot_completed_at).getTime(),
     complete_pct: p.complete_pct,
     partial_pct: p.partial_pct,
     no_traversal_pct: p.no_traversal_pct,
@@ -76,7 +84,16 @@ export function CoverageTrendChart({ points }: { points: CoverageSnapshot[] }) {
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-slate)" opacity={0.15} />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={12} />
+            <XAxis
+              dataKey="t"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              tickFormatter={(t) => new Date(t).toLocaleDateString()}
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+            />
             <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} fontSize={12} />
             <Tooltip content={<NearestDotTooltip />} />
             <Line type="stepAfter" dataKey="complete_pct" name="Complete" stroke="var(--color-teal)" strokeWidth={2} dot />

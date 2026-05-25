@@ -18,7 +18,7 @@ describe('ComplianceChip', () => {
       <ComplianceChip
         compliance={{
           status: 'grace_pending',
-          missing_fields: ['facility_country'],
+          missing_fields: ['state_province'],
           grace_deadline: deadline,
         }}
       />,
@@ -32,7 +32,7 @@ describe('ComplianceChip', () => {
       <ComplianceChip
         compliance={{
           status: 'non_compliant',
-          missing_fields: ['facility_country'],
+          missing_fields: ['state_province'],
           grace_deadline: deadline,
         }}
       />,

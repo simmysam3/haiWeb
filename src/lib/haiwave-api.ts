@@ -34,6 +34,8 @@ import type {
   AuditScope,
   AuditScopeCreationRequest,
   AuditScopeCoverage,
+  AuditWizardOptionsResponse,
+  AuditExceptionsResponse,
   AuditRun,
   AuditRunResult,
   ClassRollupEntry,
@@ -73,6 +75,7 @@ import type {
   ComplianceChangeFeedResponse,
   ComplianceChangeDetail,
   ComplianceChangeKind,
+  ComplianceChangeSeverity,
   WorkingListResponse,
   WorkingListCategory,
   CoverageCurrentResponse,
@@ -88,6 +91,9 @@ import type {
   ExportResult as ExportResultWire,
   RequestManagementListResponse,
   SearchResponse,
+  GroupedManifestsResponse,
+  ManifestsByClassResponse,
+  ManifestSearchResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -389,6 +395,13 @@ export interface HaiwaveClient {
   getOriginManifest(productId: string): Promise<Record<string, unknown>>;
   getCertifications(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   getProvenanceChain(chainId: string): Promise<Record<string, unknown>>;
+  // v1.41 provenance class-grouped rollup
+  listGroupedManifests(): Promise<GroupedManifestsResponse>;
+  listManifestsByClass(
+    classSlug: string,
+    opts?: { page?: number; pageSize?: number },
+  ): Promise<ManifestsByClassResponse>;
+  searchManifests(q: string, limit?: number): Promise<ManifestSearchResponse>;
   // Compliance (v1.15)
   getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   triggerSelfAudit(): Promise<Record<string, unknown>>;
@@ -430,6 +443,10 @@ export interface HaiwaveClient {
   }): Promise<{ scopes: AuditScope[] }>;
   deleteAuditScope(scopeId: string): Promise<void>;
   getAuditCoverage(vendorId: string): Promise<AuditScopeCoverage>;
+  // v.1.41 audit-wizard restore: counterparty + SKU picker data source.
+  getAuditWizardOptions(): Promise<AuditWizardOptionsResponse>;
+  // v.1.41 Audit Exceptions surface: latest non-compliant per (vendor, product).
+  getAuditExceptions(opts?: { windowDays?: number }): Promise<AuditExceptionsResponse>;
   // Audit Runs (v1.25)
   triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
   refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
@@ -556,8 +573,16 @@ export interface HaiwaveClient {
     partner?: string;
     from?: string;
     to?: string;
+    limit?: number;
+    offset?: number;
+    severity?: ComplianceChangeSeverity;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
+  // ─── Compliance change count (v.1.41 Backlog IA PR-3) ────────────────
+  getComplianceChangesCount(): Promise<{
+    events_count: number;
+    oldest_age_days: number | null;
+  }>;
   // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
   getCoverageCurrent(): Promise<CoverageCurrentResponse>;
   getCoverageTrend(windowDays?: number): Promise<CoverageTrend>;
@@ -569,6 +594,10 @@ export interface HaiwaveClient {
     sort?: 'recency' | 'oldest_unresolved';
     page?: number;
     page_size?: number;
+    // v.1.41 Backlog IA — narrows to items with first_seen_at within
+    // the last N days. Clamped server-side to [1, 90]. Powers the
+    // "New (7d)" filter pill on the Gaps surface.
+    max_age_days?: number;
   }): Promise<WorkingListResponse>;
   transitionWorkingListItem(
     canonicalKey: string,
@@ -576,6 +605,14 @@ export interface HaiwaveClient {
   ): Promise<{
     canonical_key: string; state: string; snooze_until: string | null;
     dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
+  }>;
+  // ─── Gap-count trend (v.1.41 Backlog IA PR-6) ────────────────────────
+  getGapCountTrend(windowDays?: number): Promise<{
+    window_days: number;
+    current_count: number;
+    prior_count: number | null;
+    delta: number | null;
+    series: Array<{ at: string; gap_count: number }>;
   }>;
   // ─── Request management (v1.35) ──────────────────────────────────────
   listRequests(filters?: {
@@ -910,6 +947,29 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("GET", `/provenance/chain/${chainId}`);
     },
 
+    // ─── Provenance (v1.41 class-grouped rollup) ─────────
+    listGroupedManifests() {
+      return request<GroupedManifestsResponse>('GET', '/provenance/manifest/grouped');
+    },
+    listManifestsByClass(classSlug, opts = {}) {
+      const params = new URLSearchParams();
+      if (opts.page !== undefined) params.set('page', String(opts.page));
+      if (opts.pageSize !== undefined) params.set('page_size', String(opts.pageSize));
+      const q = params.toString();
+      return request<ManifestsByClassResponse>(
+        'GET',
+        `/provenance/manifest/grouped/${encodeURIComponent(classSlug)}${q ? `?${q}` : ''}`,
+      );
+    },
+    searchManifests(q, limit) {
+      const params = new URLSearchParams({ q });
+      if (limit !== undefined) params.set('limit', String(limit));
+      return request<ManifestSearchResponse>(
+        'GET',
+        `/provenance/manifest/search?${params.toString()}`,
+      );
+    },
+
     // ─── Compliance (v1.15) ──────────────────────────────
     getComplianceReport(filters?: Record<string, string>) {
       const qs = filters ? `?${new URLSearchParams(filters)}` : "";
@@ -1031,6 +1091,14 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         `/audit-coverage?vendor_id=${encodeURIComponent(vendorId)}`,
       );
+    },
+    getAuditWizardOptions() {
+      return request<AuditWizardOptionsResponse>('GET', '/audit-scopes/wizard-options');
+    },
+    getAuditExceptions(opts = {}) {
+      const qs =
+        opts.windowDays !== undefined ? `?window_days=${opts.windowDays}` : '';
+      return request<AuditExceptionsResponse>('GET', `/sonar/audit/exceptions${qs}`);
     },
 
     // ─── Audit Runs (v1.25) ──────────────────────────────────
@@ -1442,12 +1510,17 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
     listComplianceChanges(filters: {
       kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
+      limit?: number; offset?: number;
+      severity?: ComplianceChangeSeverity;
     } = {}) {
       const p = new URLSearchParams();
       (filters.kind ?? []).forEach((k) => p.append('kind', k));
       if (filters.partner) p.set('partner', filters.partner);
       if (filters.from) p.set('from', filters.from);
       if (filters.to) p.set('to', filters.to);
+      if (filters.limit !== undefined) p.set('limit', String(filters.limit));
+      if (filters.offset !== undefined) p.set('offset', String(filters.offset));
+      if (filters.severity) p.set('severity', filters.severity);
       const qs = p.toString();
       return request<ComplianceChangeFeedResponse>(
         'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,
@@ -1461,6 +1534,14 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`,
       ).then((d) => {
         if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getComplianceChangesCount() {
+      return request<{ events_count: number; oldest_age_days: number | null }>(
+        'GET', '/sonar/compliance/changes/count',
+      ).then((d) => {
+        if (d == null) throw new Error('getComplianceChangesCount: haiCore returned no/non-JSON body');
         return d;
       });
     },
@@ -1487,6 +1568,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       categories?: WorkingListCategory[]; partner_id?: string;
       status?: 'open' | 'snoozed' | 'dismissed';
       sort?: 'recency' | 'oldest_unresolved'; page?: number; page_size?: number;
+      max_age_days?: number;
     } = {}) {
       const p = new URLSearchParams();
       if (filters.categories?.length) p.set('categories', filters.categories.join(','));
@@ -1495,6 +1577,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.sort) p.set('sort', filters.sort);
       if (filters.page !== undefined) p.set('page', String(filters.page));
       if (filters.page_size !== undefined) p.set('page_size', String(filters.page_size));
+      if (filters.max_age_days !== undefined) p.set('max_age_days', String(filters.max_age_days));
       const qs = p.toString();
       return request<WorkingListResponse>(
         'GET', `/sonar/compliance/working-list${qs ? `?${qs}` : ''}`,
@@ -1512,6 +1595,19 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         dismiss_reason: string | null; last_transitioned_at: string; last_transitioned_by: string | null;
       }>('PUT', `/sonar/compliance/working-list/items/${encodeURIComponent(canonicalKey)}/state`, body).then((d) => {
         if (d == null) throw new Error('transitionWorkingListItem: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getGapCountTrend(windowDays?: number) {
+      const qs = windowDays !== undefined ? `?window=${windowDays}` : '';
+      return request<{
+        window_days: number;
+        current_count: number;
+        prior_count: number | null;
+        delta: number | null;
+        series: Array<{ at: string; gap_count: number }>;
+      }>('GET', `/sonar/compliance/working-list/gap-count-trend${qs}`).then((d) => {
+        if (d == null) throw new Error('getGapCountTrend: haiCore returned no/non-JSON body');
         return d;
       });
     },

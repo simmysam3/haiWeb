@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 
 const mockClient = {
   listGeneratedKeys: vi.fn(),
@@ -48,7 +49,7 @@ describe('GET /api/account/provenance-keys/dashboard', () => {
     mockClient.getSharingPolicy.mockResolvedValueOnce({ shared_fields: ['facility_country'] });
 
     const { GET } = await import('../route');
-    const res = await GET();
+    const res = await GET(new NextRequest('http://localhost/x'), { params: Promise.resolve({}) });
     const json = await res.json();
 
     expect(json.generated).toHaveLength(1);
@@ -69,7 +70,7 @@ describe('GET /api/account/provenance-keys/dashboard', () => {
     mockClient.getSharingPolicy.mockResolvedValueOnce({ shared_fields: [] });
 
     const { GET } = await import('../route');
-    const res = await GET();
+    const res = await GET(new NextRequest('http://localhost/x'), { params: Promise.resolve({}) });
     const json = await res.json();
 
     expect(json.aggregateCounts).toEqual({

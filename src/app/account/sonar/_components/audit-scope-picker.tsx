@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../templates/_lib/system-config';
+import { AuditBilateralScopeFields } from './audit-bilateral-scope-fields';
 
 type AuditScope = Extract<RunTemplateScope, { kind: 'audit' }>;
 
@@ -22,8 +23,7 @@ export function AuditScopePicker({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-charcoal">Audit scope</legend>
+      <fieldset className="space-y-2" aria-label="Authorization basis">
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
             type="radio"
@@ -86,7 +86,7 @@ export function AuditScopePicker({ value, onChange }: Props) {
         label="Depth limit"
         value={depthLimit}
         min={1}
-        max={5}
+        max={10}
         onChange={(n) =>
           onChange(
             authBasis === 'key_scoped'
@@ -112,10 +112,21 @@ export function AuditScopePicker({ value, onChange }: Props) {
       />
 
       {authBasis === 'bilateral' && (
-        <p className="text-xs text-slate">
-          Vendor IDs come from active audit scopes; selection UI is configured
-          from /account/sonar/requests and is not editable here.
-        </p>
+        <AuditBilateralScopeFields
+          counterparties={'counterparties' in value ? value.counterparties : []}
+          skus={'skus' in value ? value.skus : []}
+          onChange={({ counterparties, skus }) =>
+            onChange({
+              kind: 'audit',
+              authorization_basis: 'bilateral',
+              counterparties,
+              signal_types: 'signal_types' in value ? value.signal_types : [],
+              skus,
+              depth_limit: depthLimit,
+              hop_budget: hopBudget,
+            })
+          }
+        />
       )}
     </div>
   );
