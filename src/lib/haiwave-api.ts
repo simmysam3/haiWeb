@@ -576,6 +576,11 @@ export interface HaiwaveClient {
     offset?: number;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
+  // ─── Compliance change count (v.1.41 Backlog IA PR-3) ────────────────
+  getComplianceChangesCount(): Promise<{
+    events_count: number;
+    oldest_age_days: number | null;
+  }>;
   // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
   getCoverageCurrent(): Promise<CoverageCurrentResponse>;
   getCoverageTrend(windowDays?: number): Promise<CoverageTrend>;
@@ -1513,6 +1518,14 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET', `/sonar/compliance/changes/${encodeURIComponent(changeId)}`,
       ).then((d) => {
         if (d == null) throw new Error('getComplianceChange: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getComplianceChangesCount() {
+      return request<{ events_count: number; oldest_age_days: number | null }>(
+        'GET', '/sonar/compliance/changes/count',
+      ).then((d) => {
+        if (d == null) throw new Error('getComplianceChangesCount: haiCore returned no/non-JSON body');
         return d;
       });
     },
