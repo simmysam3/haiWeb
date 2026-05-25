@@ -1,81 +1,45 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
 
-vi.mock('next/headers', () => ({
-  cookies: async () => ({ toString: () => '' }),
-  headers: async () => ({ get: () => 'localhost:3001' }),
-}));
-
-const fetchMock = vi.fn();
-beforeEach(() => {
-  fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
+const redirectMock = vi.fn((url: string) => {
+  // Mirror next/navigation: redirect() throws a sentinel error so the
+  // component aborts. Tests catch + inspect the captured URL.
+  throw new Error(`__NEXT_REDIRECT__:${url}`);
 });
 
-describe('TemplatesListPage', () => {
-  it('renders empty-state when no templates', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ templates: [] }),
-    } as Response);
-    const Page = (await import('../page')).default;
-    const ui = await Page();
-    render(ui as React.ReactElement);
-    expect(screen.getByText(/no configurations yet/i)).toBeInTheDocument();
+vi.mock('next/navigation', () => ({
+  redirect: redirectMock,
+}));
+
+beforeEach(() => {
+  redirectMock.mockClear();
+});
+
+async function runPage(observation_class?: string) {
+  const Page = (await import('../page')).default;
+  await expect(
+    Page({ searchParams: Promise.resolve({ observation_class }) }),
+  ).rejects.toThrow(/__NEXT_REDIRECT__/);
+  return redirectMock.mock.calls[0]?.[0];
+}
+
+describe('TemplatesRedirect — v.1.41 dispatch by observation_class', () => {
+  it('?observation_class=watcher → /account/sonar/posture/runs (watcher home today; flips to /sonar/watchers in PR-B)', async () => {
+    expect(await runPage('watcher')).toBe('/account/sonar/posture/runs');
   });
 
-  it('renders non-audit rows and filters out audit-class configs', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        templates: [
-          {
-            template_id: 'abc',
-            template_name: 'daily-audit',
-            observation_class: 'audit',
-            cadence: { kind: 'daily', time_of_day: '02:00' },
-            enabled: true,
-            last_run_at: null,
-            last_run_id: null,
-            initiator_participant_id: '00000000-0000-0000-0000-000000000001',
-            scope: {
-              scope_type: 'company',
-              scope_ids: [],
-              depth_limit: 1,
-              hop_budget: 5,
-            },
-            retention_days: 30,
-            created_at: new Date().toISOString(),
-            created_by_user_id: '00000000-0000-0000-0000-000000000001',
-          },
-          {
-            template_id: 'def',
-            template_name: 'daily-watcher',
-            observation_class: 'watcher',
-            cadence: { kind: 'daily', time_of_day: '02:00' },
-            enabled: true,
-            last_run_at: null,
-            last_run_id: null,
-            initiator_participant_id: '00000000-0000-0000-0000-000000000001',
-            scope: {
-              scope_type: 'company',
-              scope_ids: [],
-              depth_limit: 1,
-              hop_budget: 5,
-            },
-            retention_days: 30,
-            created_at: new Date().toISOString(),
-            created_by_user_id: '00000000-0000-0000-0000-000000000001',
-          },
-        ],
-      }),
-    } as Response);
-    const Page = (await import('../page')).default;
-    const ui = await Page();
-    render(ui as React.ReactElement);
-    // Audit-class configs are managed under /account/sonar/audit and excluded here.
-    expect(screen.queryByText('daily-audit')).not.toBeInTheDocument();
-    expect(screen.getByText('daily-watcher')).toBeInTheDocument();
-    expect(screen.getByText(/Daily at 02:00 UTC/)).toBeInTheDocument();
+  it('?observation_class=phantom_demand → /account/sonar/observations', async () => {
+    expect(await runPage('phantom_demand')).toBe('/account/sonar/observations');
+  });
+
+  it('?observation_class=audit → /account/sonar/audit', async () => {
+    expect(await runPage('audit')).toBe('/account/sonar/audit');
+  });
+
+  it('no class → defaults to the watcher home', async () => {
+    expect(await runPage(undefined)).toBe('/account/sonar/posture/runs');
+  });
+
+  it('unknown class → defaults to the watcher home (graceful)', async () => {
+    expect(await runPage('not-a-real-class')).toBe('/account/sonar/posture/runs');
   });
 });
