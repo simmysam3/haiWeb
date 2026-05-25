@@ -20,6 +20,7 @@ const item: WorkingListItem = {
   action_href: '/account/sonar/posture',
   state: 'open', snooze_until: null, dismiss_reason: null, last_transitioned_at: null,
   dismissed_by_user: null,
+  first_seen_at: null,
 };
 
 const dismissedItem: WorkingListItem = {
@@ -38,6 +39,33 @@ describe('WorkingListTable', () => {
     expect(screen.getByText(/Coverage missing/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/posture');
   });
+
+  // v.1.41 Backlog IA — NEW badge mirrors the 7-day "New" filter pill.
+  it('renders NEW badge on rows with first_seen_at inside the 7-day window', () => {
+    const freshItem: WorkingListItem = {
+      ...item,
+      canonical_key: 'c'.repeat(64),
+      first_seen_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    };
+    render(<WorkingListTable items={[freshItem]} />);
+    expect(screen.getByText('NEW')).toBeInTheDocument();
+  });
+
+  it('does NOT render NEW badge on rows with stale first_seen_at', () => {
+    const staleItem: WorkingListItem = {
+      ...item,
+      canonical_key: 'd'.repeat(64),
+      first_seen_at: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    };
+    render(<WorkingListTable items={[staleItem]} />);
+    expect(screen.queryByText('NEW')).toBeNull();
+  });
+
+  it('does NOT render NEW badge on rows with null first_seen_at (pre-writer gaps)', () => {
+    render(<WorkingListTable items={[item]} />);
+    expect(screen.queryByText('NEW')).toBeNull();
+  });
+
   it('acknowledge & suppress action requires a reason and PUTs to the BFF', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ state: 'dismissed' }), { status: 200 }));
     render(<WorkingListTable items={[item]} />);
