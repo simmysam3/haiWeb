@@ -75,6 +75,7 @@ import type {
   ComplianceChangeFeedResponse,
   ComplianceChangeDetail,
   ComplianceChangeKind,
+  ComplianceChangeSeverity,
   WorkingListResponse,
   WorkingListCategory,
   CoverageCurrentResponse,
@@ -574,6 +575,7 @@ export interface HaiwaveClient {
     to?: string;
     limit?: number;
     offset?: number;
+    severity?: ComplianceChangeSeverity;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
   // ─── Compliance change count (v.1.41 Backlog IA PR-3) ────────────────
@@ -1509,6 +1511,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listComplianceChanges(filters: {
       kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
       limit?: number; offset?: number;
+      severity?: ComplianceChangeSeverity;
     } = {}) {
       const p = new URLSearchParams();
       (filters.kind ?? []).forEach((k) => p.append('kind', k));
@@ -1517,6 +1520,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.to) p.set('to', filters.to);
       if (filters.limit !== undefined) p.set('limit', String(filters.limit));
       if (filters.offset !== undefined) p.set('offset', String(filters.offset));
+      if (filters.severity) p.set('severity', filters.severity);
       const qs = p.toString();
       return request<ComplianceChangeFeedResponse>(
         'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,

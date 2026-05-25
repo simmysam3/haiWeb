@@ -1,6 +1,6 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
-import { FilterPills } from './filter-pills';
+import { FilterPills, DEFAULT_SEVERITY, SEVERITY_VALUES } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -19,6 +19,7 @@ interface SearchParams {
   from?: string;
   to?: string;
   page?: string;
+  severity?: string;
 }
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
@@ -34,6 +35,14 @@ async function fetchChanges(searchParams: SearchParams, offset: number) {
   if (searchParams.to) sp.set('to', searchParams.to);
   sp.set('limit', String(PAGE_SIZE));
   sp.set('offset', String(offset));
+
+  // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
+  // `all` collapses to no filter on the wire — haiCore returns every severity
+  // when severity is omitted. An unknown value falls back to the default so a
+  // stale URL never bypasses the filter silently.
+  const rawSeverity = searchParams.severity;
+  const severity = rawSeverity && SEVERITY_VALUES.has(rawSeverity) ? rawSeverity : DEFAULT_SEVERITY;
+  if (severity !== 'all') sp.set('severity', severity);
 
   return fetchBffJson<ComplianceChangeFeedResponse>(
     `/api/account/sonar/compliance/changes?${sp}`,
@@ -62,7 +71,7 @@ export default async function ChangesPage({ searchParams }: PageProps) {
         <RefreshButton />
       </header>
       <PageIntro>
-        A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Compare on any row to view the before-and-after cell detail.
+        A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Review on any row to view the before-and-after cell detail.
       </PageIntro>
 
       <FilterPills />

@@ -73,7 +73,7 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
               href={`/account/sonar/posture/changes/${change.change_id}`}
               className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
             >
-              Compare
+              Review
             </Link>
           </div>
         );
