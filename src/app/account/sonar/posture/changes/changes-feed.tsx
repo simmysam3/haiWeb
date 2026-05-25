@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams, usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 import type { ComplianceChange } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
@@ -68,13 +69,7 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
               <p data-testid="change-description" className="text-sm text-slate">{description}</p>
               <p className="text-xs text-slate/70">{detectedAt}</p>
             </div>
-            {/* detail route added in P4 Task 10 */}
-            <Link
-              href={`/account/sonar/posture/changes/${change.change_id}`}
-              className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
-            >
-              Review
-            </Link>
+            <ProcessAction change={change} />
           </div>
         );
       })}
@@ -82,6 +77,62 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
         <Pager total={total} page={page} pageSize={pageSize} rowsOnPage={changes.length} />
       )}
     </div>
+  );
+}
+
+/**
+ * Per-row CTA on the Events feed (v.1.42). Two states keyed off
+ * `change.processed_at`:
+ *  - null → filled teal `Process` button; click POSTs the BFF + triggers
+ *    a server-component refresh. On default Critical-Only, the row falls
+ *    off because the server-side severity flipped to `warning`.
+ *  - not null → outlined slate Link labelled `Processed` (the prior
+ *    Review CTA styling), navigating to the read-only detail page.
+ */
+function ProcessAction({ change }: { change: ComplianceChange }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const detailHref = `/account/sonar/posture/changes/${change.change_id}`;
+
+  if (change.processed_at != null) {
+    return (
+      <Link
+        href={detailHref}
+        className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
+      >
+        Processed
+      </Link>
+    );
+  }
+
+  async function onProcess() {
+    setPending(true);
+    try {
+      const res = await fetch(
+        `/api/account/sonar/compliance/changes/${encodeURIComponent(change.change_id)}/process`,
+        { method: 'POST' },
+      );
+      if (!res.ok) {
+        setPending(false);
+        return;
+      }
+      // Server-component re-fetch — re-renders the row at its new severity
+      // (and drops it from the page entirely under default Critical-Only).
+      router.refresh();
+    } catch {
+      setPending(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onProcess}
+      disabled={pending}
+      className="shrink-0 rounded-md border border-teal bg-teal px-3 py-1.5 text-xs text-white hover:bg-teal/90 disabled:opacity-60"
+    >
+      {pending ? 'Processing…' : 'Process'}
+    </button>
   );
 }
 
