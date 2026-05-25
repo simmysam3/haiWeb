@@ -5,14 +5,23 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { fetchBffJson } from '@/lib/server-fetch';
 
+/**
+ * Events feed page size. 25 rows fits in one viewport without overwhelming the
+ * eye and keeps the pager footprint small enough to stay above the fold for
+ * normal totals. Backed by `?page=` URL param (1-indexed) so the active page
+ * survives reloads and is shareable.
+ */
+const PAGE_SIZE = 25;
+
 interface SearchParams {
   kind?: string | string[];
   partner?: string;
   from?: string;
   to?: string;
+  page?: string;
 }
 
-async function fetchChanges(searchParams: SearchParams) {
+async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
   const kinds = searchParams.kind;
   if (Array.isArray(kinds)) {
@@ -23,6 +32,8 @@ async function fetchChanges(searchParams: SearchParams) {
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);
+  sp.set('limit', String(PAGE_SIZE));
+  sp.set('offset', String(offset));
 
   return fetchBffJson<ComplianceChangeFeedResponse>(
     `/api/account/sonar/compliance/changes?${sp}`,
@@ -35,7 +46,9 @@ interface PageProps {
 
 export default async function ChangesPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const result = await fetchChanges(params);
+  const pageParam = Math.max(parseInt(params.page ?? '1', 10) || 1, 1);
+  const offset = (pageParam - 1) * PAGE_SIZE;
+  const result = await fetchChanges(params, offset);
 
   return (
     <div className="px-8 py-10">
@@ -70,7 +83,12 @@ export default async function ChangesPage({ searchParams }: PageProps) {
             </p>
           </div>
         ) : (
-          <ChangesFeed changes={result.data.changes} total={result.data.total} />
+          <ChangesFeed
+            changes={result.data.changes}
+            total={result.data.total}
+            page={pageParam}
+            pageSize={PAGE_SIZE}
+          />
         )}
       </div>
     </div>
