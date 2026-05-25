@@ -1,14 +1,17 @@
 'use client';
 
-// Wraps the P8 TreeView (posture/runs/[id]/tree-view.tsx) in a read-only
+// Wraps the P8 TreeView (sonar/watchers/[id]/tree-view.tsx) in a read-only
 // configuration.  The TreeView accepts an optional `overlay?: TreeOverlay`.
 // When overlay is omitted (or when overlay.onAnnotate is absent), NodeOverlay
 // renders attestation pills only — no "Annotate" button appears (the guard in
 // NodeOverlay is `isGap && overlay.onAnnotate && node.participant_id && pid`).
 // Therefore, omitting `overlay` entirely gives us a fully inert, annotation-
 // free tree — no drawer, no annotation calls. §6a scope: DO NOT pass overlay.
+//
+// v.1.41 Backlog IA: TreeView relocated with the rest of the Watcher
+// Management page (posture/runs/[id] → sonar/watchers/[id]).
 
-import { TreeView } from '@/app/account/sonar/posture/runs/[id]/tree-view';
+import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
 import type { AuditRunResult } from '@haiwave/protocol';
 import type { ObservationNode } from '@haiwave/protocol';
 

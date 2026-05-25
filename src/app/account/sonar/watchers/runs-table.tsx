@@ -12,7 +12,7 @@ const columns: Column<AuditRun>[] = [
     render: (r) => (
       <Link
         className="text-teal hover:text-navy"
-        href={`/account/sonar/posture/runs/${r.run_id}`}
+        href={`/account/sonar/watchers/${r.run_id}`}
       >
         {new Date(r.triggered_at).toLocaleString()}
       </Link>

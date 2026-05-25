@@ -154,9 +154,9 @@ const navSections: NavSection[] = [
     // /account/sonar/reports route was deleted in v1.40; the legacy URL now
     // 301-redirects to /account/sonar/audit.
     // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
-    // Posture → Backlog (label-only this PR; URL stays /sonar/posture).
-    // Watcher Management is its own peer entry that lands with PR-5 (when the
-    // relocated page actually exists) — adding it here would ship a 404 link.
+    // Posture → Backlog (label-only; URL stays /sonar/posture per the
+    // label-only test phase). Watcher Management is a peer entry now that
+    // its destination page exists at /sonar/watchers (PR-5).
     label: "Sonar Observe",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
@@ -164,6 +164,7 @@ const navSections: NavSection[] = [
       { href: BACKLOG_HREF, label: "Backlog" },
       { href: "/account/sonar/observations", label: "Phantom Demand" },
       { href: "/account/sonar/templates", label: "Configurations" },
+      { href: "/account/sonar/watchers", label: "Watcher Management" },
     ],
   },
   {
