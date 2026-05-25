@@ -562,6 +562,8 @@ export interface HaiwaveClient {
     partner?: string;
     from?: string;
     to?: string;
+    limit?: number;
+    offset?: number;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
   // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
@@ -1456,12 +1458,15 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     // ─── Compliance change feed (v1.34 P4) ───────────────────────────────
     listComplianceChanges(filters: {
       kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
+      limit?: number; offset?: number;
     } = {}) {
       const p = new URLSearchParams();
       (filters.kind ?? []).forEach((k) => p.append('kind', k));
       if (filters.partner) p.set('partner', filters.partner);
       if (filters.from) p.set('from', filters.from);
       if (filters.to) p.set('to', filters.to);
+      if (filters.limit !== undefined) p.set('limit', String(filters.limit));
+      if (filters.offset !== undefined) p.set('offset', String(filters.offset));
       const qs = p.toString();
       return request<ComplianceChangeFeedResponse>(
         'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,

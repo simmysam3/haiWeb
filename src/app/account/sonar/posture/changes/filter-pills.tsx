@@ -56,6 +56,9 @@ export function FilterPills() {
       for (const v of existing) sp.append('kind', v);
       sp.append('kind', kind);
     }
+    // Filter change shrinks/shifts the result set — page N could now be past
+    // the end. Reset to page 1 so the user sees results, not an empty page.
+    sp.delete('page');
     router.push(`${pathname}?${sp}`);
   }
 
@@ -66,6 +69,7 @@ export function FilterPills() {
     } else {
       sp.delete(key);
     }
+    sp.delete('page');
     router.push(`${pathname}?${sp}`);
   }
 
