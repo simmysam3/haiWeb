@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuditWizardOptionsResponse } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
+import {
+  GroupedAccordion,
+  AccordionGroupRow,
+  AccordionLeafRow,
+  AccordionLoading,
+  AccordionError,
+} from '@/components/grouped-accordion';
+import { TristateCheckbox } from '@/components/tristate-checkbox';
 
 /**
  * v.1.41 audit-wizard spec restoration (§5.1) — Counterparties + Classes +
@@ -284,152 +292,134 @@ export function AuditBilateralScopeFields({ counterparties: _ignored, skus, onCh
         {options.counterparties.length === 1 ? 'y' : 'ies'} with accepted scopes.
       </p>
 
-      <div className="space-y-1 rounded border border-slate/20 bg-white">
+      <GroupedAccordion>
         {options.counterparties.map((cp) => {
           const cpExpanded = expandedCounterparties.has(cp.counterparty_id);
           const cpState = counterpartySelectionState(cp);
           const catalog = catalogs.get(cp.counterparty_id);
+          const cpCount =
+            cpState === 'none'
+              ? `${cp.product_ids.length} SKU${cp.product_ids.length === 1 ? '' : 's'}`
+              : {
+                  filtered: cp.product_ids.filter((id) => selectedSkus.has(id)).length,
+                  total: cp.product_ids.length,
+                };
           return (
-            <div
+            <AccordionGroupRow
               key={cp.counterparty_id}
-              className="border-b border-slate/10 last:border-b-0"
-            >
-              <div className="flex items-center gap-2 px-2 py-1.5">
-                <button
-                  type="button"
-                  aria-label={cpExpanded ? 'Collapse counterparty' : 'Expand counterparty'}
-                  onClick={() => toggleCounterpartyExpanded(cp)}
-                  className="w-4 text-xs text-slate hover:text-charcoal"
-                >
-                  {cpExpanded ? '▼' : '▶'}
-                </button>
-                <input
-                  type="checkbox"
-                  aria-label={`Select all from ${cp.counterparty_legal_name ?? cp.counterparty_id}`}
-                  checked={cpState === 'all'}
-                  ref={(el) => {
-                    if (el) el.indeterminate = cpState === 'partial';
-                  }}
-                  onChange={() => setSkusForGroup(cp.product_ids, cpState !== 'all')}
+              groupKey={cp.counterparty_id}
+              label={cp.counterparty_legal_name ?? cp.counterparty_id}
+              count={cpCount}
+              controlSlot={
+                <TristateCheckbox
+                  state={cpState}
+                  onChange={(next) => setSkusForGroup(cp.product_ids, next === 'all')}
+                  ariaLabel={`Select all from ${cp.counterparty_legal_name ?? cp.counterparty_id}`}
                 />
-                <span className="text-sm text-charcoal truncate">
-                  {cp.counterparty_legal_name ?? cp.counterparty_id}
-                </span>
-                <span className="ml-auto text-xs text-slate whitespace-nowrap">
-                  {cpState === 'none'
-                    ? `${cp.product_ids.length} SKU${cp.product_ids.length === 1 ? '' : 's'}`
-                    : `${cp.product_ids.filter((id) => selectedSkus.has(id)).length} / ${cp.product_ids.length} selected`}
-                </span>
-              </div>
-
-              {cpExpanded && (
-                <div className="pl-7 pb-1.5">
-                  {!catalog || catalog.loading ? (
-                    <p className="text-xs italic text-slate py-1">Loading catalog…</p>
-                  ) : catalog.error ? (
-                    <p className="text-xs text-problem py-1">{catalog.error}</p>
-                  ) : (
-                    <>
-                      {Array.from(catalog.byClass.entries()).map(([slug, products]) => {
-                        const classKey = `${cp.counterparty_id}|${slug}`;
-                        const classExpanded = expandedClasses.has(classKey);
-                        const classState = classSelectionState(
-                          products.map((p) => p.external_product_id),
-                        );
-                        const className = catalog.classNames.get(slug) ?? slug;
-                        return (
-                          <div key={classKey} className="text-sm">
-                            <div className="flex items-center gap-2 py-0.5">
-                              <button
-                                type="button"
-                                aria-label={
-                                  classExpanded ? 'Collapse class' : 'Expand class'
-                                }
-                                onClick={() => toggleClassExpanded(classKey)}
-                                className="w-4 text-xs text-slate hover:text-charcoal"
-                              >
-                                {classExpanded ? '▼' : '▶'}
-                              </button>
-                              <input
-                                type="checkbox"
-                                aria-label={`Select all in ${className}`}
-                                checked={classState === 'all'}
-                                ref={(el) => {
-                                  if (el) el.indeterminate = classState === 'partial';
-                                }}
-                                onChange={() =>
-                                  setSkusForGroup(
-                                    products.map((p) => p.external_product_id),
-                                    classState !== 'all',
-                                  )
-                                }
-                              />
-                              <span className="text-charcoal truncate">{className}</span>
-                              <span className="ml-auto text-xs text-slate whitespace-nowrap">
-                                {classState === 'none'
-                                  ? `${products.length} SKU${products.length === 1 ? '' : 's'}`
-                                  : `${products.filter((p) => selectedSkus.has(p.external_product_id)).length} / ${products.length} selected`}
-                              </span>
-                            </div>
-                            {classExpanded && (
-                              <div className="pl-7 py-0.5">
-                                {products.map((p) => (
-                                  <label
-                                    key={p.external_product_id}
-                                    className="flex items-center gap-2 py-0.5"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedSkus.has(p.external_product_id)}
-                                      onChange={() => toggleSku(p.external_product_id)}
-                                    />
-                                    <span className="truncate text-charcoal">
-                                      {p.product_name ?? '(unnamed product)'}
-                                    </span>
-                                    <span className="ml-auto text-xs font-mono text-slate truncate">
-                                      {p.external_product_id}
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {catalog.orphanIds.length > 0 && (
-                        <details className="text-xs text-slate py-1">
-                          <summary>
-                            {catalog.orphanIds.length} accepted SKU
-                            {catalog.orphanIds.length === 1 ? '' : 's'} not in this
-                            counterparty&apos;s public catalog
-                          </summary>
-                          <div className="pl-4 mt-1 space-y-0.5">
-                            {catalog.orphanIds.map((id) => (
-                              <label key={id} className="flex items-center gap-2">
+              }
+              expanded={cpExpanded}
+              onToggle={() => toggleCounterpartyExpanded(cp)}
+            >
+              {!catalog || catalog.loading ? (
+                <AccordionLoading>Loading catalog…</AccordionLoading>
+              ) : catalog.error ? (
+                <AccordionError>{catalog.error}</AccordionError>
+              ) : (
+                <>
+                  <GroupedAccordion>
+                    {Array.from(catalog.byClass.entries()).map(([slug, products]) => {
+                      const classKey = `${cp.counterparty_id}|${slug}`;
+                      const classExpanded = expandedClasses.has(classKey);
+                      const classState = classSelectionState(
+                        products.map((p) => p.external_product_id),
+                      );
+                      const className = catalog.classNames.get(slug) ?? slug;
+                      const classCount =
+                        classState === 'none'
+                          ? `${products.length} SKU${products.length === 1 ? '' : 's'}`
+                          : {
+                              filtered: products.filter((p) =>
+                                selectedSkus.has(p.external_product_id),
+                              ).length,
+                              total: products.length,
+                            };
+                      return (
+                        <AccordionGroupRow
+                          key={classKey}
+                          groupKey={classKey}
+                          label={className}
+                          count={classCount}
+                          controlSlot={
+                            <TristateCheckbox
+                              state={classState}
+                              onChange={(next) =>
+                                setSkusForGroup(
+                                  products.map((p) => p.external_product_id),
+                                  next === 'all',
+                                )
+                              }
+                              ariaLabel={`Select all in ${className}`}
+                            />
+                          }
+                          expanded={classExpanded}
+                          onToggle={() => toggleClassExpanded(classKey)}
+                        >
+                          {products.map((p) => (
+                            <AccordionLeafRow
+                              key={p.external_product_id}
+                              controlSlot={
                                 <input
                                   type="checkbox"
-                                  checked={selectedSkus.has(id)}
-                                  onChange={() => toggleSku(id)}
+                                  checked={selectedSkus.has(p.external_product_id)}
+                                  onChange={() => toggleSku(p.external_product_id)}
                                 />
-                                <span className="font-mono text-slate truncate">{id}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </details>
-                      )}
-                      {catalog.byClass.size === 0 && catalog.orphanIds.length === 0 && (
-                        <p className="text-xs italic text-slate py-1">
-                          No matching products in catalog.
-                        </p>
-                      )}
-                    </>
+                              }
+                              label={p.product_name ?? '(unnamed product)'}
+                              metaSlot={
+                                <span className="text-xs font-mono text-slate truncate">
+                                  {p.external_product_id}
+                                </span>
+                              }
+                            />
+                          ))}
+                        </AccordionGroupRow>
+                      );
+                    })}
+                  </GroupedAccordion>
+
+                  {catalog.orphanIds.length > 0 && (
+                    <details className="text-xs text-slate py-1">
+                      <summary>
+                        {catalog.orphanIds.length} accepted SKU
+                        {catalog.orphanIds.length === 1 ? '' : 's'} not in this
+                        counterparty&apos;s public catalog
+                      </summary>
+                      <div className="pl-4 mt-1 space-y-0.5">
+                        {catalog.orphanIds.map((id) => (
+                          <label key={id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedSkus.has(id)}
+                              onChange={() => toggleSku(id)}
+                            />
+                            <span className="font-mono text-slate truncate">{id}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                   )}
-                </div>
+
+                  {catalog.byClass.size === 0 && catalog.orphanIds.length === 0 && (
+                    <p className="text-xs italic text-slate py-1">
+                      No matching products in catalog.
+                    </p>
+                  )}
+                </>
               )}
-            </div>
+            </AccordionGroupRow>
           );
         })}
-      </div>
+      </GroupedAccordion>
     </div>
   );
 }
