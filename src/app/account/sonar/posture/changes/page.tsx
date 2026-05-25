@@ -43,13 +43,13 @@ export default async function ChangesPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl font-display text-navy">Events</h1>
           <p className="mt-2 text-slate">
-            Monitoring events detected between snapshots — default window is 14 days.
+            Consequential supply-chain changes detected between snapshots — default window is 14 days.
           </p>
         </div>
         <RefreshButton />
       </header>
       <PageIntro>
-        A reverse-chronological alerting feed of every change detected between snapshots: origin shifts, gap openings and closures, certification expirations, vendor substitutions, and more. Filter by event kind, partner, or date range. Click Compare on any row to view the before-and-after cell detail.
+        A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Compare on any row to view the before-and-after cell detail.
       </PageIntro>
 
       <FilterPills />
