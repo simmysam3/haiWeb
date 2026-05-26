@@ -42,7 +42,7 @@ export function AuditExceptionsDashboard() {
           },
           {
             key: 'flags',
-            label: 'Activity flags',
+            label: 'Incoming Activity Flags',
             count: flagCount ?? undefined,
           },
         ]}
