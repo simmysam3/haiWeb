@@ -5,6 +5,7 @@ import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
 import { describeChange, kindLabel, severityTone } from '../_lib/describe-change';
 import { ChangeStateSummary } from './state-summary';
+import { OutcomeForm } from './outcome-form';
 
 interface CellPanelProps {
   label: string;
@@ -116,6 +117,8 @@ export function ChangeDetailCompare({ detail }: Props) {
 
       {/* Business-readable summary of the new state, ahead of the raw JSON. */}
       <ChangeStateSummary change={change} />
+
+      <OutcomeForm change={change} />
 
       {/* Side-by-side Prior / Current — supporting evidence behind the summary. */}
       <div>
