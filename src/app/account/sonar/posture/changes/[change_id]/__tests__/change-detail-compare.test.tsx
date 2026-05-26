@@ -1,8 +1,15 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ChangeDetailCompare } from '../change-detail-compare';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(), refresh: vi.fn(),
+    replace: vi.fn(), back: vi.fn(), forward: vi.fn(), prefetch: vi.fn(),
+  }),
+}));
 
 const base: ComplianceChangeDetail = {
   change: {

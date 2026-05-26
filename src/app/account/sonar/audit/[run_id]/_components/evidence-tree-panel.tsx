@@ -67,9 +67,22 @@ export function EvidenceTreePanel({ results, auditorCountry }: Props) {
               <span className="text-xs font-semibold text-charcoal">
                 Vendor
               </span>
-              <span className="font-mono text-xs text-slate">
-                {result.vendor_participant_id.slice(0, 8)}
-              </span>
+              {/* Null vendor_participant_id is the sub-tier identity-withheld
+                  case (protocol 3.26.0): the orchestrator's disclosure boundary
+                  stored NULL rather than leak the real UUID. The redacted
+                  observation tree still carries region-level provenance. */}
+              {result.vendor_participant_id ? (
+                <span className="font-mono text-xs text-slate">
+                  {result.vendor_participant_id.slice(0, 8)}
+                </span>
+              ) : (
+                <span
+                  className="text-xs italic text-slate/70"
+                  title="Sub-tier vendor identity withheld by the disclosure boundary; only region-level provenance is visible on this row."
+                >
+                  Identity withheld
+                </span>
+              )}
               <span className="text-slate text-[10px]">·</span>
               <span className="text-xs font-semibold text-charcoal">SKU</span>
               {/*
