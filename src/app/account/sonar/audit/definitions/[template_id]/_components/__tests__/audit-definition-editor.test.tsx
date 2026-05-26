@@ -99,4 +99,50 @@ describe('AuditDefinitionEditor', () => {
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  // v.1.42 — Suspend/Reactivate header control. Status pill + button at the
+  // top of the editor flip the template's `enabled` flag without going through
+  // the dirty-form save bar.
+  it('renders an Active status pill + Suspend button for an enabled template', () => {
+    render(<AuditDefinitionEditor template={template} />);
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^suspend$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^reactivate$/i })).toBeNull();
+  });
+
+  it('renders a Suspended status pill + Reactivate button + paused banner for a disabled template', () => {
+    const disabled = { ...template, enabled: false } as RunTemplate;
+    render(<AuditDefinitionEditor template={disabled} />);
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^reactivate$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^suspend$/i })).toBeNull();
+    // Banner explains the state.
+    expect(
+      screen.getByText(/scheduled runs (are )?suspended/i),
+    ).toBeInTheDocument();
+  });
+
+  it('Suspend button PATCHes enabled=false (independent of form dirty state)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    render(<AuditDefinitionEditor template={template} />);
+    await userEvent.click(screen.getByRole('button', { name: /^suspend$/i }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
+    expect((init as RequestInit).method).toBe('PATCH');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({ enabled: false });
+  });
+
+  it('Reactivate button PATCHes enabled=true', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    const disabled = { ...template, enabled: false } as RunTemplate;
+    render(<AuditDefinitionEditor template={disabled} />);
+    await userEvent.click(screen.getByRole('button', { name: /^reactivate$/i }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).toEqual({ enabled: true });
+  });
 });

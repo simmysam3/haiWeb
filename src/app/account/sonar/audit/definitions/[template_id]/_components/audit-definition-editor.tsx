@@ -81,6 +81,42 @@ export function AuditDefinitionEditor({ template }: { template: RunTemplate }) {
     }
   }
 
+  /**
+   * v.1.42 — Suspend/Reactivate. Flips `enabled` immediately via PATCH,
+   * independent of the dirty-form save bar. A suspended template still
+   * exists, retains run history, and is excluded from the composite
+   * gap rollup (collectGaps filters to enabled=true active templates).
+   * Reactivating resumes the schedule from the next cadence tick.
+   */
+  async function toggleEnabled() {
+    const next = !enabled;
+    setBusy(true);
+    setError(null);
+    setSessionExpired(false);
+    try {
+      const res = await fetch(
+        `/api/account/sonar/audit/definitions/${template.template_id}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ enabled: next }),
+        },
+      );
+      if (!res.ok) {
+        const info = await describeApiError(res);
+        setError(info.message);
+        setSessionExpired(info.sessionExpired);
+        return;
+      }
+      setEnabled(next);
+      router.refresh();
+    } catch {
+      setError('Network error — could not reach the server. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove() {
     if (
       !confirm(
@@ -115,6 +151,45 @@ export function AuditDefinitionEditor({ template }: { template: RunTemplate }) {
         <StepRail steps={steps} onJump={jump} />
       </div>
       <div className="flex-1 max-w-2xl">
+        {/* v.1.42 — Activation status + Suspend/Reactivate. Lives above the
+            step chain so a paused template is obvious without scrolling, and
+            the toggle saves immediately (separate from the form dirty-state
+            save bar). Suspended templates drop out of the composite Backlog
+            rollup but keep their history and can be reactivated later. */}
+        <div className="mb-4 flex items-center gap-3">
+          <span
+            className={
+              enabled
+                ? 'inline-flex items-center rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-semibold text-teal-dark'
+                : 'inline-flex items-center rounded-full bg-slate/15 px-2.5 py-0.5 text-xs font-semibold text-slate'
+            }
+            aria-label={enabled ? 'Audit is active' : 'Audit is suspended'}
+          >
+            {enabled ? 'Active' : 'Suspended'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleEnabled}
+            disabled={busy}
+            className={
+              enabled
+                ? 'rounded border border-slate/30 px-3 py-1 text-xs text-slate hover:border-slate hover:text-charcoal disabled:opacity-60'
+                : 'rounded border border-teal text-teal-dark px-3 py-1 text-xs font-semibold hover:bg-teal/10 disabled:opacity-60'
+            }
+          >
+            {enabled ? 'Suspend' : 'Reactivate'}
+          </button>
+        </div>
+        {!enabled && (
+          <div
+            role="status"
+            className="mb-4 rounded border border-slate/20 bg-slate/5 px-4 py-3 text-xs text-slate"
+          >
+            Paused — scheduled runs are suspended and this audit is excluded
+            from the Backlog rollup. Run history is preserved. Reactivate to
+            resume the schedule.
+          </div>
+        )}
         <StepCard id="identity" index={0} title="Identity">
           <NameField noun="Audit" value={name} onChange={setName} />
         </StepCard>
