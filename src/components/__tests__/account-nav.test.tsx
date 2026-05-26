@@ -34,7 +34,7 @@ describe('AccountNav', () => {
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
   });
 
-  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Watcher Management', () => {
+  it('Sonar Observe section contains Dashboard, Backlog, Phantom Demand, Watcher Management, Request Management', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });

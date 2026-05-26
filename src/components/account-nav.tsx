@@ -163,7 +163,6 @@ const navSections: NavSection[] = [
     label: "Sonar Observe",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
-      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
       { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
       // Configurations suppressed from the menu — pending the phantom-demand
@@ -171,6 +170,7 @@ const navSections: NavSection[] = [
       // The page itself still exists at /account/sonar/templates.
       // { href: "/account/sonar/templates", label: "Configurations", tooltip: "..." },
       { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
+      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
   },
   {
