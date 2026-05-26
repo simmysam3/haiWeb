@@ -2,20 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import type { EmittedChangeKind } from '@haiwave/protocol';
-
-/**
- * "Showing" severity dropdown (v.1.41). `all` means no server-side filter;
- * `critical` is the default landing state — the page shows critical events
- * only on first load. `info` is reachable from the dropdown by way of `all`
- * but is not surfaced as its own option per current UX spec.
- */
-export const SEVERITY_OPTIONS = [
-  { value: 'critical', label: 'Critical Only' },
-  { value: 'warning', label: 'Warning Only' },
-  { value: 'all', label: 'All' },
-] as const;
-export const DEFAULT_SEVERITY = 'critical';
-export const SEVERITY_VALUES: ReadonlySet<string> = new Set(SEVERITY_OPTIONS.map((o) => o.value));
+import { SEVERITY_OPTIONS, SEVERITY_VALUES, DEFAULT_SEVERITY } from './_lib/severity';
 
 // Turbopack + file: symlink: inline mirror of the Events-feed pill set.
 // Source of truth: packages/protocol/src/audit/compliance-changes.ts —

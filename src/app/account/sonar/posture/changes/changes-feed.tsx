@@ -68,13 +68,7 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
               <p data-testid="change-description" className="text-sm text-slate">{description}</p>
               <p className="text-xs text-slate/70">{detectedAt}</p>
             </div>
-            {/* detail route added in P4 Task 10 */}
-            <Link
-              href={`/account/sonar/posture/changes/${change.change_id}`}
-              className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
-            >
-              Review
-            </Link>
+            <ProcessAction change={change} />
           </div>
         );
       })}
@@ -82,6 +76,35 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
         <Pager total={total} page={page} pageSize={pageSize} rowsOnPage={changes.length} />
       )}
     </div>
+  );
+}
+
+/**
+ * Per-row CTA on the Events feed. Two visual states keyed off
+ * `change.processed_at`:
+ *  - null → filled teal `Process` link to the detail page, where the
+ *    user picks an outcome and commits.
+ *  - not null → outlined slate Link labelled `Processed`, same target.
+ */
+function ProcessAction({ change }: { change: ComplianceChange }) {
+  const detailHref = `/account/sonar/posture/changes/${change.change_id}`;
+  if (change.processed_at != null) {
+    return (
+      <Link
+        href={detailHref}
+        className="shrink-0 rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy"
+      >
+        Processed
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href={detailHref}
+      className="shrink-0 rounded-md border border-teal bg-teal px-3 py-1.5 text-xs text-white hover:bg-teal/90"
+    >
+      Process
+    </Link>
   );
 }
 

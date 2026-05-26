@@ -35,6 +35,10 @@ export function buildPartnerCompliance(
   >();
 
   for (const r of results) {
+    // Null vendor_participant_id = sub-tier identity withheld (protocol
+    // 3.26.0). Same rationale as buildPerPartnerAuditWeights — un-attributable
+    // rows are dropped here; they can't appear in the per-partner rollup.
+    if (r.vendor_participant_id === null) continue;
     const nonCompliant = r.geo_rollup.reduce(
       (sum, e) => (e.country_of_origin === 'US' ? sum : sum + e.component_count),
       0,

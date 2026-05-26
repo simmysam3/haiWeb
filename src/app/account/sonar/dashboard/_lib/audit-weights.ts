@@ -19,6 +19,11 @@ export function buildPerPartnerAuditWeights(
   const byVendor = new Map<string, { name: string | null; nc: number; total: number }>();
 
   for (const r of results) {
+    // Null vendor_participant_id = sub-tier identity withheld by the
+    // disclosure boundary (protocol 3.26.0). Such rows can't be attributed
+    // to a partner and never appear in `vendorIdsInScope` (the scope is the
+    // initiator's direct tier only), so skipping them costs nothing here.
+    if (r.vendor_participant_id === null) continue;
     const cur = byVendor.get(r.vendor_participant_id) ?? {
       name: r.tree.vendor_legal_name ?? null,
       nc: 0,
