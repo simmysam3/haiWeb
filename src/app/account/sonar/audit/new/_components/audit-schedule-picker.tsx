@@ -2,6 +2,33 @@
 
 import type { Cadence } from '@haiwave/protocol';
 
+// Protocol stores `time_of_day` as UTC HH:MM. The picker shows it in the
+// user's browser-local time so they can reason in their own clock. The
+// conversion uses TODAY's date, which means a schedule that straddles a DST
+// boundary will appear to shift by one hour in local time across the
+// boundary — the stored UTC stays constant, so the cadence is "fires at the
+// same UTC moment every day," not "fires at the same local wall-clock time."
+// Standard cron-style semantics and matches the protocol.
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+export function utcToLocal(utcHHMM: string): string {
+  const [h, m] = utcHHMM.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return utcHHMM;
+  const d = new Date();
+  d.setUTCHours(h, m, 0, 0);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+export function localToUtc(localHHMM: string): string {
+  const [h, m] = localHHMM.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return localHHMM;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+}
+
 interface Props {
   value: Cadence;
   onChange: (next: Cadence) => void;
@@ -89,20 +116,22 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
 
           <div className="flex flex-wrap items-end gap-4">
             <label className="block text-sm text-charcoal">
-              <span className="block mb-1 font-medium">Time of day (UTC start)</span>
+              <span className="block mb-1 font-medium">Time of day (your local time)</span>
               <input
                 type="time"
-                aria-label="Time of day (UTC start)"
-                value={timeOfDay}
-                onChange={(e) =>
+                aria-label="Time of day (your local time)"
+                value={utcToLocal(timeOfDay)}
+                onChange={(e) => {
+                  const utc = localToUtc(e.target.value);
                   onChange(
                     freq === 'weekly'
-                      ? { kind: 'weekly', day_of_week: dayOfWeek, time_of_day: e.target.value }
-                      : { kind: 'daily', time_of_day: e.target.value },
-                  )
-                }
+                      ? { kind: 'weekly', day_of_week: dayOfWeek, time_of_day: utc }
+                      : { kind: 'daily', time_of_day: utc },
+                  );
+                }}
                 className="rounded border border-slate-300 px-2 py-1 text-sm"
               />
+              <span className="block text-xs text-slate mt-0.5">Fires at {timeOfDay} UTC.</span>
             </label>
 
             {freq === 'weekly' && (
