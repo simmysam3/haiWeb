@@ -1,4 +1,4 @@
-import type { WorkingListResponse } from '@haiwave/protocol';
+import type { WorkingListResponse, CoverageCurrentResponse } from '@haiwave/protocol';
 import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
 import { GapsTrendStrip } from './gaps-trend-strip';
@@ -66,8 +66,16 @@ interface PageProps { searchParams: Promise<SearchParams>; }
 export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
-  const raw = await fetchList(params);
+  // Fetch the working-list and the source-snapshot metadata in parallel.
+  // Coverage is best-effort: a fetch failure just hides the snapshot
+  // banner; the gaps list still renders.
+  const [raw, coverageResult] = await Promise.all([
+    fetchList(params),
+    fetchBffJson<CoverageCurrentResponse>('/api/account/sonar/compliance/coverage/current'),
+  ]);
   const result = sku ? filterBySku(raw, sku) : raw;
+  const sourceSnapshot =
+    coverageResult.kind === 'ok' ? coverageResult.data.snapshot : null;
   return (
     <div className="px-8 py-10">
       <header className="mb-4 flex items-end justify-between">
@@ -81,6 +89,27 @@ export default async function GapsPage({ searchParams }: PageProps) {
         </div>
         <RefreshButton />
       </header>
+      {/* Source-snapshot banner — clarifies that the list reflects ONLY the
+          most-recent completed audit. Composite views across multiple
+          audits aren't supported yet; running a new audit on a different
+          scope replaces this list rather than augmenting it. */}
+      <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+        {sourceSnapshot ? (
+          <>
+            Showing gaps from your most recent completed audit, captured{' '}
+            <strong>{new Date(sourceSnapshot.snapshot_completed_at).toLocaleString()}</strong>.
+            Running another audit on a different scope (e.g. a different business line)
+            will replace this view rather than add to it — composite gap rollups across
+            multiple audits aren&apos;t supported yet.
+          </>
+        ) : (
+          <>
+            Showing gaps from your most recent completed audit only. Composite gap
+            rollups across multiple audits aren&apos;t supported yet — running a new
+            audit on a different scope will replace this view rather than add to it.
+          </>
+        )}
+      </div>
       <PageIntro
         more={
           <>
