@@ -29,6 +29,19 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
 
   return (
     <div className="p-6 space-y-6">
+      <PageHeader
+        eyebrow="Audit"
+        title={tpl.template_name}
+        description={
+          <>
+            {formatCadence(tpl.cadence)} · Last run{' '}
+            {tpl.last_run_at
+              ? new Date(tpl.last_run_at).toLocaleString()
+              : '—'}
+          </>
+        }
+      />
+
       <div className="space-y-2">
         <Link
           href="/account/sonar/audit"
@@ -36,21 +49,8 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
         >
           ← Audits
         </Link>
-        <PageHeader
-          eyebrow="Audit"
-          title={tpl.template_name}
-          description={
-            <>
-              {formatCadence(tpl.cadence)} · Last run{' '}
-              {tpl.last_run_at
-                ? new Date(tpl.last_run_at).toLocaleString()
-                : '—'}
-            </>
-          }
-        />
+        <AuditDefinitionEditor template={tpl} />
       </div>
-
-      <AuditDefinitionEditor template={tpl} />
     </div>
   );
 }

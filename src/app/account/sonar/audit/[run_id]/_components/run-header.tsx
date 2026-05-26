@@ -60,7 +60,7 @@ export function RunHeader({ run }: Props) {
       {/* Title row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-navy">
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal">
             {title}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate">

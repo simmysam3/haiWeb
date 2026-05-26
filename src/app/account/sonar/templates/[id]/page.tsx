@@ -42,6 +42,26 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
   if (!template) notFound();
   return (
     <div className="p-6 space-y-6">
+      <PageHeader
+        eyebrow={configNoun(template.observation_class)}
+        title={template.template_name}
+        description={
+          <>
+            {formatCadence(template.cadence)} · Last run{' '}
+            {template.last_run_at
+              ? new Date(template.last_run_at).toLocaleString()
+              : '—'}
+          </>
+        }
+        actions={
+          <ManualTriggerButton
+            templateId={template.template_id}
+            enabled={template.enabled}
+            observationClass={template.observation_class}
+          />
+        }
+      />
+
       <div className="space-y-2">
         <Link
           href="/account/sonar/templates"
@@ -49,28 +69,8 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
         >
           ← Configurations
         </Link>
-        <PageHeader
-          eyebrow={configNoun(template.observation_class)}
-          title={template.template_name}
-          description={
-            <>
-              {formatCadence(template.cadence)} · Last run{' '}
-              {template.last_run_at
-                ? new Date(template.last_run_at).toLocaleString()
-                : '—'}
-            </>
-          }
-          actions={
-            <ManualTriggerButton
-              templateId={template.template_id}
-              enabled={template.enabled}
-              observationClass={template.observation_class}
-            />
-          }
-        />
+        <TemplateEditor template={template} />
       </div>
-
-      <TemplateEditor template={template} />
 
       <section id="step-history" className="space-y-3 scroll-mt-6">
         <h2 className="text-sm font-semibold text-charcoal">Run history</h2>

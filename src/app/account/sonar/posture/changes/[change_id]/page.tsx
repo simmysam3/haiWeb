@@ -58,15 +58,15 @@ export default async function ChangeDetailPage({ params }: PageProps) {
 
   return (
     <div className="px-8 py-10">
-      <div className="space-y-3 mb-2">
-        {backLink}
-        <PageHeader eyebrow="Events" title="Event detail" />
-      </div>
+      <PageHeader eyebrow="Events" title="Event detail" />
       <PageIntro>
         Side-by-side view of the cell state before and after this event was detected. Samples are attribute observations captured at snapshot time; the subtree shows the raw supply-chain node data when available.
       </PageIntro>
 
-      <ChangeDetailCompare detail={result.data} />
+      <div className="space-y-2">
+        {backLink}
+        <ChangeDetailCompare detail={result.data} />
+      </div>
     </div>
   );
 }

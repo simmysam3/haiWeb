@@ -98,7 +98,7 @@ export function NominationForm({ initialState }: { initialState: InitialState })
       <p className="text-xs uppercase tracking-wider text-slate mb-1.5 font-medium">
         Requests
       </p>
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-navy">
+      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal">
         New nomination
       </h1>
       <p className="mt-1 text-sm text-slate mb-6">
