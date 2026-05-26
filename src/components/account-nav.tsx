@@ -233,7 +233,6 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
             className="h-8 w-auto"
           />
         </Link>
-        <p className="text-xs text-slate mt-1.5">Account Portal</p>
       </div>
       <nav className="flex-1 py-5 overflow-y-auto">
         {navSections.map((section, idx) => (
