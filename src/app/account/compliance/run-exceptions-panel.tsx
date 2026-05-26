@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AuditException, AuditExceptionsResponse } from '@haiwave/protocol';
 import { Card } from '@/components/card';
+import { GroupedAccordion, AccordionGroupRow } from '@/components/grouped-accordion';
 
 /**
  * v.1.41 Audit Exceptions — "Run exceptions" tab.
@@ -41,11 +42,54 @@ function statusLabel(status: AuditException['compliance_status']): {
   return { text: 'Partial', className: 'bg-amber-100 text-amber-800' };
 }
 
+export interface VendorGroup {
+  vendorId: string;
+  vendorName: string;
+  issues: AuditException[];
+}
+
+/**
+ * Group flat audit exceptions by vendor for the accordion view. Sort by
+ * issue count desc with vendor name as the stable tiebreaker. Exported so
+ * the unit test can exercise it without rendering the component.
+ */
+export function groupByVendor(exceptions: AuditException[]): VendorGroup[] {
+  const map = new Map<string, VendorGroup>();
+  for (const e of exceptions) {
+    const existing = map.get(e.vendor_id);
+    if (existing) {
+      existing.issues.push(e);
+    } else {
+      map.set(e.vendor_id, {
+        vendorId: e.vendor_id,
+        vendorName: e.vendor_legal_name ?? e.vendor_id,
+        issues: [e],
+      });
+    }
+  }
+  const groups = Array.from(map.values());
+  groups.sort((a, b) => {
+    if (b.issues.length !== a.issues.length) return b.issues.length - a.issues.length;
+    return a.vendorName.localeCompare(b.vendorName);
+  });
+  return groups;
+}
+
 export function RunExceptionsPanel({ onCountChange }: Props) {
   const router = useRouter();
   const [data, setData] = useState<AuditExceptionsResponse>(FALLBACK);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggle(vendorId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(vendorId)) next.delete(vendorId);
+      else next.add(vendorId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -75,9 +119,9 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
           Non-compliant results from your recent audits
         </h2>
         <p className="text-xs text-slate mt-1">
-          One row per (vendor, product) pair where the latest audit run within the past{' '}
-          {data.window_days} days returned gaps or non-compliant status. Click a row to open
-          the run that detected it.
+          Grouped by counterparty — expand a vendor to see each affected product. One issue per
+          (vendor, product) pair where the latest audit run within the past {data.window_days}{' '}
+          days returned gaps or non-compliant status. Click a row to open the run that detected it.
         </p>
       </header>
 
@@ -102,55 +146,62 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
           .
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate border-b border-slate/15">
-                <th className="pb-3 font-medium">Vendor</th>
-                <th className="pb-3 font-medium">Product</th>
-                <th className="pb-3 font-medium">Last run</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Issues</th>
-                <th className="pb-3 font-medium text-right">&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.exceptions.map((e) => {
-                const status = statusLabel(e.compliance_status);
-                return (
-                  <tr
-                    key={`${e.vendor_id}|${e.product_id}|${e.run_id}`}
-                    className="border-b border-slate/10 hover:bg-slate/5 cursor-pointer"
-                    onClick={() => router.push(`/account/sonar/audit/${e.run_id}`)}
-                  >
-                    <td className="py-3 text-navy font-medium">
-                      {e.vendor_legal_name ?? e.vendor_id}
-                    </td>
-                    <td className="py-3 text-charcoal font-mono text-xs truncate max-w-[14ch]">
-                      {e.product_id}
-                    </td>
-                    <td className="py-3 text-slate">{ageDays(e.triggered_at)}</td>
-                    <td className="py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${status.className}`}
-                      >
-                        {status.text}
-                      </span>
-                    </td>
-                    <td className="py-3 text-charcoal text-xs">
-                      {e.gap_count > 0
-                        ? `${e.gap_count} gap${e.gap_count === 1 ? '' : 's'}${
-                            e.gap_kinds.length > 0 ? ` — ${e.gap_kinds.join(', ')}` : ''
-                          }`
-                        : '—'}
-                    </td>
-                    <td className="py-3 text-right text-teal text-lg font-bold">›</td>
+        <GroupedAccordion>
+          {groupByVendor(data.exceptions).map((group) => (
+            <AccordionGroupRow
+              key={group.vendorId}
+              groupKey={group.vendorId}
+              label={group.vendorName}
+              count={group.issues.length}
+              expanded={expanded.has(group.vendorId)}
+              onToggle={() => toggle(group.vendorId)}
+            >
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate border-b border-slate/15">
+                    <th className="pb-2 font-medium">Product</th>
+                    <th className="pb-2 font-medium">Last run</th>
+                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium">Issues</th>
+                    <th className="pb-2 font-medium text-right">&nbsp;</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {group.issues.map((e) => {
+                    const status = statusLabel(e.compliance_status);
+                    return (
+                      <tr
+                        key={`${e.vendor_id}|${e.product_id}|${e.run_id}`}
+                        className="border-b border-slate/10 hover:bg-slate/5 cursor-pointer"
+                        onClick={() => router.push(`/account/sonar/audit/${e.run_id}`)}
+                      >
+                        <td className="py-2 text-charcoal font-mono text-xs truncate max-w-[14ch]">
+                          {e.product_id}
+                        </td>
+                        <td className="py-2 text-slate">{ageDays(e.triggered_at)}</td>
+                        <td className="py-2">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${status.className}`}
+                          >
+                            {status.text}
+                          </span>
+                        </td>
+                        <td className="py-2 text-charcoal text-xs">
+                          {e.gap_count > 0
+                            ? `${e.gap_count} gap${e.gap_count === 1 ? '' : 's'}${
+                                e.gap_kinds.length > 0 ? ` — ${e.gap_kinds.join(', ')}` : ''
+                              }`
+                            : '—'}
+                        </td>
+                        <td className="py-2 text-right text-teal text-lg font-bold">›</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </AccordionGroupRow>
+          ))}
+        </GroupedAccordion>
       )}
     </Card>
   );
