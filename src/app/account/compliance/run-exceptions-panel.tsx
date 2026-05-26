@@ -196,7 +196,7 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                         <td className="py-2 pl-4 pr-3 text-right">
                           <span
                             aria-hidden="true"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal/10 text-teal transition-colors group-hover:bg-teal/20"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal/10 text-teal transition-colors group-hover:bg-teal/20"
                           >
                             <svg
                               viewBox="0 0 24 24"
