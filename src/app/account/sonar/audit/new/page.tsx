@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import type { AuditRun, RunTemplate, RunTemplateScope } from '@haiwave/protocol';
 import { AuditWizard, type SourceRunSummary } from './_components/audit-wizard';
@@ -120,16 +121,17 @@ export default async function NewAuditPage({
 
   return (
     <div className="p-6 space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-charcoal">New Audit</h1>
-        <p className="text-sm text-slate mt-1">
-          {source
+      <PageHeader
+        eyebrow="Audit"
+        title="New Audit"
+        description={
+          source
             ? source.template_id
               ? `Starting from run ${source.run_id.slice(0, 8)}…${source.template_name ? ` (${source.template_name})` : ''}. Rename to fork into a new configuration.`
               : `Re-running ad-hoc run ${source.run_id.slice(0, 8)}… — its scope has been pre-filled below. Adjust anything and run again.`
-            : 'Configure a new audit. Choose a name and cadence — audit scope (vendors and SKUs) is managed from Requests.'}
-        </p>
-      </header>
+            : 'Configure a new audit. Choose a name and cadence — audit scope (vendors and SKUs) is managed from Requests.'
+        }
+      />
 
       <AuditWizard source={source} />
     </div>

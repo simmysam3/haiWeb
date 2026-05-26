@@ -9,6 +9,7 @@ import { RunFailureBanner } from './run-failure-banner';
 import { ThrottledStatusPill } from '@/components/sonar/throttled-status-pill';
 import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
+import { PageHeader } from '@/components';
 
 interface LoadOk {
   run: AuditRun;
@@ -76,37 +77,34 @@ export default async function RunDetailPage({
 
   return (
     <div className="p-6 space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-charcoal">
-          Run {data.run.run_id.slice(0, 8)}
-        </h1>
-        <p className="text-sm text-slate">
-          Triggered {new Date(data.run.triggered_at).toLocaleString()}
-        </p>
-        <div className="flex items-center gap-3">
-          <RunControls
-            runId={data.run.run_id}
-            initialStatus={data.run.status}
-            initialHopCount={data.run.hop_count}
-            initialGapCount={data.run.gap_count}
-            initialResultsCount={data.results.length}
-            errorMessage={data.run.error_message}
+      <PageHeader
+        eyebrow="Watcher"
+        title={`Run ${data.run.run_id.slice(0, 8)}`}
+        description={`Triggered ${new Date(data.run.triggered_at).toLocaleString()}`}
+      />
+      <div className="flex items-center gap-3">
+        <RunControls
+          runId={data.run.run_id}
+          initialStatus={data.run.status}
+          initialHopCount={data.run.hop_count}
+          initialGapCount={data.run.gap_count}
+          initialResultsCount={data.results.length}
+          errorMessage={data.run.error_message}
+        />
+        {data.run.status === 'throttled' && data.run.resumption_state && (
+          <ThrottledStatusPill
+            nextResumeAt={data.run.resumption_state.next_resume_at}
           />
-          {data.run.status === 'throttled' && data.run.resumption_state && (
-            <ThrottledStatusPill
-              nextResumeAt={data.run.resumption_state.next_resume_at}
-            />
-          )}
-          {data.run.status === 'complete' && (
-            <Link
-              href={`/account/sonar/audit/${data.run.run_id}`}
-              className="text-teal hover:text-navy text-sm"
-            >
-              View Aggregate Report →
-            </Link>
-          )}
-        </div>
-      </header>
+        )}
+        {data.run.status === 'complete' && (
+          <Link
+            href={`/account/sonar/audit/${data.run.run_id}`}
+            className="text-teal hover:text-navy text-sm"
+          >
+            View Aggregate Report →
+          </Link>
+        )}
+      </div>
 
       <RunFailureBanner
         status={data.run.status}

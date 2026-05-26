@@ -1,6 +1,7 @@
 // src/app/account/sonar/templates/new/page.tsx
 import { TemplateWizard } from '../_components/template-wizard';
 import { configNoun } from '../_lib/config-noun';
+import { PageHeader } from '@/components';
 
 interface NewTemplatePageProps {
   searchParams: Promise<{ observation_class?: string }>;
@@ -26,7 +27,10 @@ export default async function NewTemplatePage({
     : 'New configuration';
   return (
     <div className="p-6">
-      <h1 className="text-xl font-semibold text-charcoal mb-4">{heading}</h1>
+      <PageHeader
+        eyebrow={defaultClass ? configNoun(defaultClass) : 'Configurations'}
+        title={heading}
+      />
       <TemplateWizard defaultObservationClass={defaultClass} />
     </div>
   );
