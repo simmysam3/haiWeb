@@ -196,9 +196,20 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                         <td className="py-2 pl-4 pr-3 text-right">
                           <span
                             aria-hidden="true"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal/10 text-teal text-xl font-bold leading-none transition-colors group-hover:bg-teal/20"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal/10 text-teal transition-colors group-hover:bg-teal/20"
                           >
-                            ›
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={3}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <polyline points="9 6 15 12 9 18" />
+                            </svg>
                           </span>
                         </td>
                       </tr>
