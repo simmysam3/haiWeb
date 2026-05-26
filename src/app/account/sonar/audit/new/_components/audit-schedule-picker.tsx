@@ -50,7 +50,14 @@ const DAY_OPTIONS = [
 ] as const;
 
 type DayOfWeek = (typeof DAY_OPTIONS)[number]['value'];
-type Freq = 'daily' | 'weekly';
+type Freq = 'daily' | 'weekly' | 'monthly';
+
+// day_of_month is bounded at 1-28 to match the protocol (see
+// CadenceMonthlySchema): every calendar month gets exactly one fire, no
+// surprise-skipped months for users who picked 29-31.
+const MONTHLY_DAY_MIN = 1;
+const MONTHLY_DAY_MAX = 28;
+const DEFAULT_DAY_OF_MONTH = 1;
 
 /**
  * Audit-specific schedule picker. Top-level choice is Cadence (default) vs
@@ -66,14 +73,23 @@ export function AuditSchedulePicker({
   onRunNowChange,
 }: Props) {
   const isManual = value.kind === 'manual_only';
-  const freq: Freq = value.kind === 'weekly' ? 'weekly' : 'daily';
+  const freq: Freq =
+    value.kind === 'weekly'
+      ? 'weekly'
+      : value.kind === 'monthly'
+        ? 'monthly'
+        : 'daily';
   const timeOfDay = 'time_of_day' in value ? value.time_of_day : '00:00';
   const dayOfWeek: DayOfWeek =
     value.kind === 'weekly' ? (value.day_of_week as DayOfWeek) : 'mon';
+  const dayOfMonth: number =
+    value.kind === 'monthly' ? value.day_of_month : DEFAULT_DAY_OF_MONTH;
 
   function selectFreq(next: Freq) {
     if (next === 'weekly') {
       onChange({ kind: 'weekly', day_of_week: dayOfWeek, time_of_day: timeOfDay });
+    } else if (next === 'monthly') {
+      onChange({ kind: 'monthly', day_of_month: dayOfMonth, time_of_day: timeOfDay });
     } else {
       onChange({ kind: 'daily', time_of_day: timeOfDay });
     }
@@ -111,7 +127,7 @@ export function AuditSchedulePicker({
             role="radiogroup"
             aria-label="Frequency"
           >
-            {(['daily', 'weekly'] as Freq[]).map((f) => (
+            {(['daily', 'weekly', 'monthly'] as Freq[]).map((f) => (
               <label key={f} className="flex items-center gap-2 text-sm text-charcoal">
                 <input
                   type="radio"
@@ -119,7 +135,7 @@ export function AuditSchedulePicker({
                   checked={freq === f}
                   onChange={() => selectFreq(f)}
                 />
-                {f === 'daily' ? 'Daily' : 'Weekly'}
+                {f === 'daily' ? 'Daily' : f === 'weekly' ? 'Weekly' : 'Monthly'}
               </label>
             ))}
           </div>
@@ -132,12 +148,14 @@ export function AuditSchedulePicker({
                 aria-label="Time of day (your local time)"
                 value={utcToLocal(timeOfDay)}
                 onChange={(e) => {
-                  const utc = localToUtc(e.target.value);
-                  onChange(
-                    freq === 'weekly'
-                      ? { kind: 'weekly', day_of_week: dayOfWeek, time_of_day: utc }
-                      : { kind: 'daily', time_of_day: utc },
-                  );
+                  const t = localToUtc(e.target.value);
+                  if (freq === 'weekly') {
+                    onChange({ kind: 'weekly', day_of_week: dayOfWeek, time_of_day: t });
+                  } else if (freq === 'monthly') {
+                    onChange({ kind: 'monthly', day_of_month: dayOfMonth, time_of_day: t });
+                  } else {
+                    onChange({ kind: 'daily', time_of_day: t });
+                  }
                 }}
                 className="rounded border border-slate-300 px-2 py-1 text-sm"
               />
@@ -165,6 +183,37 @@ export function AuditSchedulePicker({
                     </option>
                   ))}
                 </select>
+              </label>
+            )}
+
+            {freq === 'monthly' && (
+              <label className="block text-sm text-charcoal">
+                <span className="block mb-1 font-medium">Day of month</span>
+                <input
+                  type="number"
+                  aria-label="Day of month"
+                  min={MONTHLY_DAY_MIN}
+                  max={MONTHLY_DAY_MAX}
+                  value={dayOfMonth}
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    if (
+                      Number.isFinite(n) &&
+                      n >= MONTHLY_DAY_MIN &&
+                      n <= MONTHLY_DAY_MAX
+                    ) {
+                      onChange({
+                        kind: 'monthly',
+                        day_of_month: n,
+                        time_of_day: timeOfDay,
+                      });
+                    }
+                  }}
+                  className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
+                />
+                <span className="block text-xs text-slate mt-0.5">
+                  1–28; later days are excluded so every month fires.
+                </span>
               </label>
             )}
           </div>
