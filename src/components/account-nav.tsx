@@ -121,15 +121,6 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    label: "Monitoring",
-    items: [
-      { href: "/account", label: "Dashboard", tooltip: "Snapshot of recent activity, alerts, and agent health across your HAIWAVE network." },
-      { href: "/account/orders", label: "Orders", tooltip: "Browse inbound and outbound orders flowing between your agent and counterparties." },
-      { href: "/account/scores", label: "Behavioral Scores", tooltip: "Reliability and response-time scores HAIWAVE assigns to you and your trading partners." },
-      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
-    ],
-  },
-  {
     // v1.39: Sonar IA split — audit surface separated from observe surface.
     // v.1.41: Product Provenance moved under Sonar Audit — it's a
     // product-led view into supply-chain makeup, the read-only counterpart
@@ -162,7 +153,6 @@ const navSections: NavSection[] = [
     // its destination page exists at /sonar/watchers (PR-5).
     label: "Sonar Observe",
     items: [
-      { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
       { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
       // Configurations suppressed from the menu — pending the phantom-demand
@@ -174,8 +164,17 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    // v.1.42: Monitoring section dissolved — its four entries plus the
+    // ex–Sonar Observe "Sonar Dashboard" lead Account Management. The two
+    // dashboards sit first (System then Sonar) so the high-level overviews
+    // are the entry points to this section.
     label: "Account Management",
     items: [
+      { href: "/account", label: "System Dashboard", tooltip: "Snapshot of recent activity, alerts, and agent health across your HAIWAVE network." },
+      { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
+      { href: "/account/orders", label: "Orders", tooltip: "Browse inbound and outbound orders flowing between your agent and counterparties." },
+      { href: "/account/scores", label: "Behavioral Scores", tooltip: "Reliability and response-time scores HAIWAVE assigns to you and your trading partners." },
+      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
       { href: "/account/agents", label: "Agents", tooltip: "Provision, configure, and monitor the HAIWAVE agents that act for your organization." },
       { href: "/account/partners", label: "Trading Partners", tooltip: "Counterparties you have an active bilateral relationship with on HAIWAVE." },
       { href: "/account/partners/blocked", label: "Blocked Companies", indent: true, tooltip: "Counterparties you've blocked from initiating relationships or visibility against you." },
