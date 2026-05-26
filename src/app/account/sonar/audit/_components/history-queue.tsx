@@ -7,13 +7,12 @@ import { jsonFetcher } from '@/lib/swr-fetcher';
 import type { AuditRun } from '@haiwave/protocol';
 import { FLAG_COMPONENTS } from '../_lib/country-flags';
 
-// Enriched shape returned by the list BFF. The protocol AuditRun envelope
-// has none of these — they're added route-side and carried as optional
-// fields so older callers still parse cleanly.
+// Enriched shape returned by the list BFF. `template_name` is added by
+// HaiWeb (template_id → name join); `total_skus` and
+// `fully_resolved_skus_by_country` come straight off the protocol envelope
+// (haiCore aggregates them at list time since protocol 3.22.0).
 type EnrichedAuditRun = AuditRun & {
   template_name?: string;
-  domestic_count?: number | null;
-  total_count?: number | null;
 };
 
 interface RunsPayload {
@@ -59,10 +58,7 @@ export function HistoryQueue({ initialRows }: Props) {
     jsonFetcher,
     {
       fallbackData: { runs: initialRows },
-      // 60s instead of 15s — the BFF now fans out N+1 to haiCore for per-run
-      // result counts; tighter polling hammers haiCore's 60-req/58s budget
-      // and starves sibling routes (dashboard, throttle-status, compliance).
-      refreshInterval: 60_000,
+      refreshInterval: 15_000,
     },
   );
 
@@ -146,27 +142,35 @@ export function HistoryQueue({ initialRows }: Props) {
               <td className="py-2 pr-3 text-xs">
                 {/* Domestic indicator: shows flag + X/Y for runs that produced
                     results. "—" for runs that have no results yet (running /
-                    failed / cancelled / throttled) or when the BFF couldn't
-                    compute the counts. */}
-                {run.total_count != null && run.total_count > 0 ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 text-charcoal"
-                    title={
-                      auditorCountry
-                        ? `${run.domestic_count ?? 0} of ${run.total_count} SKUs fully resolved as ${auditorCountry}-origin`
-                        : `${run.total_count} SKUs (auditor country unknown)`
-                    }
-                  >
-                    {FlagComponent && (
-                      <FlagComponent className="h-3 w-auto rounded-sm shadow-sm" />
-                    )}
-                    <span className="font-mono">
-                      {run.domestic_count ?? 0}/{run.total_count}
+                    failed / cancelled / throttled) or when haiCore didn't
+                    compute the aggregates. Counts come straight off the
+                    AuditRun envelope (protocol 3.22.0+). */}
+                {(() => {
+                  const total = run.total_skus ?? null;
+                  if (total == null || total === 0) {
+                    return <span className="text-slate">—</span>;
+                  }
+                  const domestic = auditorCountry
+                    ? run.fully_resolved_skus_by_country?.[auditorCountry] ?? 0
+                    : 0;
+                  return (
+                    <span
+                      className="inline-flex items-center gap-1.5 text-charcoal"
+                      title={
+                        auditorCountry
+                          ? `${domestic} of ${total} SKUs fully resolved as ${auditorCountry}-origin`
+                          : `${total} SKUs (auditor country unknown)`
+                      }
+                    >
+                      {FlagComponent && (
+                        <FlagComponent className="h-3 w-auto rounded-sm shadow-sm" />
+                      )}
+                      <span className="font-mono">
+                        {domestic}/{total}
+                      </span>
                     </span>
-                  </span>
-                ) : (
-                  <span className="text-slate">—</span>
-                )}
+                  );
+                })()}
               </td>
               <td className="py-2 pr-3">
                 <Pill

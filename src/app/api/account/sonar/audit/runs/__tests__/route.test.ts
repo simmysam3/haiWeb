@@ -21,7 +21,6 @@ describe('GET /api/account/sonar/audit/runs', () => {
       triggerAuditRun: vi.fn(),
       getCompanyProfile: vi.fn(),
       listRunTemplates: vi.fn(),
-      getAuditRunResults: vi.fn(),
     };
   });
 
@@ -54,37 +53,28 @@ describe('GET /api/account/sonar/audit/runs', () => {
     expect(callArg.limit).toBeUndefined();
   });
 
-  it('enriches complete runs with template_name + domestic/total counts', async () => {
+  it('enriches runs with template_name and surfaces auditor_country', async () => {
     (globalThis as any).__mockClient.listAuditRuns.mockResolvedValue({
       runs: [
+        // haiCore now attaches the SKU aggregates directly to each run;
+        // the BFF just passes them through.
         {
           run_id: 'r1',
           status: 'complete',
           triggered_at: '2026-05-21T10:00:00Z',
           template_id: 't1',
+          total_skus: 78,
+          fully_resolved_skus_by_country: { US: 42, CA: 3 },
         },
       ],
     });
     (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
       id: MOCK_PARTICIPANT_ID,
       company_name: 'Apex',
-      locality: { city: 'Austin', state: 'TX', country: 'us' },
+      locality: { country: 'us' },
     });
     (globalThis as any).__mockClient.listRunTemplates.mockResolvedValue({
       templates: [{ template_id: 't1', template_name: 'Q1 Coffee Sweep' }],
-    });
-    // 3 SKUs total: 2 fully US-domestic, 1 with a foreign component.
-    (globalThis as any).__mockClient.getAuditRunResults.mockResolvedValue({
-      results: [
-        { geo_rollup: [{ country_of_origin: 'US', component_count: 5, depth_distribution: {} }] },
-        { geo_rollup: [{ country_of_origin: 'US', component_count: 2, depth_distribution: {} }] },
-        {
-          geo_rollup: [
-            { country_of_origin: 'US', component_count: 1, depth_distribution: {} },
-            { country_of_origin: 'CN', component_count: 1, depth_distribution: {} },
-          ],
-        },
-      ],
     });
 
     const { GET } = await import('../route');
@@ -96,13 +86,14 @@ describe('GET /api/account/sonar/audit/runs', () => {
     expect(body.runs[0]).toMatchObject({
       run_id: 'r1',
       template_name: 'Q1 Coffee Sweep',
-      domestic_count: 2,
-      total_count: 3,
+      total_skus: 78,
+      fully_resolved_skus_by_country: { US: 42, CA: 3 },
     });
     expect(body.auditor_country).toBe('US');
   });
 
-  it('disqualifies SKUs with any <unknown> origin entry from the domestic count', async () => {
+  it('does not call getAuditRunResults (haiCore aggregates server-side)', async () => {
+    (globalThis as any).__mockClient.getAuditRunResults = vi.fn();
     (globalThis as any).__mockClient.listAuditRuns.mockResolvedValue({
       runs: [{ run_id: 'r1', status: 'complete', triggered_at: '2026-05-21T10:00:00Z' }],
     });
@@ -110,57 +101,18 @@ describe('GET /api/account/sonar/audit/runs', () => {
       locality: { country: 'US' },
     });
     (globalThis as any).__mockClient.listRunTemplates.mockResolvedValue({ templates: [] });
-    (globalThis as any).__mockClient.getAuditRunResults.mockResolvedValue({
-      results: [
-        // Fully resolved + domestic — counts.
-        { geo_rollup: [{ country_of_origin: 'US', component_count: 1, depth_distribution: {} }] },
-        // Has '<unknown>' alongside US — should NOT count as domestic.
-        {
-          geo_rollup: [
-            { country_of_origin: 'US', component_count: 1, depth_distribution: {} },
-            { country_of_origin: '<unknown>', component_count: 1, depth_distribution: {} },
-          ],
-        },
-        // Empty rollup — should NOT count.
-        { geo_rollup: [] },
-      ],
-    });
 
     const { GET } = await import('../route');
     const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
-    const res = await GET(req, { params: Promise.resolve({}) });
-    const body = await res.json();
+    await GET(req, { params: Promise.resolve({}) });
 
-    expect(body.runs[0]).toMatchObject({ domestic_count: 1, total_count: 3 });
-  });
-
-  it('does not fetch results for non-terminal runs (running)', async () => {
-    (globalThis as any).__mockClient.listAuditRuns.mockResolvedValue({
-      runs: [{ run_id: 'r1', status: 'running', triggered_at: '2026-05-21T10:00:00Z' }],
-    });
-    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
-      locality: { country: 'US' },
-    });
-    (globalThis as any).__mockClient.listRunTemplates.mockResolvedValue({ templates: [] });
-
-    const { GET } = await import('../route');
-    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
-    const res = await GET(req, { params: Promise.resolve({}) });
-    const body = await res.json();
-
-    expect(body.runs[0]).toMatchObject({ domestic_count: null, total_count: null });
     expect((globalThis as any).__mockClient.getAuditRunResults).not.toHaveBeenCalled();
   });
 
-  it('leaves counts null when results fetch fails for a run (best-effort)', async () => {
-    (globalThis as any).__mockClient.listAuditRuns.mockResolvedValue({
-      runs: [{ run_id: 'r1', status: 'complete', triggered_at: '2026-05-21T10:00:00Z' }],
-    });
-    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
-      locality: { country: 'US' },
-    });
+  it('returns auditor_country undefined when profile fetch rejects (best-effort)', async () => {
+    (globalThis as any).__mockClient.listAuditRuns.mockResolvedValue({ runs: [] });
+    (globalThis as any).__mockClient.getCompanyProfile.mockRejectedValue(new Error('boom'));
     (globalThis as any).__mockClient.listRunTemplates.mockResolvedValue({ templates: [] });
-    (globalThis as any).__mockClient.getAuditRunResults.mockRejectedValue(new Error('boom'));
 
     const { GET } = await import('../route');
     const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
@@ -168,7 +120,7 @@ describe('GET /api/account/sonar/audit/runs', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.runs[0]).toMatchObject({ domestic_count: null, total_count: null });
+    expect(body.auditor_country).toBeUndefined();
   });
 });
 
@@ -199,9 +151,7 @@ describe('POST /api/account/sonar/audit/runs', () => {
 
     expect(body).toEqual(mockResult);
     const callArg = (globalThis as any).__mockClient.triggerAuditRun.mock.calls[0][0];
-    // body forwarded as-is
     expect(callArg).toEqual(reqBody);
-    // run_origin must NOT be injected by the BFF
     expect(callArg).not.toHaveProperty('run_origin');
   });
 });
