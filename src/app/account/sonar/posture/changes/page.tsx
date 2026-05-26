@@ -25,6 +25,7 @@ interface SearchParams {
   to?: string;
   page?: string;
   severity?: string;
+  processed?: string;
 }
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
@@ -41,13 +42,26 @@ async function fetchChanges(searchParams: SearchParams, offset: number) {
   sp.set('limit', String(PAGE_SIZE));
   sp.set('offset', String(offset));
 
-  // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
-  // `all` collapses to no filter on the wire — haiCore returns every severity
-  // when severity is omitted. An unknown value falls back to the default so a
-  // stale URL never bypasses the filter silently.
-  const rawSeverity = searchParams.severity;
-  const severity = rawSeverity && SEVERITY_VALUES.has(rawSeverity) ? rawSeverity : DEFAULT_SEVERITY;
-  if (severity !== 'all') sp.set('severity', severity);
+  // `processed=true` is the v.1.42 "Showing: Processed" view-mode — it short-
+  // circuits the severity filter (the dropdown selection is mutually
+  // exclusive at the UI). Anything else falls through to the severity flow.
+  const isProcessedView = searchParams.processed === 'true';
+  if (isProcessedView) {
+    sp.set('processed', 'true');
+  } else {
+    // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
+    // `all` collapses to no filter on the wire — haiCore returns every
+    // severity when severity is omitted. An unknown value falls back to the
+    // default so a stale URL never bypasses the filter silently.
+    const rawSeverity = searchParams.severity;
+    const severity =
+      rawSeverity && SEVERITY_VALUES.has(rawSeverity)
+        ? rawSeverity
+        : DEFAULT_SEVERITY;
+    if (severity !== 'all' && severity !== 'processed') {
+      sp.set('severity', severity);
+    }
+  }
 
   return fetchBffJson<ComplianceChangeFeedResponse>(
     `/api/account/sonar/compliance/changes?${sp}`,
