@@ -49,6 +49,21 @@ function isNew(firstSeenAt: string | null | undefined): boolean {
   return t >= Date.now() - NEW_BADGE_WINDOW_DAYS * 86_400_000;
 }
 
+// v.1.42 composite rollup — formats `last_observed_at` as a "Nd ago" string
+// for the per-row chip. Null/missing/invalid → null (chip hidden).
+function formatLastObserved(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  const deltaMs = Date.now() - t;
+  if (deltaMs < 0) return new Date(t).toLocaleDateString();
+  const days = Math.floor(deltaMs / 86_400_000);
+  if (days < 1) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days}d ago`;
+  return new Date(t).toLocaleDateString();
+}
+
 interface Props { items: WorkingListItem[]; total?: number; }
 
 export function WorkingListTable({ items, total }: Props) {
@@ -96,6 +111,18 @@ export function WorkingListTable({ items, total }: Props) {
               </span>
             )}
             {it.state !== 'open' && <span className="text-xs uppercase tracking-wider text-slate">{stateLabel(it.state)}</span>}
+            {(() => {
+              const obs = formatLastObserved(it.last_observed_at);
+              if (!obs) return null;
+              return (
+                <span
+                  className="rounded-full bg-slate/10 px-2 py-0.5 text-[10px] text-slate"
+                  title={`Last observed ${new Date(it.last_observed_at!).toLocaleString()} — most recent active-template audit that surfaced this gap.`}
+                >
+                  Last observed {obs}
+                </span>
+              );
+            })()}
           </div>
           <p className="text-sm font-medium text-navy">{it.subject}</p>
           <p className="text-xs text-slate/80">{it.reason}</p>
