@@ -6,6 +6,9 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
+import { CoverageHeaderStrip } from '../_components/coverage-header-strip';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { getActiveScopes } from '../../_lib/scopes';
 
 interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
@@ -67,22 +70,31 @@ interface PageProps { searchParams: Promise<SearchParams>; }
 export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
-  const raw = await fetchList(params);
+  const [raw, scopesResult] = await Promise.all([
+    fetchList(params),
+    getActiveScopes(),
+  ]);
   const result = sku ? filterBySku(raw, sku) : raw;
+  const hasScopes =
+    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
     <div className="px-8 py-10">
       <PageHeader
         title="Gaps"
         description={
           <>
-            Open compliance gaps from your latest snapshot — sub-tier blanks,
-            missing evidence, observability holes. Resolve by running a fresh
-            check once upstream evidence lands, or acknowledge if it&apos;s a known
-            structural gap.
+            Open compliance gaps across your active recurring audits — each
+            scheduled template contributes its most-recent run. Resolve by
+            running a fresh check once upstream evidence lands, or acknowledge
+            if it&apos;s a known structural gap.
           </>
         }
         actions={<RefreshButton />}
       />
+      <div className="-mx-8 mt-2">
+        <CoverageHeaderStrip />
+      </div>
+      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro
         more={
           <>

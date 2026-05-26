@@ -6,6 +6,9 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
+import { CoverageHeaderStrip } from '../_components/coverage-header-strip';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { getActiveScopes } from '../../_lib/scopes';
 
 /**
  * Events feed page size. 25 rows fits in one viewport without overwhelming the
@@ -59,7 +62,12 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const pageParam = Math.max(parseInt(params.page ?? '1', 10) || 1, 1);
   const offset = (pageParam - 1) * PAGE_SIZE;
-  const result = await fetchChanges(params, offset);
+  const [result, scopesResult] = await Promise.all([
+    fetchChanges(params, offset),
+    getActiveScopes(),
+  ]);
+  const hasScopes =
+    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
 
   return (
     <div className="px-8 py-10">
@@ -68,6 +76,10 @@ export default async function ChangesPage({ searchParams }: PageProps) {
         description="Consequential supply-chain changes detected between snapshots — default window is 14 days."
         actions={<RefreshButton />}
       />
+      <div className="-mx-8 mt-2">
+        <CoverageHeaderStrip />
+      </div>
+      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
         A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Review on any row to view the before-and-after cell detail.
       </PageIntro>
