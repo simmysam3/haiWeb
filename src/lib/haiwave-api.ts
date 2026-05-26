@@ -404,10 +404,6 @@ export interface HaiwaveClient {
     opts?: { page?: number; pageSize?: number },
   ): Promise<ManifestsByClassResponse>;
   searchManifests(q: string, limit?: number): Promise<ManifestSearchResponse>;
-  // Compliance (v1.15)
-  getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
-  triggerSelfAudit(): Promise<Record<string, unknown>>;
-  resolveComplianceFlag(flagId: string, notes: string): Promise<Record<string, unknown>>;
   // Classification Review Queue (v1.20)
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
@@ -972,19 +968,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/provenance/manifest/search?${params.toString()}`,
       );
     },
-
-    // ─── Compliance (v1.15) ──────────────────────────────
-    getComplianceReport(filters?: Record<string, string>) {
-      const qs = filters ? `?${new URLSearchParams(filters)}` : "";
-      return request<Record<string, unknown>>("GET", `/noncompliance/report${qs}`);
-    },
-    triggerSelfAudit() {
-      return request<Record<string, unknown>>("POST", "/noncompliance/self-audit");
-    },
-    resolveComplianceFlag(flagId: string, notes: string) {
-      return request<Record<string, unknown>>("POST", `/noncompliance/flags/${flagId}/resolve`, { notes });
-    },
-
 
     // ─── Classification Review Queue (v1.20) ────────────────
     async listClassificationResults(participantId, options) {
