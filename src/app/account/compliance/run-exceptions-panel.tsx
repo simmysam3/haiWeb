@@ -172,7 +172,7 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                     return (
                       <tr
                         key={`${e.vendor_id}|${e.product_id}|${e.run_id}`}
-                        className="border-b border-slate/10 hover:bg-slate/5 cursor-pointer"
+                        className="group border-b border-slate/10 hover:bg-slate/5 cursor-pointer"
                         onClick={() => router.push(`/account/sonar/audit/${e.run_id}`)}
                       >
                         <td className="py-2 text-charcoal font-mono text-xs truncate max-w-[14ch]">
@@ -193,7 +193,14 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                               }`
                             : '—'}
                         </td>
-                        <td className="py-2 text-right text-teal text-lg font-bold">›</td>
+                        <td className="py-2 pl-4 pr-3 text-right">
+                          <span
+                            aria-hidden="true"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal/10 text-teal text-base font-bold leading-none transition-colors group-hover:bg-teal/20"
+                          >
+                            ›
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
