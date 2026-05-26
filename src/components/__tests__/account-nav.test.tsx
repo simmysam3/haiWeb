@@ -34,7 +34,7 @@ describe('AccountNav', () => {
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
   });
 
-  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Configurations, Watcher Management', () => {
+  it('Sonar Observe section contains Dashboard, Request Management, Backlog, Phantom Demand, Watcher Management', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
@@ -52,8 +52,9 @@ describe('AccountNav', () => {
     const phantomDemand = screen.getByRole('link', { name: 'Phantom Demand' });
     expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');
 
-    const configurations = screen.getByRole('link', { name: 'Configurations' });
-    expect(configurations.getAttribute('href')).toBe('/account/sonar/templates');
+    // v.1.42: Configurations suppressed from the menu — pending phantom-demand
+    // implementation, after which it may not be needed at all.
+    expect(screen.queryByRole('link', { name: 'Configurations' })).toBeNull();
 
     // v.1.41 Backlog IA PR-5: Watchers tab carved out of Backlog into
     // its own peer entry at /sonar/watchers.
