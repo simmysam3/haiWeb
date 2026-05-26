@@ -149,7 +149,9 @@ type SkuRow = {
 
 type CompanyGroup = {
   key: string;
-  participantId: string;
+  // null = sub-tier identity withheld by the disclosure boundary (protocol
+  // 3.26.0). Such rows still group together under `name:${vendorName}` keys.
+  participantId: string | null;
   vendorName: string;
   skus: SkuRow[];
   gapTiers: Map<number, number>;
@@ -187,7 +189,7 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
     if (!q) return rows;
     return rows.filter(
       (e) =>
-        e.result.product_id.toLowerCase().includes(q) ||
+        (e.result.product_id?.toLowerCase().includes(q) ?? false) ||
         e.vendorName.toLowerCase().includes(q),
     );
   }, [rows, query]);
@@ -218,7 +220,7 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
     }
     const list = Array.from(byCompany.values());
     for (const g of list) {
-      g.skus.sort((a, b) => b.score - a.score || a.result.product_id.localeCompare(b.result.product_id));
+      g.skus.sort((a, b) => b.score - a.score || (a.result.product_id ?? '').localeCompare(b.result.product_id ?? ''));
     }
     list.sort(
       (a, b) => b.score - a.score || a.vendorName.localeCompare(b.vendorName),
@@ -331,8 +333,15 @@ export function ProductsGrid({ results }: { results: AuditRunResult[] }) {
                     <span className="font-medium text-charcoal">
                       {g.vendorName}
                     </span>
-                  ) : (
+                  ) : g.participantId ? (
                     <IdChip id={g.participantId} />
+                  ) : (
+                    <span
+                      className="text-xs italic text-slate/70"
+                      title="Sub-tier vendor identity withheld by the disclosure boundary; only region-level provenance is visible for SKUs in this group."
+                    >
+                      Identity withheld
+                    </span>
                   )}
                   <span className="ml-2 text-xs text-slate">
                     {g.skus.length} {g.skus.length === 1 ? 'SKU' : 'SKUs'}
