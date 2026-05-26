@@ -223,7 +223,7 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
 
   return (
     <aside className="w-64 bg-navy text-white flex flex-col shrink-0">
-      <div className="bg-white px-6 py-5">
+      <div className="bg-white px-6 py-3">
         <Link href="/">
           <Image
             src="/img/haiwave-logo.png"
