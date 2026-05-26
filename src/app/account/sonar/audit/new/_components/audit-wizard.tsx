@@ -11,7 +11,7 @@ import { AuditScopePicker } from '../../../_components/audit-scope-picker';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
-import { LifecycleFields } from '../../../_components/lifecycle-fields';
+import { AuditLifecycleFields } from './audit-lifecycle-fields';
 import { ForkIndicator } from './fork-indicator';
 
 /**
@@ -43,6 +43,12 @@ export interface SourceRunSummary {
 }
 
 type AuditScope = Extract<RunTemplateScope, { kind: 'audit' }>;
+
+// Fresh-audit defaults: cadence over manual (matches the new-audit UX bias
+// toward standing observations) and 12 months of retention (= 360 days). The
+// cadence default time-of-day is randomized per wizard mount — see
+// randomOvernightDefault above.
+const DEFAULT_RETENTION_DAYS = 360;
 
 function emptyAuditScope(): AuditScope {
   return {
@@ -76,20 +82,23 @@ function resolveSourceScope(source: SourceRunSummary): AuditScope {
  *  1. Fork mode (name changed from source) → 'Create new audit'
  *  2. Manual-only cadence + has source (run-again) → 'Run again'
  *  3. Manual-only cadence (fresh) → 'Run now'
- *  4. Recurring cadence → 'Schedule'
+ *  4. Recurring cadence + Run-now checked → 'Schedule & run now'
+ *  5. Recurring cadence → 'Schedule'
  */
 export function computeSubmitLabel({
   cadence,
   isForkMode,
   hasSource,
+  runNow,
 }: {
   cadence: Cadence;
   isForkMode: boolean;
   hasSource: boolean;
+  runNow: boolean;
 }): string {
   if (isForkMode) return 'Create new audit';
   if (cadence.kind === 'manual_only') return hasSource ? 'Run again' : 'Run now';
-  return 'Schedule';
+  return runNow ? 'Schedule & run now' : 'Schedule';
 }
 
 export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
@@ -104,10 +113,12 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [scope, setScope] = useState<AuditScope>(
     source ? resolveSourceScope(source) : emptyAuditScope(),
   );
-  const [enabled, setEnabled] = useState(source?.enabled ?? true);
   const [retentionDays, setRetentionDays] = useState(
-    source?.retention_days ?? 365,
+    source?.retention_days ?? DEFAULT_RETENTION_DAYS,
   );
+  // Default-on for fresh audits so users see results immediately after
+  // configuring; meaningless in manual mode (the picker hides the checkbox).
+  const [runNow, setRunNow] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -129,7 +140,10 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
     if (source) setName(source.template_name);
   }
 
-  const willFireImmediately = cadence.kind === 'manual_only';
+  // Triggers an immediate run if: manual cadence (no schedule, so a run is the
+  // whole point), or cadence + the Run-now checkbox.
+  const willFireImmediately =
+    cadence.kind === 'manual_only' || runNow;
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
@@ -183,12 +197,13 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
         // Reuse existing template — no creation needed.
         templateId = source.template_id;
       } else {
-        // Create a new definition (fresh or fork).
+        // Create a new definition (fresh or fork). enabled is always true for
+        // new audits — the surfaced lifecycle choice is retention, not on/off.
         const body: Record<string, unknown> = {
           template_name: name,
           observation_class: 'audit',
           cadence,
-          enabled,
+          enabled: true,
           retention_days: retentionDays,
           scope,
           ...(source ? { source_run_id: source.run_id } : {}),
@@ -254,6 +269,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
     cadence,
     isForkMode,
     hasSource: !!source,
+    runNow,
   });
 
   return (
@@ -282,6 +298,7 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
         </StepCard>
 
         <StepCard id="schedule" index={2} title="Schedule">
+<<<<<<< HEAD
           <AuditSchedulePicker value={cadence} onChange={setCadence} />
           {/* v.1.42 composite gap rollup — clarify what flows into the
               Backlog. Only Cadence (recurring: daily/weekly) audits
@@ -293,13 +310,19 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
             most-recent run. <strong>Manual</strong> audits run on demand and
             don&apos;t appear in the Backlog rollup.
           </p>
+=======
+          <AuditSchedulePicker
+            value={cadence}
+            onChange={setCadence}
+            runNow={runNow}
+            onRunNowChange={setRunNow}
+          />
+>>>>>>> 45b2258 (feat(audit-new): cadence-first schedule + Run-now checkbox + months retention)
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">
-          <LifecycleFields
-            enabled={enabled}
+          <AuditLifecycleFields
             retentionDays={retentionDays}
-            onEnabledChange={setEnabled}
             onRetentionChange={setRetentionDays}
           />
         </StepCard>

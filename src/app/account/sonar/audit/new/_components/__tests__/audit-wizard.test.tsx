@@ -11,31 +11,67 @@ describe('computeSubmitLabel', () => {
 
   it('returns "Run now" for manual_only cadence with no source', () => {
     expect(
-      computeSubmitLabel({ cadence: manual, isForkMode: false, hasSource: false }),
+      computeSubmitLabel({
+        cadence: manual,
+        isForkMode: false,
+        hasSource: false,
+        runNow: false,
+      }),
     ).toBe('Run now');
   });
 
   it('returns "Run again" for manual_only cadence when source exists', () => {
     expect(
-      computeSubmitLabel({ cadence: manual, isForkMode: false, hasSource: true }),
+      computeSubmitLabel({
+        cadence: manual,
+        isForkMode: false,
+        hasSource: true,
+        runNow: false,
+      }),
     ).toBe('Run again');
   });
 
-  it('returns "Schedule" for a recurring cadence', () => {
+  it('returns "Schedule" for a recurring cadence with Run-now off', () => {
     expect(
-      computeSubmitLabel({ cadence: recurring, isForkMode: false, hasSource: false }),
+      computeSubmitLabel({
+        cadence: recurring,
+        isForkMode: false,
+        hasSource: false,
+        runNow: false,
+      }),
     ).toBe('Schedule');
+  });
+
+  it('returns "Schedule & run now" for a recurring cadence with Run-now on', () => {
+    expect(
+      computeSubmitLabel({
+        cadence: recurring,
+        isForkMode: false,
+        hasSource: false,
+        runNow: true,
+      }),
+    ).toBe('Schedule & run now');
   });
 
   it('returns "Create new audit" in fork mode regardless of cadence', () => {
     expect(
-      computeSubmitLabel({ cadence: manual, isForkMode: true, hasSource: true }),
+      computeSubmitLabel({
+        cadence: manual,
+        isForkMode: true,
+        hasSource: true,
+        runNow: false,
+      }),
     ).toBe('Create new audit');
   });
 
-  it('returns "Create new audit" in fork mode even with recurring cadence', () => {
+  it('returns "Create new audit" in fork mode even with recurring cadence + Run-now', () => {
     expect(
-      computeSubmitLabel({ cadence: recurring, isForkMode: true, hasSource: true }),
+      computeSubmitLabel({
+        cadence: recurring,
+        isForkMode: true,
+        hasSource: true,
+        runNow: true,
+      }),
     ).toBe('Create new audit');
   });
 });
