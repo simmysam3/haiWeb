@@ -6,7 +6,7 @@ export default function AuditExceptionsPage() {
   return (
     <div>
       <PageHeader
-        title="Audit Exceptions"
+        title="Audit Backlog"
         description="The latest non-compliant result per (vendor, product) from your audit runs over the last 7 days."
       />
       <PageIntro>
