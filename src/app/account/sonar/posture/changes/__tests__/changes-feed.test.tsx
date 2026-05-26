@@ -252,11 +252,11 @@ describe('ChangesFeed', () => {
     expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
   });
 
-  it('renders a teal Process button when processed_at is null', () => {
+  it('renders a teal Process link to the detail page when processed_at is null', () => {
     render(<ChangesFeed changes={[change({ processed_at: null, processed_by: null })]} />);
-    const btn = screen.getByRole('button', { name: /^process$/i });
-    expect(btn).toBeInTheDocument();
-    expect(btn.className).toMatch(/bg-teal/);
+    const link = screen.getByRole('link', { name: /^process$/i });
+    expect(link).toHaveAttribute('href', '/account/sonar/posture/changes/c1');
+    expect(link.className).toMatch(/bg-teal/);
   });
 
   it('renders an outlined Processed link when processed_at is set', () => {
