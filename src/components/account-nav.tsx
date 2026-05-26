@@ -116,10 +116,36 @@ function BacklogNavItem({ item, isActive }: { item: NavItem; isActive: boolean }
 
 interface NavSection {
   label: string;
+  /** Optional secondary line shown beneath the section title in the
+   *  gradient header — friendlier framing under the all-caps label. */
+  subhead?: string;
   items: NavItem[];
 }
 
 const navSections: NavSection[] = [
+  {
+    // v1.39: Observe surface: Dashboard, Request Management, Posture,
+    // Observations, Configurations (templates). Reports dropped — the
+    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
+    // 301-redirects to /account/sonar/audit.
+    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
+    // Posture → Backlog (label-only; URL stays /sonar/posture per the
+    // label-only test phase). Watcher Management is a peer entry now that
+    // its destination page exists at /sonar/watchers (PR-5).
+    // v.1.42: promoted to first section — Sonar Observe leads the nav.
+    label: "Sonar Observe",
+    subhead: "Supply Chain Monitoring",
+    items: [
+      { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
+      { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
+      // Configurations suppressed from the menu — pending the phantom-demand
+      // implementation, after which this surface may not be needed at all.
+      // The page itself still exists at /account/sonar/templates.
+      // { href: "/account/sonar/templates", label: "Configurations", tooltip: "..." },
+      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
+      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
+    ],
+  },
   {
     // v1.39: Sonar IA split — audit surface separated from observe surface.
     // v.1.41: Product Provenance moved under Sonar Audit — it's a
@@ -135,32 +161,12 @@ const navSections: NavSection[] = [
     // belongs with the audit facilities. URL kept at
     // /account/provenance-keys (only the nav placement + label changed).
     label: "Sonar Audit",
+    subhead: "Compliance Auditing",
     items: [
       { href: "/account/sonar/audit", label: "Audits", tooltip: "Trigger and review supply-chain audit runs across your counterparties and SKUs." },
       { href: "/account/compliance", label: "Audit Exceptions", tooltip: "Explore compliance exceptions by primary supplier and their associated tree." },
       { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-focused analysis that starts at product classes and resolves down to the component vendors behind each SKU." },
       { href: "/account/provenance-keys", label: "Key Management", tooltip: "Issue your own provenance keys and accept ones offered by counterparties — both directions gate audit visibility." },
-    ],
-  },
-  {
-    // v1.39: Observe surface: Dashboard, Request Management, Posture,
-    // Observations, Configurations (templates). Reports dropped — the
-    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
-    // 301-redirects to /account/sonar/audit.
-    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
-    // Posture → Backlog (label-only; URL stays /sonar/posture per the
-    // label-only test phase). Watcher Management is a peer entry now that
-    // its destination page exists at /sonar/watchers (PR-5).
-    label: "Sonar Observe",
-    items: [
-      { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
-      { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
-      // Configurations suppressed from the menu — pending the phantom-demand
-      // implementation, after which this surface may not be needed at all.
-      // The page itself still exists at /account/sonar/templates.
-      // { href: "/account/sonar/templates", label: "Configurations", tooltip: "..." },
-      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
-      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
   },
   {
@@ -237,9 +243,14 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
         {navSections.map((section, idx) => (
           <div key={section.label} className={idx === 0 ? "pb-2" : "mt-6 pb-2"}>
             <div className="relative mb-2 py-2.5 px-6 bg-gradient-to-r from-teal/15 via-teal/[0.06] to-transparent border-l-[3px] border-teal">
-              <span className="font-[family-name:var(--font-display)] text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
+              <div className="font-[family-name:var(--font-display)] text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
                 {section.label}
-              </span>
+              </div>
+              {section.subhead && (
+                <div className="mt-0.5 text-[11px] text-light-slate">
+                  {section.subhead}
+                </div>
+              )}
             </div>
             {section.items.map((item) => {
               const isActive = isItemActive(item);
