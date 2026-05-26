@@ -77,6 +77,7 @@ import type {
   ComplianceChangeDetail,
   ComplianceChangeKind,
   ComplianceChangeSeverity,
+  ProcessComplianceChangeRequest,
   WorkingListResponse,
   WorkingListCategory,
   CoverageCurrentResponse,
@@ -580,7 +581,10 @@ export interface HaiwaveClient {
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
   // v.1.42 — mark a compliance change as handled. Idempotent.
-  processComplianceChange(changeId: string): Promise<ComplianceChange>;
+  processComplianceChange(
+    changeId: string,
+    body: ProcessComplianceChangeRequest,
+  ): Promise<ComplianceChange>;
   // ─── Compliance change count (v.1.41 Backlog IA PR-3) ────────────────
   getComplianceChangesCount(): Promise<{
     events_count: number;
@@ -1540,9 +1544,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         return d;
       });
     },
-    processComplianceChange(changeId: string) {
+    processComplianceChange(changeId: string, body: ProcessComplianceChangeRequest) {
       return request<ComplianceChange>(
         'POST', `/sonar/compliance/changes/${encodeURIComponent(changeId)}/process`,
+        body,
       ).then((d) => {
         if (d == null) throw new Error('processComplianceChange: haiCore returned no/non-JSON body');
         return d;
