@@ -6,8 +6,11 @@ import type { ComplianceChangeKind, ComplianceChangeSeverity } from '@haiwave/pr
  * GET /api/account/sonar/compliance/changes
  *
  * BFF passthrough to haiCore GET /sonar/compliance/changes.
- * Supports query params: kind (repeatable), partner, from, to, limit, offset, severity.
- * Spec v1.34 Phase 4; pagination added v.1.41 (PR-C); severity filter added v.1.41 ("Showing" dropdown).
+ * Supports query params: kind (repeatable), partner, from, to, limit, offset,
+ * severity, processed.
+ * Spec v1.34 Phase 4; pagination added v.1.41 (PR-C); severity filter added
+ * v.1.41 ("Showing" dropdown); processed filter added v.1.42 ("Processed"
+ * option in the Showing dropdown).
  */
 export const GET = withHaiCore(async ({ client, request }) => {
   const sp = new URL(request.url).searchParams;
@@ -17,6 +20,7 @@ export const GET = withHaiCore(async ({ client, request }) => {
   const limit = limitRaw !== null ? Number(limitRaw) : undefined;
   const offset = offsetRaw !== null ? Number(offsetRaw) : undefined;
   const severity = sp.get('severity');
+  const processed = sp.get('processed');
   return NextResponse.json(await client.listComplianceChanges({
     kind: kind.length ? kind : undefined,
     partner: sp.get('partner') ?? undefined,
@@ -25,5 +29,7 @@ export const GET = withHaiCore(async ({ client, request }) => {
     limit: limit !== undefined && Number.isFinite(limit) ? limit : undefined,
     offset: offset !== undefined && Number.isFinite(offset) ? offset : undefined,
     severity: severity ? (severity as ComplianceChangeSeverity) : undefined,
+    processed:
+      processed === 'true' ? true : processed === 'false' ? false : undefined,
   }));
 });

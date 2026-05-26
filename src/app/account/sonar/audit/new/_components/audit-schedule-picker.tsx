@@ -32,6 +32,11 @@ export function localToUtc(localHHMM: string): string {
 interface Props {
   value: Cadence;
   onChange: (next: Cadence) => void;
+  // Optional Run-now affordance — only the new-audit wizard wires this. The
+  // editor (definitions/[id]) reuses the picker without it, since "run now"
+  // already lives on the run-history step there.
+  runNow?: boolean;
+  onRunNowChange?: (next: boolean) => void;
 }
 
 const DAY_OPTIONS = [
@@ -45,25 +50,46 @@ const DAY_OPTIONS = [
 ] as const;
 
 type DayOfWeek = (typeof DAY_OPTIONS)[number]['value'];
-type Freq = 'daily' | 'weekly';
+type Freq = 'daily' | 'weekly' | 'monthly';
+
+// day_of_month is bounded at 1-28 to match the protocol (see
+// CadenceMonthlySchema): every calendar month gets exactly one fire, no
+// surprise-skipped months for users who picked 29-31.
+const MONTHLY_DAY_MIN = 1;
+const MONTHLY_DAY_MAX = 28;
+const DEFAULT_DAY_OF_MONTH = 1;
 
 /**
- * Audit-specific schedule picker. Top-level choice is Manual vs Cadence
- * (Manual is the default and is NOT a cadence). Selecting Cadence reveals the
- * recurring config: a frequency row (Daily / Weekly — the only backend-backed
- * recurring cadences today) and a parameter row (Time of day always; Day of
- * week only for Weekly). Event-triggered is intentionally not offered here.
+ * Audit-specific schedule picker. Top-level choice is Cadence (default) vs
+ * Manual. Selecting Cadence reveals the recurring config (frequency + time-of-
+ * day / day-of-week) plus a Run-now checkbox so the user can kick off an
+ * immediate first pass alongside the schedule. Event-triggered is intentionally
+ * not offered here.
  */
-export function AuditSchedulePicker({ value, onChange }: Props) {
+export function AuditSchedulePicker({
+  value,
+  onChange,
+  runNow,
+  onRunNowChange,
+}: Props) {
   const isManual = value.kind === 'manual_only';
-  const freq: Freq = value.kind === 'weekly' ? 'weekly' : 'daily';
+  const freq: Freq =
+    value.kind === 'weekly'
+      ? 'weekly'
+      : value.kind === 'monthly'
+        ? 'monthly'
+        : 'daily';
   const timeOfDay = 'time_of_day' in value ? value.time_of_day : '00:00';
   const dayOfWeek: DayOfWeek =
     value.kind === 'weekly' ? (value.day_of_week as DayOfWeek) : 'mon';
+  const dayOfMonth: number =
+    value.kind === 'monthly' ? value.day_of_month : DEFAULT_DAY_OF_MONTH;
 
   function selectFreq(next: Freq) {
     if (next === 'weekly') {
       onChange({ kind: 'weekly', day_of_week: dayOfWeek, time_of_day: timeOfDay });
+    } else if (next === 'monthly') {
+      onChange({ kind: 'monthly', day_of_month: dayOfMonth, time_of_day: timeOfDay });
     } else {
       onChange({ kind: 'daily', time_of_day: timeOfDay });
     }
@@ -71,17 +97,8 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Top-level run mode — Manual (default) vs Cadence, on one row. */}
+      {/* Top-level run mode — Cadence (default, first) vs Manual. */}
       <div className="flex items-center gap-6" role="radiogroup" aria-label="Run mode">
-        <label className="flex items-center gap-2 text-sm text-charcoal">
-          <input
-            type="radio"
-            name="audit-run-mode"
-            checked={isManual}
-            onChange={() => onChange({ kind: 'manual_only' })}
-          />
-          Manual
-        </label>
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
             type="radio"
@@ -91,9 +108,18 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
           />
           Cadence
         </label>
+        <label className="flex items-center gap-2 text-sm text-charcoal">
+          <input
+            type="radio"
+            name="audit-run-mode"
+            checked={isManual}
+            onChange={() => onChange({ kind: 'manual_only' })}
+          />
+          Manual
+        </label>
       </div>
 
-      {/* Recurring config — only shown when Cadence is selected. */}
+      {/* Recurring config + Run-now — only shown when Cadence is selected. */}
       {!isManual && (
         <div className="rounded-lg border border-slate/15 bg-slate/5 p-4 space-y-4">
           <div
@@ -101,7 +127,7 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
             role="radiogroup"
             aria-label="Frequency"
           >
-            {(['daily', 'weekly'] as Freq[]).map((f) => (
+            {(['daily', 'weekly', 'monthly'] as Freq[]).map((f) => (
               <label key={f} className="flex items-center gap-2 text-sm text-charcoal">
                 <input
                   type="radio"
@@ -109,7 +135,7 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
                   checked={freq === f}
                   onChange={() => selectFreq(f)}
                 />
-                {f === 'daily' ? 'Daily' : 'Weekly'}
+                {f === 'daily' ? 'Daily' : f === 'weekly' ? 'Weekly' : 'Monthly'}
               </label>
             ))}
           </div>
@@ -122,12 +148,14 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
                 aria-label="Time of day (your local time)"
                 value={utcToLocal(timeOfDay)}
                 onChange={(e) => {
-                  const utc = localToUtc(e.target.value);
-                  onChange(
-                    freq === 'weekly'
-                      ? { kind: 'weekly', day_of_week: dayOfWeek, time_of_day: utc }
-                      : { kind: 'daily', time_of_day: utc },
-                  );
+                  const t = localToUtc(e.target.value);
+                  if (freq === 'weekly') {
+                    onChange({ kind: 'weekly', day_of_week: dayOfWeek, time_of_day: t });
+                  } else if (freq === 'monthly') {
+                    onChange({ kind: 'monthly', day_of_month: dayOfMonth, time_of_day: t });
+                  } else {
+                    onChange({ kind: 'daily', time_of_day: t });
+                  }
                 }}
                 className="rounded border border-slate-300 px-2 py-1 text-sm"
               />
@@ -157,7 +185,57 @@ export function AuditSchedulePicker({ value, onChange }: Props) {
                 </select>
               </label>
             )}
+
+            {freq === 'monthly' && (
+              <label className="block text-sm text-charcoal">
+                <span className="block mb-1 font-medium">Day of month</span>
+                <input
+                  type="number"
+                  aria-label="Day of month"
+                  min={MONTHLY_DAY_MIN}
+                  max={MONTHLY_DAY_MAX}
+                  value={dayOfMonth}
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    if (
+                      Number.isFinite(n) &&
+                      n >= MONTHLY_DAY_MIN &&
+                      n <= MONTHLY_DAY_MAX
+                    ) {
+                      onChange({
+                        kind: 'monthly',
+                        day_of_month: n,
+                        time_of_day: timeOfDay,
+                      });
+                    }
+                  }}
+                  className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
+                />
+                <span className="block text-xs text-slate mt-0.5">
+                  1–28; later days are excluded so every month fires.
+                </span>
+              </label>
+            )}
           </div>
+
+          {onRunNowChange && (
+            <div className="border-t border-slate/15 pt-3">
+              <label className="flex items-start gap-2 text-sm text-charcoal">
+                <input
+                  type="checkbox"
+                  checked={!!runNow}
+                  onChange={(e) => onRunNowChange(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">Run now</span>
+                  <span className="block text-xs text-slate mt-0.5">
+                    Kick off the first pass today. Subsequent updates will follow the cadence above.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       )}
     </div>

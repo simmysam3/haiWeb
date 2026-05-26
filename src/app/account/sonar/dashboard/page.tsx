@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import { PageIntro } from '@/components/page-intro';
-import { Panel } from '@/components';
+import { Panel, PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
@@ -180,10 +180,10 @@ export default async function UnifiedDashboardPage() {
 
   return (
     <div className="p-6 space-y-8">
-      <header>
-        <h1 className="text-xl font-semibold text-charcoal">Sonar Dashboard</h1>
-        <p className="text-sm text-slate">Cross-modality view across audit, phantom demand, and Watcher observations, plus your compliance coverage snapshot.</p>
-      </header>
+      <PageHeader
+        title="Sonar Dashboard"
+        description="Cross-modality view across audit, phantom demand, and Watcher observations, plus your compliance coverage snapshot."
+      />
       <PageIntro>
         Single landing for the state of your supply-chain visibility — coverage
         across your latest compliance snapshot, partners observed across all

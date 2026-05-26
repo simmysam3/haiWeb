@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { PhantomDemandAggregateReport } from '@haiwave/protocol';
 import { DownloadMenu } from './_components/download-menu';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 
 type LoadResult =
   | { kind: 'ok'; report: PhantomDemandAggregateReport }
@@ -58,19 +59,21 @@ export default async function PhantomDemandAggregateReportPage({
 
   return (
     <div className="px-8 py-10 space-y-8">
-      <div className="flex items-start justify-between gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-navy">Phantom demand — aggregate</h1>
-          <p className="mt-1 text-sm text-slate">
-            Window {report.header.window_id.slice(0, 8)} ({report.header.window_days} days).
-            Generated {new Date(report.header.generated_at).toLocaleString()}.
-          </p>
-          <p className="mt-1 text-sm text-slate">
+      <PageHeader
+        eyebrow="Phantom Demand"
+        title="Aggregate report"
+        description={
+          <>
+            Window {report.header.window_id.slice(0, 8)} (
+            {report.header.window_days} days). Generated{' '}
+            {new Date(report.header.generated_at).toLocaleString()}.{' '}
             {report.header.counterparty_count} counterparties probed.
-          </p>
-        </div>
-        <DownloadMenu windowId={report.header.window_id} reportType="aggregate" />
-      </div>
+          </>
+        }
+        actions={
+          <DownloadMenu windowId={report.header.window_id} reportType="aggregate" />
+        }
+      />
 
       <PageIntro>
         The persistent, exportable report for each phantom-demand window — aggregate availability, per-counterparty breakdown, and gap classification, available as HTML, JSON, CSV, or PDF. Use these reports for procurement reviews, stakeholder updates, and audit trails; the live signal lives in <em>Phantom Demand</em>.

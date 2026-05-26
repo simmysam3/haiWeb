@@ -4,7 +4,10 @@ import { FilterPills } from './filter-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { getActiveScopes } from '../../_lib/scopes';
 
 /**
  * Events feed page size. 25 rows fits in one viewport without overwhelming the
@@ -21,6 +24,7 @@ interface SearchParams {
   to?: string;
   page?: string;
   severity?: string;
+  processed?: string;
 }
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
@@ -37,13 +41,26 @@ async function fetchChanges(searchParams: SearchParams, offset: number) {
   sp.set('limit', String(PAGE_SIZE));
   sp.set('offset', String(offset));
 
-  // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
-  // `all` collapses to no filter on the wire — haiCore returns every severity
-  // when severity is omitted. An unknown value falls back to the default so a
-  // stale URL never bypasses the filter silently.
-  const rawSeverity = searchParams.severity;
-  const severity = rawSeverity && SEVERITY_VALUES.has(rawSeverity) ? rawSeverity : DEFAULT_SEVERITY;
-  if (severity !== 'all') sp.set('severity', severity);
+  // `processed=true` is the v.1.42 "Showing: Processed" view-mode — it short-
+  // circuits the severity filter (the dropdown selection is mutually
+  // exclusive at the UI). Anything else falls through to the severity flow.
+  const isProcessedView = searchParams.processed === 'true';
+  if (isProcessedView) {
+    sp.set('processed', 'true');
+  } else {
+    // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
+    // `all` collapses to no filter on the wire — haiCore returns every
+    // severity when severity is omitted. An unknown value falls back to the
+    // default so a stale URL never bypasses the filter silently.
+    const rawSeverity = searchParams.severity;
+    const severity =
+      rawSeverity && SEVERITY_VALUES.has(rawSeverity)
+        ? rawSeverity
+        : DEFAULT_SEVERITY;
+    if (severity !== 'all' && severity !== 'processed') {
+      sp.set('severity', severity);
+    }
+  }
 
   return fetchBffJson<ComplianceChangeFeedResponse>(
     `/api/account/sonar/compliance/changes?${sp}`,
@@ -58,19 +75,21 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const pageParam = Math.max(parseInt(params.page ?? '1', 10) || 1, 1);
   const offset = (pageParam - 1) * PAGE_SIZE;
-  const result = await fetchChanges(params, offset);
+  const [result, scopesResult] = await Promise.all([
+    fetchChanges(params, offset),
+    getActiveScopes(),
+  ]);
+  const hasScopes =
+    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
 
   return (
     <div className="px-8 py-10">
-      <header className="mb-4 flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-display text-navy">Events</h1>
-          <p className="mt-2 text-slate">
-            Consequential supply-chain changes detected between snapshots — default window is 14 days.
-          </p>
-        </div>
-        <RefreshButton />
-      </header>
+      <PageHeader
+        title="Events"
+        description="Consequential supply-chain changes detected between snapshots — default window is 14 days."
+        actions={<RefreshButton />}
+      />
+      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
         A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Review on any row to view the before-and-after cell detail.
       </PageIntro>

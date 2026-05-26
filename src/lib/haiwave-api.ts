@@ -577,6 +577,9 @@ export interface HaiwaveClient {
     limit?: number;
     offset?: number;
     severity?: ComplianceChangeSeverity;
+    /** v.1.42 — `true` returns only already-actioned rows; `false` returns
+     *  only the unhandled inbox. Omit for both. */
+    processed?: boolean;
   }): Promise<ComplianceChangeFeedResponse>;
   getComplianceChange(changeId: string): Promise<ComplianceChangeDetail>;
   // v.1.42 — mark a compliance change as handled. Idempotent.
@@ -1511,6 +1514,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       kind?: ComplianceChangeKind[]; partner?: string; from?: string; to?: string;
       limit?: number; offset?: number;
       severity?: ComplianceChangeSeverity;
+      processed?: boolean;
     } = {}) {
       const p = new URLSearchParams();
       (filters.kind ?? []).forEach((k) => p.append('kind', k));
@@ -1520,6 +1524,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       if (filters.limit !== undefined) p.set('limit', String(filters.limit));
       if (filters.offset !== undefined) p.set('offset', String(filters.offset));
       if (filters.severity) p.set('severity', filters.severity);
+      if (filters.processed !== undefined) p.set('processed', String(filters.processed));
       const qs = p.toString();
       return request<ComplianceChangeFeedResponse>(
         'GET', `/sonar/compliance/changes${qs ? `?${qs}` : ''}`,

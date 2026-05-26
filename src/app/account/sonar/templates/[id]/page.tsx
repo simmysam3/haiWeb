@@ -8,6 +8,7 @@ import { ManualTriggerButton } from './_components/manual-trigger-button';
 import { TemplateRunHistory } from './_components/template-run-history';
 import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
+import { PageHeader } from '@/components';
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
@@ -41,33 +42,35 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
   if (!template) notFound();
   return (
     <div className="p-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <Link
-            href="/account/sonar/templates"
-            className="text-sm text-teal hover:underline"
-          >
-            ← Configurations
-          </Link>
-          <h1 className="text-xl font-semibold text-charcoal mt-2">
-            {template.template_name}
-          </h1>
-          <p className="text-sm text-slate mt-1">
-            {configNoun(template.observation_class)} ·{' '}
+      <PageHeader
+        eyebrow={configNoun(template.observation_class)}
+        title={template.template_name}
+        description={
+          <>
             {formatCadence(template.cadence)} · Last run{' '}
             {template.last_run_at
               ? new Date(template.last_run_at).toLocaleString()
               : '—'}
-          </p>
-        </div>
-        <ManualTriggerButton
-          templateId={template.template_id}
-          enabled={template.enabled}
-          observationClass={template.observation_class}
-        />
-      </header>
+          </>
+        }
+        actions={
+          <ManualTriggerButton
+            templateId={template.template_id}
+            enabled={template.enabled}
+            observationClass={template.observation_class}
+          />
+        }
+      />
 
-      <TemplateEditor template={template} />
+      <div className="space-y-2">
+        <Link
+          href="/account/sonar/templates"
+          className="text-sm text-teal hover:underline"
+        >
+          ← Configurations
+        </Link>
+        <TemplateEditor template={template} />
+      </div>
 
       <section id="step-history" className="space-y-3 scroll-mt-6">
         <h2 className="text-sm font-semibold text-charcoal">Run history</h2>

@@ -23,6 +23,8 @@ export function formatCadence(cadence: Cadence): string {
       return `Daily at ${cadence.time_of_day} UTC`;
     case 'weekly':
       return `Weekly on ${DAY_FULL[cadence.day_of_week]} at ${cadence.time_of_day} UTC`;
+    case 'monthly':
+      return `Monthly on day ${cadence.day_of_month} at ${cadence.time_of_day} UTC`;
     case 'event_triggered':
       return `On event: ${EVENT_LABELS[cadence.event_type] ?? cadence.event_type}`;
   }

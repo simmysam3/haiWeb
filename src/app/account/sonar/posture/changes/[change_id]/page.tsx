@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { ChangeDetailCompare } from './change-detail-compare';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 
 async function fetchChangeDetail(changeId: string) {
@@ -57,15 +58,15 @@ export default async function ChangeDetailPage({ params }: PageProps) {
 
   return (
     <div className="px-8 py-10">
-      <header className="mb-4">
-        {backLink}
-        <h1 className="mt-4 text-3xl font-display text-navy">Event detail</h1>
-      </header>
+      <PageHeader eyebrow="Events" title="Event detail" />
       <PageIntro>
         Side-by-side view of the cell state before and after this event was detected. Samples are attribute observations captured at snapshot time; the subtree shows the raw supply-chain node data when available.
       </PageIntro>
 
-      <ChangeDetailCompare detail={result.data} />
+      <div className="space-y-2">
+        {backLink}
+        <ChangeDetailCompare detail={result.data} />
+      </div>
     </div>
   );
 }
