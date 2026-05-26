@@ -6,13 +6,28 @@ import type { Cadence, RunTemplateScope } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../../../templates/_lib/system-config';
-import { AuditSchedulePicker } from './audit-schedule-picker';
+import { AuditSchedulePicker, localToUtc } from './audit-schedule-picker';
 import { AuditScopePicker } from '../../../_components/audit-scope-picker';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
 import { LifecycleFields } from '../../../_components/lifecycle-fields';
 import { ForkIndicator } from './fork-indicator';
+
+/**
+ * Pick a random overnight time (local) and convert to UTC for storage.
+ * Hour ∈ {1..5} local, minute ∈ {0, 10, 20, 30, 40, 50} local. The cadence
+ * picker still shows the user-friendly local rendering; this default exists
+ * so a user who never edits the time still gets a per-template-creation
+ * spread instead of N templates all firing at the same moment. (Same-account
+ * templates created in one session also get spread, not just cross-user.)
+ */
+export function randomOvernightDefault(): Cadence {
+  const hour = 1 + Math.floor(Math.random() * 5); // 1..5
+  const minute = Math.floor(Math.random() * 6) * 10; // 0,10,20,30,40,50
+  const local = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return { kind: 'daily', time_of_day: localToUtc(local) };
+}
 
 export interface SourceRunSummary {
   run_id: string;
@@ -79,8 +94,12 @@ export function computeSubmitLabel({
 
 export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [name, setName] = useState(source?.template_name ?? '');
+  // Lazy initializer: the random default is computed once per wizard mount
+  // (and only when there's no source to inherit from). Without lazy init the
+  // random would be re-evaluated on every render and React would see "same
+  // initial value, no-op" anyway — but lazy makes the intent explicit.
   const [cadence, setCadence] = useState<Cadence>(
-    source?.cadence ?? { kind: 'manual_only' },
+    () => source?.cadence ?? randomOvernightDefault(),
   );
   const [scope, setScope] = useState<AuditScope>(
     source ? resolveSourceScope(source) : emptyAuditScope(),
