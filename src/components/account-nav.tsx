@@ -148,7 +148,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/audit", label: "Audits", tooltip: "Trigger and review supply-chain audit runs across your counterparties and SKUs." },
       { href: "/account/compliance", label: "Audit Exceptions", tooltip: "Explore compliance exceptions by primary supplier and their associated tree." },
       { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-focused analysis that starts at product classes and resolves down to the component vendors behind each SKU." },
-      { href: "/account/provenance-keys", label: "Key Management", tooltip: "Provenance keys that gate which counterparties may audit which of your products." },
+      { href: "/account/provenance-keys", label: "Key Management", tooltip: "Issue your own provenance keys and accept ones offered by counterparties — both directions gate audit visibility." },
     ],
   },
   {
