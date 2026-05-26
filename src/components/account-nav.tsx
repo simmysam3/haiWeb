@@ -163,7 +163,7 @@ const navSections: NavSection[] = [
     label: "Sonar Observe",
     items: [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
-      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Inbound nominations and obligations awaiting your decision." },
+      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
       { href: BACKLOG_HREF, label: "Backlog", tooltip: "Open change events and gaps across your network that haven't been worked through yet." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Demand-simulation probes that map your supply chain and surface unknown sub-tiers." },
       { href: "/account/sonar/templates", label: "Configurations", tooltip: "Saved audit, watcher, and phantom-demand templates you can run on a cadence or on-demand." },
