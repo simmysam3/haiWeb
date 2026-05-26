@@ -32,8 +32,11 @@ export function localToUtc(localHHMM: string): string {
 interface Props {
   value: Cadence;
   onChange: (next: Cadence) => void;
-  runNow: boolean;
-  onRunNowChange: (next: boolean) => void;
+  // Optional Run-now affordance — only the new-audit wizard wires this. The
+  // editor (definitions/[id]) reuses the picker without it, since "run now"
+  // already lives on the run-history step there.
+  runNow?: boolean;
+  onRunNowChange?: (next: boolean) => void;
 }
 
 const DAY_OPTIONS = [
@@ -166,22 +169,24 @@ export function AuditSchedulePicker({
             )}
           </div>
 
-          <div className="border-t border-slate/15 pt-3">
-            <label className="flex items-start gap-2 text-sm text-charcoal">
-              <input
-                type="checkbox"
-                checked={runNow}
-                onChange={(e) => onRunNowChange(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium">Run now</span>
-                <span className="block text-xs text-slate mt-0.5">
-                  Kick off the first pass today. Subsequent updates will follow the cadence above.
+          {onRunNowChange && (
+            <div className="border-t border-slate/15 pt-3">
+              <label className="flex items-start gap-2 text-sm text-charcoal">
+                <input
+                  type="checkbox"
+                  checked={!!runNow}
+                  onChange={(e) => onRunNowChange(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">Run now</span>
+                  <span className="block text-xs text-slate mt-0.5">
+                    Kick off the first pass today. Subsequent updates will follow the cadence above.
+                  </span>
                 </span>
-              </span>
-            </label>
-          </div>
+              </label>
+            </div>
+          )}
         </div>
       )}
     </div>
