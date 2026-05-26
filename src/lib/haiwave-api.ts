@@ -62,7 +62,9 @@ import type {
   VendorRiskDimension,
   VendorRiskResponse,
   RunResumptionState,
+
   RunTemplate,
+  RunTemplateEvent,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
   PhantomDemandAggregate,
@@ -404,10 +406,6 @@ export interface HaiwaveClient {
     opts?: { page?: number; pageSize?: number },
   ): Promise<ManifestsByClassResponse>;
   searchManifests(q: string, limit?: number): Promise<ManifestSearchResponse>;
-  // Compliance (v1.15)
-  getComplianceReport(filters?: Record<string, string>): Promise<Record<string, unknown>>;
-  triggerSelfAudit(): Promise<Record<string, unknown>>;
-  resolveComplianceFlag(flagId: string, notes: string): Promise<Record<string, unknown>>;
   // Classification Review Queue (v1.20)
   listClassificationResults(participantId: string, options?: { status?: string; limit?: number; offset?: number }): Promise<{ results: ClassificationResult[]; total: number }>;
   submitClassificationOverride(input: ClassificationOverrideInput): Promise<{ success: boolean }>;
@@ -515,6 +513,7 @@ export interface HaiwaveClient {
   ): Promise<{ template: RunTemplate }>;
   deleteRunTemplate(templateId: string): Promise<{ deleted: boolean }>;
   triggerRunTemplate(templateId: string): Promise<{ run_id: string }>;
+  listRunTemplateEvents(templateId: string): Promise<{ events: RunTemplateEvent[] }>;
   // ─── v1.30 PR-4: Unified observations list ───────────────────────────
   listObservations(query: {
     tab: ObservationClass;
@@ -977,19 +976,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
     },
 
-    // ─── Compliance (v1.15) ──────────────────────────────
-    getComplianceReport(filters?: Record<string, string>) {
-      const qs = filters ? `?${new URLSearchParams(filters)}` : "";
-      return request<Record<string, unknown>>("GET", `/noncompliance/report${qs}`);
-    },
-    triggerSelfAudit() {
-      return request<Record<string, unknown>>("POST", "/noncompliance/self-audit");
-    },
-    resolveComplianceFlag(flagId: string, notes: string) {
-      return request<Record<string, unknown>>("POST", `/noncompliance/flags/${flagId}/resolve`, { notes });
-    },
-
-
     // ─── Classification Review Queue (v1.20) ────────────────
     async listClassificationResults(participantId, options) {
       const params = new URLSearchParams();
@@ -1411,6 +1397,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ run_id: string }>(
         'POST',
         `/sonar/templates/${templateId}/trigger`,
+      );
+    },
+    listRunTemplateEvents(templateId) {
+      return request<{ events: RunTemplateEvent[] }>(
+        'GET',
+        `/sonar/templates/${templateId}/events`,
       );
     },
 

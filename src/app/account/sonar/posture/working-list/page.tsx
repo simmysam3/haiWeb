@@ -74,9 +74,10 @@ export default async function GapsPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-3xl font-display text-navy">Gaps</h1>
           <p className="mt-2 text-slate">
-            Open compliance gaps from your latest snapshot — sub-tier blanks, missing
-            evidence, observability holes. Resolve by running a fresh check once
-            upstream evidence lands, or acknowledge if it&apos;s a known structural gap.
+            Open compliance gaps across your active recurring audits — each
+            scheduled template contributes its most-recent run. Resolve by
+            running a fresh check once upstream evidence lands, or acknowledge
+            if it&apos;s a known structural gap.
           </p>
         </div>
         <RefreshButton />
@@ -91,7 +92,8 @@ export default async function GapsPage({ searchParams }: PageProps) {
               underlying audit run; <strong>Snooze</strong> to push an item out of the way
               for a week when you can&apos;t act now; <strong>Acknowledge &amp; suppress</strong>
               {' '}to remove a gap permanently with a recorded reason. Resolved gaps drop
-              off automatically at the next snapshot — you don&apos;t need to mark them.
+              off automatically when the next scheduled run no longer surfaces them —
+              you don&apos;t need to mark them.
             </p>
             <p>
               <strong className="font-semibold text-navy">Why this list is long.</strong>{' '}
@@ -113,7 +115,7 @@ export default async function GapsPage({ searchParams }: PageProps) {
         }
       >
         Snooze or dismiss items that aren&apos;t actionable right now; resolved items
-        drop off automatically at the next snapshot.
+        drop off automatically once the next scheduled run no longer surfaces them.
       </PageIntro>
       <GapsTrendStrip />
       <FilterPills />

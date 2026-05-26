@@ -264,6 +264,16 @@ export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
 
         <StepCard id="schedule" index={2} title="Schedule">
           <AuditSchedulePicker value={cadence} onChange={setCadence} />
+          {/* v.1.42 composite gap rollup — clarify what flows into the
+              Backlog. Only Cadence (recurring: daily/weekly) audits
+              contribute their most-recent run to the composite Gaps view;
+              Manual audits run on demand and stay out of the rollup. */}
+          <p className="mt-3 text-xs text-slate">
+            Only <strong>Cadence</strong> audits feed the{' '}
+            <strong>Backlog</strong> — each scheduled template contributes its
+            most-recent run. <strong>Manual</strong> audits run on demand and
+            don&apos;t appear in the Backlog rollup.
+          </p>
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">

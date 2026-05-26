@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { RunTemplate } from '@haiwave/protocol';
+import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { AuditDefinitionEditor } from '../audit-definition-editor';
 
 vi.mock('next/navigation', () => ({
@@ -98,5 +98,105 @@ describe('AuditDefinitionEditor', () => {
       await screen.findByRole('button', { name: /save changes/i }),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // v.1.42 — Suspend/Reactivate header control. Status pill + button at the
+  // top of the editor flip the template's `enabled` flag without going through
+  // the dirty-form save bar.
+  it('renders an Active status pill + Suspend button for an enabled template', () => {
+    render(<AuditDefinitionEditor template={template} />);
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^suspend$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^reactivate$/i })).toBeNull();
+  });
+
+  it('renders a Suspended status pill + Reactivate button + paused banner for a disabled template', () => {
+    const disabled = { ...template, enabled: false } as RunTemplate;
+    render(<AuditDefinitionEditor template={disabled} />);
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^reactivate$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^suspend$/i })).toBeNull();
+    // Banner explains the state.
+    expect(
+      screen.getByText(/scheduled runs (are )?suspended/i),
+    ).toBeInTheDocument();
+  });
+
+  it('Suspend button PATCHes enabled=false (independent of form dirty state)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    render(<AuditDefinitionEditor template={template} />);
+    await userEvent.click(screen.getByRole('button', { name: /^suspend$/i }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
+    expect((init as RequestInit).method).toBe('PATCH');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({ enabled: false });
+  });
+
+  it('Reactivate button PATCHes enabled=true', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    const disabled = { ...template, enabled: false } as RunTemplate;
+    render(<AuditDefinitionEditor template={disabled} />);
+    await userEvent.click(screen.getByRole('button', { name: /^reactivate$/i }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).toEqual({ enabled: true });
+  });
+
+  // v.1.42 — History step renders the lifecycle event log.
+  it('renders the History step with an empty-state message when no events exist', () => {
+    render(<AuditDefinitionEditor template={template} events={[]} />);
+    // 'History' appears twice — once in the StepRail label, once as the
+    // StepCard heading. Scope to the heading.
+    expect(
+      screen.getByRole('heading', { name: 'History' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/No lifecycle events recorded yet/i)).toBeInTheDocument();
+  });
+
+  it('renders History rows newest-first with actor + timestamp and "Authorized by" on suspended events', () => {
+    const events: RunTemplateEvent[] = [
+      {
+        event_id: '11111111-1111-1111-1111-111111111111',
+        template_id: template.template_id,
+        event_kind: 'suspended',
+        actor_user_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        at: '2026-05-26T15:30:00.000Z',
+        notes: null,
+      },
+      {
+        event_id: '22222222-2222-2222-2222-222222222222',
+        template_id: template.template_id,
+        event_kind: 'created',
+        actor_user_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        at: '2026-05-20T09:00:00.000Z',
+        notes: null,
+      },
+    ];
+    render(<AuditDefinitionEditor template={template} events={events} />);
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    // Suspended events carry the "Authorized by" framing per spec.
+    expect(screen.getByText(/Authorized by/)).toBeInTheDocument();
+    // Created events still show the actor but with the generic "By" prefix.
+    expect(screen.getByText(/^By/)).toBeInTheDocument();
+  });
+
+  it('renders "system" placeholder when an event has a null actor', () => {
+    const events: RunTemplateEvent[] = [
+      {
+        event_id: '33333333-3333-3333-3333-333333333333',
+        template_id: template.template_id,
+        event_kind: 'reactivated',
+        actor_user_id: null,
+        at: '2026-05-26T16:00:00.000Z',
+        notes: null,
+      },
+    ];
+    render(<AuditDefinitionEditor template={template} events={events} />);
+    expect(screen.getByText('system')).toBeInTheDocument();
   });
 });
