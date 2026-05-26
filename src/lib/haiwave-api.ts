@@ -62,7 +62,9 @@ import type {
   VendorRiskDimension,
   VendorRiskResponse,
   RunResumptionState,
+
   RunTemplate,
+  RunTemplateEvent,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
   PhantomDemandAggregate,
@@ -513,6 +515,7 @@ export interface HaiwaveClient {
   ): Promise<{ template: RunTemplate }>;
   deleteRunTemplate(templateId: string): Promise<{ deleted: boolean }>;
   triggerRunTemplate(templateId: string): Promise<{ run_id: string }>;
+  listRunTemplateEvents(templateId: string): Promise<{ events: RunTemplateEvent[] }>;
   // ─── v1.30 PR-4: Unified observations list ───────────────────────────
   listObservations(query: {
     tab: ObservationClass;
@@ -1404,6 +1407,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ run_id: string }>(
         'POST',
         `/sonar/templates/${templateId}/trigger`,
+      );
+    },
+    listRunTemplateEvents(templateId) {
+      return request<{ events: RunTemplateEvent[] }>(
+        'GET',
+        `/sonar/templates/${templateId}/events`,
       );
     },
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { RunTemplate } from '@haiwave/protocol';
+import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { AuditDefinitionEditor } from '../audit-definition-editor';
 
 vi.mock('next/navigation', () => ({
@@ -144,5 +144,59 @@ describe('AuditDefinitionEditor', () => {
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
     expect(body).toEqual({ enabled: true });
+  });
+
+  // v.1.42 — History step renders the lifecycle event log.
+  it('renders the History step with an empty-state message when no events exist', () => {
+    render(<AuditDefinitionEditor template={template} events={[]} />);
+    // 'History' appears twice — once in the StepRail label, once as the
+    // StepCard heading. Scope to the heading.
+    expect(
+      screen.getByRole('heading', { name: 'History' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/No lifecycle events recorded yet/i)).toBeInTheDocument();
+  });
+
+  it('renders History rows newest-first with actor + timestamp and "Authorized by" on suspended events', () => {
+    const events: RunTemplateEvent[] = [
+      {
+        event_id: '11111111-1111-1111-1111-111111111111',
+        template_id: template.template_id,
+        event_kind: 'suspended',
+        actor_user_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        at: '2026-05-26T15:30:00.000Z',
+        notes: null,
+      },
+      {
+        event_id: '22222222-2222-2222-2222-222222222222',
+        template_id: template.template_id,
+        event_kind: 'created',
+        actor_user_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        at: '2026-05-20T09:00:00.000Z',
+        notes: null,
+      },
+    ];
+    render(<AuditDefinitionEditor template={template} events={events} />);
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    // Suspended events carry the "Authorized by" framing per spec.
+    expect(screen.getByText(/Authorized by/)).toBeInTheDocument();
+    // Created events still show the actor but with the generic "By" prefix.
+    expect(screen.getByText(/^By/)).toBeInTheDocument();
+  });
+
+  it('renders "system" placeholder when an event has a null actor', () => {
+    const events: RunTemplateEvent[] = [
+      {
+        event_id: '33333333-3333-3333-3333-333333333333',
+        template_id: template.template_id,
+        event_kind: 'reactivated',
+        actor_user_id: null,
+        at: '2026-05-26T16:00:00.000Z',
+        notes: null,
+      },
+    ];
+    render(<AuditDefinitionEditor template={template} events={events} />);
+    expect(screen.getByText('system')).toBeInTheDocument();
   });
 });
