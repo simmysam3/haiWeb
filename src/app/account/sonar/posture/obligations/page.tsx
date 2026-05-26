@@ -6,7 +6,6 @@ import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
-import { CoverageHeaderStrip } from '../_components/coverage-header-strip';
 import { BacklogTabs } from '../_components/backlog-tabs';
 import { getActiveScopes } from '../../_lib/scopes';
 
@@ -63,9 +62,6 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
         description="Inbound requests from your customers asking you to resolve downstream gaps in your supply tree — sub-tier vendors off-network, slow responders, or SKUs with insufficient disclosure."
         actions={<RefreshButton />}
       />
-      <div className="-mx-8 mt-2">
-        <CoverageHeaderStrip />
-      </div>
       <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
         Each row is a compliance obligation that one of your customers has accepted on your behalf and is now waiting for you to close. You owe them a response: either drive a sub-tier vendor to disclose (the participant + invited rows), invite a non-participant counterparty (the not-invited rows), or escalate via support. Filter by resolution class to focus on what&apos;s actionable today.

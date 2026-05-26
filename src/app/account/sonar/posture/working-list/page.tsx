@@ -6,7 +6,6 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
-import { CoverageHeaderStrip } from '../_components/coverage-header-strip';
 import { BacklogTabs } from '../_components/backlog-tabs';
 import { getActiveScopes } from '../../_lib/scopes';
 
@@ -91,9 +90,6 @@ export default async function GapsPage({ searchParams }: PageProps) {
         }
         actions={<RefreshButton />}
       />
-      <div className="-mx-8 mt-2">
-        <CoverageHeaderStrip />
-      </div>
       <BacklogTabs hasScopes={hasScopes} />
       <PageIntro
         more={
