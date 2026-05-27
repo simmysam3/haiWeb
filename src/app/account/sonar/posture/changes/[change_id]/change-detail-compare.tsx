@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
@@ -113,6 +114,35 @@ export function ChangeDetailCompare({ detail }: Props) {
         <p data-testid="change-description" className="text-sm text-slate">
           {describeChange(change)}
         </p>
+
+        {/* Polymorphic source link — audit-source rows deep-link to the audit run;
+            watcher-source rows deep-link to the watcher run + its definition. */}
+        {change.source_kind === 'audit' && change.source_run_id && (
+          <Link
+            href={`/account/sonar/audit/${change.source_run_id}`}
+            className="text-teal hover:underline text-sm"
+          >
+            View source audit run →
+          </Link>
+        )}
+        {change.source_kind === 'watcher' && change.source_run_id && (
+          <div className="flex flex-col gap-1">
+            <Link
+              href={`/account/sonar/watchers/${change.source_run_id}`}
+              className="text-teal hover:underline text-sm"
+            >
+              View source watcher run →
+            </Link>
+            {change.source_template_id && (
+              <Link
+                href={`/account/sonar/watchers/definitions/${change.source_template_id}`}
+                className="text-teal hover:underline text-sm"
+              >
+                Configure watcher →
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Business-readable summary of the new state, ahead of the raw JSON. */}

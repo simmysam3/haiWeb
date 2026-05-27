@@ -19,6 +19,8 @@ const base: ComplianceChangeDetail = {
     prior_value: { country_of_origin: 'VN' },
     current_value: { country_of_origin: 'CN' },
     severity: 'critical', detected_at: '2026-05-18T00:00:00.000Z',
+    source_kind: 'audit', source_run_id: 'run-1', source_template_id: null,
+    watcher_snapshot_id: null, prior_watcher_snapshot_id: null,
   },
   prior_cell: { tree: null, samples: [{ attribute_kind: 'lead_time_days', value_numeric: '14' }] },
   current_cell: { tree: null, samples: [{ attribute_kind: 'lead_time_days', value_numeric: '28' }] },
@@ -211,5 +213,63 @@ describe('ChangeDetailCompare', () => {
       />,
     );
     expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
+
+  it('renders an audit-run deep-link when source_kind=audit', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            source_kind: 'audit',
+            source_run_id: 'audit-run-42',
+            source_template_id: null,
+          },
+        })}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /view source audit run/i });
+    expect(link).toHaveAttribute('href', '/account/sonar/audit/audit-run-42');
+    // Watcher links must NOT be rendered for audit-source rows.
+    expect(screen.queryByRole('link', { name: /view source watcher run/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /configure watcher/i })).not.toBeInTheDocument();
+  });
+
+  it('renders watcher-run + configure-watcher deep-links when source_kind=watcher', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            source_kind: 'watcher',
+            source_run_id: 'watcher-run-7',
+            source_template_id: 'tmpl-99',
+          },
+        })}
+      />,
+    );
+    const runLink = screen.getByRole('link', { name: /view source watcher run/i });
+    expect(runLink).toHaveAttribute('href', '/account/sonar/watchers/watcher-run-7');
+    const cfgLink = screen.getByRole('link', { name: /configure watcher/i });
+    expect(cfgLink).toHaveAttribute('href', '/account/sonar/watchers/definitions/tmpl-99');
+    // Audit link must NOT appear for watcher-source rows.
+    expect(screen.queryByRole('link', { name: /view source audit run/i })).not.toBeInTheDocument();
+  });
+
+  it('omits the configure-watcher link when source_template_id is null', () => {
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            source_kind: 'watcher',
+            source_run_id: 'watcher-run-7',
+            source_template_id: null,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByRole('link', { name: /view source watcher run/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /configure watcher/i })).not.toBeInTheDocument();
   });
 });
