@@ -97,3 +97,50 @@ describe('watcher-history column pack — signals cell', () => {
     expect(count).toHaveAttribute('title', 'LT, CAP, DEL, PLT, QLT');
   });
 });
+
+describe('watcher-history column pack — name cell', () => {
+  function renderNameCell(run: EnrichedWatcherRun) {
+    const pack = buildWatcherHistoryColumnPack();
+    const col = pack.columns.find((c) => c.key === 'name');
+    if (!col) throw new Error('name column missing from history pack');
+    return render(<>{col.render(run)}</>);
+  }
+
+  it('shows the watcher template_name as the link text', () => {
+    renderNameCell(makeRun(['lead_time_distribution']));
+    expect(screen.getByRole('link', { name: 'Test watcher' })).toBeInTheDocument();
+  });
+
+  it('falls back to the run hash when template_name is missing', () => {
+    const run = makeRun(['lead_time_distribution']);
+    run.template_name = undefined;
+    renderNameCell(run);
+    // formatRunLabel uses the first 8 chars of the run id.
+    expect(screen.getByRole('link', { name: 'Run run-1' })).toBeInTheDocument();
+  });
+});
+
+describe('watcher-history column pack — actions cell', () => {
+  function renderActionsCell(run: EnrichedWatcherRun) {
+    const pack = buildWatcherHistoryColumnPack();
+    const col = pack.columns.find((c) => c.key === 'actions');
+    if (!col) throw new Error('actions column missing from history pack');
+    return render(<>{col.render(run)}</>);
+  }
+
+  it('renders a chevron-circle link labelled by the watcher name', () => {
+    renderActionsCell(makeRun(['lead_time_distribution']));
+    const link = screen.getByRole('link', { name: 'Open Test watcher' });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('href', '/account/sonar/watchers/run-1');
+  });
+
+  it('uses the fallback label when the run has no template_name', () => {
+    const run = makeRun(['lead_time_distribution']);
+    run.template_name = undefined;
+    renderActionsCell(run);
+    expect(
+      screen.getByRole('link', { name: 'Open Run run-1' }),
+    ).toBeInTheDocument();
+  });
+});

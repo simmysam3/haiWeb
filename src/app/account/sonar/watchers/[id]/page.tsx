@@ -26,12 +26,6 @@ interface ManifestCatalogResponse {
   products: Array<{ external_product_id: string; product_name: string }>;
 }
 
-const SIGNAL_LABEL: Record<string, string> = {
-  lead_time_distribution: 'lead time',
-  capacity_utilization_band: 'capacity',
-  delivery_event: 'delivery events',
-};
-
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -103,19 +97,13 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
       : null,
   })) as WatcherResult[];
 
-  // Title: lead with the watcher name (or "Ad-hoc · <signals>" when there's
-  // no associated template), followed by the run hash so the user can tell
-  // simultaneously WHICH watcher and WHICH run they're inspecting.
-  const signalLabels = run.signal_types
-    .map((s) => SIGNAL_LABEL[s] ?? s)
-    .join(', ');
+  // Title is the watcher's configured name (every run originates from a named
+  // template). Orphan runs without a resolvable template fall back to a
+  // generic "Watcher run" so the page still reads cleanly; the run hash always
+  // lives in the subhead so users can identify which run they're inspecting
+  // without the title becoming a string assembly.
+  const title = templateName ?? 'Watcher run';
   const runHash = run.run_id.slice(0, 8);
-  const leadIn =
-    templateName ??
-    (run.run_origin === 'ad_hoc' || !run.template_id
-      ? `Ad-hoc · ${signalLabels}`
-      : 'Watcher run');
-  const title = `${leadIn} — Run ${runHash}`;
 
   return (
     <div className="space-y-6">
@@ -124,7 +112,8 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
         title={title}
         description={
           <>
-            Triggered {new Date(run.triggered_at).toLocaleString()} · depth{' '}
+            Run <span className="font-mono">{runHash}</span> · Triggered{' '}
+            {new Date(run.triggered_at).toLocaleString()} · depth{' '}
             {run.depth_limit} · {run.signal_types.length} signals
           </>
         }

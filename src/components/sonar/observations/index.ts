@@ -6,3 +6,4 @@ export * from './gap-tier';
 export * from './format';
 export * from './configurations-table';
 export * from './run-history-table';
+export * from './detail-chevron';

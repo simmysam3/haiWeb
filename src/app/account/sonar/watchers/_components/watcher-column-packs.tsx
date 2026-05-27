@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Pill } from '@/components/pill';
 import {
+  DetailChevron,
   formatCadence,
   formatRelative,
   formatRunLabel,
@@ -11,7 +12,7 @@ import type { RunTemplate, SignalType, WatcherRun } from '@haiwave/protocol';
 type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
 
 export type EnrichedWatcherRun = WatcherRun & {
-  template_name?: string;
+  template_name?: string | null;
 };
 
 // v.1.43 Plan 3 Task E4 — signal_type → short chip label. Mirrors the
@@ -143,9 +144,10 @@ export const watcherConfigurationsColumnPack: ColumnPack<WatcherTemplate> = {
       render: (row) => (
         <Link
           href={`/account/sonar/watchers/definitions/${row.template_id}`}
-          className="text-xs text-teal hover:underline"
+          aria-label={`Edit ${row.template_name}`}
+          className="group inline-flex"
         >
-          Edit
+          <DetailChevron />
         </Link>
       ),
     },
@@ -219,9 +221,10 @@ export function buildWatcherHistoryColumnPack(): ColumnPack<EnrichedWatcherRun> 
         render: (run) => (
           <Link
             href={`/account/sonar/watchers/${run.run_id}`}
-            className="text-xs text-teal hover:underline"
+            aria-label={`Open ${formatRunLabel(run)}`}
+            className="group inline-flex"
           >
-            Open
+            <DetailChevron />
           </Link>
         ),
       },

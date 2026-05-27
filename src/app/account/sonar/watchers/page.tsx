@@ -4,7 +4,10 @@ import { fetchBffJson } from '@/lib/server-fetch';
 import { ConfigurationsTable } from '@/components/sonar/observations';
 import { NeedsTriageStrip } from './_components/needs-triage-strip';
 import { watcherConfigurationsColumnPack } from './_components/watcher-column-packs';
-import { WatcherHistoryTable } from './_components/watcher-history-table';
+import {
+  WatcherHistoryTable,
+} from './_components/watcher-history-table';
+import type { EnrichedWatcherRun } from './_components/watcher-column-packs';
 import type { RunTemplate, WatcherRun } from '@haiwave/protocol';
 
 interface DefinitionsPayload {
@@ -28,6 +31,21 @@ export default async function WatchersListPage() {
   const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
   const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
   const watcherTemplates = allDefinitions.filter(isWatcherTemplate);
+
+  // Enrich each run with its source-watcher name so the history table can
+  // surface the configured name as the primary identifier (not the run id).
+  // Includes audit/PD templates too — the runs feed is watcher-only, but
+  // joining off the broader template set means template renames still resolve
+  // without forcing a second join per row.
+  const templateNameById = new Map<string, string>(
+    allDefinitions.map((t) => [t.template_id, t.template_name]),
+  );
+  const enrichedRuns: EnrichedWatcherRun[] = runs.map((r) => ({
+    ...r,
+    template_name: r.template_id
+      ? templateNameById.get(r.template_id) ?? null
+      : null,
+  }));
 
   return (
     <div className="space-y-8">
@@ -97,7 +115,7 @@ export default async function WatchersListPage() {
         >
           Watcher history
         </h2>
-        <WatcherHistoryTable initialRows={runs} />
+        <WatcherHistoryTable initialRows={enrichedRuns} />
       </section>
     </div>
   );
