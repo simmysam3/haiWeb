@@ -90,16 +90,19 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
       : null,
   })) as WatcherResult[];
 
-  // Title: template_name when available; otherwise a descriptive scope summary
-  // for ad-hoc runs so the user isn't staring at a UUID slice.
+  // Title: lead with the watcher name (or "Ad-hoc · <signals>" when there's
+  // no associated template), followed by the run hash so the user can tell
+  // simultaneously WHICH watcher and WHICH run they're inspecting.
   const signalLabels = run.signal_types
     .map((s) => SIGNAL_LABEL[s] ?? s)
     .join(', ');
-  const title =
+  const runHash = run.run_id.slice(0, 8);
+  const leadIn =
     templateName ??
     (run.run_origin === 'ad_hoc' || !run.template_id
       ? `Ad-hoc · ${signalLabels}`
-      : `Run ${run.run_id.slice(0, 8)}`);
+      : 'Watcher run');
+  const title = `${leadIn} — Run ${runHash}`;
 
   return (
     <div className="space-y-6">

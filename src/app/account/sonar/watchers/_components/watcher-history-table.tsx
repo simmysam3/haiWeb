@@ -8,6 +8,10 @@ import {
 
 interface Props {
   initialRows: EnrichedWatcherRun[];
+  /** When set, scopes the SWR poll to runs from this template so the
+   * definition-detail history table doesn't pick up unrelated ad-hoc runs. */
+  templateId?: string;
+  emptyMessage?: string;
 }
 
 /**
@@ -16,14 +20,20 @@ interface Props {
  * functions don't cross the server→client boundary (see memory:
  * [[haiweb-column-pack-server-client-boundary]]).
  */
-export function WatcherHistoryTable({ initialRows }: Props) {
+export function WatcherHistoryTable({ initialRows, templateId, emptyMessage }: Props) {
+  const pollEndpoint = templateId
+    ? `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(templateId)}`
+    : '/api/account/sonar/watcher/runs';
   return (
     <RunHistoryTable<EnrichedWatcherRun>
       initialRows={initialRows}
       columns={buildWatcherHistoryColumnPack()}
-      pollEndpoint="/api/account/sonar/watcher/runs"
+      pollEndpoint={pollEndpoint}
       keyFn={(r) => r.run_id}
-      emptyMessage='No watcher runs yet. Create a watcher and trigger a run, or wait for a scheduled cadence to fire.'
+      emptyMessage={
+        emptyMessage ??
+        'No watcher runs yet. Create a watcher and trigger a run, or wait for a scheduled cadence to fire.'
+      }
     />
   );
 }

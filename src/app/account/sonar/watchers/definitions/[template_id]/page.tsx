@@ -89,7 +89,11 @@ export default async function WatcherDefinitionPage({ params }: RouteContext) {
         >
           Run history
         </h2>
-        <WatcherHistoryTable initialRows={templateRuns} />
+        <WatcherHistoryTable
+          initialRows={templateRuns}
+          templateId={template_id}
+          emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
+        />
       </section>
 
       <section className="space-y-3">
