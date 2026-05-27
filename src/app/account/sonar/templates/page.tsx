@@ -1,21 +1,16 @@
 import { redirect } from 'next/navigation';
 
 /**
- * v.1.41: `/account/sonar/templates` (the list page) is retiring. Each
+ * `/account/sonar/templates` (the list page) is retired. Each
  * observation_class now has its own home where configs are managed in
  * context:
  *
- *   - audit          → /account/sonar/audit            (already moved earlier)
- *   - watcher        → /account/sonar/posture/runs     (becomes /sonar/watchers
- *                                                       once PR #71 lands;
- *                                                       PR-B will flip this)
- *   - phantom_demand → /account/sonar/observations     (still placeholder;
- *                                                       PR-B may flip once
- *                                                       phantom_demand graduates)
+ *   - audit          → /account/sonar/audit
+ *   - watcher        → /account/sonar/watchers
+ *   - phantom_demand → /account/sonar/observations
  *
  * This server component dispatches by `?observation_class=…` and 307-redirects
- * to the appropriate home. With no class param, default to the watcher home
- * (the primary near-term config surface).
+ * to the appropriate home. With no class param, default to the watcher home.
  *
  * The form (`/templates/new`) and detail (`/templates/[id]`) routes are
  * intentionally NOT touched — many consumers reference them and they're the

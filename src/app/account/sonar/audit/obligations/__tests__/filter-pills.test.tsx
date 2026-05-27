@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 const push = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
-  usePathname: () => '/account/sonar/posture/obligations',
+  usePathname: () => '/account/sonar/audit/obligations',
   useSearchParams: () => new URLSearchParams('resolution_class=pending'),
 }));
 

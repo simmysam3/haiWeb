@@ -107,7 +107,7 @@ import type {
 
 import type {
   DownstreamGapFilters,
-} from '@/app/account/sonar/posture/obligations/_lib/types';
+} from '@/app/account/sonar/audit/obligations/_lib/types';
 
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.

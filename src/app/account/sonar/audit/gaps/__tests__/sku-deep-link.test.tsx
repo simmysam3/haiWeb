@@ -6,7 +6,7 @@ import { filterBySku } from '../page';
 
 /**
  * v1.37 follow-up #2 — SKU global-search deep-link.
- * Verifies that visiting /account/sonar/posture/working-list?sku=<id> filters
+ * Verifies that visiting /account/sonar/audit/gaps?sku=<id> filters
  * the rendered list to items whose subject embeds the SKU identifier and that
  * the dismissible SKU chip is surfaced in the filter row.
  *
@@ -102,7 +102,7 @@ const pushMock = vi.fn();
 let currentSearch = '';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  usePathname: () => '/account/sonar/posture/working-list',
+  usePathname: () => '/account/sonar/audit/gaps',
   useSearchParams: () => new URLSearchParams(currentSearch),
 }));
 
@@ -138,6 +138,6 @@ describe('FilterPills SKU chip', () => {
     pushMock.mockReset();
     render(<FilterPills />);
     fireEvent.click(screen.getByRole('button', { name: /clear sku filter/i }));
-    expect(pushMock).toHaveBeenCalledWith('/account/sonar/posture/working-list');
+    expect(pushMock).toHaveBeenCalledWith('/account/sonar/audit/gaps');
   });
 });

@@ -22,7 +22,7 @@ async function runPage(observation_class?: string) {
   return redirectMock.mock.calls[0]?.[0];
 }
 
-describe('TemplatesRedirect — v.1.41 dispatch by observation_class', () => {
+describe('TemplatesRedirect — dispatch by observation_class', () => {
   it('?observation_class=watcher → /account/sonar/watchers', async () => {
     expect(await runPage('watcher')).toBe('/account/sonar/watchers');
   });

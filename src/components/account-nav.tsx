@@ -14,10 +14,11 @@ import { NavTooltip } from "./nav-tooltip";
 // awaiting-me badge polls the same BFF route (counts haven't moved).
 const REQUESTS_HREF = "/account/sonar/requests";
 
-// v.1.41 Backlog IA: Sonar Observe > Posture renamed to Backlog. URL kept
-// at /account/sonar/posture (label-only test per spec). The Backlog nav
-// item carries an events-only badge — see BacklogNavItem.
-const BACKLOG_HREF = "/account/sonar/posture";
+// v.1.43 Event Backlog relocation: the Backlog (Events / Gaps /
+// Obligations) moved out of Sonar Observe and into Sonar Audit. The
+// nav-visible entry is "Event Backlog" pointing at the Events tab as
+// the default landing; Gaps + Obligations are reached via in-page tabs.
+const BACKLOG_HREF = "/account/sonar/audit/events";
 
 interface NavItem {
   href: string;
@@ -124,24 +125,18 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    // v1.39: Observe surface: Dashboard, Request Management, Posture,
-    // Observations, Configurations (templates). Reports dropped — the
-    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
-    // 301-redirects to /account/sonar/audit.
-    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
-    // Posture → Backlog (label-only; URL stays /sonar/posture per the
-    // label-only test phase). Watcher Management is a peer entry now that
-    // its destination page exists at /sonar/watchers (PR-5).
-    // v.1.42: promoted to first section — Sonar Observe leads the nav.
+    // v.1.43: Sonar Observe carries Watcher Backlog (the watcher-side
+    // drift-events surface — lead_time_degraded / lead_time_improved from
+    // scheduled watcher runs) alongside the watcher / phantom-demand /
+    // request-management entries. The audit-side Event Backlog (audit-data
+    // changes — origin shifts, vendor sub, cert status, depth) lives under
+    // Sonar Audit; the two surfaces filter the same compliance_changes feed
+    // by source_kind so each shows only the relevant change kinds.
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
-      { href: BACKLOG_HREF, label: "Backlog", tooltip: "Drift events surfaced from your scheduled watcher and audit configurations across the supplier network." },
+      { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
-      // Configurations suppressed from the menu — pending the phantom-demand
-      // implementation, after which this surface may not be needed at all.
-      // The page itself still exists at /account/sonar/templates.
-      // { href: "/account/sonar/templates", label: "Configurations", tooltip: "..." },
       { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
@@ -165,6 +160,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/account/sonar/audit", label: "Audit Management", tooltip: "Trigger and review supply-chain audit runs across your counterparties and SKUs." },
       { href: "/account/compliance", label: "Audit Backlog", tooltip: "Working backlog of non-compliant audit results — latest per (vendor, product) across your recent runs." },
+      { href: BACKLOG_HREF, label: "Event Backlog", tooltip: "Event-first workflow view of audit-data changes: origin shifts, vendor substitutions, certification status, depth changes. Sibling tabs cover Gaps and Obligations." },
       { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-focused analysis that starts at product classes and resolves down to the component vendors behind each SKU." },
       { href: "/account/provenance-keys", label: "Key Management", tooltip: "Issue your own provenance keys and accept ones offered by counterparties — both directions gate audit visibility." },
     ],

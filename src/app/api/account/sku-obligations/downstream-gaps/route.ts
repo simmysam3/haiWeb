@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
 import type { ResolutionClass } from '@haiwave/protocol';
-import type { OnNetworkStatus } from '@/app/account/sonar/posture/obligations/_lib/types';
+import type { OnNetworkStatus } from '@/app/account/sonar/audit/obligations/_lib/types';
 
 export const GET = withHaiCore(async ({ client, request }) => {
   const sp = request.nextUrl.searchParams;

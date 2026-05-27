@@ -10,15 +10,15 @@ import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
 interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
 /**
- * v.1.41 Backlog IA — Gaps mode. The /sonar/posture/working-list URL
- * stays canonical but is now hard-scoped to `category=gap`. Cross-
- * category items (change/nomination/obligation/expiry) live in their
- * own modes (Events / Obligations / etc.) so the section's three tabs
- * each show one item-type only — no unified mashup.
+ * Event Backlog — Gaps tab. Sibling to /sonar/audit/events and
+ * /sonar/audit/obligations under the Sonar Audit section. The feed is
+ * hard-scoped to `category=gap`; cross-category items (change /
+ * nomination / obligation / expiry) live in their own tabs so each
+ * surface shows one item-type only.
  *
- * A `?categories=...` query param from a legacy bookmark is silently
- * ignored. PR-6 adds the trending header strip ("342 open gaps · ↓ 68
- * vs last week") that contextualises the page beyond a flat list.
+ * `?categories=...` query params are silently ignored. The trending
+ * header strip ("342 open gaps · ↓ 68 vs last week") contextualises
+ * the page beyond a flat list.
  */
 async function fetchList(sp: SearchParams) {
   const qs = new URLSearchParams();
