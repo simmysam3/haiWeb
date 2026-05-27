@@ -125,13 +125,13 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    // v.1.43: Sonar Observe carries Watcher Backlog (the watcher-side
-    // drift-events surface — lead_time_degraded / lead_time_improved from
-    // scheduled watcher runs) alongside the watcher / phantom-demand /
-    // request-management entries. The audit-side Event Backlog (audit-data
-    // changes — origin shifts, vendor sub, cert status, depth) lives under
-    // Sonar Audit; the two surfaces filter the same compliance_changes feed
-    // by source_kind so each shows only the relevant change kinds.
+    // v.1.43: Sonar Observe carries Watcher Backlog — the drift-events
+    // surface (lead_time_degraded / lead_time_improved). It filters the
+    // same /sonar/compliance/changes feed by change_kind allowlist (NOT
+    // by source_kind); the audit-side Event Backlog under Sonar Audit
+    // applies the inverse allowlist (the 7 audit kinds — origin shifts,
+    // vendor sub, cert status, depth). The dual-surface partition is by
+    // kind, not source.
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
