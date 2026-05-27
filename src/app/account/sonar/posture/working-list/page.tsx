@@ -97,8 +97,8 @@ export default async function GapsPage({ searchParams }: PageProps) {
             <p>
               <strong className="font-semibold text-navy">How to work the queue.</strong>{' '}
               Items sort by recency by default; switch to <em>oldest unresolved</em> to
-              clear stale gaps. For each item: click <strong>Open</strong> to jump to the
-              underlying audit run; <strong>Snooze</strong> to push an item out of the way
+              clear stale gaps. For each item: click the <strong>chevron</strong> to jump to
+              the underlying audit run; <strong>Snooze</strong> to push an item out of the way
               for a week when you can&apos;t act now; <strong>Acknowledge &amp; suppress</strong>
               {' '}to remove a gap permanently with a recorded reason. Resolved gaps drop
               off automatically at the next snapshot — you don&apos;t need to mark them.

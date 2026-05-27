@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { WorkingListItem } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
+import { DetailChevron } from '@/components/sonar/observations';
 
 export interface PartnerGroup {
   partnerId: string | null;
@@ -135,7 +136,13 @@ export function WorkingListTable({ items, total }: Props) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href={it.action_href} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy">Open</Link>
+          <Link
+            href={it.action_href}
+            aria-label="Open detail"
+            className="group inline-flex"
+          >
+            <DetailChevron />
+          </Link>
           {it.state !== 'open' ? (
             <button type="button" disabled={busyKey === it.canonical_key} onClick={() => transition(it.canonical_key, { state: 'open' })} className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal">Reopen</button>
           ) : (

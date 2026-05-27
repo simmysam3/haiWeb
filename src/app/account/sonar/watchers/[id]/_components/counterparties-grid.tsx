@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { WatcherResult, WatcherSynthesisMode } from '@haiwave/protocol';
 import {
+  DetailChevron,
   GapTierBar,
   ScorePill,
   tierBucket,
@@ -266,7 +267,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 type="button"
                 onClick={() => toggleVendor(g.key)}
                 aria-expanded={isVendorOpen}
-                className="flex w-full items-center gap-3 text-left"
+                className="group flex w-full items-center gap-3 text-left"
               >
                 <span className="font-medium text-charcoal">{g.counterpartyName}</span>
                 <span className="flex items-center gap-1">
@@ -285,9 +286,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                   ) : (
                     <span className="text-xs text-slate">all signals direct</span>
                   )}
-                  <span className="text-teal text-lg font-bold">
-                    {isVendorOpen ? '⌄' : '›'}
-                  </span>
+                  <DetailChevron expanded={isVendorOpen} />
                 </span>
               </button>
               {isVendorOpen && (
@@ -315,11 +314,11 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                           type="button"
                           onClick={() => toggleProduct(sub.key)}
                           aria-expanded={isProductOpen}
-                          className="flex w-full items-center gap-3 text-left"
+                          className="group flex w-full items-center gap-3 text-left"
                         >
                           <span className="text-charcoal">{sub.productName}</span>
-                          <span className="ml-auto text-teal text-lg font-bold">
-                            {isProductOpen ? '⌄' : '›'}
+                          <span className="ml-auto">
+                            <DetailChevron expanded={isProductOpen} />
                           </span>
                         </button>
                         {isProductOpen && (
