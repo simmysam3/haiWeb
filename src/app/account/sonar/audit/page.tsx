@@ -1,15 +1,9 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import {
-  ConfigurationsTable,
-  RunHistoryTable,
-} from '@/components/sonar/observations';
-import {
-  auditConfigurationsColumnPack,
-  buildAuditHistoryColumnPack,
-  type EnrichedAuditRun,
-} from './_components/audit-column-packs';
+import { ConfigurationsTable } from '@/components/sonar/observations';
+import { auditConfigurationsColumnPack } from './_components/audit-column-packs';
+import { AuditHistoryTable } from './_components/audit-history-table';
 import type { RunTemplate, AuditRun } from '@haiwave/protocol';
 
 interface DefinitionsPayload {
@@ -125,13 +119,7 @@ export default async function AuditListPage() {
           All audit runs across configurations and ad-hoc triggers. Polled every
           15 seconds while the page is open — in-progress runs update live.
         </p>
-        <RunHistoryTable<EnrichedAuditRun>
-          initialRows={runs}
-          columns={buildAuditHistoryColumnPack(auditorCountry)}
-          pollEndpoint="/api/account/sonar/audit/runs"
-          keyFn={(r) => r.run_id}
-          emptyMessage='No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.'
-        />
+        <AuditHistoryTable initialRows={runs} auditorCountry={auditorCountry} />
       </section>
     </div>
   );
