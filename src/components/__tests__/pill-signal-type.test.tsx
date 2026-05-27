@@ -33,4 +33,18 @@ describe('<Pill category="signal_type">', () => {
     expect(screen.getByText('DEL')).toBeInTheDocument();
     expect(tooltipText()).toMatch(/deliver/i);
   });
+
+  // v.1.43 Plan 3 Task E1 — PLT (Published LT) + QLT (Quoted LT) per-product
+  // lead-time signals surfaced on the watcher CounterpartiesGrid alongside LT.
+  it('renders PLT (Published LT) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="PLT" />);
+    expect(screen.getByText('PLT')).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/published lead time/i);
+  });
+
+  it('renders QLT (Quoted LT) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="QLT" />);
+    expect(screen.getByText('QLT')).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/quoted lead time/i);
+  });
 });

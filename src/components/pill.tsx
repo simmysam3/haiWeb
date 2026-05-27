@@ -114,6 +114,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     LT: 'p50 / p75 / p90 / p95 / p99 fulfilment lead time over the last 90 days.',
     CAP: 'Latest reported production band: low, moderate, high, or at_capacity.',
     DEL: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception.',
+    // v.1.43 Plan 3 — per-product lead-time signals surfaced alongside LT on the
+    // watcher CounterpartiesGrid. PLT/QLT complement the calibrated LT distribution
+    // with the vendor's own published baseline and a fresh quote for an order today.
+    PLT: 'Published lead time — vendor\'s stated/advertised lead time (the contract baseline).',
+    QLT: 'Quoted lead time — what the vendor would commit to for a new order placed today.',
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
