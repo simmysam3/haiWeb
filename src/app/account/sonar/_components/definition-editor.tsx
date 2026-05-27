@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Cadence, RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
+import type { Cadence, RunTemplate, RunTemplateEvent, RunTemplateScope } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SchedulePicker } from './schedule-picker';
@@ -115,6 +115,23 @@ interface Props {
   endpointBase: string;
   /** Route to push to after delete, e.g. `/account/sonar/audit`. */
   listRoute: string;
+  /**
+   * Whether the Scope step's StepCard is locked (read-only). Audit defaults
+   * to true. Watcher passes false so the scope step is editable.
+   */
+  scopeLocked?: boolean;
+  /**
+   * Current scope value when scopeLocked is false. Caller owns scope state
+   * (the scopePicker is the caller's component that wires value/onChange).
+   * Ignored when scopeLocked is true.
+   */
+  scopeValue?: RunTemplateScope;
+  /**
+   * Called when scope is saved. Only invoked when scopeLocked is false; the
+   * caller-owned scope state is included in the PATCH body during the dirty-
+   * form save flow. Ignored when scopeLocked is true.
+   */
+  onScopeChange?: (next: RunTemplateScope) => void;
 }
 
 export function DefinitionEditor({
@@ -124,6 +141,8 @@ export function DefinitionEditor({
   scopePicker,
   endpointBase,
   listRoute,
+  scopeLocked = true,
+  scopeValue,
 }: Props) {
   const noun = NOUN_BY_CLASS[observationClass];
   const scopeTitle = SCOPE_TITLE_BY_CLASS[observationClass];
@@ -144,13 +163,18 @@ export function DefinitionEditor({
     setRetentionDays(template.retention_days);
   }, [template]);
 
+  const scopeDirty = !scopeLocked && scopeValue !== undefined
+    ? JSON.stringify(scopeValue) !== JSON.stringify(template.scope)
+    : false;
+
   const dirty = useMemo(
     () =>
       name !== template.template_name ||
       enabled !== template.enabled ||
       retentionDays !== template.retention_days ||
-      JSON.stringify(cadence) !== JSON.stringify(template.cadence),
-    [name, enabled, retentionDays, cadence, template],
+      JSON.stringify(cadence) !== JSON.stringify(template.cadence) ||
+      scopeDirty,
+    [name, enabled, retentionDays, cadence, template, scopeDirty],
   );
 
   function jump(id: string) {
@@ -162,15 +186,19 @@ export function DefinitionEditor({
     setError(null);
     setSessionExpired(false);
     try {
+      const patchBody: Record<string, unknown> = {
+        template_name: name,
+        cadence,
+        enabled,
+        retention_days: retentionDays,
+      };
+      if (!scopeLocked && scopeValue !== undefined) {
+        patchBody.scope = scopeValue;
+      }
       const res = await fetch(`${endpointBase}/${template.template_id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          template_name: name,
-          cadence,
-          enabled,
-          retention_days: retentionDays,
-        }),
+        body: JSON.stringify(patchBody),
       });
       if (!res.ok) {
         const info = await describeApiError(res);
@@ -298,7 +326,7 @@ export function DefinitionEditor({
           <NameField noun={noun} value={name} onChange={setName} />
         </StepCard>
 
-        <StepCard id="scope" index={1} title={scopeTitle} locked>
+        <StepCard id="scope" index={1} title={scopeTitle} locked={scopeLocked}>
           {scopePicker}
         </StepCard>
 

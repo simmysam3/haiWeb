@@ -228,3 +228,66 @@ describe('DefinitionEditor (observationClass parameterization)', () => {
     expect(screen.getByText('watcher-scope-content')).toBeInTheDocument();
   });
 });
+
+describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
+  function renderWatcherEditor(opts: {
+    template?: RunTemplate;
+    scopeValue?: RunTemplate['scope'];
+    onScopeChange?: (next: RunTemplate['scope']) => void;
+  } = {}) {
+    const tpl = opts.template ?? template;
+    const scope = opts.scopeValue ?? tpl.scope;
+    const onScopeChange = opts.onScopeChange ?? vi.fn();
+    return render(
+      <DefinitionEditor
+        template={tpl}
+        observationClass="watcher"
+        scopePicker={<div data-testid="watcher-scope-picker">watcher-scope-content</div>}
+        scopeLocked={false}
+        scopeValue={scope}
+        onScopeChange={onScopeChange}
+        endpointBase="/api/account/sonar/watcher/definitions"
+        listRoute="/account/sonar/watchers"
+      />,
+    );
+  }
+
+  it('renders the scope StepCard without the locked treatment when scopeLocked=false', () => {
+    renderWatcherEditor();
+    // The unlocked path renders the scopePicker slot directly without the
+    // "Fixed at creation" advisory that locked audit scope shows.
+    expect(screen.queryByText(/Fixed at creation/i)).toBeNull();
+    expect(screen.getByTestId('watcher-scope-picker')).toBeInTheDocument();
+  });
+
+  it('triggers the save bar when scope changes (dirty form includes scope)', async () => {
+    const changedScope = { ...template.scope, depth_limit: 3 } as RunTemplate['scope'];
+    renderWatcherEditor({ scopeValue: changedScope });
+    // The form is "dirty" because scopeValue !== template.scope — save bar visible.
+    expect(
+      screen.getByRole('button', { name: /save changes/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('PATCH body includes scope when scopeLocked=false and scope changed', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    const changedScope = { ...template.scope, depth_limit: 3 } as RunTemplate['scope'];
+    renderWatcherEditor({ scopeValue: changedScope });
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.scope).toEqual(changedScope);
+  });
+
+  it('PATCH body does NOT include scope when scopeLocked=true (audit default)', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    renderAuditEditor();
+    await userEvent.type(screen.getByLabelText(/audit name/i), 'Z');
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).not.toHaveProperty('scope');
+  });
+});
