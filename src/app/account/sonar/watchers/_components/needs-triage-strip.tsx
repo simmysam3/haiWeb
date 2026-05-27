@@ -21,10 +21,12 @@ interface AlertsResponse {
   alerts: TriageAlert[];
 }
 
-const SIGNAL_PILL: Record<SignalType, 'LT' | 'CAP' | 'DEL'> = {
+const SIGNAL_PILL: Record<SignalType, 'LT' | 'CAP' | 'DEL' | 'PLT' | 'QLT'> = {
   lead_time_distribution: 'LT',
   capacity_utilization_band: 'CAP',
   delivery_event: 'DEL',
+  published_lead_time: 'PLT',
+  quoted_lead_time: 'QLT',
 };
 
 export function NeedsTriageStrip() {
