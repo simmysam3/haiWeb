@@ -68,7 +68,7 @@ export default async function AuditRunDetailPage({
   const isRunning = run.status === 'running';
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-8">
       {/* Header: breadcrumb, audit-name title, one-sentence sub-head (origin /
           start / completion / hash), "Edit / Run Again" CTA */}
       <RunHeader run={run} />

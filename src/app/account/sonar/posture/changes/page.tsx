@@ -83,7 +83,7 @@ export default async function ChangesPage({ searchParams }: PageProps) {
     scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
 
   return (
-    <div className="px-8 py-10">
+    <div>
       <PageHeader
         title="Events"
         description="Consequential supply-chain changes detected between snapshots — default window is 14 days."

@@ -101,7 +101,7 @@ export default async function TrustPosturePage() {
   const { postures, error } = await loadPostures();
 
   return (
-    <div className="p-6 space-y-2">
+    <div className="space-y-2">
       <h1 className="text-xl font-semibold text-charcoal">Trust Posture</h1>
       <p className="text-sm text-slate">
         Configure how counterparties are treated for each observation modality,

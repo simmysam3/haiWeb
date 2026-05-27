@@ -40,7 +40,7 @@ async function loadCurrent(): Promise<CurrentPayload | null> {
 export default async function UsagePage() {
   const current = await loadCurrent();
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold text-charcoal">Usage</h1>
         <p className="text-sm text-slate mt-1">

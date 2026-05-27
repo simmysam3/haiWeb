@@ -57,7 +57,7 @@ export default async function WatcherManagementPage() {
   }
   const runs = await loadRuns();
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <PageHeader
         title="Watcher Management"
         actions={<RunControls />}

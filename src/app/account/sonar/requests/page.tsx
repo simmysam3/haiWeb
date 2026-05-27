@@ -70,7 +70,7 @@ export default async function RequestManagementPage({ searchParams }: PageProps)
   const result = await fetchList(params);
 
   return (
-    <div className="px-8 py-10">
+    <div>
       <PageHeader
         title="Request Management"
         description="Bilateral requests across your supply chain — accept inbound asks, chase outbound ones."

@@ -110,7 +110,7 @@ export default async function NominationsNewPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const initialState = await deriveInitialState(params.vendor, params.class_id, params.product);
   return (
-    <div className="p-6">
+    <div>
       <NominationForm initialState={initialState} />
     </div>
   );

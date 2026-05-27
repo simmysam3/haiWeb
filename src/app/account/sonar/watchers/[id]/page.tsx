@@ -76,7 +76,7 @@ export default async function RunDetailPage({
   if (!data) notFound();
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Watcher"
         title={`Run ${data.run.run_id.slice(0, 8)}`}

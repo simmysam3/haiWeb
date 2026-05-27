@@ -34,7 +34,7 @@ export default async function ChangeDetailPage({ params }: PageProps) {
     if (result.status === 404) notFound();
 
     return (
-      <div className="px-8 py-10">
+      <div>
         {backLink}
         <div
           role="alert"
@@ -57,7 +57,7 @@ export default async function ChangeDetailPage({ params }: PageProps) {
   }
 
   return (
-    <div className="px-8 py-10">
+    <div>
       <PageHeader eyebrow="Events" title="Event detail" />
       <PageIntro>
         Side-by-side view of the cell state before and after this event was detected. Samples are attribute observations captured at snapshot time; the subtree shows the raw supply-chain node data when available.

@@ -28,7 +28,7 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Audit"
         title={tpl.template_name}
