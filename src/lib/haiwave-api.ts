@@ -397,6 +397,10 @@ export interface HaiwaveClient {
   // Provenance (v1.15)
   getOriginManifests(): Promise<Record<string, unknown>>;
   getOriginManifest(productId: string): Promise<Record<string, unknown>>;
+  // v.1.43 Plan 3 E5: flat buyer-manifest product-name lookup for watcher
+  // run-detail row enrichment. Paginates over /provenance/manifest and
+  // returns just { external_product_id, product_name } per latest version.
+  listManifestCatalog(): Promise<{ products: Array<{ external_product_id: string; product_name: string }> }>;
   getCertifications(filters?: Record<string, string>): Promise<Record<string, unknown>>;
   getProvenanceChain(chainId: string): Promise<Record<string, unknown>>;
   // v1.41 provenance class-grouped rollup
@@ -941,6 +945,36 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     // ─── Provenance (v1.15) ──────────────────────────────
     getOriginManifests() {
       return request<Record<string, unknown>>("GET", "/provenance/manifest");
+    },
+    // v.1.43 Plan 3 E5: paginate the buyer's own manifest list and flatten to
+    // { external_product_id, product_name }[] for product-name lookup in the
+    // watcher run-detail two-level grid (E3). Each row from listManifests is
+    // already deduped to the latest version per product server-side
+    // (origin-manifest-service.ts §listManifests), so we just walk pages.
+    async listManifestCatalog() {
+      const pageSize = 100; // haiCore caps at 100 (apps/core/src/routes/provenance.ts §GET /manifest).
+      const products: Array<{ external_product_id: string; product_name: string }> = [];
+      let page = 1;
+      // Hard upper bound to avoid runaway loops on bad envelopes; 200 pages
+      // × 100 = 20k SKUs which is well beyond any realistic single-buyer catalog.
+      const maxPages = 200;
+      for (; page <= maxPages; page++) {
+        const env = await request<{
+          manifests?: Array<{ external_product_id?: string; product_name?: string }>;
+          total?: number;
+        }>("GET", `/provenance/manifest?page=${page}&page_size=${pageSize}`);
+        const batch = env.manifests ?? [];
+        for (const m of batch) {
+          if (m.external_product_id && m.product_name) {
+            products.push({
+              external_product_id: m.external_product_id,
+              product_name: m.product_name,
+            });
+          }
+        }
+        if (batch.length < pageSize) break;
+      }
+      return { products };
     },
     getOriginManifest(productId: string) {
       return request<Record<string, unknown>>(
