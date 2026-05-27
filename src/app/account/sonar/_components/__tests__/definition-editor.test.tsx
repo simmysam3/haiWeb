@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
-import { AuditDefinitionEditor } from '../audit-definition-editor';
+import { DefinitionEditor } from '../definition-editor';
+import { ScopeSummary } from '../../templates/_components/scope-summary';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
@@ -34,18 +35,38 @@ const template: RunTemplate = {
   },
 } as unknown as RunTemplate;
 
-describe('AuditDefinitionEditor', () => {
+function renderAuditEditor(opts: { template?: RunTemplate; events?: RunTemplateEvent[] } = {}) {
+  const tpl = opts.template ?? template;
+  return render(
+    <DefinitionEditor
+      template={tpl}
+      events={opts.events}
+      observationClass="audit"
+      scopePicker={<ScopeSummary scope={tpl.scope} />}
+      endpointBase="/api/account/sonar/audit/definitions"
+      listRoute="/account/sonar/audit"
+    />,
+  );
+}
+
+describe('DefinitionEditor (audit)', () => {
   it('renders the read-only scope alongside editable name, without a modality field', () => {
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     expect(screen.getByDisplayValue('weekly-audit')).toBeInTheDocument();
     expect(screen.getByText('acme-corp')).toBeInTheDocument();
     expect(screen.getByText(/Fixed at creation/i)).toBeInTheDocument();
-    // No modality select/field should be present
     expect(screen.queryByText(/Modality/i)).toBeNull();
   });
 
+  it('shows the modality-specific scope step title', () => {
+    renderAuditEditor();
+    expect(
+      screen.getByRole('heading', { name: 'Audit Scope' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows no save bar until a field changes', async () => {
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     expect(screen.queryByRole('button', { name: /save changes/i })).toBeNull();
     await userEvent.type(screen.getByLabelText(/audit name/i), 'X');
     expect(
@@ -53,9 +74,9 @@ describe('AuditDefinitionEditor', () => {
     ).toBeInTheDocument();
   });
 
-  it('PATCHes to the audit definitions route on save', async () => {
+  it('PATCHes to the endpointBase route on save', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     await userEvent.type(screen.getByLabelText(/audit name/i), 'Z');
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
     const [url, init] = fetchMock.mock.calls[0];
@@ -71,16 +92,10 @@ describe('AuditDefinitionEditor', () => {
     expect(body).not.toHaveProperty('scope');
   });
 
-  it('DELETEs to the audit definitions route and navigates to /account/sonar/audit', async () => {
-    const pushMock = vi.fn();
-    vi.mocked(vi.fn()).mockImplementation(() => {});
-    // re-mock router with push spy
-    vi.doMock('next/navigation', () => ({
-      useRouter: () => ({ push: pushMock, refresh: vi.fn() }),
-    }));
+  it('DELETEs to the endpointBase route on delete', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
     vi.stubGlobal('confirm', () => true);
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     await userEvent.click(screen.getByRole('button', { name: /delete/i }));
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
@@ -91,7 +106,7 @@ describe('AuditDefinitionEditor', () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'Bad request' }), { status: 400 }),
     );
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     await userEvent.type(screen.getByLabelText(/audit name/i), 'Z');
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
     expect(
@@ -100,11 +115,9 @@ describe('AuditDefinitionEditor', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  // v.1.42 — Suspend/Reactivate header control. Status pill + button at the
-  // top of the editor flip the template's `enabled` flag without going through
-  // the dirty-form save bar.
+  // v.1.42 — Suspend/Reactivate header control.
   it('renders an Active status pill + Suspend button for an enabled template', () => {
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^suspend$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^reactivate$/i })).toBeNull();
@@ -112,11 +125,10 @@ describe('AuditDefinitionEditor', () => {
 
   it('renders a Suspended status pill + Reactivate button + paused banner for a disabled template', () => {
     const disabled = { ...template, enabled: false } as RunTemplate;
-    render(<AuditDefinitionEditor template={disabled} />);
+    renderAuditEditor({ template: disabled });
     expect(screen.getByText('Suspended')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^reactivate$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^suspend$/i })).toBeNull();
-    // Banner explains the state.
     expect(
       screen.getByText(/scheduled runs (are )?suspended/i),
     ).toBeInTheDocument();
@@ -124,7 +136,7 @@ describe('AuditDefinitionEditor', () => {
 
   it('Suspend button PATCHes enabled=false (independent of form dirty state)', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
-    render(<AuditDefinitionEditor template={template} />);
+    renderAuditEditor();
     await userEvent.click(screen.getByRole('button', { name: /^suspend$/i }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
@@ -137,7 +149,7 @@ describe('AuditDefinitionEditor', () => {
   it('Reactivate button PATCHes enabled=true', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
     const disabled = { ...template, enabled: false } as RunTemplate;
-    render(<AuditDefinitionEditor template={disabled} />);
+    renderAuditEditor({ template: disabled });
     await userEvent.click(screen.getByRole('button', { name: /^reactivate$/i }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(
@@ -146,11 +158,8 @@ describe('AuditDefinitionEditor', () => {
     expect(body).toEqual({ enabled: true });
   });
 
-  // v.1.42 — History step renders the lifecycle event log.
   it('renders the History step with an empty-state message when no events exist', () => {
-    render(<AuditDefinitionEditor template={template} events={[]} />);
-    // 'History' appears twice — once in the StepRail label, once as the
-    // StepCard heading. Scope to the heading.
+    renderAuditEditor({ events: [] });
     expect(
       screen.getByRole('heading', { name: 'History' }),
     ).toBeInTheDocument();
@@ -176,12 +185,10 @@ describe('AuditDefinitionEditor', () => {
         notes: null,
       },
     ];
-    render(<AuditDefinitionEditor template={template} events={events} />);
+    renderAuditEditor({ events });
     expect(screen.getByText('Suspended')).toBeInTheDocument();
     expect(screen.getByText('Created')).toBeInTheDocument();
-    // Suspended events carry the "Authorized by" framing per spec.
     expect(screen.getByText(/Authorized by/)).toBeInTheDocument();
-    // Created events still show the actor but with the generic "By" prefix.
     expect(screen.getByText(/^By/)).toBeInTheDocument();
   });
 
@@ -196,7 +203,28 @@ describe('AuditDefinitionEditor', () => {
         notes: null,
       },
     ];
-    render(<AuditDefinitionEditor template={template} events={events} />);
+    renderAuditEditor({ events });
     expect(screen.getByText('system')).toBeInTheDocument();
+  });
+});
+
+describe('DefinitionEditor (observationClass parameterization)', () => {
+  it('renders "Watcher Scope" step title and "Watcher is active" aria-label for observationClass="watcher"', () => {
+    render(
+      <DefinitionEditor
+        template={template}
+        observationClass="watcher"
+        scopePicker={<div>watcher-scope-content</div>}
+        endpointBase="/api/account/sonar/watchers/definitions"
+        listRoute="/account/sonar/watchers"
+      />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Watcher Scope' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Watcher is active'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('watcher-scope-content')).toBeInTheDocument();
   });
 });

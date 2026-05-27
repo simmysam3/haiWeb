@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Cadence, RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
-import { SchedulePicker } from '../../../../_components/schedule-picker';
-import { StepRail, type RailStep } from '../../../../_components/step-rail';
-import { StepCard } from '../../../../_components/step-card';
-import { ScopeSummary } from '../../../../templates/_components/scope-summary';
-import { NameField } from '../../../../_components/name-field';
-import { AuditLifecycleFields } from '../../../../_components/audit-lifecycle-fields';
+import { SchedulePicker } from './schedule-picker';
+import { StepRail, type RailStep } from './step-rail';
+import { StepCard } from './step-card';
+import { NameField } from './name-field';
+import { AuditLifecycleFields } from './audit-lifecycle-fields';
 
 const steps: RailStep[] = [
   { id: 'identity', label: 'Identity', state: 'active' },
@@ -19,8 +18,7 @@ const steps: RailStep[] = [
   { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
   // v.1.42 — unnumbered (read-only) entry in the rail. StepRail renders the
   // ordinal from index+1; setting `state: 'locked'` styles it as inert and
-  // we suppress the numeric ordinal via the StepCard's `index={-1}`
-  // (rendered as "—").
+  // we suppress the numeric ordinal via the StepCard's `index={-1}`.
   { id: 'history', label: 'History', state: 'locked' },
 ];
 
@@ -33,10 +31,7 @@ const EVENT_LABEL: Record<RunTemplateEvent['event_kind'], string> = {
 // v.1.42 — Renders the lifecycle event log. Lightweight by design: one row
 // per event, newest-first, formatted as 'Suspended · 2026-05-26 14:32 ·
 // authorized by <actor>'. Suspended events also get a leading dim badge
-// (matches the header pill colorway) so the audit-trail-relevant row is
-// scannable from a long history. Empty history (e.g. a template seeded
-// before this surface shipped) renders an em-dash placeholder rather than
-// a no-op blank card.
+// so the audit-trail-relevant row is scannable from a long history.
 function HistoryList({ events }: { events: RunTemplateEvent[] }) {
   if (events.length === 0) {
     return (
@@ -82,15 +77,57 @@ function HistoryList({ events }: { events: RunTemplateEvent[] }) {
   );
 }
 
+export type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+
+const NOUN_BY_CLASS: Record<ObservationClass, string> = {
+  audit: 'Audit',
+  watcher: 'Watcher',
+  phantom_demand: 'Phantom Demand',
+};
+
+const SCOPE_TITLE_BY_CLASS: Record<ObservationClass, string> = {
+  audit: 'Audit Scope',
+  watcher: 'Watcher Scope',
+  phantom_demand: 'Phantom Demand Scope',
+};
+
 interface Props {
   template: RunTemplate;
   // v.1.42 — lifecycle history fetched server-side in the page wrapper.
   // Empty array is a valid state (template predates this surface, or BFF
   // fetch failed open).
   events?: RunTemplateEvent[];
+  /**
+   * Modality discriminator. Selects nouns and copy. Plan 2 will use this to
+   * select scope-write protocol variants too.
+   */
+  observationClass: ObservationClass;
+  /**
+   * Slot for the modality's scope surface (read-only summary or interactive
+   * picker — caller's choice). Audit passes a read-only `<ScopeSummary>`;
+   * Plan 2 watcher will pass an interactive `<WatcherScopePicker>`.
+   */
+  scopePicker: ReactNode;
+  /**
+   * API endpoint base, e.g. `/api/account/sonar/audit/definitions`. The
+   * editor PATCH/DELETEs `${endpointBase}/${template_id}`.
+   */
+  endpointBase: string;
+  /** Route to push to after delete, e.g. `/account/sonar/audit`. */
+  listRoute: string;
 }
 
-export function AuditDefinitionEditor({ template, events = [] }: Props) {
+export function DefinitionEditor({
+  template,
+  events = [],
+  observationClass,
+  scopePicker,
+  endpointBase,
+  listRoute,
+}: Props) {
+  const noun = NOUN_BY_CLASS[observationClass];
+  const scopeTitle = SCOPE_TITLE_BY_CLASS[observationClass];
+
   const [name, setName] = useState(template.template_name);
   const [cadence, setCadence] = useState<Cadence>(template.cadence);
   const [enabled, setEnabled] = useState(template.enabled);
@@ -125,19 +162,16 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
     setError(null);
     setSessionExpired(false);
     try {
-      const res = await fetch(
-        `/api/account/sonar/audit/definitions/${template.template_id}`,
-        {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            template_name: name,
-            cadence,
-            enabled,
-            retention_days: retentionDays,
-          }),
-        },
-      );
+      const res = await fetch(`${endpointBase}/${template.template_id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          template_name: name,
+          cadence,
+          enabled,
+          retention_days: retentionDays,
+        }),
+      });
       if (!res.ok) {
         const info = await describeApiError(res);
         setError(info.message);
@@ -157,7 +191,6 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
    * independent of the dirty-form save bar. A suspended template still
    * exists, retains run history, and is excluded from the composite
    * gap rollup (collectGaps filters to enabled=true active templates).
-   * Reactivating resumes the schedule from the next cadence tick.
    */
   async function toggleEnabled() {
     const next = !enabled;
@@ -165,14 +198,11 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
     setError(null);
     setSessionExpired(false);
     try {
-      const res = await fetch(
-        `/api/account/sonar/audit/definitions/${template.template_id}`,
-        {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ enabled: next }),
-        },
-      );
+      const res = await fetch(`${endpointBase}/${template.template_id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
       if (!res.ok) {
         const info = await describeApiError(res);
         setError(info.message);
@@ -191,24 +221,23 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
   async function remove() {
     if (
       !confirm(
-        `Delete audit definition "${template.template_name}"? This cannot be undone.`,
+        `Delete ${noun.toLowerCase()} definition "${template.template_name}"? This cannot be undone.`,
       )
     )
       return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/account/sonar/audit/definitions/${template.template_id}`,
-        { method: 'DELETE' },
-      );
+      const res = await fetch(`${endpointBase}/${template.template_id}`, {
+        method: 'DELETE',
+      });
       if (!res.ok) {
         const info = await describeApiError(res);
         setError(info.message);
         setSessionExpired(info.sessionExpired);
         return;
       }
-      router.push('/account/sonar/audit');
+      router.push(listRoute);
     } catch {
       setError('Network error — could not reach the server. Please try again.');
     } finally {
@@ -234,7 +263,11 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
                 ? 'inline-flex items-center rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-semibold text-teal-dark'
                 : 'inline-flex items-center rounded-full bg-slate/15 px-2.5 py-0.5 text-xs font-semibold text-slate'
             }
-            aria-label={enabled ? 'Audit is active' : 'Audit is suspended'}
+            aria-label={
+              enabled
+                ? `${noun} is active`
+                : `${noun} is suspended`
+            }
           >
             {enabled ? 'Active' : 'Suspended'}
           </span>
@@ -256,17 +289,17 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
             role="status"
             className="mb-4 rounded border border-slate/20 bg-slate/5 px-4 py-3 text-xs text-slate"
           >
-            Paused — scheduled runs are suspended and this audit is excluded
-            from the Backlog rollup. Run history is preserved. Reactivate to
-            resume the schedule.
+            Paused — scheduled runs are suspended and this {noun.toLowerCase()} is
+            excluded from the Backlog rollup. Run history is preserved. Reactivate
+            to resume the schedule.
           </div>
         )}
         <StepCard id="identity" index={0} title="Identity">
-          <NameField noun="Audit" value={name} onChange={setName} />
+          <NameField noun={noun} value={name} onChange={setName} />
         </StepCard>
 
-        <StepCard id="scope" index={1} title="Audit Scope" locked>
-          <ScopeSummary scope={template.scope} />
+        <StepCard id="scope" index={1} title={scopeTitle} locked>
+          {scopePicker}
         </StepCard>
 
         <StepCard id="schedule" index={2} title="Schedule">

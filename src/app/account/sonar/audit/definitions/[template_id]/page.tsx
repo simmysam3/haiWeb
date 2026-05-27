@@ -5,7 +5,7 @@ import type { RunTemplate } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { formatCadence } from '../../../templates/_lib/format-cadence';
-import { AuditDefinitionEditor } from './_components/audit-definition-editor';
+import { AuditDefinitionDetail } from './_components/audit-definition-detail';
 
 interface DetailPageProps {
   params: Promise<{ template_id: string }>;
@@ -49,7 +49,7 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
         >
           ← Audits
         </Link>
-        <AuditDefinitionEditor template={tpl} />
+        <AuditDefinitionDetail template={tpl} />
       </div>
     </div>
   );
