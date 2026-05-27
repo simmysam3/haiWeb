@@ -102,10 +102,18 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   throttle: {
     throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
   },
+  // Snake_case keys are the protocol-shaped values used by run-detail and
+  // audit-log surfaces. LT / CAP / DEL are compact-chip codes added in v.1.43
+  // Plan 2 for <CounterpartiesGrid>, <WatcherScopePicker> checkboxes, and the
+  // watcher column packs. Both forms resolve so neither surface drops to the
+  // missing-definition console.warn.
   signal_type: {
     lead_time_distribution: 'p50 / p75 / p90 / p95 / p99 fulfilment lead time over the last 90 days.',
     capacity_utilization_band: 'Latest reported production band: low, moderate, high, or at_capacity.',
     delivery_event: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
+    LT: 'p50 / p75 / p90 / p95 / p99 fulfilment lead time over the last 90 days.',
+    CAP: 'Latest reported production band: low, moderate, high, or at_capacity.',
+    DEL: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception.',
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
