@@ -1,9 +1,15 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { ConfigurationsTable } from '@/components/sonar/observations';
-import { HistoryQueue } from './_components/history-queue';
-import { auditConfigurationsColumnPack } from './_components/audit-column-packs';
+import {
+  ConfigurationsTable,
+  RunHistoryTable,
+} from '@/components/sonar/observations';
+import {
+  auditConfigurationsColumnPack,
+  buildAuditHistoryColumnPack,
+  type EnrichedAuditRun,
+} from './_components/audit-column-packs';
 import type { RunTemplate, AuditRun } from '@haiwave/protocol';
 
 interface DefinitionsPayload {
@@ -12,6 +18,7 @@ interface DefinitionsPayload {
 
 interface RunsPayload {
   runs: AuditRun[];
+  auditor_country?: string;
 }
 
 type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
@@ -28,6 +35,8 @@ export default async function AuditListPage() {
 
   const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
   const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
+  const auditorCountry =
+    runsResult.kind === 'ok' ? runsResult.data.auditor_country : undefined;
 
   // Scheduled queue: recurring audit definitions only (cadence.kind !== 'manual_only').
   const scheduledDefinitions = allDefinitions
@@ -116,7 +125,13 @@ export default async function AuditListPage() {
           All audit runs across configurations and ad-hoc triggers. Polled every
           15 seconds while the page is open — in-progress runs update live.
         </p>
-        <HistoryQueue initialRows={runs} />
+        <RunHistoryTable<EnrichedAuditRun>
+          initialRows={runs}
+          columns={buildAuditHistoryColumnPack(auditorCountry)}
+          pollEndpoint="/api/account/sonar/audit/runs"
+          keyFn={(r) => r.run_id}
+          emptyMessage='No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.'
+        />
       </section>
     </div>
   );
