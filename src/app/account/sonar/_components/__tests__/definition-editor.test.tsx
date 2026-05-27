@@ -115,29 +115,29 @@ describe('DefinitionEditor (audit)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  // v.1.42 — Suspend/Reactivate header control.
-  it('renders an Active status pill + Suspend button for an enabled template', () => {
+  // v.1.43 follow-up — Activation moved into the Schedule step as a radio
+  // group (Active / Suspended). PATCH still fires immediately on change.
+  it('renders the Active radio checked for an enabled template', () => {
     renderAuditEditor();
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^suspend$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^reactivate$/i })).toBeNull();
+    const active = screen.getByRole('radio', { name: 'Active' });
+    const suspended = screen.getByRole('radio', { name: 'Suspended' });
+    expect(active).toBeChecked();
+    expect(suspended).not.toBeChecked();
   });
 
-  it('renders a Suspended status pill + Reactivate button + paused banner for a disabled template', () => {
+  it('renders the Suspended radio checked for a disabled template', () => {
     const disabled = { ...template, enabled: false } as RunTemplate;
     renderAuditEditor({ template: disabled });
-    expect(screen.getByText('Suspended')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^reactivate$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^suspend$/i })).toBeNull();
-    expect(
-      screen.getByText(/scheduled runs (are )?suspended/i),
-    ).toBeInTheDocument();
+    const active = screen.getByRole('radio', { name: 'Active' });
+    const suspended = screen.getByRole('radio', { name: 'Suspended' });
+    expect(active).not.toBeChecked();
+    expect(suspended).toBeChecked();
   });
 
-  it('Suspend button PATCHes enabled=false (independent of form dirty state)', async () => {
+  it('selecting Suspended PATCHes enabled=false (independent of form dirty state)', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
     renderAuditEditor();
-    await userEvent.click(screen.getByRole('button', { name: /^suspend$/i }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Suspended' }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
@@ -146,11 +146,11 @@ describe('DefinitionEditor (audit)', () => {
     expect(body).toEqual({ enabled: false });
   });
 
-  it('Reactivate button PATCHes enabled=true', async () => {
+  it('selecting Active PATCHes enabled=true', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
     const disabled = { ...template, enabled: false } as RunTemplate;
     renderAuditEditor({ template: disabled });
-    await userEvent.click(screen.getByRole('button', { name: /^reactivate$/i }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Active' }));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
@@ -186,7 +186,9 @@ describe('DefinitionEditor (audit)', () => {
       },
     ];
     renderAuditEditor({ events });
-    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    // "Suspended" appears twice — the history badge for this event AND the
+    // activation radio label inside the Schedule step. Match at least one.
+    expect(screen.getAllByText('Suspended').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Created')).toBeInTheDocument();
     expect(screen.getByText(/Authorized by/)).toBeInTheDocument();
     expect(screen.getByText(/^By/)).toBeInTheDocument();
@@ -222,9 +224,9 @@ describe('DefinitionEditor (observationClass parameterization)', () => {
     expect(
       screen.getByRole('heading', { name: 'Watcher Scope' }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('Watcher is active'),
-    ).toBeInTheDocument();
+    // Activation lives in the Schedule step as a radio group now (v.1.43
+    // follow-up). The Active option is checked by default for enabled tpls.
+    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
     expect(screen.getByText('watcher-scope-content')).toBeInTheDocument();
   });
 });

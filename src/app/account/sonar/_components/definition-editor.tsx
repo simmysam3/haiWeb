@@ -273,55 +273,24 @@ export function DefinitionEditor({
     }
   }
 
+  /**
+   * v.1.43 follow-up — Suspend/Reactivate moved into the Schedule step as a
+   * radio group (Active / Suspended). The top-of-page status pill + standalone
+   * toggle button were noisy when the template wasn't on a schedule; surfacing
+   * the control alongside cadence makes the relationship explicit. The setter
+   * still PATCHes immediately, independent of the dirty-form save bar.
+   */
+  async function setEnabledTo(next: boolean) {
+    if (next === enabled) return;
+    await toggleEnabled();
+  }
+
   return (
     <div className="flex gap-6">
       <div className="pt-1">
         <StepRail steps={steps} onJump={jump} />
       </div>
       <div className="flex-1 max-w-2xl">
-        {/* v.1.42 — Activation status + Suspend/Reactivate. Lives above the
-            step chain so a paused template is obvious without scrolling, and
-            the toggle saves immediately (separate from the form dirty-state
-            save bar). Suspended templates drop out of the composite Backlog
-            rollup but keep their history and can be reactivated later. */}
-        <div className="mb-4 flex items-center gap-3">
-          <span
-            className={
-              enabled
-                ? 'inline-flex items-center rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-semibold text-teal-dark'
-                : 'inline-flex items-center rounded-full bg-slate/15 px-2.5 py-0.5 text-xs font-semibold text-slate'
-            }
-            aria-label={
-              enabled
-                ? `${noun} is active`
-                : `${noun} is suspended`
-            }
-          >
-            {enabled ? 'Active' : 'Suspended'}
-          </span>
-          <button
-            type="button"
-            onClick={toggleEnabled}
-            disabled={busy}
-            className={
-              enabled
-                ? 'rounded border border-slate/30 px-3 py-1 text-xs text-slate hover:border-slate hover:text-charcoal disabled:opacity-60'
-                : 'rounded border border-teal text-teal-dark px-3 py-1 text-xs font-semibold hover:bg-teal/10 disabled:opacity-60'
-            }
-          >
-            {enabled ? 'Suspend' : 'Reactivate'}
-          </button>
-        </div>
-        {!enabled && (
-          <div
-            role="status"
-            className="mb-4 rounded border border-slate/20 bg-slate/5 px-4 py-3 text-xs text-slate"
-          >
-            Paused — scheduled runs are suspended and this {noun.toLowerCase()} is
-            excluded from the Backlog rollup. Run history is preserved. Reactivate
-            to resume the schedule.
-          </div>
-        )}
         <StepCard id="identity" index={0} title="Identity">
           <NameField noun={noun} value={name} onChange={setName} />
         </StepCard>
@@ -332,6 +301,41 @@ export function DefinitionEditor({
 
         <StepCard id="schedule" index={2} title="Schedule">
           <SchedulePicker value={cadence} onChange={setCadence} />
+          <fieldset className="mt-5 border-t border-slate/10 pt-4">
+            <legend className="text-xs font-semibold uppercase tracking-wide text-slate">
+              Activation
+            </legend>
+            <p className="mt-1 text-xs text-slate">
+              Suspended {noun.toLowerCase()}s keep their history but drop out of
+              the schedule and the Backlog rollup. Reactivate any time.
+            </p>
+            <div role="radiogroup" aria-label="Activation" className="mt-3 flex gap-4">
+              <label className="inline-flex items-center gap-2 text-sm text-charcoal">
+                <input
+                  type="radio"
+                  name="activation"
+                  value="active"
+                  checked={enabled}
+                  disabled={busy}
+                  onChange={() => setEnabledTo(true)}
+                  className="text-teal focus:ring-teal"
+                />
+                Active
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-charcoal">
+                <input
+                  type="radio"
+                  name="activation"
+                  value="suspended"
+                  checked={!enabled}
+                  disabled={busy}
+                  onChange={() => setEnabledTo(false)}
+                  className="text-teal focus:ring-teal"
+                />
+                Suspended
+              </label>
+            </div>
+          </fieldset>
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">

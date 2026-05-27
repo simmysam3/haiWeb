@@ -8,6 +8,7 @@ import { WatcherHistoryTable } from '../../_components/watcher-history-table';
 import { CalibratedLTTrendChart } from './_components/calibrated-lt-trend-chart';
 import { PerCounterpartyPostureTable } from './_components/per-counterparty-posture-table';
 import { WatcherDefinitionDetail } from './_components/watcher-definition-detail';
+import { WatcherRunNowButton } from './_components/watcher-run-now-button';
 import type { EnrichedWatcherRun } from '../../_components/watcher-column-packs';
 
 interface RouteContext {
@@ -53,12 +54,15 @@ export default async function WatcherDefinitionPage({ params }: RouteContext) {
           </>
         }
         actions={
-          <Link
-            href="/account/sonar/watchers"
-            className="text-sm text-teal hover:underline"
-          >
-            ← Watchers
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/account/sonar/watchers"
+              className="text-sm text-teal hover:underline"
+            >
+              ← Watchers
+            </Link>
+            <WatcherRunNowButton template={tpl} />
+          </div>
         }
       />
 
