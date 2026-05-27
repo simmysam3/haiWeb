@@ -19,9 +19,18 @@ export function ConfigurationsTable<T>({
     return <p className="text-sm text-slate italic">{emptyMessage}</p>;
   }
 
+  const hasWidths = columns.columns.some((c) => c.width);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
+        {hasWidths && (
+          <colgroup>
+            {columns.columns.map((c) => (
+              <col key={c.key} style={c.width ? { width: c.width } : undefined} />
+            ))}
+          </colgroup>
+        )}
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wider text-slate">
             {columns.columns.map((c) => (

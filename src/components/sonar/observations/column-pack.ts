@@ -17,6 +17,13 @@ export interface ColumnDef<T> {
   align?: 'left' | 'right' | 'center';
   /** Optional title shown as tooltip on the header. */
   headerTitle?: string;
+  /**
+   * Optional column width (e.g. "26%", "120px") for the table's `<colgroup>`.
+   * Set on every column to keep alignment between sibling tables (configurations
+   * + run history) that share a layout. If any column in a pack sets `width`,
+   * the table renders a `<colgroup>` populated from these values.
+   */
+  width?: string;
 }
 
 export interface ColumnPack<T> {
