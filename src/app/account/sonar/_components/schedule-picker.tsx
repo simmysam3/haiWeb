@@ -2,13 +2,23 @@
 
 import type { Cadence } from '@haiwave/protocol';
 
+/**
+ * Shared schedule picker for sonar observation configurations (audit, watcher,
+ * phantom demand). Top-level choice is Cadence (recurring) vs Manual. Selecting
+ * Cadence reveals the recurring config (frequency + time-of-day / day-of-week /
+ * day-of-month) plus an optional Run-now checkbox. Event-triggered is not
+ * offered.
+ *
+ * Lifted from the audit-specific version with no behavioral change. See spec
+ * §3.2 + §7.3.
+ */
+
 // Protocol stores `time_of_day` as UTC HH:MM. The picker shows it in the
 // user's browser-local time so they can reason in their own clock. The
 // conversion uses TODAY's date, which means a schedule that straddles a DST
 // boundary will appear to shift by one hour in local time across the
 // boundary — the stored UTC stays constant, so the cadence is "fires at the
 // same UTC moment every day," not "fires at the same local wall-clock time."
-// Standard cron-style semantics and matches the protocol.
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
@@ -59,14 +69,7 @@ const MONTHLY_DAY_MIN = 1;
 const MONTHLY_DAY_MAX = 28;
 const DEFAULT_DAY_OF_MONTH = 1;
 
-/**
- * Audit-specific schedule picker. Top-level choice is Cadence (default) vs
- * Manual. Selecting Cadence reveals the recurring config (frequency + time-of-
- * day / day-of-week) plus a Run-now checkbox so the user can kick off an
- * immediate first pass alongside the schedule. Event-triggered is intentionally
- * not offered here.
- */
-export function AuditSchedulePicker({
+export function SchedulePicker({
   value,
   onChange,
   runNow,
@@ -102,7 +105,7 @@ export function AuditSchedulePicker({
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
             type="radio"
-            name="audit-run-mode"
+            name="sonar-run-mode"
             checked={!isManual}
             onChange={() => selectFreq(freq)}
           />
@@ -111,7 +114,7 @@ export function AuditSchedulePicker({
         <label className="flex items-center gap-2 text-sm text-charcoal">
           <input
             type="radio"
-            name="audit-run-mode"
+            name="sonar-run-mode"
             checked={isManual}
             onChange={() => onChange({ kind: 'manual_only' })}
           />
@@ -131,7 +134,7 @@ export function AuditSchedulePicker({
               <label key={f} className="flex items-center gap-2 text-sm text-charcoal">
                 <input
                   type="radio"
-                  name="audit-cadence-freq"
+                  name="sonar-cadence-freq"
                   checked={freq === f}
                   onChange={() => selectFreq(f)}
                 />

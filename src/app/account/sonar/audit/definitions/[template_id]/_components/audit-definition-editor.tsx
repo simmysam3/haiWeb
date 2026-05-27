@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Cadence, RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
-import { AuditSchedulePicker } from '../../../new/_components/audit-schedule-picker';
+import { SchedulePicker } from '../../../../_components/schedule-picker';
 import { StepRail, type RailStep } from '../../../../_components/step-rail';
 import { StepCard } from '../../../../_components/step-card';
 import { ScopeSummary } from '../../../../templates/_components/scope-summary';
@@ -270,7 +270,7 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
         </StepCard>
 
         <StepCard id="schedule" index={2} title="Schedule">
-          <AuditSchedulePicker value={cadence} onChange={setCadence} />
+          <SchedulePicker value={cadence} onChange={setCadence} />
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">
