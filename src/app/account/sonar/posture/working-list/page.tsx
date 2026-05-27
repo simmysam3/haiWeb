@@ -6,8 +6,6 @@ import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
-import { BacklogTabs } from '../_components/backlog-tabs';
-import { getActiveScopes } from '../../_lib/scopes';
 
 interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
@@ -69,13 +67,8 @@ interface PageProps { searchParams: Promise<SearchParams>; }
 export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
-  const [raw, scopesResult] = await Promise.all([
-    fetchList(params),
-    getActiveScopes(),
-  ]);
+  const raw = await fetchList(params);
   const result = sku ? filterBySku(raw, sku) : raw;
-  const hasScopes =
-    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
     <div>
       <PageHeader
@@ -90,7 +83,6 @@ export default async function GapsPage({ searchParams }: PageProps) {
         }
         actions={<RefreshButton />}
       />
-      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro
         more={
           <>
