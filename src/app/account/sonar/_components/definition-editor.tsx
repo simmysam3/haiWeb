@@ -2,7 +2,14 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Cadence, RunTemplate, RunTemplateEvent, RunTemplateScope } from '@haiwave/protocol';
+import type {
+  Cadence,
+  RunTemplate,
+  RunTemplateEvent,
+  RunTemplateScope,
+  WatcherDriftThresholds,
+} from '@haiwave/protocol';
+import { DEFAULT_WATCHER_DRIFT_THRESHOLDS } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SchedulePicker } from './schedule-picker';
@@ -10,17 +17,27 @@ import { StepRail, type RailStep } from './step-rail';
 import { StepCard } from './step-card';
 import { NameField } from './name-field';
 import { AuditLifecycleFields } from './audit-lifecycle-fields';
+import { DriftThresholdsFields } from './drift-thresholds-fields';
 
-const steps: RailStep[] = [
-  { id: 'identity', label: 'Identity', state: 'active' },
-  { id: 'scope', label: 'Scope', state: 'locked' },
-  { id: 'schedule', label: 'Schedule', state: 'todo' },
-  { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
+// v.1.43 drift step — the step rail is per-observation-class. Watcher gains
+// a "Drift" step between Schedule and Lifecycle; audit + phantom_demand
+// retain the original four-numbered + History tail.
+function buildSteps(observationClass: ObservationClass): RailStep[] {
+  const out: RailStep[] = [
+    { id: 'identity', label: 'Identity', state: 'active' },
+    { id: 'scope', label: 'Scope', state: 'locked' },
+    { id: 'schedule', label: 'Schedule', state: 'todo' },
+  ];
+  if (observationClass === 'watcher') {
+    out.push({ id: 'drift', label: 'Drift', state: 'todo' });
+  }
+  out.push({ id: 'lifecycle', label: 'Lifecycle', state: 'todo' });
   // v.1.42 — unnumbered (read-only) entry in the rail. StepRail renders the
   // ordinal from index+1; setting `state: 'locked'` styles it as inert and
   // we suppress the numeric ordinal via the StepCard's `index={-1}`.
-  { id: 'history', label: 'History', state: 'locked' },
-];
+  out.push({ id: 'history', label: 'History', state: 'locked' });
+  return out;
+}
 
 const EVENT_LABEL: Record<RunTemplateEvent['event_kind'], string> = {
   created: 'Created',
@@ -154,6 +171,17 @@ export function DefinitionEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // v.1.43 drift step — drift thresholds live on the watcher scope (typed via
+  // WatcherScope.drift_thresholds in protocol 3.33). For non-watcher classes
+  // this remains null and the Drift step + state never render.
+  const initialDrift: WatcherDriftThresholds | null =
+    observationClass === 'watcher'
+      ? (((template.scope as { drift_thresholds?: WatcherDriftThresholds })
+          .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS)
+      : null;
+  const [driftThresholds, setDriftThresholds] = useState<WatcherDriftThresholds | null>(
+    initialDrift,
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -163,9 +191,31 @@ export function DefinitionEditor({
     setRetentionDays(template.retention_days);
   }, [template]);
 
+  useEffect(() => {
+    if (observationClass !== 'watcher') return;
+    const td =
+      ((template.scope as { drift_thresholds?: WatcherDriftThresholds })
+        .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS;
+    setDriftThresholds(td);
+  }, [template, observationClass]);
+
   const scopeDirty = !scopeLocked && scopeValue !== undefined
     ? JSON.stringify(scopeValue) !== JSON.stringify(template.scope)
     : false;
+
+  // v.1.43 drift step — drift_thresholds is part of the watcher scope, but
+  // the editor owns its own state (not the caller-supplied scopeValue) so
+  // the existing scope picker (which writes counterparties/skus/signal types)
+  // doesn't need to know about drift. The save() merge below unifies the two
+  // when building patchBody.scope.
+  const driftDirty =
+    observationClass === 'watcher' &&
+    driftThresholds !== null &&
+    JSON.stringify(driftThresholds) !==
+      JSON.stringify(
+        ((template.scope as { drift_thresholds?: WatcherDriftThresholds })
+          .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS,
+      );
 
   const dirty = useMemo(
     () =>
@@ -173,8 +223,9 @@ export function DefinitionEditor({
       enabled !== template.enabled ||
       retentionDays !== template.retention_days ||
       JSON.stringify(cadence) !== JSON.stringify(template.cadence) ||
-      scopeDirty,
-    [name, enabled, retentionDays, cadence, template, scopeDirty],
+      scopeDirty ||
+      driftDirty,
+    [name, enabled, retentionDays, cadence, template, scopeDirty, driftDirty],
   );
 
   function jump(id: string) {
@@ -194,6 +245,18 @@ export function DefinitionEditor({
       };
       if (!scopeLocked && scopeValue !== undefined) {
         patchBody.scope = scopeValue;
+      }
+      // v.1.43 drift step — when saving a watcher template, merge the editor-
+      // owned drift_thresholds into whichever scope object lands in the PATCH.
+      // If the caller supplied scopeValue (unlocked watcher), merge on top of
+      // that; otherwise spread the original template.scope so we don't strip
+      // it from the existing watcher record.
+      if (observationClass === 'watcher' && driftThresholds) {
+        const baseScope =
+          !scopeLocked && scopeValue !== undefined
+            ? scopeValue
+            : (template.scope as RunTemplateScope);
+        patchBody.scope = { ...baseScope, drift_thresholds: driftThresholds };
       }
       const res = await fetch(`${endpointBase}/${template.template_id}`, {
         method: 'PATCH',
@@ -285,10 +348,12 @@ export function DefinitionEditor({
     await toggleEnabled();
   }
 
+  const railSteps = buildSteps(observationClass);
+
   return (
     <div className="flex gap-6">
       <div className="pt-1">
-        <StepRail steps={steps} onJump={jump} />
+        <StepRail steps={railSteps} onJump={jump} />
       </div>
       <div className="flex-1 max-w-2xl">
         <StepCard id="identity" index={0} title="Identity">
@@ -338,7 +403,26 @@ export function DefinitionEditor({
           </fieldset>
         </StepCard>
 
-        <StepCard id="lifecycle" index={3} title="Lifecycle">
+        {/* v.1.43 drift step — only watchers configure drift thresholds.
+            Inserts a numbered step between Schedule (2) and Lifecycle (now
+            4 for watchers, still 3 for audit/phantom_demand). Locked when
+            cadence.kind === 'manual_only' since drift is observed across
+            scheduled runs. */}
+        {observationClass === 'watcher' && driftThresholds && (
+          <StepCard id="drift" index={3} title="Drift detection">
+            <DriftThresholdsFields
+              value={driftThresholds}
+              onChange={setDriftThresholds}
+              locked={cadence.kind === 'manual_only'}
+            />
+          </StepCard>
+        )}
+
+        <StepCard
+          id="lifecycle"
+          index={observationClass === 'watcher' ? 4 : 3}
+          title="Lifecycle"
+        >
           {/* Enabled/disabled lives on the header Suspend/Reactivate button —
               the Lifecycle step surfaces only retention here, matching the
               new-audit wizard. */}

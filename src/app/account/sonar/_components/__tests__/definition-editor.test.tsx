@@ -279,7 +279,11 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.scope).toEqual(changedScope);
+    // v.1.43 drift step — watcher PATCHes now merge drift_thresholds into
+    // scope. Assert the scope-picker fields land verbatim and the drift
+    // thresholds object is present (default values from protocol).
+    expect(body.scope).toMatchObject(changedScope);
+    expect(body.scope.drift_thresholds).toBeDefined();
   });
 
   it('PATCH body does NOT include scope when scopeLocked=true (audit default)', async () => {
@@ -291,5 +295,103 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
     expect(body).not.toHaveProperty('scope');
+  });
+});
+
+// v.1.43 drift step — only watcher templates get a Drift step. The fields
+// are locked when cadence is manual_only (drift is a scheduled-observation
+// concept). The audit path must remain entirely unchanged.
+describe('DefinitionEditor (drift step — watcher only)', () => {
+  const watcherTemplate: RunTemplate = {
+    template_id: 'def-watcher-1',
+    template_name: 'lt-watcher',
+    observation_class: 'watcher',
+    cadence: { kind: 'daily', hour_local: 9, minute_local: 0, timezone: 'UTC' },
+    enabled: true,
+    retention_days: 90,
+    created_at: '2026-05-08T12:00:00.000Z',
+    last_run_at: null,
+    scope: {
+      kind: 'watcher',
+      authorization_basis: 'bilateral',
+      counterparties: ['acme-corp'],
+      signal_types: ['lead_time_distribution'],
+      skus: [],
+      depth_limit: 1,
+    },
+  } as unknown as RunTemplate;
+
+  function renderWatcherEditor(opts: { template?: RunTemplate } = {}) {
+    const tpl = opts.template ?? watcherTemplate;
+    return render(
+      <DefinitionEditor
+        template={tpl}
+        observationClass="watcher"
+        scopePicker={<div data-testid="watcher-scope-picker">watcher-scope</div>}
+        scopeLocked={false}
+        scopeValue={tpl.scope}
+        onScopeChange={vi.fn()}
+        endpointBase="/api/account/sonar/watchers/definitions"
+        listRoute="/account/sonar/watchers"
+      />,
+    );
+  }
+
+  it('renders a Drift step for watcher observation_class', () => {
+    renderWatcherEditor();
+    expect(
+      screen.getByRole('heading', { name: 'Drift detection' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Noise floor/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render a Drift step for audit observation_class', () => {
+    renderAuditEditor();
+    expect(
+      screen.queryByRole('heading', { name: 'Drift detection' }),
+    ).toBeNull();
+  });
+
+  it('locks the Drift step when cadence is manual_only', () => {
+    const manualWatcher = {
+      ...watcherTemplate,
+      cadence: { kind: 'manual_only' as const },
+    } as RunTemplate;
+    renderWatcherEditor({ template: manualWatcher });
+    expect(
+      screen.getByText(/Drift detection requires a scheduled cadence/i),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Noise floor/i)).toBeDisabled();
+  });
+
+  it('triggers the save bar when drift thresholds change', async () => {
+    renderWatcherEditor();
+    // No save bar at initial render (drift_thresholds === DEFAULT).
+    expect(screen.queryByRole('button', { name: /save changes/i })).toBeNull();
+    // Bump the noise floor by typing.
+    const noise = screen.getByLabelText(/Noise floor/i);
+    await userEvent.clear(noise);
+    await userEvent.type(noise, '7');
+    expect(
+      screen.getByRole('button', { name: /save changes/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('merges drift_thresholds into scope on PATCH', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    renderWatcherEditor();
+    const noise = screen.getByLabelText(/Noise floor/i);
+    await userEvent.clear(noise);
+    await userEvent.type(noise, '7');
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.scope).toBeDefined();
+    expect(body.scope.drift_thresholds).toBeDefined();
+    expect(body.scope.drift_thresholds.noise_floor_days).toBe(7);
+    // scope still carries the original watcher fields too.
+    expect(body.scope.kind).toBe('watcher');
+    expect(body.scope.counterparties).toEqual(['acme-corp']);
   });
 });
