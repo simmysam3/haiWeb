@@ -43,11 +43,13 @@ describe('AccountNav', () => {
     const requests = screen.getByRole('link', { name: 'Request Management' });
     expect(requests.getAttribute('href')).toBe('/account/sonar/requests');
 
-    // v.1.41 Backlog IA: Posture renamed to Backlog. URL preserved at
-    // /account/sonar/posture (label-only test phase).
-    const backlog = screen.getByRole('link', { name: 'Backlog' });
+    // v.1.43: "Backlog" → "Watcher Backlog" to clarify the surface
+    // aggregates events/gaps/obligations surfaced by watcher runs.
+    // URL preserved at /account/sonar/posture (label-only change).
+    const backlog = screen.getByRole('link', { name: 'Watcher Backlog' });
     expect(backlog.getAttribute('href')).toBe('/account/sonar/posture');
     expect(screen.queryByRole('link', { name: 'Posture' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Backlog' })).toBeNull();
 
     const phantomDemand = screen.getByRole('link', { name: 'Phantom Demand' });
     expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');

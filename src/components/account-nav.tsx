@@ -136,7 +136,7 @@ const navSections: NavSection[] = [
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
-      { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
+      { href: BACKLOG_HREF, label: "Watcher Backlog", tooltip: "Backlog of events, gaps, and obligations surfaced from your watcher runs across the supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
       // Configurations suppressed from the menu — pending the phantom-demand
       // implementation, after which this surface may not be needed at all.
