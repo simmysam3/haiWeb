@@ -13,6 +13,11 @@ const base: ComplianceChange = {
   current_value: null,
   severity: 'critical',
   detected_at: '2026-05-18T00:00:00.000Z',
+  source_kind: 'audit',
+  watcher_snapshot_id: null,
+  prior_watcher_snapshot_id: null,
+  source_run_id: '00000000-0000-0000-0000-000000000004',
+  source_template_id: null,
 };
 
 const c = (e: Partial<ComplianceChange>): ComplianceChange => ({ ...base, ...e });

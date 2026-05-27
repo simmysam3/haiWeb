@@ -11,8 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { ChangesFeed } from '../changes-feed';
-import { EVENT_KIND_PILLS } from '../filter-pills';
-import { EMITTED_CHANGE_KINDS as PROTOCOL_EMITTED_CHANGE_KINDS } from '@haiwave/protocol';
+import { EVENT_KIND_PILLS } from '../_lib/event-kind-pills';
 import type { ComplianceChange } from '@haiwave/protocol';
 
 const base: ComplianceChange = {
@@ -23,6 +22,11 @@ const base: ComplianceChange = {
   current_value: { country_of_origin: 'CN' },
   severity: 'critical', detected_at: '2026-05-18T00:00:00.000Z',
   processed_at: null, processed_by: null,
+  source_kind: 'watcher',
+  watcher_snapshot_id: '00000000-0000-0000-0000-000000000001',
+  prior_watcher_snapshot_id: '00000000-0000-0000-0000-000000000000',
+  source_run_id: '00000000-0000-0000-0000-000000000004',
+  source_template_id: '00000000-0000-0000-0000-000000000005',
 };
 
 const change = (e: Partial<ComplianceChange>): ComplianceChange => ({ ...base, ...e });
@@ -136,17 +140,28 @@ describe('ChangesFeed', () => {
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
 
-  it('filter-pills EVENT_KIND_PILLS is the protocol EMITTED_CHANGE_KINDS minus gap lifecycle (v.1.41 Backlog IA)', () => {
-    // Gap lifecycle (gap_added / gap_resolved) belongs on the Gaps tab;
-    // they are excluded from Events feed pills + default query results.
-    const GAP_LIFECYCLE = ['gap_added', 'gap_resolved'];
-    const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
-      .filter((k) => !GAP_LIFECYCLE.includes(k))
-      .sort();
+  it('Watcher Backlog EVENT_KIND_PILLS is the LT-only 2-kind set (v.1.43 dual-surface partition)', () => {
+    // v.1.43 split the old Backlog into two single-purpose surfaces:
+    //   - Watcher Backlog (this page) — LT drift events only.
+    //   - Event Backlog (sonar/audit/events) — the 7 audit-data kinds.
+    // The two surfaces filter the same compliance_changes feed by
+    // change_kind allowlist (not by source_kind). This test guards
+    // against the LT-only restriction silently regressing.
     const actual = [...EVENT_KIND_PILLS].sort();
-    expect(actual).toEqual(expected);
-    expect(actual).not.toContain('gap_added');
-    expect(actual).not.toContain('gap_resolved');
+    expect(actual).toEqual(['lead_time_degraded', 'lead_time_improved']);
+    // Negative-shape: audit-data kinds + gap lifecycle must NOT appear here.
+    const FORBIDDEN = [
+      'gap_added',
+      'gap_resolved',
+      'origin_shifted_country',
+      'origin_shifted_plant',
+      'vendor_substituted',
+      'certification_expired_or_revoked',
+      'certification_renewed',
+      'depth_reduced',
+      'depth_increased',
+    ];
+    FORBIDDEN.forEach((k) => expect(actual).not.toContain(k));
   });
 
   it('renders pager when total exceeds pageSize', () => {

@@ -1,6 +1,7 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
+import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
@@ -27,12 +28,22 @@ interface SearchParams {
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
-  const kinds = searchParams.kind;
-  if (Array.isArray(kinds)) {
-    kinds.forEach((k) => sp.append('kind', k));
-  } else if (kinds) {
-    sp.append('kind', kinds);
-  }
+  // v.1.43: Watcher Backlog is LT-only. If the user picked specific kinds,
+  // honor them but drop anything outside the LT allowlist (in case an
+  // audit-side kind arrives via a stale URL). If no kind filter at all,
+  // default to the LT pill set so audit-data rows never bleed into this
+  // watcher-side surface.
+  const rawKinds = searchParams.kind;
+  const requested: string[] = Array.isArray(rawKinds)
+    ? rawKinds
+    : rawKinds
+      ? [rawKinds]
+      : [];
+  const allowed = new Set<string>(EVENT_KIND_PILLS);
+  const filteredKinds = requested.length
+    ? requested.filter((k) => allowed.has(k))
+    : [...EVENT_KIND_PILLS];
+  filteredKinds.forEach((k) => sp.append('kind', k));
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);
@@ -78,12 +89,12 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   return (
     <div>
       <PageHeader
-        title="Events"
-        description="Consequential supply-chain changes detected between snapshots — default window is 14 days."
+        title="Watcher Backlog"
+        description="Lead-time drift events from your scheduled watcher configurations — default window is 14 days."
         actions={<RefreshButton />}
       />
       <PageIntro>
-        Drift events from your scheduled watcher and audit configurations. Default view shows critical-only — change the Showing dropdown to see warnings, info, or processed items. Process an event to record an outcome and drop it from the active backlog.
+        Lead-time drift events emitted by your scheduled watcher configurations: degradations when a vendor&apos;s lead time grows past the warning/critical threshold, improvements when it recovers. Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Default view shows critical-only — change the Showing dropdown to see warnings, info, or processed items. Process an event to record an outcome and drop it from the active backlog.
       </PageIntro>
 
       <FilterPills />

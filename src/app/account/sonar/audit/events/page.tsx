@@ -1,6 +1,7 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
-import { EVENT_KIND_PILLS, FilterPills } from './filter-pills';
+import { FilterPills } from './filter-pills';
+import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';

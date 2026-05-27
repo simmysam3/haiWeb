@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { ChangesFeed } from '../changes-feed';
-import { EVENT_KIND_PILLS } from '../filter-pills';
+import { EVENT_KIND_PILLS } from '../_lib/event-kind-pills';
 import { EMITTED_CHANGE_KINDS as PROTOCOL_EMITTED_CHANGE_KINDS } from '@haiwave/protocol';
 import type { ComplianceChange } from '@haiwave/protocol';
 
@@ -23,6 +23,11 @@ const base: ComplianceChange = {
   current_value: { country_of_origin: 'CN' },
   severity: 'critical', detected_at: '2026-05-18T00:00:00.000Z',
   processed_at: null, processed_by: null,
+  source_kind: 'audit',
+  watcher_snapshot_id: null,
+  prior_watcher_snapshot_id: null,
+  source_run_id: '00000000-0000-0000-0000-000000000004',
+  source_template_id: null,
 };
 
 const change = (e: Partial<ComplianceChange>): ComplianceChange => ({ ...base, ...e });
