@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
-import { ChangeDetailCompare } from './change-detail-compare';
+import { ChangeDetailCompare } from '@/app/account/sonar/_components/change-detail-compare';
+import { OutcomeForm } from './outcome-form';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -65,7 +66,10 @@ export default async function ChangeDetailPage({ params }: PageProps) {
 
       <div className="space-y-2">
         {backLink}
-        <ChangeDetailCompare detail={result.data} />
+        <ChangeDetailCompare
+          detail={result.data}
+          outcomeForm={<OutcomeForm change={result.data.change} />}
+        />
       </div>
     </div>
   );

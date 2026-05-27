@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
 import { describeChange, kindLabel, severityTone } from '../_lib/describe-change';
 import { ChangeStateSummary } from './state-summary';
-import { OutcomeForm } from './outcome-form';
 
 interface CellPanelProps {
   label: string;
@@ -72,9 +72,16 @@ function CellPanel({ label, samples, tree }: CellPanelProps) {
 
 interface Props {
   detail: ComplianceChangeDetail;
+  /**
+   * Per-surface outcome form. Each surface renders its own `<OutcomeForm>` so
+   * that the post-submit redirect lands the reviewer back on the right list
+   * (`posture/changes` vs `audit/events`). Optional so tests and minimal
+   * embeds can omit it.
+   */
+  outcomeForm?: ReactNode;
 }
 
-export function ChangeDetailCompare({ detail }: Props) {
+export function ChangeDetailCompare({ detail, outcomeForm }: Props) {
   const { change, prior_cell, current_cell } = detail;
 
   return (
@@ -148,7 +155,7 @@ export function ChangeDetailCompare({ detail }: Props) {
       {/* Business-readable summary of the new state, ahead of the raw JSON. */}
       <ChangeStateSummary change={change} />
 
-      <OutcomeForm change={change} />
+      {outcomeForm}
 
       {/* Side-by-side Prior / Current — supporting evidence behind the summary. */}
       <div>

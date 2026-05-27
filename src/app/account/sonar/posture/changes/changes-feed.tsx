@@ -5,7 +5,7 @@ import { useSearchParams, usePathname } from 'next/navigation';
 import type { ComplianceChange, ComplianceChangeOutcome } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { IdChip } from '@/components/id-chip';
-import { describeChange, kindLabel, severityTone } from './_lib/describe-change';
+import { describeChange, kindLabel, severityTone } from '@/app/account/sonar/_lib/describe-change';
 
 interface Props {
   changes: ComplianceChange[];
