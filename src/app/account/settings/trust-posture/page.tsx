@@ -1,5 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import type { ParticipantModalityPosture, Modality, Posture, TrustClass } from '@haiwave/protocol';
+import { PageHeader } from '@/components/page-header';
 import { PostureGrid } from './_components/posture-grid';
 
 interface PostureGridResponse {
@@ -102,11 +103,10 @@ export default async function TrustPosturePage() {
 
   return (
     <div className="space-y-2">
-      <h1 className="text-xl font-semibold text-charcoal">Trust Posture</h1>
-      <p className="text-sm text-slate">
-        Configure how counterparties are treated for each observation modality,
-        by trust class. Changes apply immediately.
-      </p>
+      <PageHeader
+        title="Trust Posture"
+        description="Configure how counterparties are treated for each observation modality, by trust class. Changes apply immediately."
+      />
       {error && (
         <div
           role="alert"
