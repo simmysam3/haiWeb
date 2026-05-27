@@ -5,19 +5,27 @@ import useSWR from 'swr';
 import { Pill } from '@/components/pill';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 import type { AuditRun } from '@haiwave/protocol';
+import { FLAG_COMPONENTS } from '../_lib/country-flags';
+
+// Enriched shape returned by the list BFF. `template_name` is added by
+// HaiWeb (template_id → name join); `total_skus` and
+// `fully_resolved_skus_by_country` come straight off the protocol envelope
+// (haiCore aggregates them at list time since protocol 3.22.0).
+type EnrichedAuditRun = AuditRun & {
+  template_name?: string;
+};
 
 interface RunsPayload {
-  runs: AuditRun[];
+  runs: EnrichedAuditRun[];
+  auditor_country?: string;
 }
 
 interface Props {
   initialRows: AuditRun[];
 }
 
-function formatRunLabel(run: AuditRun): string {
-  // template_name is not on the protocol type; the BFF may enrich it.
-  const enriched = run as AuditRun & { template_name?: string | null };
-  if (enriched.template_name) return enriched.template_name;
+function formatRunLabel(run: EnrichedAuditRun): string {
+  if (run.template_name) return run.template_name;
   return `Run ${run.run_id.slice(0, 8)}`;
 }
 
@@ -63,6 +71,8 @@ export function HistoryQueue({ initialRows }: Props) {
   }
 
   const runs = data?.runs ?? [];
+  const auditorCountry = data?.auditor_country;
+  const FlagComponent = auditorCountry ? FLAG_COMPONENTS[auditorCountry] : undefined;
 
   if (runs.length === 0) {
     return (
@@ -76,13 +86,14 @@ export function HistoryQueue({ initialRows }: Props) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        {/* Shared 6-col grid — kept identical to scheduled-queue for vertical alignment */}
+        {/* Shared 7-col grid — kept identical to scheduled-queue for vertical alignment */}
         <colgroup>
-          <col style={{ width: '28%' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '16%' }} />
-          <col style={{ width: '20%' }} />
-          <col style={{ width: '16%' }} />
+          <col style={{ width: '14%' }} />
           <col style={{ width: '12%' }} />
+          <col style={{ width: '10%' }} />
           <col style={{ width: '8%' }} />
         </colgroup>
         <thead>
@@ -91,6 +102,9 @@ export function HistoryQueue({ initialRows }: Props) {
             <th className="py-2 pr-3">Source</th>
             <th className="py-2 pr-3">Run at</th>
             <th className="py-2 pr-3">Scope</th>
+            <th className="py-2 pr-3" title="SKUs whose components fully resolved to your home country / total SKUs in the run">
+              Domestic
+            </th>
             <th className="py-2 pr-3">Status</th>
             <th className="py-2">Actions</th>
           </tr>
@@ -124,6 +138,39 @@ export function HistoryQueue({ initialRows }: Props) {
               </td>
               <td className="py-2 pr-3 text-slate text-xs">
                 {formatScopeSnapshot(run)}
+              </td>
+              <td className="py-2 pr-3 text-xs">
+                {/* Domestic indicator: shows flag + X/Y for runs that produced
+                    results. "—" for runs that have no results yet (running /
+                    failed / cancelled / throttled) or when haiCore didn't
+                    compute the aggregates. Counts come straight off the
+                    AuditRun envelope (protocol 3.22.0+). */}
+                {(() => {
+                  const total = run.total_skus ?? null;
+                  if (total == null || total === 0) {
+                    return <span className="text-slate">—</span>;
+                  }
+                  const domestic = auditorCountry
+                    ? run.fully_resolved_skus_by_country?.[auditorCountry] ?? 0
+                    : 0;
+                  return (
+                    <span
+                      className="inline-flex items-center gap-1.5 text-charcoal"
+                      title={
+                        auditorCountry
+                          ? `${domestic} of ${total} SKUs fully resolved as ${auditorCountry}-origin`
+                          : `${total} SKUs (auditor country unknown)`
+                      }
+                    >
+                      {FlagComponent && (
+                        <FlagComponent className="h-3 w-auto rounded-sm shadow-sm" />
+                      )}
+                      <span className="font-mono">
+                        {domestic}/{total}
+                      </span>
+                    </span>
+                  );
+                })()}
               </td>
               <td className="py-2 pr-3">
                 <Pill

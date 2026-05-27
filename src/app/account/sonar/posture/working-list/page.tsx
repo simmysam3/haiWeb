@@ -4,7 +4,10 @@ import { FilterPills } from './filter-pills';
 import { GapsTrendStrip } from './gaps-trend-strip';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 import { fetchBffJson, type FetchResult } from '@/lib/server-fetch';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { getActiveScopes } from '../../_lib/scopes';
 
 interface SearchParams { status?: string; sort?: string; partner_id?: string; sku?: string; max_age_days?: string; }
 
@@ -66,21 +69,28 @@ interface PageProps { searchParams: Promise<SearchParams>; }
 export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
-  const raw = await fetchList(params);
+  const [raw, scopesResult] = await Promise.all([
+    fetchList(params),
+    getActiveScopes(),
+  ]);
   const result = sku ? filterBySku(raw, sku) : raw;
+  const hasScopes =
+    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
-    <div className="px-8 py-10">
-      <header className="mb-4 flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-display text-navy">Gaps</h1>
-          <p className="mt-2 text-slate">
-            Open compliance gaps from your latest snapshot — sub-tier blanks, missing
-            evidence, observability holes. Resolve by running a fresh check once
-            upstream evidence lands, or acknowledge if it&apos;s a known structural gap.
-          </p>
-        </div>
-        <RefreshButton />
-      </header>
+    <div>
+      <PageHeader
+        title="Gaps"
+        description={
+          <>
+            Open compliance gaps across your active recurring audits — each
+            scheduled template contributes its most-recent run. Resolve by
+            running a fresh check once upstream evidence lands, or acknowledge
+            if it&apos;s a known structural gap.
+          </>
+        }
+        actions={<RefreshButton />}
+      />
+      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro
         more={
           <>

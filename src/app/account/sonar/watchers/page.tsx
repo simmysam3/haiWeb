@@ -6,6 +6,7 @@ import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { RunControls } from './run-controls';
 import { RunsTable } from './runs-table';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 
 async function loadRuns(): Promise<AuditRun[]> {
   const cookieHeader = (await cookies()).toString();
@@ -56,11 +57,11 @@ export default async function WatcherManagementPage() {
   }
   const runs = await loadRuns();
   return (
-    <div className="p-6 space-y-4">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-charcoal">Watcher Management</h1>
-        <RunControls />
-      </header>
+    <div className="space-y-4">
+      <PageHeader
+        title="Watcher Management"
+        actions={<RunControls />}
+      />
       <PageIntro>
         Configure and observe the watchers that monitor your active scopes — product availability, lead-time drift, capacity shifts, and other supply-chain signals. Start, cancel, or re-run from here; the <em>Sonar Dashboard</em> aggregates the latest results across all modalities, and detected events surface in the <em>Backlog</em>.
       </PageIntro>

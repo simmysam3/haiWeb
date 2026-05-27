@@ -11,6 +11,7 @@ const KIND_LABELS = {
   manual_only: 'Manual only',
   daily: 'Daily',
   weekly: 'Weekly',
+  monthly: 'Monthly',
   event_triggered: 'Event-triggered',
 } as const;
 
@@ -37,6 +38,8 @@ export function CadencePicker({ value, onChange }: CadencePickerProps) {
       onChange({ kind: 'daily', time_of_day: '00:00' });
     } else if (kind === 'weekly') {
       onChange({ kind: 'weekly', day_of_week: 'mon', time_of_day: '00:00' });
+    } else if (kind === 'monthly') {
+      onChange({ kind: 'monthly', day_of_month: 1, time_of_day: '00:00' });
     } else {
       onChange({ kind: 'event_triggered', event_type: 'new_trading_partner_added' });
     }
@@ -59,7 +62,9 @@ export function CadencePicker({ value, onChange }: CadencePickerProps) {
         ))}
       </fieldset>
 
-      {(value.kind === 'daily' || value.kind === 'weekly') && (
+      {(value.kind === 'daily' ||
+        value.kind === 'weekly' ||
+        value.kind === 'monthly') && (
         <label className="block text-sm text-charcoal">
           <span className="block mb-1 font-medium">Time of day (UTC)</span>
           <input
@@ -70,6 +75,32 @@ export function CadencePicker({ value, onChange }: CadencePickerProps) {
             }
             className="rounded border border-slate-300 px-2 py-1 text-sm"
           />
+        </label>
+      )}
+
+      {value.kind === 'monthly' && (
+        <label className="block text-sm text-charcoal">
+          <span className="block mb-1 font-medium">Day of month</span>
+          <input
+            type="number"
+            min={1}
+            max={28}
+            value={value.day_of_month}
+            onChange={(e) => {
+              const n = Number.parseInt(e.target.value, 10);
+              if (Number.isFinite(n) && n >= 1 && n <= 28) {
+                onChange({
+                  kind: 'monthly',
+                  day_of_month: n,
+                  time_of_day: value.time_of_day,
+                });
+              }
+            }}
+            className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
+          />
+          <span className="block text-xs text-slate mt-0.5">
+            1–28; later days are excluded so every month fires.
+          </span>
         </label>
       )}
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { RequestManagementListResponse } from '@haiwave/protocol';
 import { RequestManagementClient } from './request-management-client';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 
 /**
@@ -69,23 +70,19 @@ export default async function RequestManagementPage({ searchParams }: PageProps)
   const result = await fetchList(params);
 
   return (
-    <div className="px-8 py-10">
-      <header className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy">
-            Request Management
-          </h1>
-          <p className="mt-2 text-slate">
-            Bilateral requests across your supply chain — accept inbound asks, chase outbound ones.
-          </p>
-        </div>
-        <Link
-          href="/account/sonar/requests/new-nomination"
-          className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
-        >
-          + New nomination
-        </Link>
-      </header>
+    <div>
+      <PageHeader
+        title="Request Management"
+        description="Bilateral requests across your supply chain — accept inbound asks, chase outbound ones."
+        actions={
+          <Link
+            href="/account/sonar/requests/new-nomination"
+            className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
+          >
+            + New nomination
+          </Link>
+        }
+      />
       <PageIntro>
         Four queues in one view: <em>Awaiting me</em> (inbound nominations and outstanding
         obligations addressed to you), <em>Awaiting them</em> (outbound nominations you sent and

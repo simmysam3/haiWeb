@@ -1,4 +1,5 @@
 import { cookies, headers } from 'next/headers';
+import { PageHeader } from '@/components';
 import { ObservationsClient } from './_components/observations-client';
 
 interface ObservationsPayload {
@@ -29,14 +30,16 @@ export default async function ObservationsPage() {
   const payload = await loadPhantomDemand();
 
   return (
-    <div className="p-6 space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-charcoal">Phantom Demand</h1>
-        <p className="text-sm text-slate mt-1">
-          Procurement questions — ask trading partners &ldquo;if I needed N units of X,
-          when could you deliver?&rdquo; without committing to an order.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Phantom Demand"
+        description={
+          <>
+            Procurement questions — ask trading partners &ldquo;if I needed N units
+            of X, when could you deliver?&rdquo; without committing to an order.
+          </>
+        }
+      />
 
       <div className="rounded border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate">
         Placeholder surface. A dedicated Phantom Demand workspace is planned for the next release;

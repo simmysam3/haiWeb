@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { ScheduledQueue } from './_components/scheduled-queue';
 import { HistoryQueue } from './_components/history-queue';
@@ -27,24 +28,26 @@ export default async function AuditListPage() {
   );
 
   return (
-    <div className="p-6 space-y-8">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-charcoal">Audits</h1>
-          <p className="text-sm text-slate mt-1">
+    <div className="space-y-8">
+      <PageHeader
+        title="Audits"
+        description={
+          <>
             <strong className="text-charcoal">Supplier ecosystem oversight.</strong>{' '}
             Verify supplier sourcing claims run by run. Pick a supplier, scope the audit
             to a whole catalog, a product class, or specific SKUs, then schedule recurring
             sweeps or fire ad-hoc checks. One supplier per audit — sweep many for breadth.
-          </p>
-        </div>
-        <Link
-          href="/account/sonar/audit/new"
-          className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
-        >
-          + New Audit
-        </Link>
-      </header>
+          </>
+        }
+        actions={
+          <Link
+            href="/account/sonar/audit/new"
+            className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
+          >
+            + New Audit
+          </Link>
+        }
+      />
 
       {defsResult.kind === 'error' && (
         <div

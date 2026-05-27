@@ -4,6 +4,7 @@ import { ScopeSummary } from './_components/scope-summary';
 import { ProbeResultsTable } from './_components/probe-results-table';
 import { CancelButton } from './_components/cancel-button';
 import { Pill } from '@/components/pill';
+import { PageHeader } from '@/components';
 import type { PhantomDemandRunDetail } from '@/lib/haiwave-api';
 
 export default async function Page({
@@ -31,16 +32,13 @@ export default async function Page({
   const scope = run.scope_snapshot;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-charcoal">
-            Phantom Demand Run
-          </h1>
-          <p className="text-sm text-slate font-mono">{run.run_id}</p>
-        </div>
-        <Pill category="run_status" value={run.status} />
-      </header>
+    <main className="space-y-6">
+      <PageHeader
+        eyebrow="Phantom Demand"
+        title="Run"
+        description={<span className="font-mono">{run.run_id}</span>}
+        actions={<Pill category="run_status" value={run.status} />}
+      />
 
       <ScopeSummary scope={scope} />
 

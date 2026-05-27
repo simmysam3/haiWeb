@@ -40,6 +40,33 @@ describe('WorkingListTable', () => {
     expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/posture');
   });
 
+  // v.1.42 composite rollup — gap rows show a "Last observed" chip when the
+  // server returns a non-null last_observed_at (sourced from the run's
+  // completedAt of the most-recent active-template observation). The chip
+  // makes per-row freshness visible in the composite list, replacing the
+  // single "latest snapshot" banner.
+  it('renders Last observed chip on gap rows with last_observed_at', () => {
+    const itemWithObserved: WorkingListItem = {
+      ...item,
+      canonical_key: 'e'.repeat(64),
+      last_observed_at: '2026-05-20T00:00:00.000Z',
+    };
+    render(<WorkingListTable items={[itemWithObserved]} />);
+    expect(screen.getByText(/last observed/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render Last observed chip when last_observed_at is null', () => {
+    render(<WorkingListTable items={[item]} />);
+    expect(screen.queryByText(/last observed/i)).toBeNull();
+  });
+
+  it('does NOT render Last observed chip when last_observed_at is omitted (optional field)', () => {
+    const noField = { ...item } as WorkingListItem & { last_observed_at?: string | null };
+    delete (noField as { last_observed_at?: string | null }).last_observed_at;
+    render(<WorkingListTable items={[noField as WorkingListItem]} />);
+    expect(screen.queryByText(/last observed/i)).toBeNull();
+  });
+
   // v.1.41 Backlog IA — NEW badge mirrors the 7-day "New" filter pill.
   it('renders NEW badge on rows with first_seen_at inside the 7-day window', () => {
     const freshItem: WorkingListItem = {

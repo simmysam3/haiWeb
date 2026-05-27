@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { jsonFetcher } from "@/lib/swr-fetcher";
 import { NavBadge } from "./nav-badge";
+import { NavTooltip } from "./nav-tooltip";
 
 // v1.37: Sonar IA split — the bilateral-request inbox lives at
 // /account/sonar/requests (Active queue is the section default). The
@@ -22,6 +23,8 @@ interface NavItem {
   href: string;
   label: string;
   indent?: boolean;
+  /** One-sentence hover hint surfaced via <NavTooltip>. ~12-word target. */
+  tooltip?: string;
 }
 
 interface RequestManagementCounts {
@@ -113,17 +116,34 @@ function BacklogNavItem({ item, isActive }: { item: NavItem; isActive: boolean }
 
 interface NavSection {
   label: string;
+  /** Optional secondary line shown beneath the section title in the
+   *  gradient header — friendlier framing under the all-caps label. */
+  subhead?: string;
   items: NavItem[];
 }
 
 const navSections: NavSection[] = [
   {
-    label: "Monitoring",
+    // v1.39: Observe surface: Dashboard, Request Management, Posture,
+    // Observations, Configurations (templates). Reports dropped — the
+    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
+    // 301-redirects to /account/sonar/audit.
+    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
+    // Posture → Backlog (label-only; URL stays /sonar/posture per the
+    // label-only test phase). Watcher Management is a peer entry now that
+    // its destination page exists at /sonar/watchers (PR-5).
+    // v.1.42: promoted to first section — Sonar Observe leads the nav.
+    label: "Sonar Observe",
+    subhead: "Supply Chain Monitoring",
     items: [
-      { href: "/account", label: "Dashboard" },
-      { href: "/account/orders", label: "Orders" },
-      { href: "/account/scores", label: "Behavioral Scores" },
-      { href: "/account/agent-health", label: "Agent Health" },
+      { href: BACKLOG_HREF, label: "Backlog", tooltip: "Working backlog of change events and gaps across your supplier network." },
+      { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
+      // Configurations suppressed from the menu — pending the phantom-demand
+      // implementation, after which this surface may not be needed at all.
+      // The page itself still exists at /account/sonar/templates.
+      // { href: "/account/sonar/templates", label: "Configurations", tooltip: "..." },
+      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
+      { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
   },
   {
@@ -141,59 +161,50 @@ const navSections: NavSection[] = [
     // belongs with the audit facilities. URL kept at
     // /account/provenance-keys (only the nav placement + label changed).
     label: "Sonar Audit",
+    subhead: "Compliance Auditing",
     items: [
-      { href: "/account/sonar/audit", label: "Audits" },
-      { href: "/account/compliance", label: "Audit Exceptions" },
-      { href: "/account/provenance", label: "Product Provenance" },
-      { href: "/account/provenance-keys", label: "Key Management" },
+      { href: "/account/sonar/audit", label: "Audit Management", tooltip: "Trigger and review supply-chain audit runs across your counterparties and SKUs." },
+      { href: "/account/compliance", label: "Audit Backlog", tooltip: "Working backlog of non-compliant audit results — latest per (vendor, product) across your recent runs." },
+      { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-focused analysis that starts at product classes and resolves down to the component vendors behind each SKU." },
+      { href: "/account/provenance-keys", label: "Key Management", tooltip: "Issue your own provenance keys and accept ones offered by counterparties — both directions gate audit visibility." },
     ],
   },
   {
-    // v1.39: Observe surface: Dashboard, Request Management, Posture,
-    // Observations, Configurations (templates). Reports dropped — the
-    // /account/sonar/reports route was deleted in v1.40; the legacy URL now
-    // 301-redirects to /account/sonar/audit.
-    // v.1.41 Backlog IA (spec: 2026-05-23-v1_41-backlog-ia-restructure-design):
-    // Posture → Backlog (label-only; URL stays /sonar/posture per the
-    // label-only test phase). Watcher Management is a peer entry now that
-    // its destination page exists at /sonar/watchers (PR-5).
-    label: "Sonar Observe",
-    items: [
-      { href: "/account/sonar/dashboard", label: "Sonar Dashboard" },
-      { href: REQUESTS_HREF, label: "Request Management" },
-      { href: BACKLOG_HREF, label: "Backlog" },
-      { href: "/account/sonar/observations", label: "Phantom Demand" },
-      { href: "/account/sonar/templates", label: "Configurations" },
-      { href: "/account/sonar/watchers", label: "Watcher Management" },
-    ],
-  },
-  {
+    // v.1.42: Monitoring section dissolved — its four entries plus the
+    // ex–Sonar Observe "Sonar Dashboard" lead Account Management. The two
+    // dashboards sit first (System then Sonar) so the high-level overviews
+    // are the entry points to this section.
     label: "Account Management",
     items: [
-      { href: "/account/agents", label: "Agents" },
-      { href: "/account/partners", label: "Trading Partners" },
-      { href: "/account/partners/blocked", label: "Blocked Companies", indent: true },
-      { href: "/account/manifests", label: "Manifests" },
-      { href: "/account/pricing", label: "Pricing" },
-      { href: "/account/usage", label: "Usage" },
+      { href: "/account", label: "System Dashboard", tooltip: "Snapshot of recent activity, alerts, and agent health across your HAIWAVE network." },
+      { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
+      { href: "/account/orders", label: "Orders", tooltip: "Browse inbound and outbound orders flowing between your agent and counterparties." },
+      { href: "/account/scores", label: "Behavioral Scores", tooltip: "Reliability and response-time scores HAIWAVE assigns to you and your trading partners." },
+      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
+      { href: "/account/agents", label: "Agents", tooltip: "Provision, configure, and monitor the HAIWAVE agents that act for your organization." },
+      { href: "/account/partners", label: "Trading Partners", tooltip: "Counterparties you have an active bilateral relationship with on HAIWAVE." },
+      { href: "/account/partners/blocked", label: "Blocked Companies", indent: true, tooltip: "Counterparties you've blocked from initiating relationships or visibility against you." },
+      { href: "/account/manifests", label: "Manifests", tooltip: "Counterparty and pricing manifests that drive your agent's access rules and quoted prices." },
+      { href: "/account/pricing", label: "Pricing", tooltip: "Pricing rules and inheritance configuration applied to your manifests." },
+      { href: "/account/usage", label: "Usage", tooltip: "Request volume and rate-limit headroom against your HAIWAVE plan." },
       // Payments deferred to v2 — restore this entry when payments ships.
       // { href: "/account/payments", label: "Payments" },
       // v.1.41: Provenance Keys → Sonar Audit (as "Key Management").
-      { href: "/account/data-cleansing", label: "Data Cleansing" },
-      { href: "/account/profile", label: "Company Profile" },
+      { href: "/account/data-cleansing", label: "Data Cleansing", tooltip: "Review and resolve classification or catalog data issues HAIWAVE has flagged." },
+      { href: "/account/profile", label: "Company Profile", tooltip: "Edit your company's public profile, contact info, and business address." },
     ],
   },
   {
     label: "Settings",
     items: [
-      { href: "/account/settings/trust-posture", label: "Trust Posture" },
+      { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
     ],
   },
   {
     label: "Admin",
     items: [
-      { href: "/account/users", label: "Users" },
-      { href: "/account/billing", label: "Billing" },
+      { href: "/account/users", label: "Users", tooltip: "Manage the user accounts and roles inside your organization." },
+      { href: "/account/billing", label: "Billing", tooltip: "Stripe subscription and metered-usage billing for your HAIWAVE account." },
     ],
   },
 ];
@@ -217,7 +228,7 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
 
   return (
     <aside className="w-64 bg-navy text-white flex flex-col shrink-0">
-      <div className="bg-white px-6 py-5">
+      <div className="bg-white px-6 py-3">
         <Link href="/">
           <Image
             src="/img/haiwave-logo.png"
@@ -227,42 +238,49 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
             className="h-8 w-auto"
           />
         </Link>
-        <p className="text-xs text-slate mt-1.5">Account Portal</p>
       </div>
       <nav className="flex-1 py-5 overflow-y-auto">
         {navSections.map((section, idx) => (
           <div key={section.label} className={idx === 0 ? "pb-2" : "mt-6 pb-2"}>
             <div className="relative mb-2 py-2.5 px-6 bg-gradient-to-r from-teal/15 via-teal/[0.06] to-transparent border-l-[3px] border-teal">
-              <span className="font-[family-name:var(--font-display)] text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
+              <div className="font-[family-name:var(--font-display)] text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
                 {section.label}
-              </span>
+              </div>
+              {section.subhead && (
+                <div className="mt-0.5 text-[11px] text-light-slate">
+                  {section.subhead}
+                </div>
+              )}
             </div>
             {section.items.map((item) => {
               const isActive = isItemActive(item);
+              let entry: React.ReactNode;
               if (item.href === REQUESTS_HREF) {
-                return (
-                  <RequestManagementNavItem key={item.href} item={item} isActive={isActive} />
+                entry = <RequestManagementNavItem item={item} isActive={isActive} />;
+              } else if (item.href === BACKLOG_HREF) {
+                entry = <BacklogNavItem item={item} isActive={isActive} />;
+              } else {
+                entry = (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
+                      item.indent ? "pl-10 pr-6" : "px-6"
+                    } ${
+                      isActive
+                        ? "text-white bg-white/10 border-r-2 border-teal"
+                        : "text-light-slate hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
                 );
               }
-              if (item.href === BACKLOG_HREF) {
-                return (
-                  <BacklogNavItem key={item.href} item={item} isActive={isActive} />
-                );
-              }
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
-                    item.indent ? "pl-10 pr-6" : "px-6"
-                  } ${
-                    isActive
-                      ? "text-white bg-white/10 border-r-2 border-teal"
-                      : "text-light-slate hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {item.label}
-                </Link>
+              return item.tooltip ? (
+                <NavTooltip key={item.href} text={item.tooltip}>
+                  {entry}
+                </NavTooltip>
+              ) : (
+                <div key={item.href}>{entry}</div>
               );
             })}
           </div>

@@ -9,6 +9,7 @@ export function StepCard({
   locked = false,
   dim = false,
   accent,
+  unnumbered = false,
   children,
 }: {
   id: string;
@@ -19,6 +20,13 @@ export function StepCard({
   /** Optional accent tint applied to the card border and step badge.
    *  Currently only 'orange' is supported. Ignored when `locked` is true. */
   accent?: 'orange';
+  /**
+   * v.1.42 — when true, suppresses the leading numeric badge (and the
+   * "Fixed at creation" pill associated with `locked`). Used for the
+   * History step, which sits at the bottom of the rail as a read-only
+   * audit trail rather than a numbered configuration step.
+   */
+  unnumbered?: boolean;
   children: ReactNode;
 }) {
   const accentOrange = !locked && accent === 'orange';
@@ -36,23 +44,25 @@ export function StepCard({
       ].filter(Boolean).join(' ')}
     >
       <div className="flex items-center gap-2 mb-4">
-        <span
-          aria-hidden
-          className={[
-            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-none',
-            locked
-              ? 'bg-slate/20 text-slate'
-              : accentOrange
-                ? 'bg-orange/20 text-orange'
-                : 'bg-teal/20 text-teal',
-          ].join(' ')}
-        >
-          {locked ? '\u{1F512}' : index + 1}
-        </span>
+        {!unnumbered && (
+          <span
+            aria-hidden
+            className={[
+              'w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold flex-none',
+              locked
+                ? 'bg-slate/20 text-slate'
+                : accentOrange
+                  ? 'bg-orange/20 text-orange'
+                  : 'bg-teal/20 text-teal',
+            ].join(' ')}
+          >
+            {locked ? '\u{1F512}' : index + 1}
+          </span>
+        )}
         <h2 className="text-sm font-semibold text-charcoal font-[family-name:var(--font-display)]">
           {title}
         </h2>
-        {locked && (
+        {locked && !unnumbered && (
           <span className="ml-auto">
             <Pill category="config_provenance" value="fixed_at_creation">Fixed at creation</Pill>
           </span>

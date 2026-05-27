@@ -1,4 +1,5 @@
 import { cookies, headers } from 'next/headers';
+import { PageHeader } from '@/components/page-header';
 import { UsageClient } from './_components/usage-client';
 
 interface CurrentPayload {
@@ -40,14 +41,11 @@ async function loadCurrent(): Promise<CurrentPayload | null> {
 export default async function UsagePage() {
   const current = await loadCurrent();
   return (
-    <div className="p-6 space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-charcoal">Usage</h1>
-        <p className="text-sm text-slate mt-1">
-          Hop consumption against your hourly budget. Use the time-series chart
-          and active runs to manage your throughput.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Usage"
+        description="Hop consumption against your hourly budget. Use the time-series chart and active runs to manage your throughput."
+      />
       <UsageClient initialCurrent={current} />
     </div>
   );

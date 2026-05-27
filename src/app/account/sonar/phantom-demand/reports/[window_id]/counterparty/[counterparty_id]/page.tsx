@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { PhantomDemandPerCounterpartyReport } from '@haiwave/protocol';
 import { DownloadMenu } from '../../_components/download-menu';
+import { PageHeader } from '@/components';
 
 type LoadResult =
   | { kind: 'ok'; report: PhantomDemandPerCounterpartyReport }
@@ -51,7 +52,7 @@ export default async function PhantomDemandPerCounterpartyReportPage({
 
   if (result.kind === 'error' || result.kind === 'network-error') {
     return (
-      <div className="px-8 py-10">
+      <div>
         <div className="rounded-md border border-problem/20 bg-problem/5 p-6 text-sm text-problem">
           Couldn&apos;t load this report. The phantom demand service is temporarily unavailable.
         </div>
@@ -63,22 +64,24 @@ export default async function PhantomDemandPerCounterpartyReportPage({
 
   return (
     <div className="px-8 py-10 space-y-8">
-      <div className="flex items-start justify-between gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-navy">
-            Phantom demand — {report.header.counterparty_display_name}
-          </h1>
-          <p className="mt-1 text-sm text-slate">
-            Window {report.header.window_id.slice(0, 8)} ({report.header.window_days} days).
-            Generated {new Date(report.header.generated_at).toLocaleString()}.
-          </p>
-        </div>
-        <DownloadMenu
-          windowId={report.header.window_id}
-          reportType="per_counterparty"
-          counterpartyId={report.header.counterparty_participant_id}
-        />
-      </div>
+      <PageHeader
+        eyebrow="Phantom Demand"
+        title={report.header.counterparty_display_name}
+        description={
+          <>
+            Window {report.header.window_id.slice(0, 8)} (
+            {report.header.window_days} days). Generated{' '}
+            {new Date(report.header.generated_at).toLocaleString()}.
+          </>
+        }
+        actions={
+          <DownloadMenu
+            windowId={report.header.window_id}
+            reportType="per_counterparty"
+            counterpartyId={report.header.counterparty_participant_id}
+          />
+        }
+      />
 
       <section>
         <h2 className="text-lg font-medium text-navy">Coverage summary</h2>

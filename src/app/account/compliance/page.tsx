@@ -6,15 +6,13 @@ export default function AuditExceptionsPage() {
   return (
     <div>
       <PageHeader
-        title="Audit Exceptions"
-        description="Rolled-up view of what needs attention across your audits and inbound activity."
+        title="Audit Backlog"
+        description="The latest non-compliant result per (vendor, product) from your audit runs over the last 7 days."
       />
       <PageIntro>
-        Triage exceptions in one place instead of drilling into each audit run.{' '}
-        <strong>Run exceptions</strong> lists the latest non-compliant result per (vendor, product)
-        across your last 7 days of audit runs. <strong>Activity flags</strong> shows reactive
-        alerts your agent surfaced from inbound activity — BOM-resolution gaps, missing manifests,
-        and counterparties who aren&apos;t on HAIWAVE. Two channels, one inbox.
+        Triage non-compliant results in one place instead of drilling into each audit run.
+        Rows are the latest <strong>non-compliant</strong> outcome per (vendor, product) across
+        your last 7 days of audit runs.
       </PageIntro>
       <AuditExceptionsDashboard />
     </div>

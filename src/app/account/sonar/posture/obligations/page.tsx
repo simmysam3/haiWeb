@@ -5,6 +5,9 @@ import { LeastCompliantPanel } from './least-compliant-panel';
 import { FilterPills } from './filter-pills';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
+import { PageHeader } from '@/components';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { getActiveScopes } from '../../_lib/scopes';
 
 interface SearchParams {
   resolution_class?: string | string[];
@@ -45,21 +48,21 @@ interface PageProps {
 
 export default async function DownstreamGapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const result = await fetchGaps(params);
+  const [result, scopesResult] = await Promise.all([
+    fetchGaps(params),
+    getActiveScopes(),
+  ]);
+  const hasScopes =
+    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
 
   return (
-    <div className="px-8 py-10">
-      <header className="mb-4 flex items-end justify-between">
-        <div>
-          <h1 className="text-3xl font-display text-navy">Obligations</h1>
-          <p className="mt-2 text-slate">
-            Inbound requests from your customers asking you to resolve
-            downstream gaps in your supply tree — sub-tier vendors off-network,
-            slow responders, or SKUs with insufficient disclosure.
-          </p>
-        </div>
-        <RefreshButton />
-      </header>
+    <div>
+      <PageHeader
+        title="Obligations"
+        description="Inbound requests from your customers asking you to resolve downstream gaps in your supply tree — sub-tier vendors off-network, slow responders, or SKUs with insufficient disclosure."
+        actions={<RefreshButton />}
+      />
+      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
         Each row is a compliance obligation that one of your customers has accepted on your behalf and is now waiting for you to close. You owe them a response: either drive a sub-tier vendor to disclose (the participant + invited rows), invite a non-participant counterparty (the not-invited rows), or escalate via support. Filter by resolution class to focus on what&apos;s actionable today.
       </PageIntro>

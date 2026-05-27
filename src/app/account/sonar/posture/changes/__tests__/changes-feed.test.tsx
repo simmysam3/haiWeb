@@ -7,6 +7,7 @@ import { render, screen, within } from '@testing-library/react';
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/account/sonar/posture/changes',
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), back: vi.fn(), forward: vi.fn(), prefetch: vi.fn() }),
 }));
 
 import { ChangesFeed } from '../changes-feed';
@@ -21,6 +22,7 @@ const base: ComplianceChange = {
   prior_value: { country_of_origin: 'VN' },
   current_value: { country_of_origin: 'CN' },
   severity: 'critical', detected_at: '2026-05-18T00:00:00.000Z',
+  processed_at: null, processed_by: null,
 };
 
 const change = (e: Partial<ComplianceChange>): ComplianceChange => ({ ...base, ...e });
@@ -248,5 +250,30 @@ describe('ChangesFeed', () => {
       />,
     );
     expect(screen.getByText(/a1b2c3/)).toBeInTheDocument();
+  });
+
+  it('renders a teal Process link to the detail page when processed_at is null', () => {
+    render(<ChangesFeed changes={[change({ processed_at: null, processed_by: null })]} />);
+    const link = screen.getByRole('link', { name: /^process$/i });
+    expect(link).toHaveAttribute('href', '/account/sonar/posture/changes/c1');
+    expect(link.className).toMatch(/bg-teal/);
+  });
+
+  it('renders an outlined Processed link when processed_at is set', () => {
+    render(
+      <ChangesFeed
+        changes={[
+          change({
+            processed_at: '2026-05-25T12:00:00.000Z',
+            processed_by: '00000000-0000-0000-0000-000000000aaa',
+            severity: 'warning',
+          }),
+        ]}
+      />,
+    );
+    const link = screen.getByRole('link', { name: /processed/i });
+    expect(link).toBeInTheDocument();
+    expect(link.className).toMatch(/border-slate/);
+    expect(link).toHaveAttribute('href', '/account/sonar/posture/changes/c1');
   });
 });
