@@ -6,13 +6,35 @@ import {
   formatRunLabel,
 } from '@/components/sonar/observations';
 import type { ColumnPack } from '@/components/sonar/observations';
-import type { RunTemplate, WatcherRun } from '@haiwave/protocol';
+import type { RunTemplate, SignalType, WatcherRun } from '@haiwave/protocol';
 
 type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
 
 export type EnrichedWatcherRun = WatcherRun & {
   template_name?: string;
 };
+
+// v.1.43 Plan 3 Task E4 — signal_type → short chip label. Mirrors the
+// abbreviations registered in `pill.tsx` (PILL_DEFINITIONS.signal_type) and
+// the picker pills in <WatcherScopePicker>. Exhaustive over SignalType so
+// adding a new protocol enum value forces a label update at compile time.
+const SIGNAL_TYPE_CHIP_LABELS: Record<SignalType, string> = {
+  lead_time_distribution: 'LT',
+  capacity_utilization_band: 'CAP',
+  delivery_event: 'DEL',
+  published_lead_time: 'PLT',
+  quoted_lead_time: 'QLT',
+};
+
+// When a scope/run carries this many or more signal types, render a single
+// "N signals" count with a tooltip listing them instead of N individual
+// chips. Keeps the table cell compact at the wide end of the signal-type
+// catalogue (currently 5).
+const SIGNAL_CHIP_COLLAPSE_THRESHOLD = 4;
+
+function signalChipLabel(sig: SignalType): string {
+  return SIGNAL_TYPE_CHIP_LABELS[sig] ?? sig;
+}
 
 function formatWatcherScope(scope: WatcherTemplate['scope']): string {
   const parts: string[] = [`depth ${scope.depth_limit}`];
@@ -25,6 +47,27 @@ function formatScopeSnapshot(run: WatcherRun): string {
   const parts: string[] = [`depth ${run.depth_limit}`];
   parts.push(`${run.signal_types.length} signals`);
   return parts.join(' · ');
+}
+
+function renderSignalChips(signalTypes: readonly SignalType[]) {
+  if (signalTypes.length >= SIGNAL_CHIP_COLLAPSE_THRESHOLD) {
+    const labels = signalTypes.map(signalChipLabel).join(', ');
+    return (
+      <span
+        className="text-xs text-slate"
+        title={labels}
+      >
+        {signalTypes.length} signals
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      {signalTypes.map((sig) => (
+        <Pill key={sig} category="signal_type" value={signalChipLabel(sig)} />
+      ))}
+    </span>
+  );
 }
 
 function lifespanLabel(template: WatcherTemplate): string {
@@ -161,19 +204,7 @@ export function buildWatcherHistoryColumnPack(): ColumnPack<EnrichedWatcherRun> 
         key: 'signals',
         label: 'Signals',
         width: '12%',
-        render: (run) => (
-          <span className="inline-flex items-center gap-1">
-            {run.signal_types.includes('lead_time_distribution') && (
-              <Pill category="signal_type" value="LT" />
-            )}
-            {run.signal_types.includes('capacity_utilization_band') && (
-              <Pill category="signal_type" value="CAP" />
-            )}
-            {run.signal_types.includes('delivery_event') && (
-              <Pill category="signal_type" value="DEL" />
-            )}
-          </span>
-        ),
+        render: (run) => renderSignalChips(run.signal_types),
       },
       {
         key: 'status',
