@@ -56,7 +56,7 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
     scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
 
   return (
-    <div className="px-8 py-10">
+    <div>
       <PageHeader
         title="Obligations"
         description="Inbound requests from your customers asking you to resolve downstream gaps in your supply tree — sub-tier vendors off-network, slow responders, or SKUs with insufficient disclosure."

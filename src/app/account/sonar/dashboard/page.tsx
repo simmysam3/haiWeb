@@ -179,7 +179,7 @@ export default async function UnifiedDashboardPage() {
       : null;
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-8">
       <PageHeader
         title="Sonar Dashboard"
         description="Cross-modality view across audit, phantom demand, and Watcher observations, plus your compliance coverage snapshot."

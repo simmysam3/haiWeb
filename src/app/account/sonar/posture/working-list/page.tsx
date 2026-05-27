@@ -77,7 +77,7 @@ export default async function GapsPage({ searchParams }: PageProps) {
   const hasScopes =
     scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
   return (
-    <div className="px-8 py-10">
+    <div>
       <PageHeader
         title="Gaps"
         description={

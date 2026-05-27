@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
 import { fetchFromApi } from "@/lib/fetch-api";
 import { getSession } from "@/lib/auth";
@@ -35,12 +36,10 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-navy mb-2">
-        Dashboard
-      </h1>
-      <p className="text-slate mb-3">
-        Account overview, agent status, and pending actions.
-      </p>
+      <PageHeader
+        title="System Dashboard"
+        description="Account overview, agent status, and pending actions."
+      />
       <PageIntro>
         Your at-a-glance view of inbound activity across the HAIWAVE network — recent orders, behavioral signals, compliance flags, and agent health. Use it to triage anomalies and drop into the section that owns the decision (Compliance, Behavioral Scores, Provenance, Agent Health) when something needs attention.
       </PageIntro>

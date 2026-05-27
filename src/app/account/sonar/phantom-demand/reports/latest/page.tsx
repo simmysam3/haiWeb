@@ -28,7 +28,7 @@ export default async function LatestPhantomDemandReportPage() {
 
   if (!windowId) {
     return (
-      <div className="px-8 py-10">
+      <div>
         <div className="rounded-md border border-problem/20 bg-problem/5 p-6 text-sm text-problem">
           Couldn&apos;t resolve a phantom demand window. The phantom demand service is
           temporarily unavailable.

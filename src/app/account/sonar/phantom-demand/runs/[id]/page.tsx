@@ -32,7 +32,7 @@ export default async function Page({
   const scope = run.scope_snapshot;
 
   return (
-    <main className="space-y-6 p-6">
+    <main className="space-y-6">
       <PageHeader
         eyebrow="Phantom Demand"
         title="Run"

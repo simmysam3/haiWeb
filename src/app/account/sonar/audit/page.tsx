@@ -28,7 +28,7 @@ export default async function AuditListPage() {
   );
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="space-y-8">
       <PageHeader
         title="Audits"
         description={

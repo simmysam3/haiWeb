@@ -70,7 +70,7 @@ export default function TrustBypassPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Trust bypass"
         description="Auto-acknowledge inbound nominations from counterparties in selected trust classes. Lower trust classes (unknown / behavioral-only) are never affected. Explicit declines are always preserved."

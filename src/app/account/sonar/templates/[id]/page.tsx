@@ -41,7 +41,7 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
   const template = await loadTemplate(id);
   if (!template) notFound();
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         eyebrow={configNoun(template.observation_class)}
         title={template.template_name}

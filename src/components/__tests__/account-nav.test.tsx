@@ -28,7 +28,7 @@ vi.mock('swr', () => ({
 describe('AccountNav', () => {
   // v1.39: single Sonar section split into Sonar Audit + Sonar Observe.
 
-  it('Sonar Audit section contains only the Audit Management link', () => {
+  it('Sonar Audit section contains the Audit Management link', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     const audits = screen.getByRole('link', { name: 'Audit Management' });
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');

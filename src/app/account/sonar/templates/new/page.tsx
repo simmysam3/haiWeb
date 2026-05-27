@@ -26,7 +26,7 @@ export default async function NewTemplatePage({
     ? `New ${configNoun(defaultClass)}`
     : 'New configuration';
   return (
-    <div className="p-6">
+    <div>
       <PageHeader
         eyebrow={defaultClass ? configNoun(defaultClass) : 'Configurations'}
         title={heading}

@@ -16,7 +16,7 @@ import { loadThrottledCounts } from '../../_lib/throttled-counts';
 export default async function WatcherDashboardPage() {
   const throttledCounts = await loadThrottledCounts();
   return (
-    <div className="p-6">
+    <div>
       <ThrottledRunsPanel counts={throttledCounts} />
       <PageHeader
         title="Watcher — Continuous observation"
