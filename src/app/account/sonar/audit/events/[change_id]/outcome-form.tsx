@@ -62,7 +62,7 @@ export function OutcomeForm({ change }: Props) {
         setPending(false);
         return;
       }
-      router.push('/account/sonar/posture/changes');
+      router.push('/account/sonar/audit/events');
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Process failed.');
@@ -126,7 +126,7 @@ export function OutcomeForm({ change }: Props) {
             {pending ? 'Saving…' : submitLabel}
           </button>
           <Link
-            href="/account/sonar/posture/changes"
+            href="/account/sonar/audit/events"
             className="rounded-md border border-slate/30 px-4 py-1.5 text-sm text-slate hover:border-teal hover:text-navy"
           >
             Return to events

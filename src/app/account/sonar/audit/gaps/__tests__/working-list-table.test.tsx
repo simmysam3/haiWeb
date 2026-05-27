@@ -17,7 +17,7 @@ const item: WorkingListItem = {
   canonical_key: 'a'.repeat(64), category: 'gap',
   subject: 'Gap · Widget → v1', reason: 'Coverage missing (status: outstanding)',
   item_event_time: '2026-05-01T00:00:00.000Z', partner_id: 'v1', partner_legal_name: 'Widget Co',
-  action_href: '/account/sonar/posture',
+  action_href: '/account/sonar/audit/events',
   state: 'open', snooze_until: null, dismiss_reason: null, last_transitioned_at: null,
   dismissed_by_user: null,
   first_seen_at: null,
@@ -37,7 +37,7 @@ describe('WorkingListTable', () => {
     render(<WorkingListTable items={[item]} />);
     expect(screen.getByText('Gap · Widget → v1')).toBeInTheDocument();
     expect(screen.getByText(/Coverage missing/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/posture');
+    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/account/sonar/audit/events');
   });
 
   // v.1.42 composite rollup — gap rows show a "Last observed" chip when the

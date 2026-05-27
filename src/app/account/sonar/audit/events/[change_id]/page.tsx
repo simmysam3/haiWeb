@@ -22,7 +22,7 @@ export default async function ChangeDetailPage({ params }: PageProps) {
 
   const backLink = (
     <Link
-      href="/account/sonar/posture/changes"
+      href="/account/sonar/audit/events"
       className="inline-flex items-center gap-1 text-sm text-teal hover:text-navy"
     >
       ← Back to Events
@@ -46,9 +46,9 @@ export default async function ChangeDetailPage({ params }: PageProps) {
               : result.status === 401
               ? 'Your session has expired. Please sign in again.'
               : result.status >= 500
-              ? "Couldn't load this event. The monitoring service is temporarily unavailable."
+              ? "Couldn't load this event. The audit service is temporarily unavailable."
               : result.status === 0
-              ? `Couldn't reach the monitoring service${result.message ? `: ${result.message}` : '.'}`
+              ? `Couldn't reach the audit service${result.message ? `: ${result.message}` : '.'}`
               : `Couldn't load this event (status ${result.status}).`}
           </p>
         </div>

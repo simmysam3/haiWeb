@@ -89,7 +89,7 @@ describe('OutcomeForm', () => {
     // Allow microtasks to flush. The handler awaits fetch, awaits res.json on
     // the !ok path (skipped here), then calls router.push.
     await vi.waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/account/sonar/posture/changes');
+      expect(pushMock).toHaveBeenCalledWith('/account/sonar/audit/events');
     });
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/account/sonar/compliance/changes/c1/process',

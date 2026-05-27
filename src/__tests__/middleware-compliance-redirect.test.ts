@@ -38,7 +38,7 @@ describe('middleware — v1.34 → v1.37 retargeted /sonar/audit/* 301 redirects
     ],
     [
       '/account/sonar/audit/downstream-gaps',
-      '/account/sonar/posture/obligations',
+      '/account/sonar/audit/obligations',
     ],
     // v.1.41 Backlog IA: /audit/runs cluster retargeted from /posture/runs
     // (now itself a redirect source) straight to /sonar/watchers.
@@ -133,7 +133,7 @@ describe('middleware — v1.37 /sonar/compliance/* → split sections', () => {
     ],
     [
       '/account/sonar/compliance/posture/working-list',
-      '/account/sonar/posture/working-list',
+      '/account/sonar/audit/gaps',
     ],
     // v.1.41 Backlog IA: /compliance/runs cluster retargeted to /sonar/watchers
     // (was /posture/runs, now itself a redirect source).

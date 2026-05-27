@@ -28,13 +28,19 @@ vi.mock('swr', () => ({
 describe('AccountNav', () => {
   // v1.39: single Sonar section split into Sonar Audit + Sonar Observe.
 
-  it('Sonar Audit section contains the Audit Management link', () => {
+  it('Sonar Audit section contains Audit Management + Event Backlog', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     const audits = screen.getByRole('link', { name: 'Audit Management' });
     expect(audits.getAttribute('href')).toBe('/account/sonar/audit');
+
+    // v.1.43: "Watcher Backlog" was relocated from Sonar Observe to Sonar
+    // Audit and renamed "Event Backlog" — it's an audit-data workflow, not
+    // a watcher one. Default landing is the Events tab.
+    const eventBacklog = screen.getByRole('link', { name: 'Event Backlog' });
+    expect(eventBacklog.getAttribute('href')).toBe('/account/sonar/audit/events');
   });
 
-  it('Sonar Observe section contains Dashboard, Backlog, Phantom Demand, Watcher Management, Request Management', () => {
+  it('Sonar Observe section no longer carries Watcher Backlog (moved to Audit)', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
@@ -43,23 +49,16 @@ describe('AccountNav', () => {
     const requests = screen.getByRole('link', { name: 'Request Management' });
     expect(requests.getAttribute('href')).toBe('/account/sonar/requests');
 
-    // v.1.43: "Backlog" → "Watcher Backlog" to clarify the surface
-    // aggregates events/gaps/obligations surfaced by watcher runs.
-    // URL preserved at /account/sonar/posture (label-only change).
-    const backlog = screen.getByRole('link', { name: 'Watcher Backlog' });
-    expect(backlog.getAttribute('href')).toBe('/account/sonar/posture');
+    // v.1.43: Watcher Backlog moved out of Observe.
+    expect(screen.queryByRole('link', { name: 'Watcher Backlog' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Posture' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Backlog' })).toBeNull();
 
     const phantomDemand = screen.getByRole('link', { name: 'Phantom Demand' });
     expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');
 
-    // v.1.42: Configurations suppressed from the menu — pending phantom-demand
-    // implementation, after which it may not be needed at all.
     expect(screen.queryByRole('link', { name: 'Configurations' })).toBeNull();
 
-    // v.1.41 Backlog IA PR-5: Watchers tab carved out of Backlog into
-    // its own peer entry at /sonar/watchers.
     const watcherMgmt = screen.getByRole('link', { name: 'Watcher Management' });
     expect(watcherMgmt.getAttribute('href')).toBe('/account/sonar/watchers');
   });

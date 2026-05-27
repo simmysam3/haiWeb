@@ -6,7 +6,7 @@ import { render, screen, within } from '@testing-library/react';
 // jsdom has no App Router context, so stub the two hooks it touches.
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
-  usePathname: () => '/account/sonar/posture/changes',
+  usePathname: () => '/account/sonar/audit/events',
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), back: vi.fn(), forward: vi.fn(), prefetch: vi.fn() }),
 }));
 
@@ -136,17 +136,23 @@ describe('ChangesFeed', () => {
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
 
-  it('filter-pills EVENT_KIND_PILLS is the protocol EMITTED_CHANGE_KINDS minus gap lifecycle (v.1.41 Backlog IA)', () => {
+  it('filter-pills EVENT_KIND_PILLS = EMITTED_CHANGE_KINDS minus gap lifecycle AND lead-time kinds (v.1.43 Event Backlog)', () => {
     // Gap lifecycle (gap_added / gap_resolved) belongs on the Gaps tab;
-    // they are excluded from Events feed pills + default query results.
-    const GAP_LIFECYCLE = ['gap_added', 'gap_resolved'];
+    // lead-time kinds (lead_time_degraded / lead_time_improved) are
+    // watcher/monitoring signals, not audit-compliance changes, and were
+    // dropped from the Event Backlog when it moved under Sonar Audit.
+    const EXCLUDED = [
+      'gap_added',
+      'gap_resolved',
+      'lead_time_degraded',
+      'lead_time_improved',
+    ];
     const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
-      .filter((k) => !GAP_LIFECYCLE.includes(k))
+      .filter((k) => !EXCLUDED.includes(k))
       .sort();
     const actual = [...EVENT_KIND_PILLS].sort();
     expect(actual).toEqual(expected);
-    expect(actual).not.toContain('gap_added');
-    expect(actual).not.toContain('gap_resolved');
+    EXCLUDED.forEach((k) => expect(actual).not.toContain(k));
   });
 
   it('renders pager when total exceeds pageSize', () => {
@@ -255,7 +261,7 @@ describe('ChangesFeed', () => {
   it('renders a teal Process link to the detail page when processed_at is null', () => {
     render(<ChangesFeed changes={[change({ processed_at: null, processed_by: null })]} />);
     const link = screen.getByRole('link', { name: /^process$/i });
-    expect(link).toHaveAttribute('href', '/account/sonar/posture/changes/c1');
+    expect(link).toHaveAttribute('href', '/account/sonar/audit/events/c1');
     expect(link.className).toMatch(/bg-teal/);
   });
 
@@ -274,6 +280,6 @@ describe('ChangesFeed', () => {
     const link = screen.getByRole('link', { name: /processed/i });
     expect(link).toBeInTheDocument();
     expect(link.className).toMatch(/border-slate/);
-    expect(link).toHaveAttribute('href', '/account/sonar/posture/changes/c1');
+    expect(link).toHaveAttribute('href', '/account/sonar/audit/events/c1');
   });
 });

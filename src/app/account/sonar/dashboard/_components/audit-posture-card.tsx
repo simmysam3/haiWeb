@@ -12,7 +12,7 @@ export function AuditPostureCard({ totalCompliant, totalNonCompliant, totalParti
     <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-charcoal">Compliance posture</h2>
-        <Link href="/account/sonar/posture/working-list" className="text-xs text-teal hover:underline">
+        <Link href="/account/sonar/audit/gaps" className="text-xs text-teal hover:underline">
           View details →
         </Link>
       </div>

@@ -140,7 +140,7 @@ export function ChangesFeed({ changes, total, page = 1, pageSize }: Props) {
  *  - not null → outlined slate Link labelled `Processed`, same target.
  */
 function ProcessAction({ change }: { change: ComplianceChange }) {
-  const detailHref = `/account/sonar/posture/changes/${change.change_id}`;
+  const detailHref = `/account/sonar/audit/events/${change.change_id}`;
   if (change.processed_at != null) {
     return (
       <Link

@@ -1,6 +1,6 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
-import { FilterPills } from './filter-pills';
+import { EVENT_KIND_PILLS, FilterPills } from './filter-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
@@ -29,12 +29,21 @@ interface SearchParams {
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
-  const kinds = searchParams.kind;
-  if (Array.isArray(kinds)) {
-    kinds.forEach((k) => sp.append('kind', k));
-  } else if (kinds) {
-    sp.append('kind', kinds);
-  }
+  // v.1.43: Event Backlog is audit-only. If the user picked specific kinds,
+  // honor them but filter out the two watcher-side LT kinds (in case they
+  // arrive via a stale URL). If no kind filter at all, default to the audit
+  // pill set so LT rows never bleed into this surface.
+  const rawKinds = searchParams.kind;
+  const requested: string[] = Array.isArray(rawKinds)
+    ? rawKinds
+    : rawKinds
+      ? [rawKinds]
+      : [];
+  const allowed = new Set<string>(EVENT_KIND_PILLS);
+  const filteredKinds = requested.length
+    ? requested.filter((k) => allowed.has(k))
+    : [...EVENT_KIND_PILLS];
+  filteredKinds.forEach((k) => sp.append('kind', k));
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);
@@ -85,13 +94,13 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   return (
     <div>
       <PageHeader
-        title="Events"
-        description="Consequential supply-chain changes detected between snapshots — default window is 14 days."
+        title="Event Backlog"
+        description="Event-first triage view of audit-data changes detected between snapshots — origin shifts, certification status, vendor substitutions, depth changes. Default window is 14 days."
         actions={<RefreshButton />}
       />
       <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
-        A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Review on any row to view the before-and-after cell detail.
+        A reverse-chronological feed of consequential changes detected between audit snapshots: origin shifts, certification expirations and renewals, vendor substitutions, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Process on any row to view the before-and-after cell detail and record an outcome.
       </PageIntro>
 
       <FilterPills />
@@ -105,9 +114,9 @@ export default async function ChangesPage({ searchParams }: PageProps) {
                 : result.status === 401
                 ? "Your session has expired. Please sign in again."
                 : result.status >= 500
-                ? "Couldn’t load events. The monitoring service is temporarily unavailable."
+                ? "Couldn’t load events. The audit service is temporarily unavailable."
                 : result.status === 0
-                ? `Couldn’t reach the monitoring service${result.message ? `: ${result.message}` : "."}`
+                ? `Couldn’t reach the audit service${result.message ? `: ${result.message}` : "."}`
                 : `Couldn’t load events (status ${result.status}).`}
             </p>
           </div>
