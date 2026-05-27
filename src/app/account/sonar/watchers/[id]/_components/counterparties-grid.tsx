@@ -27,10 +27,14 @@ interface CounterpartyGroup {
 }
 
 function nameOf(r: WatcherResult): string {
+  // Sub-tier aggregate rows: identity is intentionally null (tier-2+ rollups).
   if (r.counterparty_participant_id === null) return 'Identity withheld';
+  // Direct tier-1 rows: prefer the page-enriched counterparty_name; fall back
+  // to the canonical "Vendor Name Not Disclosed" framing used elsewhere
+  // (e.g. tree-view) rather than exposing a raw UUID slice.
   const named = (r as WatcherResult & { counterparty_name?: string | null })
     .counterparty_name;
-  return named ?? `Counterparty ${r.counterparty_participant_id?.slice(0, 8)}`;
+  return named ?? 'Vendor Name Not Disclosed';
 }
 
 function gapTiersFor(results: WatcherResult[]): Map<number, number> {
@@ -139,8 +143,14 @@ export function CounterpartiesGrid({ results }: Props) {
                   {del && <Pill category="signal_type" value="DEL" />}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
-                  <GapTierBar tiers={g.gapTiers} />
-                  <ScorePill score={g.score} tiers={g.gapTiers} />
+                  {g.gapTiers.size > 0 ? (
+                    <>
+                      <GapTierBar tiers={g.gapTiers} />
+                      <ScorePill score={g.score} tiers={g.gapTiers} />
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate">all signals direct</span>
+                  )}
                   <span className="text-teal text-lg font-bold">
                     {isOpen ? '⌄' : '›'}
                   </span>

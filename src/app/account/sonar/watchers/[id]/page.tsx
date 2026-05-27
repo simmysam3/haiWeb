@@ -17,6 +17,17 @@ interface DefinitionResponse {
   template: RunTemplate;
 }
 
+interface PartnerRecord {
+  id: string;
+  company_name: string;
+}
+
+const SIGNAL_LABEL: Record<string, string> = {
+  lead_time_distribution: 'lead time',
+  capacity_utilization_band: 'capacity',
+  delivery_event: 'delivery events',
+};
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -51,20 +62,44 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
 
   const { run, results } = result.data;
 
-  // Template-name enrichment: protocol envelope only carries template_id; fetch
-  // the definition so the header reads "Apex LT watcher" instead of "Run b00bc87b".
-  // Ad-hoc runs (no template_id) keep the short-hash fallback.
-  let templateName: string | null = null;
-  if (run.template_id) {
-    const defResult = await fetchBffJson<DefinitionResponse>(
-      `/api/account/sonar/watcher/definitions/${run.template_id}`,
-    );
-    if (defResult.kind === 'ok') {
-      templateName = defResult.data.template.template_name;
+  // Parallel enrichment: template (for the title) + partners (for vendor names
+  // on the counterparty grid). WatcherResult only carries participant_id; the
+  // protocol envelope has no human-readable name, so we join client-side.
+  const [defResult, partnersResult] = await Promise.all([
+    run.template_id
+      ? fetchBffJson<DefinitionResponse>(
+          `/api/account/sonar/watcher/definitions/${run.template_id}`,
+        )
+      : Promise.resolve({ kind: 'error' as const, status: 0, message: 'no template' }),
+    fetchBffJson<PartnerRecord[]>('/api/account/partners'),
+  ]);
+
+  const templateName =
+    defResult.kind === 'ok' ? defResult.data.template.template_name : null;
+  const partnerNameById = new Map<string, string>();
+  if (partnersResult.kind === 'ok') {
+    for (const p of partnersResult.data) {
+      partnerNameById.set(p.id, p.company_name);
     }
   }
 
-  const title = templateName ?? `Ad-hoc run ${run.run_id.slice(0, 8)}`;
+  const enrichedResults: WatcherResult[] = results.map((r) => ({
+    ...r,
+    counterparty_name: r.counterparty_participant_id
+      ? partnerNameById.get(r.counterparty_participant_id) ?? null
+      : null,
+  })) as WatcherResult[];
+
+  // Title: template_name when available; otherwise a descriptive scope summary
+  // for ad-hoc runs so the user isn't staring at a UUID slice.
+  const signalLabels = run.signal_types
+    .map((s) => SIGNAL_LABEL[s] ?? s)
+    .join(', ');
+  const title =
+    templateName ??
+    (run.run_origin === 'ad_hoc' || !run.template_id
+      ? `Ad-hoc · ${signalLabels}`
+      : `Run ${run.run_id.slice(0, 8)}`);
 
   return (
     <div className="space-y-6">
@@ -100,9 +135,13 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
           id="counterparties-heading"
           className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
         >
-          Counterparties
+          Counterparty observations
         </h2>
-        <CounterpartiesGrid results={results} />
+        <p className="text-sm text-slate">
+          One row per vendor in scope. Each row summarises the signals returned
+          (or redacted) on this run; expand a row for the per-signal detail.
+        </p>
+        <CounterpartiesGrid results={enrichedResults} />
       </section>
     </div>
   );
