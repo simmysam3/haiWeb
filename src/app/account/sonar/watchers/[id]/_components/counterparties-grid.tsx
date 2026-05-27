@@ -9,11 +9,27 @@ import {
   scoreOf,
 } from '@/components/sonar/observations';
 import { Pill } from '@/components/pill';
-import { LeadTimePanel } from './lead-time-panel';
+import { LeadTimeTriplet } from './lead-time-triplet';
 import { CapacityBandPanel } from './capacity-band-panel';
 import { DeliveryEventLog } from './delivery-event-log';
 
 interface Props {
+  results: WatcherResult[];
+  /**
+   * Optional `external_product_id` → display-name map, supplied by the page
+   * via the `/api/account/sonar/manifest-catalog` BFF (Plan 3 E5). Missing
+   * entries fall back to the raw external_product_id; a null id renders as
+   * the canonical "Vendor-aggregate" placeholder.
+   */
+  productNameByExtId?: Record<string, string>;
+}
+
+const VENDOR_AGGREGATE_KEY = '__vendor_aggregate__';
+
+interface ProductSubGroup {
+  key: string;
+  externalProductId: string | null;
+  productName: string;
   results: WatcherResult[];
 }
 
@@ -22,8 +38,21 @@ interface CounterpartyGroup {
   counterpartyId: string | null;
   counterpartyName: string;
   results: WatcherResult[];
+  productSubGroups: ProductSubGroup[];
   gapTiers: Map<number, number>;
   score: number;
+}
+
+interface Numbered {
+  days: number;
+  observed_at: string;
+  vendor_ref?: string;
+}
+
+interface Distribution {
+  window_days: number;
+  percentiles: { p50: number; p75: number; p90: number; p95: number; p99: number };
+  sample_count: number;
 }
 
 function nameOf(r: WatcherResult): string {
@@ -48,9 +77,70 @@ function gapTiersFor(results: WatcherResult[]): Map<number, number> {
   return m;
 }
 
-export function CounterpartiesGrid({ results }: Props) {
+/**
+ * Extract a numbered (published or quoted) lead-time payload from a list of
+ * results filtered to one product sub-group. Returns the first non-redacted
+ * direct payload found for `signalType`, or null if no usable result exists.
+ */
+function extractNumberedLeadTime(
+  results: WatcherResult[],
+  signalType: 'published_lead_time' | 'quoted_lead_time',
+): Numbered | null {
+  const r = results.find(
+    (x) =>
+      x.signal_type === signalType &&
+      x.payload !== null &&
+      x.synthesis_mode !== 'redacted_gap',
+  );
+  if (!r || !r.payload) return null;
+  const p = r.payload as {
+    days?: number;
+    observed_at?: string;
+    vendor_ref?: string;
+  };
+  if (typeof p.days !== 'number' || typeof p.observed_at !== 'string') return null;
+  return { days: p.days, observed_at: p.observed_at, vendor_ref: p.vendor_ref };
+}
+
+function extractCalibrated(results: WatcherResult[]): Distribution | null {
+  const r = results.find(
+    (x) =>
+      x.signal_type === 'lead_time_distribution' &&
+      x.payload !== null &&
+      x.synthesis_mode !== 'redacted_gap',
+  );
+  if (!r || !r.payload) return null;
+  const p = r.payload as {
+    window_days?: number;
+    percentiles?: { p50: number; p75: number; p90: number; p95: number; p99: number };
+    sample_count?: number;
+  };
+  if (
+    typeof p.window_days !== 'number' ||
+    !p.percentiles ||
+    typeof p.sample_count !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    window_days: p.window_days,
+    percentiles: p.percentiles,
+    sample_count: p.sample_count,
+  };
+}
+
+function signalRow(r: WatcherResult | undefined): {
+  synthesisMode: WatcherSynthesisMode;
+  payload: unknown;
+} {
+  if (!r) return { synthesisMode: 'redacted_gap', payload: null };
+  return { synthesisMode: r.synthesis_mode, payload: r.payload };
+}
+
+export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
+  const [productExpanded, setProductExpanded] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
     const byKey = new Map<string, CounterpartyGroup>();
@@ -63,6 +153,7 @@ export function CounterpartiesGrid({ results }: Props) {
           counterpartyId: r.counterparty_participant_id,
           counterpartyName: nameOf(r),
           results: [],
+          productSubGroups: [],
           gapTiers: new Map(),
           score: 0,
         };
@@ -70,16 +161,53 @@ export function CounterpartiesGrid({ results }: Props) {
       }
       g.results.push(r);
     }
+
     const list = Array.from(byKey.values()).map((g) => {
       const tiers = gapTiersFor(g.results);
-      return { ...g, gapTiers: tiers, score: scoreOf(tiers) };
+      // Build per-product sub-groups. external_product_id=null collapses to
+      // a single "Vendor-aggregate" sub-item (vendor-aggregate runs, i.e.
+      // scope.skus empty). Each product key is scoped under the vendor key
+      // so React state Sets stay collision-free across vendors.
+      const subByKey = new Map<string, ProductSubGroup>();
+      for (const r of g.results) {
+        const extId = r.external_product_id ?? null;
+        const subKey = `${g.key}::${extId ?? VENDOR_AGGREGATE_KEY}`;
+        let sub = subByKey.get(subKey);
+        if (!sub) {
+          const productName =
+            extId === null
+              ? 'Vendor-aggregate'
+              : productNameByExtId?.[extId] ?? extId;
+          sub = {
+            key: subKey,
+            externalProductId: extId,
+            productName,
+            results: [],
+          };
+          subByKey.set(subKey, sub);
+        }
+        sub.results.push(r);
+      }
+      const productSubGroups = Array.from(subByKey.values()).sort((a, b) => {
+        // Vendor-aggregate sub-item sorts last so per-SKU rows lead the list
+        // when both flavours coexist (shouldn't happen today, but defensive).
+        if (a.externalProductId === null && b.externalProductId !== null) return 1;
+        if (a.externalProductId !== null && b.externalProductId === null) return -1;
+        return a.productName.localeCompare(b.productName);
+      });
+      return {
+        ...g,
+        productSubGroups,
+        gapTiers: tiers,
+        score: scoreOf(tiers),
+      };
     });
     list.sort(
       (a, b) =>
         b.score - a.score || a.counterpartyName.localeCompare(b.counterpartyName),
     );
     return list;
-  }, [results]);
+  }, [results, productNameByExtId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,8 +215,8 @@ export function CounterpartiesGrid({ results }: Props) {
     return groups.filter((g) => g.counterpartyName.toLowerCase().includes(q));
   }, [groups, query]);
 
-  function toggle(key: string) {
-    setExpanded((prev) => {
+  function toggleVendor(key: string) {
+    setVendorExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -96,12 +224,13 @@ export function CounterpartiesGrid({ results }: Props) {
     });
   }
 
-  function signalRow(r: WatcherResult | undefined): {
-    synthesisMode: WatcherSynthesisMode;
-    payload: unknown;
-  } {
-    if (!r) return { synthesisMode: 'redacted_gap', payload: null };
-    return { synthesisMode: r.synthesis_mode, payload: r.payload };
+  function toggleProduct(key: string) {
+    setProductExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   return (
@@ -120,27 +249,32 @@ export function CounterpartiesGrid({ results }: Props) {
       </div>
       <ul className="divide-y divide-slate-200 rounded border border-slate-200">
         {filtered.map((g) => {
-          const isOpen = expanded.has(g.key);
-          const lt = g.results.find(
-            (r) => r.signal_type === 'lead_time_distribution',
-          );
-          const cap = g.results.find(
+          const isVendorOpen = vendorExpanded.has(g.key);
+          // Vendor-row chips summarise across ALL the vendor's results
+          // (matches the pre-Plan-3 surface) — the per-product detail moves
+          // into the product expansion below.
+          const hasPLT = g.results.some((r) => r.signal_type === 'published_lead_time');
+          const hasQLT = g.results.some((r) => r.signal_type === 'quoted_lead_time');
+          const hasLT = g.results.some((r) => r.signal_type === 'lead_time_distribution');
+          const hasCAP = g.results.some(
             (r) => r.signal_type === 'capacity_utilization_band',
           );
-          const del = g.results.find((r) => r.signal_type === 'delivery_event');
+          const hasDEL = g.results.some((r) => r.signal_type === 'delivery_event');
           return (
             <li key={g.key} className="px-3 py-2">
               <button
                 type="button"
-                onClick={() => toggle(g.key)}
-                aria-expanded={isOpen}
+                onClick={() => toggleVendor(g.key)}
+                aria-expanded={isVendorOpen}
                 className="flex w-full items-center gap-3 text-left"
               >
                 <span className="font-medium text-charcoal">{g.counterpartyName}</span>
                 <span className="flex items-center gap-1">
-                  {lt && <Pill category="signal_type" value="LT" />}
-                  {cap && <Pill category="signal_type" value="CAP" />}
-                  {del && <Pill category="signal_type" value="DEL" />}
+                  {hasPLT && <Pill category="signal_type" value="PLT" />}
+                  {hasQLT && <Pill category="signal_type" value="QLT" />}
+                  {hasLT && <Pill category="signal_type" value="LT" />}
+                  {hasCAP && <Pill category="signal_type" value="CAP" />}
+                  {hasDEL && <Pill category="signal_type" value="DEL" />}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   {g.gapTiers.size > 0 ? (
@@ -152,37 +286,80 @@ export function CounterpartiesGrid({ results }: Props) {
                     <span className="text-xs text-slate">all signals direct</span>
                   )}
                   <span className="text-teal text-lg font-bold">
-                    {isOpen ? '⌄' : '›'}
+                    {isVendorOpen ? '⌄' : '›'}
                   </span>
                 </span>
               </button>
-              {isOpen && (
-                <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
-                  <div>
-                    <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                      Lead time
-                    </h4>
-                    <LeadTimePanel
-                      {...(signalRow(lt) as Parameters<typeof LeadTimePanel>[0])}
-                    />
-                  </div>
-                  <div>
-                    <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                      Capacity
-                    </h4>
-                    <CapacityBandPanel
-                      {...(signalRow(cap) as Parameters<typeof CapacityBandPanel>[0])}
-                    />
-                  </div>
-                  <div>
-                    <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                      Delivery events
-                    </h4>
-                    <DeliveryEventLog
-                      {...(signalRow(del) as Parameters<typeof DeliveryEventLog>[0])}
-                    />
-                  </div>
-                </div>
+              {isVendorOpen && (
+                <ul className="mt-3 ml-4 divide-y divide-slate-100">
+                  {g.productSubGroups.map((sub) => {
+                    const isProductOpen = productExpanded.has(sub.key);
+                    const cap = sub.results.find(
+                      (r) => r.signal_type === 'capacity_utilization_band',
+                    );
+                    const del = sub.results.find(
+                      (r) => r.signal_type === 'delivery_event',
+                    );
+                    const published = extractNumberedLeadTime(
+                      sub.results,
+                      'published_lead_time',
+                    );
+                    const quoted = extractNumberedLeadTime(
+                      sub.results,
+                      'quoted_lead_time',
+                    );
+                    const calibrated = extractCalibrated(sub.results);
+                    return (
+                      <li key={sub.key} className="py-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleProduct(sub.key)}
+                          aria-expanded={isProductOpen}
+                          className="flex w-full items-center gap-3 text-left"
+                        >
+                          <span className="text-charcoal">{sub.productName}</span>
+                          <span className="ml-auto text-teal text-lg font-bold">
+                            {isProductOpen ? '⌄' : '›'}
+                          </span>
+                        </button>
+                        {isProductOpen && (
+                          <div className="mt-2 space-y-3 border-t border-slate-100 pt-2 pl-2">
+                            <div>
+                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
+                                Lead time
+                              </h4>
+                              <LeadTimeTriplet
+                                published={published}
+                                quoted={quoted}
+                                calibrated={calibrated}
+                              />
+                            </div>
+                            <div>
+                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
+                                Capacity
+                              </h4>
+                              <CapacityBandPanel
+                                {...(signalRow(cap) as Parameters<
+                                  typeof CapacityBandPanel
+                                >[0])}
+                              />
+                            </div>
+                            <div>
+                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
+                                Delivery events
+                              </h4>
+                              <DeliveryEventLog
+                                {...(signalRow(del) as Parameters<
+                                  typeof DeliveryEventLog
+                                >[0])}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </li>
           );

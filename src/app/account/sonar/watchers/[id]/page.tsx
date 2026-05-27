@@ -22,6 +22,10 @@ interface PartnerRecord {
   company_name: string;
 }
 
+interface ManifestCatalogResponse {
+  products: Array<{ external_product_id: string; product_name: string }>;
+}
+
 const SIGNAL_LABEL: Record<string, string> = {
   lead_time_distribution: 'lead time',
   capacity_utilization_band: 'capacity',
@@ -63,15 +67,18 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
   const { run, results } = result.data;
 
   // Parallel enrichment: template (for the title) + partners (for vendor names
-  // on the counterparty grid). WatcherResult only carries participant_id; the
-  // protocol envelope has no human-readable name, so we join client-side.
-  const [defResult, partnersResult] = await Promise.all([
+  // on the counterparty grid) + manifest catalog (for per-product names on the
+  // two-level grid — Plan 3 E3). WatcherResult only carries participant_id +
+  // external_product_id; the protocol envelopes have no human-readable name,
+  // so we join client-side.
+  const [defResult, partnersResult, manifestResult] = await Promise.all([
     run.template_id
       ? fetchBffJson<DefinitionResponse>(
           `/api/account/sonar/watcher/definitions/${run.template_id}`,
         )
       : Promise.resolve({ kind: 'error' as const, status: 0, message: 'no template' }),
     fetchBffJson<PartnerRecord[]>('/api/account/partners'),
+    fetchBffJson<ManifestCatalogResponse>('/api/account/sonar/manifest-catalog'),
   ]);
 
   const templateName =
@@ -80,6 +87,12 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
   if (partnersResult.kind === 'ok') {
     for (const p of partnersResult.data) {
       partnerNameById.set(p.id, p.company_name);
+    }
+  }
+  const productNameByExtId: Record<string, string> = {};
+  if (manifestResult.kind === 'ok') {
+    for (const p of manifestResult.data.products) {
+      productNameByExtId[p.external_product_id] = p.product_name;
     }
   }
 
@@ -144,7 +157,10 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
           One row per vendor in scope. Each row summarises the signals returned
           (or redacted) on this run; expand a row for the per-signal detail.
         </p>
-        <CounterpartiesGrid results={enrichedResults} />
+        <CounterpartiesGrid
+          results={enrichedResults}
+          productNameByExtId={productNameByExtId}
+        />
       </section>
     </div>
   );

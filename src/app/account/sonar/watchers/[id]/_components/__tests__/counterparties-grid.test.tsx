@@ -23,6 +23,7 @@ function makeResult(
     observed_at: '2026-05-27T10:00:00Z',
     tier: 1,
     aggregated_under_tier_1: null,
+    external_product_id: null,
     ...overrides,
   } as WatcherResult & { counterparty_name?: string | null };
 }
@@ -65,18 +66,27 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
-  it('reveals signal panels when a counterparty row is expanded', async () => {
+  it('reveals product sub-list and signal panels when vendor + product are expanded', async () => {
     render(
       <CounterpartiesGrid
         results={[
           makeResult({
             counterparty_participant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
             counterparty_name: 'Apex',
+            external_product_id: null,
           }),
         ]}
       />,
     );
+    // Step 1: expand vendor row → reveals the product sub-list. Because the
+    // result carries external_product_id=null, the sub-item is the canonical
+    // vendor-aggregate placeholder.
     await userEvent.click(screen.getByRole('button', { name: /Apex/i }));
+    const productButton = await screen.findByRole('button', {
+      name: /Vendor-aggregate/i,
+    });
+    // Step 2: expand the product row → reveals the three signal panels.
+    await userEvent.click(productButton);
     expect(screen.getByText(/sample/i)).toBeInTheDocument();
   });
 
@@ -104,5 +114,38 @@ describe('<CounterpartiesGrid>', () => {
     await userEvent.type(screen.getByPlaceholderText(/search/i), 'Apex');
     expect(screen.getByText('Apex Metals')).toBeInTheDocument();
     expect(screen.queryByText('Brass Co')).toBeNull();
+  });
+
+  it('renders one product sub-row per external_product_id within a vendor (Plan 3 E3)', async () => {
+    render(
+      <CounterpartiesGrid
+        results={[
+          makeResult({
+            counterparty_participant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            counterparty_name: 'Apex',
+            external_product_id: 'SKU-A',
+            signal_type: 'published_lead_time',
+            payload: { kind: 'direct', days: 10, observed_at: '2026-05-27T10:00:00Z' },
+          }),
+          makeResult({
+            counterparty_participant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            counterparty_name: 'Apex',
+            external_product_id: 'SKU-B',
+            signal_type: 'published_lead_time',
+            payload: { kind: 'direct', days: 14, observed_at: '2026-05-27T10:00:00Z' },
+          }),
+        ]}
+        productNameByExtId={{ 'SKU-A': 'Widget A', 'SKU-B': 'Widget B' }}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Apex/i }));
+    // Both products surface inside the vendor row, named via the map prop.
+    expect(
+      await screen.findByRole('button', { name: /Widget A/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Widget B/i })).toBeInTheDocument();
+    // Expanding a product reveals the LeadTimeTriplet (Published panel shows days).
+    await userEvent.click(screen.getByRole('button', { name: /Widget A/i }));
+    expect(screen.getByText('10d')).toBeInTheDocument();
   });
 });
