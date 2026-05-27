@@ -24,7 +24,7 @@ import { redirect } from 'next/navigation';
 
 const TARGETS = {
   audit: '/account/sonar/audit',
-  watcher: '/account/sonar/posture/runs',
+  watcher: '/account/sonar/watchers',
   phantom_demand: '/account/sonar/observations',
 } as const;
 type Class = keyof typeof TARGETS;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
+import type { CreateRunTemplateRequest } from '@haiwave/protocol';
 
 /**
  * GET /api/account/sonar/watcher/definitions — list the caller's watcher
@@ -15,4 +16,17 @@ export const GET = withHaiCore(async ({ client }) => {
     (t) => t.observation_class === 'watcher',
   );
   return NextResponse.json({ templates: watcherTemplates });
+});
+
+/**
+ * POST /api/account/sonar/watcher/definitions — create a new watcher run template.
+ *
+ * Forces observation_class: 'watcher' regardless of what the caller supplies,
+ * ensuring this endpoint always creates watcher-scoped templates. Mirrors the
+ * audit equivalent's pattern.
+ */
+export const POST = withHaiCore(async ({ client, request }) => {
+  const body = (await request.json().catch(() => ({}))) as CreateRunTemplateRequest;
+  const payload = { ...body, observation_class: 'watcher' as const } as unknown as CreateRunTemplateRequest;
+  return NextResponse.json(await client.createRunTemplate(payload));
 });

@@ -23,8 +23,8 @@ async function runPage(observation_class?: string) {
 }
 
 describe('TemplatesRedirect — v.1.41 dispatch by observation_class', () => {
-  it('?observation_class=watcher → /account/sonar/posture/runs (watcher home today; flips to /sonar/watchers in PR-B)', async () => {
-    expect(await runPage('watcher')).toBe('/account/sonar/posture/runs');
+  it('?observation_class=watcher → /account/sonar/watchers', async () => {
+    expect(await runPage('watcher')).toBe('/account/sonar/watchers');
   });
 
   it('?observation_class=phantom_demand → /account/sonar/observations', async () => {
@@ -36,10 +36,10 @@ describe('TemplatesRedirect — v.1.41 dispatch by observation_class', () => {
   });
 
   it('no class → defaults to the watcher home', async () => {
-    expect(await runPage(undefined)).toBe('/account/sonar/posture/runs');
+    expect(await runPage(undefined)).toBe('/account/sonar/watchers');
   });
 
   it('unknown class → defaults to the watcher home (graceful)', async () => {
-    expect(await runPage('not-a-real-class')).toBe('/account/sonar/posture/runs');
+    expect(await runPage('not-a-real-class')).toBe('/account/sonar/watchers');
   });
 });

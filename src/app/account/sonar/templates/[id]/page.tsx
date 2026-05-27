@@ -1,7 +1,7 @@
 // src/app/account/sonar/templates/[id]/page.tsx
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { RunTemplate } from '@haiwave/protocol';
 import { TemplateEditor } from '../_components/template-editor';
 import { ManualTriggerButton } from './_components/manual-trigger-button';
@@ -40,6 +40,9 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
   const { id } = await params;
   const template = await loadTemplate(id);
   if (!template) notFound();
+  if (template.observation_class === 'watcher') {
+    redirect(`/account/sonar/watchers/definitions/${template.template_id}`);
+  }
   return (
     <div className="space-y-6">
       <PageHeader
