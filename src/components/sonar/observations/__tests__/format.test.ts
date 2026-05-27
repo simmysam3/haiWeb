@@ -28,13 +28,13 @@ describe('formatRelative', () => {
 });
 
 describe('formatRunLabel', () => {
-  it('returns template_name when present', () => {
+  it('composes <template_name> — Run <hash> when template_name is present', () => {
     expect(
       formatRunLabel({
         run_id: 'abcdef1234567890',
         template_name: 'Apex daily sweep',
       }),
-    ).toBe('Apex daily sweep');
+    ).toBe('Apex daily sweep — Run abcdef12');
   });
   it('falls back to Run + 8-char run_id slice when no template_name', () => {
     expect(formatRunLabel({ run_id: 'abcdef1234567890' })).toBe('Run abcdef12');

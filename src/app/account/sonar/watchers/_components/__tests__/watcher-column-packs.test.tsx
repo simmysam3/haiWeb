@@ -106,16 +106,17 @@ describe('watcher-history column pack — name cell', () => {
     return render(<>{col.render(run)}</>);
   }
 
-  it('shows the watcher template_name as the link text', () => {
+  it('composes <template_name> — Run <hash> for runs from a named watcher', () => {
     renderNameCell(makeRun(['lead_time_distribution']));
-    expect(screen.getByRole('link', { name: 'Test watcher' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Test watcher — Run run-1' }),
+    ).toBeInTheDocument();
   });
 
-  it('falls back to the run hash when template_name is missing', () => {
+  it('falls back to the run hash alone when template_name is missing', () => {
     const run = makeRun(['lead_time_distribution']);
     run.template_name = undefined;
     renderNameCell(run);
-    // formatRunLabel uses the first 8 chars of the run id.
     expect(screen.getByRole('link', { name: 'Run run-1' })).toBeInTheDocument();
   });
 });
@@ -128,9 +129,11 @@ describe('watcher-history column pack — actions cell', () => {
     return render(<>{col.render(run)}</>);
   }
 
-  it('renders a chevron-circle link labelled by the watcher name', () => {
+  it('renders a chevron-circle link labelled by the composed run label', () => {
     renderActionsCell(makeRun(['lead_time_distribution']));
-    const link = screen.getByRole('link', { name: 'Open Test watcher' });
+    const link = screen.getByRole('link', {
+      name: 'Open Test watcher — Run run-1',
+    });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/account/sonar/watchers/run-1');
   });

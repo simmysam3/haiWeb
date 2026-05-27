@@ -16,8 +16,9 @@ export function formatRunLabel(run: {
   run_id: string;
   template_name?: string | null;
 }): string {
-  if (run.template_name) return run.template_name;
-  return `Run ${run.run_id.slice(0, 8)}`;
+  const hash = `Run ${run.run_id.slice(0, 8)}`;
+  if (run.template_name) return `${run.template_name} — ${hash}`;
+  return hash;
 }
 
 // Re-export the existing cadence formatter so the shared module is the
