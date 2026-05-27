@@ -6,11 +6,15 @@ import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-ta
 import { CounterpartiesGrid } from './_components/counterparties-grid';
 import { RunControls } from './run-controls';
 import { RunFailureBanner } from './run-failure-banner';
-import type { WatcherRun, WatcherResult } from '@haiwave/protocol';
+import type { RunTemplate, WatcherRun, WatcherResult } from '@haiwave/protocol';
 
 interface WatcherRunDetailResponse {
   run: WatcherRun;
   results: WatcherResult[];
+}
+
+interface DefinitionResponse {
+  template: RunTemplate;
 }
 
 interface RouteContext {
@@ -47,7 +51,20 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
 
   const { run, results } = result.data;
 
-  const title = `Run ${run.run_id.slice(0, 8)}`;
+  // Template-name enrichment: protocol envelope only carries template_id; fetch
+  // the definition so the header reads "Apex LT watcher" instead of "Run b00bc87b".
+  // Ad-hoc runs (no template_id) keep the short-hash fallback.
+  let templateName: string | null = null;
+  if (run.template_id) {
+    const defResult = await fetchBffJson<DefinitionResponse>(
+      `/api/account/sonar/watcher/definitions/${run.template_id}`,
+    );
+    if (defResult.kind === 'ok') {
+      templateName = defResult.data.template.template_name;
+    }
+  }
+
+  const title = templateName ?? `Ad-hoc run ${run.run_id.slice(0, 8)}`;
 
   return (
     <div className="space-y-6">
