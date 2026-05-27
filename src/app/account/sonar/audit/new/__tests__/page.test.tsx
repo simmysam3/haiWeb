@@ -72,7 +72,7 @@ describe('NewAuditPage — ad-hoc re-run (template_id null)', () => {
     vi.resetModules();
     // Fetches in order:
     //  1. The run lookup (server-side, page.tsx). No template fetch for ad-hoc.
-    //  2. The wizard-options fetch (client-side, AuditBilateralScopeFields).
+    //  2. The wizard-options fetch (client-side, BilateralCounterpartiesSkusFields).
     //     Mocked empty so the picker renders its "no accepted scopes" CTA.
     fetchMock.mockResolvedValueOnce({
       ok: true,

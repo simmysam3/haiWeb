@@ -13,8 +13,13 @@ import {
 import { TristateCheckbox } from '@/components/tristate-checkbox';
 
 /**
- * v.1.41 audit-wizard spec restoration (§5.1) — Counterparties + Classes +
- * SKUs picker for the bilateral branch of the New Audit wizard.
+ * Bilateral scope picker — counterparties + skus drill-down. Modality-neutral:
+ * audit and watcher consume the same shape (counterparties: uuid[], skus:
+ * external_product_id strings). Renamed from <AuditBilateralScopeFields> in
+ * v.1.43 Plan 2 when the watcher scope picker came online.
+ *
+ * Original framing (v.1.41 audit-wizard spec restoration §5.1) — Counterparties
+ * + Classes + SKUs picker for the bilateral branch of the New Audit wizard.
  *
  * Hierarchy:
  *   Counterparty ▶  (checkbox = select all of this counterparty's accepted SKUs)
@@ -67,7 +72,7 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function AuditBilateralScopeFields({ counterparties: _ignored, skus, onChange }: Props) {
+export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, skus, onChange }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
