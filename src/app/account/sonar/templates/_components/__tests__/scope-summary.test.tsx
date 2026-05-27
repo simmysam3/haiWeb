@@ -41,6 +41,7 @@ describe('ScopeSummary', () => {
       authorization_basis: 'bilateral',
       counterparties: [],
       signal_types: ['capacity_utilization_band'],
+      skus: [],
       depth_limit: 3,
     };
     render(<ScopeSummary scope={scope} />);
