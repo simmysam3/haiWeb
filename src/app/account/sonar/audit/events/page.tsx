@@ -3,6 +3,8 @@ import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { hasAuditScopes } from '../_lib/has-audit-scopes';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -83,7 +85,10 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const pageParam = Math.max(parseInt(params.page ?? '1', 10) || 1, 1);
   const offset = (pageParam - 1) * PAGE_SIZE;
-  const result = await fetchChanges(params, offset);
+  const [result, hasScopes] = await Promise.all([
+    fetchChanges(params, offset),
+    hasAuditScopes(),
+  ]);
 
   return (
     <div>
@@ -95,6 +100,8 @@ export default async function ChangesPage({ searchParams }: PageProps) {
       <PageIntro>
         A reverse-chronological feed of consequential changes detected between audit snapshots: origin shifts, certification expirations and renewals, vendor substitutions, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Process on any row to view the before-and-after cell detail and record an outcome.
       </PageIntro>
+
+      <BacklogTabs hasScopes={hasScopes} />
 
       <FilterPills />
 

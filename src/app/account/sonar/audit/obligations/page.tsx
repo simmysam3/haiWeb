@@ -3,6 +3,8 @@ import type { DownstreamGapEntry } from '@haiwave/protocol';
 import { GapsTable } from './gaps-table';
 import { LeastCompliantPanel } from './least-compliant-panel';
 import { FilterPills } from './filter-pills';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { hasAuditScopes } from '../_lib/has-audit-scopes';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -46,7 +48,10 @@ interface PageProps {
 
 export default async function DownstreamGapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const result = await fetchGaps(params);
+  const [result, hasScopes] = await Promise.all([
+    fetchGaps(params),
+    hasAuditScopes(),
+  ]);
 
   return (
     <div>
@@ -58,6 +63,8 @@ export default async function DownstreamGapsPage({ searchParams }: PageProps) {
       <PageIntro>
         Each row is a compliance obligation that one of your customers has accepted on your behalf and is now waiting for you to close. You owe them a response: either drive a sub-tier vendor to disclose (the participant + invited rows), invite a non-participant counterparty (the not-invited rows), or escalate via support. Filter by resolution class to focus on what&apos;s actionable today.
       </PageIntro>
+
+      <BacklogTabs hasScopes={hasScopes} />
 
       <FilterPills />
 

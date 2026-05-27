@@ -2,6 +2,8 @@ import type { WorkingListResponse } from '@haiwave/protocol';
 import { WorkingListTable } from './working-list-table';
 import { FilterPills } from './filter-pills';
 import { GapsTrendStrip } from './gaps-trend-strip';
+import { BacklogTabs } from '../_components/backlog-tabs';
+import { hasAuditScopes } from '../_lib/has-audit-scopes';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -67,7 +69,10 @@ interface PageProps { searchParams: Promise<SearchParams>; }
 export default async function GapsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const sku = (params.sku ?? '').trim();
-  const raw = await fetchList(params);
+  const [raw, hasScopes] = await Promise.all([
+    fetchList(params),
+    hasAuditScopes(),
+  ]);
   const result = sku ? filterBySku(raw, sku) : raw;
   return (
     <div>
@@ -117,6 +122,7 @@ export default async function GapsPage({ searchParams }: PageProps) {
         Snooze or dismiss items that aren&apos;t actionable right now; resolved items
         drop off automatically at the next snapshot.
       </PageIntro>
+      <BacklogTabs hasScopes={hasScopes} />
       <GapsTrendStrip />
       <FilterPills />
       <div className="rounded-lg border border-slate/20 bg-white">

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 
-// Backlog section layout is intentionally a passthrough. Each child page
-// (changes / working-list / obligations) renders its own PageHeader first,
-// then the shared CoverageHeaderStrip + BacklogTabs, then content — so the
-// H1 sits at the top of the viewport and the tab chooser sits between the
-// title and the data table. Previously this layout wrapped children with the
-// strip + tabs above them, which pushed the per-page H1 below them.
-export default function BacklogLayout({ children }: { children: ReactNode }) {
+// v.1.43: /sonar/posture/ collapsed to a single child route — the
+// Watcher Backlog at /sonar/posture/changes. The old siblings
+// (working-list, obligations) and the BacklogTabs strip moved to
+// /sonar/audit/ when the audit-side Event Backlog was carved out.
+// This layout stays as a passthrough rather than being deleted because
+// the Watcher Backlog still resolves through /sonar/posture/changes
+// and Next requires the directory tree to be intact.
+export default function PostureLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
