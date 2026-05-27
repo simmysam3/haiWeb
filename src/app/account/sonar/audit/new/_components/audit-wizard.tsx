@@ -11,7 +11,7 @@ import { AuditScopePicker } from '../../../_components/audit-scope-picker';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
-import { AuditLifecycleFields } from './audit-lifecycle-fields';
+import { AuditLifecycleFields } from '../../../_components/audit-lifecycle-fields';
 import { ForkIndicator } from './fork-indicator';
 
 /**

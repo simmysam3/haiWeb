@@ -10,7 +10,7 @@ import { StepRail, type RailStep } from '../../../../_components/step-rail';
 import { StepCard } from '../../../../_components/step-card';
 import { ScopeSummary } from '../../../../templates/_components/scope-summary';
 import { NameField } from '../../../../_components/name-field';
-import { LifecycleFields } from '../../../../_components/lifecycle-fields';
+import { AuditLifecycleFields } from '../../../../_components/audit-lifecycle-fields';
 
 const steps: RailStep[] = [
   { id: 'identity', label: 'Identity', state: 'active' },
@@ -274,10 +274,11 @@ export function AuditDefinitionEditor({ template, events = [] }: Props) {
         </StepCard>
 
         <StepCard id="lifecycle" index={3} title="Lifecycle">
-          <LifecycleFields
-            enabled={enabled}
+          {/* Enabled/disabled lives on the header Suspend/Reactivate button —
+              the Lifecycle step surfaces only retention here, matching the
+              new-audit wizard. */}
+          <AuditLifecycleFields
             retentionDays={retentionDays}
-            onEnabledChange={setEnabled}
             onRetentionChange={setRetentionDays}
           />
         </StepCard>

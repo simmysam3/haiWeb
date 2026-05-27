@@ -79,7 +79,7 @@ export function AuditLifecycleFields({
       <label className="flex items-center gap-2 text-sm text-charcoal">
         <input
           type="radio"
-          name="audit-retention-mode"
+          name="sonar-retention-mode"
           checked={mode === 'none'}
           onChange={selectNone}
         />
@@ -92,7 +92,7 @@ export function AuditLifecycleFields({
       <label className="flex items-center gap-2 text-sm text-charcoal">
         <input
           type="radio"
-          name="audit-retention-mode"
+          name="sonar-retention-mode"
           checked={mode === 'opt_in'}
           onChange={selectOptIn}
         />
