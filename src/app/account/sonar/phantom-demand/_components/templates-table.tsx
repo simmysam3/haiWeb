@@ -1,7 +1,6 @@
 'use client';
 import Link from 'next/link';
 import type { RunTemplate } from '@haiwave/protocol';
-import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations';
 
 interface TemplatesTableProps {
@@ -49,9 +48,7 @@ export function TemplatesTable({ templates }: TemplatesTableProps) {
               <td className="px-4 py-2">{String(scope?.default_target_date ?? '—')}</td>
               <td className="px-4 py-2">{String(scope?.weeks_to_hold ?? '—')}</td>
               <td className="px-4 py-2 text-slate-500">—</td>
-              <td className="px-4 py-2">
-                <Pill category="pd_verdict" value="on-time" />
-              </td>
+              <td className="px-4 py-2 text-slate-500">—</td>
               <td className="px-4 py-2">
                 <Link
                   href={`/account/sonar/phantom-demand/templates/${tpl.template_id}`}

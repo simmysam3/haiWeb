@@ -9,7 +9,11 @@ interface RunDetailShellProps {
   initialDetail: PhantomDemandRunDetail;
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
 
 const TERMINAL_STATUSES = new Set(['complete', 'completed', 'failed', 'cancelled']);
 
@@ -38,7 +42,7 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
   const statusFlippedToTerminal =
     statusData?.status !== undefined && TERMINAL_STATUSES.has(statusData.status);
   const { data: refreshed } = useSWR<PhantomDemandRunDetail>(
-    statusFlippedToTerminal || initialDetail.tree
+    statusFlippedToTerminal && !initialDetail.tree
       ? `/api/account/sonar/phantom-demand/runs/${runId}`
       : null,
     fetcher,
