@@ -83,17 +83,18 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
     );
   }
 
-  // phantom_demand branch — delegated to a dedicated component (v1.31).
-  const pdValue: Extract<RunTemplateScope, { kind: 'phantom_demand' }> =
-    value.kind === 'phantom_demand'
+  // phantom_demand branch — v.1.44 refined-PD: delegated to PhantomDemandScopeFields
+  // which now operates on the new phantom_demand_bom template scope shape.
+  const pdValue: Extract<RunTemplateScope, { kind: 'phantom_demand_bom' }> =
+    value.kind === 'phantom_demand_bom'
       ? value
       : {
-          kind: 'phantom_demand',
-          authorization_basis: 'bilateral',
-          counterparty: '',
-          skus: [],
-          hypothetical_quantity: 1,
-          hypothetical_timeline: null,
+          kind: 'phantom_demand_bom',
+          sku: '',
+          default_qty: 1,
+          default_target_date: '',
+          vendor_exclude: [],
+          weeks_to_hold: 1,
         };
   return <PhantomDemandScopeFields value={pdValue} onChange={onChange} />;
 }

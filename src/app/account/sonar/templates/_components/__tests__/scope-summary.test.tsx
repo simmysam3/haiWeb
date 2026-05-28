@@ -64,6 +64,22 @@ describe('ScopeSummary', () => {
     expect(screen.getByText('100')).toBeInTheDocument();
   });
 
+  it('phantom_demand_bom: shows sku, default_qty, default_target_date, weeks_to_hold (v1.44)', () => {
+    const scope: RunTemplateScope = {
+      kind: 'phantom_demand_bom',
+      sku: 'HC-9000',
+      default_qty: 30,
+      default_target_date: '2026-06-15',
+      vendor_exclude: [],
+      weeks_to_hold: 2,
+    };
+    render(<ScopeSummary scope={scope} />);
+    expect(screen.getByText('HC-9000')).toBeInTheDocument();
+    expect(screen.getByText('30')).toBeInTheDocument();
+    expect(screen.getByText('2026-06-15')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
   it('renders an explicit empty state for empty arrays', () => {
     // Cast needed: WatcherScope.signal_types is nonempty() in the protocol schema,
     // but this test intentionally exercises the empty-array UI branch.

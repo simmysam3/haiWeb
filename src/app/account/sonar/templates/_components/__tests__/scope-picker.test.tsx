@@ -39,24 +39,32 @@ describe('ScopePicker — phantom_demand', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('[]', { status: 200 })));
   });
 
-  it('phantom_demand renders the delegated scope fields (Target Delivery Date, not free-text timeline)', () => {
+  // v.1.44 refined-PD: ScopePicker now delegates to PhantomDemandScopeFields
+  // which operates on the phantom_demand_bom shape.  The legacy phantom_demand
+  // scope value is accepted as input (still in the RunTemplateScope union) but
+  // the ScopePicker falls back to an empty phantom_demand_bom shape, so the
+  // rendered fields are the new ones.
+  it('phantom_demand renders the new BOM scope fields (Default Target Date, SKU, Weeks to Hold)', () => {
     const onChange = vi.fn();
     render(
       <ScopePicker
         observationClass="phantom_demand"
         value={{
-          kind: 'phantom_demand',
-          authorization_basis: 'bilateral',
-          counterparty: '',
-          skus: [],
-          hypothetical_quantity: 1,
-          hypothetical_timeline: null,
+          kind: 'phantom_demand_bom',
+          sku: '',
+          default_qty: 1,
+          default_target_date: '',
+          vendor_exclude: [],
+          weeks_to_hold: 1,
         }}
         onChange={onChange}
       />,
     );
-    expect(screen.getByText(/target delivery date/i)).toBeInTheDocument();
-    expect(screen.getByText('Counterparty')).toBeInTheDocument();
-    expect(screen.getByText('SKUs')).toBeInTheDocument();
+    expect(screen.getByText(/default target date/i)).toBeInTheDocument();
+    expect(screen.getByText(/sku/i)).toBeInTheDocument();
+    expect(screen.getByText(/weeks to hold/i)).toBeInTheDocument();
+    // Legacy counterparty / hypothetical fields must not appear
+    expect(screen.queryByText(/^counterparty$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hypothetical quantity/i)).not.toBeInTheDocument();
   });
 });

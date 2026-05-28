@@ -90,7 +90,27 @@ export function ScopeSummary({ scope }: { scope: RunTemplateScope }) {
       </div>
     );
   }
-  // phantom_demand
+  // v.1.44 refined-PD: new phantom_demand_bom scope (BOM template defaults).
+  if (scope.kind === 'phantom_demand_bom') {
+    return (
+      <div>
+        <Field label="SKU">
+          <IdChip id={scope.sku} chars={24} />
+        </Field>
+        <Field label="Default quantity">{scope.default_qty}</Field>
+        <Field label="Default target date">
+          {scope.default_target_date || EMPTY}
+        </Field>
+        <Field label="Weeks to hold">{scope.weeks_to_hold}</Field>
+        <Field label="Excluded vendors">
+          {scope.vendor_exclude.length === 0
+            ? EMPTY
+            : <>{scope.vendor_exclude.length} vendor{scope.vendor_exclude.length === 1 ? '' : 's'}</>}
+        </Field>
+      </div>
+    );
+  }
+  // phantom_demand (legacy) — kept for existing templates that still carry this scope shape.
   return (
     <div>
       <Field label="Counterparty">

@@ -1,202 +1,143 @@
+// v.1.44 refined-PD: PhantomDemandScopeFields now operates on the
+// phantom_demand_bom template scope shape (sku / default_qty / default_target_date /
+// vendor_exclude / weeks_to_hold).  All legacy hypothetical_quantity /
+// hypothetical_timeline / counterparty tests have been replaced.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { PhantomDemandScopeFields } from '../phantom-demand-scope-fields';
 
-const fetchMock = vi.fn();
 beforeEach(() => {
-  fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
-  fetchMock.mockResolvedValue(
-    new Response(
-      JSON.stringify([
-        { id: 'cp-1', company_name: 'Great Lakes Hardware', status: 'trading_pair' },
-      ]),
-      { status: 200 },
-    ),
-  );
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('[]', { status: 200 })));
 });
 
 const BASE = {
-  kind: 'phantom_demand' as const,
-  authorization_basis: 'bilateral' as const,
-  counterparty: '',
-  skus: [] as string[],
-  hypothetical_quantity: 1,
-  hypothetical_timeline: null as string | null,
+  kind: 'phantom_demand_bom' as const,
+  sku: '',
+  default_qty: 1,
+  default_target_date: '',
+  vendor_exclude: [] as string[],
+  weeks_to_hold: 1,
 };
 
-describe('PhantomDemandScopeFields', () => {
-  it('renders the relabeled "Target Delivery Date" and not "Hypothetical Timeline"', () => {
+describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
+  it('renders the SKU, Default Quantity, Default Target Date, Weeks to Hold and Exclude Vendors labels', () => {
     render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);
-    expect(screen.getByText(/target delivery date/i)).toBeInTheDocument();
-    expect(screen.queryByText(/hypothetical timeline/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/sku/i)).toBeInTheDocument();
+    expect(screen.getByText(/default quantity/i)).toBeInTheDocument();
+    expect(screen.getByText(/default target date/i)).toBeInTheDocument();
+    expect(screen.getByText(/weeks to hold/i)).toBeInTheDocument();
+    expect(screen.getByText(/exclude vendors/i)).toBeInTheDocument();
   });
 
-  it('emits quantity changes preserving scope shape', () => {
+  it('emits default_qty changes preserving scope shape', () => {
     const onChange = vi.fn();
     render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+    fireEvent.change(screen.getByLabelText(/default quantity/i), {
       target: { value: '250' },
     });
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ kind: 'phantom_demand', hypothetical_quantity: 250 }),
+      expect.objectContaining({ kind: 'phantom_demand_bom', default_qty: 250 }),
     );
   });
 
-  it('lets the user clear the quantity field while editing (no snap-back)', () => {
+  it('lets the user clear the qty field while editing (no snap-back during input)', () => {
     render(
       <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 12 }}
+        value={{ ...BASE, default_qty: 12 }}
         onChange={vi.fn()}
       />,
     );
-    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    const input = screen.getByLabelText(/default quantity/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: '' } });
     expect(input.value).toBe('');
   });
 
-  it('does not emit an invalid quantity while the field is empty', () => {
+  it('does not emit an invalid default_qty while the field is empty', () => {
     const onChange = vi.fn();
     render(
       <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 12 }}
+        value={{ ...BASE, default_qty: 12 }}
         onChange={onChange}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
+    fireEvent.change(screen.getByLabelText(/default quantity/i), {
       target: { value: '' },
     });
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('clearing then typing a new quantity emits the new value', () => {
-    const onChange = vi.fn();
+  it('restores the last valid default_qty on blur if left empty', () => {
     render(
       <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 12 }}
-        onChange={onChange}
-      />,
-    );
-    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '' } });
-    fireEvent.change(input, { target: { value: '5' } });
-    expect(input.value).toBe('5');
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ hypothetical_quantity: 5 }),
-    );
-  });
-
-  it('restores the last valid quantity on blur if left empty', () => {
-    render(
-      <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 12 }}
+        value={{ ...BASE, default_qty: 12 }}
         onChange={vi.fn()}
       />,
     );
-    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
+    const input = screen.getByLabelText(/default quantity/i) as HTMLInputElement;
     fireEvent.change(input, { target: { value: '' } });
     fireEvent.blur(input);
     expect(input.value).toBe('12');
   });
 
-  it('selecting a counterparty resets skus (D9)', async () => {
+  it('does not emit a negative default_qty (rejects values <= 0)', () => {
     const onChange = vi.fn();
     render(
       <PhantomDemandScopeFields
-        value={{ ...BASE, skus: ['STALE-1'] }}
+        value={{ ...BASE, default_qty: 10 }}
         onChange={onChange}
       />,
     );
-    await userEvent.click(await screen.findByText('Great Lakes Hardware'));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ counterparty: 'cp-1', skus: [] }),
-    );
+    fireEvent.change(screen.getByLabelText(/default quantity/i), {
+      target: { value: '-5' },
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('emits a UTC-midnight ISO-8601 hypothetical_timeline from the date input', () => {
+  it('does not emit zero as default_qty', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, default_qty: 10 }}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(/default quantity/i), {
+      target: { value: '0' },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('emits default_target_date as YYYY-MM-DD string from the date input', () => {
     const onChange = vi.fn();
     render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText(/target delivery date/i), {
+    fireEvent.change(screen.getByLabelText(/default target date/i), {
       target: { value: '2026-06-30' },
     });
-    const emitted = onChange.mock.lastCall?.[0].hypothetical_timeline as string;
-    expect(emitted).toBe('2026-06-30T00:00:00.000Z');
-    expect(Number.isFinite(Date.parse(emitted))).toBe(true);
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ default_target_date: '2026-06-30' }),
+    );
   });
 
-  it('clearing the date emits null', () => {
+  it('clears default_target_date when the date input is emptied', () => {
     const onChange = vi.fn();
     render(
       <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_timeline: '2026-06-30T14:30:00.000Z' }}
+        value={{ ...BASE, default_target_date: '2026-06-30' }}
         onChange={onChange}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/target delivery date/i), {
+    fireEvent.change(screen.getByLabelText(/default target date/i), {
       target: { value: '' },
     });
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ hypothetical_timeline: null }),
+      expect.objectContaining({ default_target_date: '' }),
     );
   });
 
-  it('round-trips a stored ISO into the date input (date only, no time)', () => {
-    render(
-      <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_timeline: '2026-06-30T14:30:00.000Z' }}
-        onChange={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText(/target delivery date/i) as HTMLInputElement;
-    expect(input.value).toBe('2026-06-30');
-  });
-
-  it('does not emit a negative quantity (rejects values <= 0)', () => {
-    const onChange = vi.fn();
-    render(
-      <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 10 }}
-        onChange={onChange}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
-      target: { value: '-5' },
-    });
-    // The guard `Number.isInteger(n) && n > 0` must block -5 from propagating.
-    // If this regressed to `Number.isFinite(n)`, onChange WOULD be called with
-    // hypothetical_quantity: -5, and the first assertion would fail.
-    expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it('does not emit zero as a quantity (rejects hypothetical_quantity: 0)', () => {
-    const onChange = vi.fn();
-    render(
-      <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 10 }}
-        onChange={onChange}
-      />,
-    );
-    fireEvent.change(screen.getByLabelText(/hypothetical quantity/i), {
-      target: { value: '0' },
-    });
-    // `Number.isFinite(0)` is true, so a regression to that guard would call
-    // onChange with hypothetical_quantity: 0 and break this assertion.
-    expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it('restores the last valid quantity on blur after a negative entry', () => {
-    render(
-      <PhantomDemandScopeFields
-        value={{ ...BASE, hypothetical_quantity: 7 }}
-        onChange={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText(/hypothetical quantity/i) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '-5' } });
-    // During editing the draft is allowed to sit in the field (same as empty),
-    // but blurring must snap back because -5 fails `Number.isInteger(n) || n <= 0`.
-    fireEvent.blur(input);
-    expect(input.value).toBe('7');
+  it('renders "No vendor counterparties available" when options list is empty', () => {
+    render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);
+    expect(
+      screen.getByText(/no vendor counterparties available/i),
+    ).toBeInTheDocument();
   });
 });

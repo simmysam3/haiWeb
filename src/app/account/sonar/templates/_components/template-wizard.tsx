@@ -30,14 +30,16 @@ function emptyScope(oc: ObservationClass): RunTemplateScope {
       depth_limit: 1,
     };
   }
+  // v.1.44 refined-PD: emit the new BOM template scope shape.
+  // No authorization_basis — PhantomDemandBomTemplateScopeSchema does not carry it.
   return {
-    kind: 'phantom_demand',
-    authorization_basis: 'bilateral',
-    counterparty: '',
-    skus: [],
-    hypothetical_quantity: 1,
-    hypothetical_timeline: null,
-  };
+    kind: 'phantom_demand_bom',
+    sku: '',
+    default_qty: 1,
+    default_target_date: '', // ISO YYYY-MM-DD; filled in by the user
+    vendor_exclude: [],
+    weeks_to_hold: 1,
+  } as RunTemplateScope;
 }
 
 export function TemplateWizard({
@@ -67,10 +69,11 @@ export function TemplateWizard({
     setScope(emptyScope(next));
   }
 
+  // v.1.44 refined-PD: incomplete when sku is empty (the one required field).
   const pdIncomplete =
     observationClass === 'phantom_demand' &&
-    scope.kind === 'phantom_demand' &&
-    (scope.counterparty.length === 0 || scope.skus.length === 0);
+    scope.kind === 'phantom_demand_bom' &&
+    scope.sku.length === 0;
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
@@ -97,7 +100,7 @@ export function TemplateWizard({
     }
     setNameError(false);
     if (pdIncomplete) {
-      setError('Phantom demand requires a counterparty and at least one SKU.');
+      setError('Phantom demand requires a SKU.');
       jump('scope');
       return;
     }
