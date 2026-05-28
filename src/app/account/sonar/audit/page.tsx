@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { ScheduledQueue } from './_components/scheduled-queue';
-import { HistoryQueue } from './_components/history-queue';
+import { ConfigurationsTable } from '@/components/sonar/observations';
+import { auditConfigurationsColumnPack } from './_components/audit-column-packs';
+import { AuditHistoryTable } from './_components/audit-history-table';
 import type { RunTemplate, AuditRun } from '@haiwave/protocol';
 
 interface DefinitionsPayload {
@@ -11,6 +12,13 @@ interface DefinitionsPayload {
 
 interface RunsPayload {
   runs: AuditRun[];
+  auditor_country?: string;
+}
+
+type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
+
+function isAuditTemplate(t: RunTemplate): t is AuditTemplate {
+  return t.observation_class === 'audit';
 }
 
 export default async function AuditListPage() {
@@ -21,11 +29,13 @@ export default async function AuditListPage() {
 
   const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
   const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
+  const auditorCountry =
+    runsResult.kind === 'ok' ? runsResult.data.auditor_country : undefined;
 
-  // Scheduled queue: recurring definitions only (cadence.kind !== 'manual_only')
-  const scheduledDefinitions = allDefinitions.filter(
-    (t) => t.cadence.kind !== 'manual_only',
-  );
+  // Scheduled queue: recurring audit definitions only (cadence.kind !== 'manual_only').
+  const scheduledDefinitions = allDefinitions
+    .filter(isAuditTemplate)
+    .filter((t) => t.cadence.kind !== 'manual_only');
 
   return (
     <div className="space-y-8">
@@ -77,7 +87,12 @@ export default async function AuditListPage() {
           </Link>
           .
         </p>
-        <ScheduledQueue rows={scheduledDefinitions} />
+        <ConfigurationsTable
+          rows={scheduledDefinitions}
+          columns={auditConfigurationsColumnPack}
+          keyFn={(t) => t.template_id}
+          emptyMessage="No recurring audit configurations. Create a configuration and set a daily, weekly, or event-triggered cadence to see it here."
+        />
       </section>
 
       {runsResult.kind === 'error' && (
@@ -104,7 +119,7 @@ export default async function AuditListPage() {
           All audit runs across configurations and ad-hoc triggers. Polled every
           15 seconds while the page is open — in-progress runs update live.
         </p>
-        <HistoryQueue initialRows={runs} />
+        <AuditHistoryTable initialRows={runs} auditorCountry={auditorCountry} />
       </section>
     </div>
   );

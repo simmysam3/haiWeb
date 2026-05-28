@@ -1,0 +1,94 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { SignalType, WatcherScope } from '@haiwave/protocol';
+import { Pill } from '@/components/pill';
+import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
+
+interface Props {
+  value: WatcherScope;
+  onChange: (next: WatcherScope) => void;
+}
+
+const SIGNAL_OPTIONS: { value: SignalType; pill: 'LT' | 'CAP' | 'DEL'; label: string }[] = [
+  { value: 'lead_time_distribution', pill: 'LT', label: 'Lead time' },
+  { value: 'capacity_utilization_band', pill: 'CAP', label: 'Capacity band' },
+  { value: 'delivery_event', pill: 'DEL', label: 'Delivery events' },
+];
+
+export function WatcherScopePicker({ value, onChange }: Props) {
+  // Local mirror of depth_limit so the user can briefly clear the field (NaN)
+  // while typing a new number. Only valid 1..8 integers propagate to onChange;
+  // empty/out-of-range states stay local.
+  const [depthDraft, setDepthDraft] = useState<string>(String(value.depth_limit));
+  useEffect(() => {
+    setDepthDraft(String(value.depth_limit));
+  }, [value.depth_limit]);
+
+  function toggleSignal(sig: SignalType) {
+    const next = new Set(value.signal_types);
+    if (next.has(sig)) next.delete(sig);
+    else next.add(sig);
+    const arr = Array.from(next) as [SignalType, ...SignalType[]];
+    onChange({ ...value, signal_types: arr.length > 0 ? arr : value.signal_types });
+  }
+
+  return (
+    <div className="space-y-4">
+      <BilateralCounterpartiesSkusFields
+        counterparties={value.counterparties}
+        skus={value.skus}
+        onChange={({ counterparties, skus }) =>
+          onChange({ ...value, counterparties, skus })
+        }
+      />
+
+      <fieldset className="space-y-1">
+        <legend className="text-sm font-medium text-charcoal">Signals</legend>
+        <div className="flex flex-wrap items-center gap-3">
+          {SIGNAL_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex items-center gap-1.5 text-sm text-charcoal"
+            >
+              <input
+                type="checkbox"
+                aria-label={opt.pill}
+                checked={value.signal_types.includes(opt.value)}
+                onChange={() => toggleSignal(opt.value)}
+              />
+              <Pill category="signal_type" value={opt.pill} />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <label className="block text-sm">
+        <span className="block mb-1 font-medium text-charcoal">Depth limit</span>
+        <input
+          type="number"
+          aria-label="Depth limit"
+          min={1}
+          max={8}
+          value={depthDraft}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setDepthDraft(raw);
+            const n = Number.parseInt(raw, 10);
+            if (Number.isFinite(n) && n >= 1 && n <= 8) {
+              onChange({ ...value, depth_limit: n });
+            }
+          }}
+          className="rounded border border-slate-300 px-2 py-1 text-sm w-20"
+        />
+        <span className="block text-xs text-slate mt-0.5">
+          Depth {value.depth_limit} ·{' '}
+          {value.depth_limit === 1
+            ? 'direct trading partners only'
+            : `through ${value.depth_limit - 1} sub-tier${value.depth_limit > 2 ? 's' : ''} (identity redacted)`}
+        </span>
+      </label>
+    </div>
+  );
+}

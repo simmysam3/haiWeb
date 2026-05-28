@@ -117,22 +117,24 @@ describe('v1.37 redirects — /sonar/compliance/* → split sections', () => {
       '/account/sonar/posture/coverage',
       '/account/sonar/dashboard',
     ],
-    // other posture surfaces keep their tail
+    // v.1.43: Backlog (changes / working-list / obligations) relocated out of
+    // /sonar/posture and into Sonar Audit. The /compliance/posture/* legacy
+    // chain now collapses straight to the new audit-section URLs.
     [
       '/account/sonar/compliance/posture/working-list',
-      '/account/sonar/posture/working-list',
+      '/account/sonar/audit/gaps',
     ],
     [
       '/account/sonar/compliance/posture/changes',
-      '/account/sonar/posture/changes',
+      '/account/sonar/audit/events',
     ],
     [
       '/account/sonar/compliance/posture/changes/c-1',
-      '/account/sonar/posture/changes/c-1',
+      '/account/sonar/audit/events/c-1',
     ],
     [
       '/account/sonar/compliance/posture/obligations',
-      '/account/sonar/posture/obligations',
+      '/account/sonar/audit/obligations',
     ],
     // runs moved under posture (v1.37), then to /sonar/watchers (v.1.41).
     // The /compliance/runs rule targets /sonar/watchers directly to keep the

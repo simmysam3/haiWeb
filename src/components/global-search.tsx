@@ -56,7 +56,7 @@ function skuHref(s: SearchSkuHit): string {
   // honoring the `sku` query param (deferred — currently the page may not
   // wire this filter yet; route lands the user in the right surface either
   // way).
-  return `/account/sonar/posture/working-list?sku=${encodeURIComponent(s.product_id)}`;
+  return `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`;
 }
 
 function scopeHref(s: SearchScopeHit): string {

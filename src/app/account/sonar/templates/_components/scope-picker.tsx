@@ -36,6 +36,7 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
         authorization_basis: 'bilateral',
         counterparties: watcherValue?.counterparties ?? [],
         signal_types: Array.from(next) as [SignalType, ...SignalType[]],
+        skus: watcherValue?.skus ?? [],
         depth_limit: depthLimit,
       });
     }
@@ -70,6 +71,7 @@ export function ScopePicker({ observationClass, value, onChange }: ScopePickerPr
               authorization_basis: 'bilateral',
               counterparties: watcherValue?.counterparties ?? [],
               signal_types: watcherValue?.signal_types ?? ['lead_time_distribution'],
+              skus: watcherValue?.skus ?? [],
               depth_limit: n,
             })
           }

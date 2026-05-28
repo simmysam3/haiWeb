@@ -226,7 +226,7 @@ function SkuSection({
           {slice.map((s) => (
             <li key={s.obligation_id}>
               <Link
-                href={`/account/sonar/posture/working-list?sku=${encodeURIComponent(s.product_id)}`}
+                href={`/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`}
                 className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-light-gray"
               >
                 <span className="truncate text-navy">

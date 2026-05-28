@@ -209,10 +209,10 @@ describe('LoginPage — session stickiness (v.1.41)', () => {
   it('redirects to the stored last-visited account path on success', async () => {
     window.localStorage.setItem(
       'haiwave:last-account-path',
-      '/account/sonar/posture/changes?severity=warning',
+      '/account/sonar/audit/events?severity=warning',
     );
     const target = await submitAndCaptureRedirect();
-    expect(target).toBe('/account/sonar/posture/changes?severity=warning');
+    expect(target).toBe('/account/sonar/audit/events?severity=warning');
   });
 
   it('falls back to /account when no last-visited path is stored', async () => {

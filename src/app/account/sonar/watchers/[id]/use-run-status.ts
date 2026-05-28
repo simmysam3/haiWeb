@@ -1,33 +1,36 @@
 'use client';
 
 import useSWR from 'swr';
-import type { RunStatus, RunStatusResponse } from '@haiwave/protocol';
+import type { WatcherRunStatus } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 
-const TERMINAL: RunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
+const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
+
+interface WatcherRunStatusResponse {
+  status: WatcherRunStatus;
+}
 
 export interface UseRunStatusReturn {
-  status: RunStatus | undefined;
-  hopCount: number | null | undefined;
-  gapCount: number | null | undefined;
-  resultsAvailableCount: number | undefined;
+  status: WatcherRunStatus | undefined;
   isLoading: boolean;
   error: Error | undefined;
-  mutate: () => Promise<RunStatusResponse | undefined>;
+  mutate: () => Promise<WatcherRunStatusResponse | undefined>;
 }
 
 /**
- * Subscribes to GET /api/account/audit-runs/:id/status with deduped
- * polling. Section 13.2.1: 10s baseline while running; 0 (stop) once
- * terminal.
+ * Subscribes to GET /api/account/sonar/watcher/runs/:id/status with deduped
+ * polling. 10s baseline while running; stops once terminal.
+ *
+ * v.1.43 watcher-rebuild Task 21: rewired from audit-runs to watcher endpoints.
+ * The watcher status payload is intentionally minimal (`{ status }`) — hop /
+ * gap / results counts were audit-specific and have no analogue on
+ * WatcherRun.
  */
 export function useRunStatus(runId: string): UseRunStatusReturn {
-  const { data, error, isLoading, mutate } = useSWR<RunStatusResponse>(
-    runId ? `/api/account/audit-runs/${runId}/status` : null,
+  const { data, error, isLoading, mutate } = useSWR<WatcherRunStatusResponse>(
+    runId ? `/api/account/sonar/watcher/runs/${runId}/status` : null,
     jsonFetcher,
     {
-      // Per-tick: if the latest data shows a terminal state, set
-      // refreshInterval to 0 (stop). Otherwise 10s (Section 13.2.1).
       refreshInterval: (latest) =>
         latest && TERMINAL.includes(latest.status) ? 0 : 10_000,
       revalidateOnFocus: true,
@@ -37,9 +40,6 @@ export function useRunStatus(runId: string): UseRunStatusReturn {
 
   return {
     status: data?.status,
-    hopCount: data?.hop_count,
-    gapCount: data?.gap_count,
-    resultsAvailableCount: data?.results_available_count,
     isLoading,
     error,
     mutate: () => mutate(),

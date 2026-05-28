@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../templates/_lib/system-config';
-import { AuditBilateralScopeFields } from './audit-bilateral-scope-fields';
+import { BilateralCounterpartiesSkusFields } from './bilateral-counterparties-skus-fields';
 
 type AuditScope = Extract<RunTemplateScope, { kind: 'audit' }>;
 
@@ -112,7 +112,7 @@ export function AuditScopePicker({ value, onChange }: Props) {
       />
 
       {authBasis === 'bilateral' && (
-        <AuditBilateralScopeFields
+        <BilateralCounterpartiesSkusFields
           counterparties={'counterparties' in value ? value.counterparties : []}
           skus={'skus' in value ? value.skus : []}
           onChange={({ counterparties, skus }) =>
