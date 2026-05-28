@@ -23,6 +23,12 @@ import { GET, POST } from '../route';
 
 const listUrl = 'http://localhost/api/account/sonar/phantom-demand/runs';
 
+const validBody = {
+  template_id: '00000000-0000-0000-0000-000000000001',
+  qty_override: 50,
+  target_date_override: '2026-07-01',
+};
+
 describe('PD runs BFF routes (list + trigger)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -87,7 +93,7 @@ describe('PD runs BFF routes (list + trigger)', () => {
       const res = await POST(
         new NextRequest(listUrl, {
           method: 'POST',
-          body: JSON.stringify({ scope: {} }),
+          body: JSON.stringify(validBody),
         }),
         { params: Promise.resolve({}) },
       );
@@ -97,16 +103,38 @@ describe('PD runs BFF routes (list + trigger)', () => {
 
     it('returns 202 with runId on successful trigger', async () => {
       triggerPhantomDemand.mockResolvedValueOnce({ runId: 'new-run-1' });
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: JSON.stringify(validBody),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(202);
+      expect(await res.json()).toEqual({ runId: 'new-run-1' });
+      expect(triggerPhantomDemand).toHaveBeenCalledWith(validBody);
+    });
+
+    it('returns 202 when optional overrides are omitted', async () => {
+      triggerPhantomDemand.mockResolvedValueOnce({ runId: 'new-run-2' });
+      const body = { template_id: '00000000-0000-0000-0000-000000000002' };
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(202);
+      expect(triggerPhantomDemand).toHaveBeenCalledWith(body);
+    });
+
+    it('returns 202 when optional overrides are explicitly null', async () => {
+      triggerPhantomDemand.mockResolvedValueOnce({ runId: 'new-run-3' });
       const body = {
-        scope: {
-          kind: 'phantom_demand',
-          authorization_basis: 'bilateral',
-          counterparty: 'cp1',
-          skus: ['s1'],
-          hypothetical_quantity: 1,
-          hypothetical_timeline: null,
-        },
-        template_id: null,
+        template_id: '00000000-0000-0000-0000-000000000003',
+        qty_override: null,
+        target_date_override: null,
       };
       const res = await POST(
         new NextRequest(listUrl, {
@@ -116,8 +144,68 @@ describe('PD runs BFF routes (list + trigger)', () => {
         { params: Promise.resolve({}) },
       );
       expect(res.status).toBe(202);
-      expect(await res.json()).toEqual({ runId: 'new-run-1' });
       expect(triggerPhantomDemand).toHaveBeenCalledWith(body);
+    });
+
+    it('returns 400 when template_id is missing', async () => {
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: JSON.stringify({ qty_override: 10 }),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.code).toBe('VALIDATION_ERROR');
+      expect(triggerPhantomDemand).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when template_id is not a valid UUID', async () => {
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: JSON.stringify({ template_id: 'not-a-uuid' }),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.code).toBe('VALIDATION_ERROR');
+      expect(triggerPhantomDemand).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when body is not parseable JSON', async () => {
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: 'not-json',
+          headers: { 'content-type': 'application/json' },
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(400);
+      expect(triggerPhantomDemand).not.toHaveBeenCalled();
+    });
+
+    it('forwards a 422 verbatim from haiCore', async () => {
+      triggerPhantomDemand.mockRejectedValueOnce(
+        Object.assign(new Error('haiCore 422'), {
+          status: 422,
+          haiCoreBody: { error: { code: 'PROBE_LIMIT_EXCEEDED', message: 'Too many probes' } },
+        }),
+      );
+      const res = await POST(
+        new NextRequest(listUrl, {
+          method: 'POST',
+          body: JSON.stringify(validBody),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(res.status).toBe(422);
+      expect(await res.json()).toEqual({
+        error: { code: 'PROBE_LIMIT_EXCEEDED', message: 'Too many probes' },
+      });
     });
   });
 });
