@@ -25,11 +25,13 @@ function deltaChip(value: number, baseline: number): string {
   return `${arrow} ${pct > 0 ? '+' : ''}${Math.round(pct)}%`;
 }
 
+const FIELD_LABEL = 'text-[10px] uppercase tracking-wider text-teal-dark font-semibold';
+
 function NotShared({ label }: { label: string }) {
   return (
-    <div className="rounded border border-slate-200 px-3 py-2 bg-slate-50/50">
-      <div className="text-[10px] uppercase tracking-wider text-slate">{label}</div>
-      <div className="text-sm italic text-slate mt-1">Not shared</div>
+    <div className="rounded border border-slate-200 px-3 py-1.5 bg-slate-50/50">
+      <div className={FIELD_LABEL}>{label}</div>
+      <div className="text-sm italic text-slate">Not shared</div>
     </div>
   );
 }
@@ -39,37 +41,45 @@ export function LeadTimeTriplet({ published, quoted, calibrated }: Props) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {published ? (
-        <div className="rounded border border-slate-200 px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate">Published</div>
-          <div className="font-mono text-xl text-charcoal">{published.days}d</div>
-          {published.vendor_ref && (
-            <div className="text-[10px] text-slate mt-0.5">ref: {published.vendor_ref}</div>
-          )}
+        <div className="rounded border border-slate-200 px-3 py-1.5">
+          <div className={FIELD_LABEL}>Published</div>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-mono text-lg text-charcoal">{published.days}d</span>
+            {published.vendor_ref && (
+              <span className="text-[10px] text-slate">ref: {published.vendor_ref}</span>
+            )}
+          </div>
         </div>
       ) : (
         <NotShared label="Published" />
       )}
       {quoted ? (
-        <div className="rounded border border-slate-200 px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate">Quoted</div>
-          <div className="font-mono text-xl text-charcoal">{quoted.days}d</div>
-          {published && (
-            <div className="text-xs text-slate mt-1">{deltaChip(quoted.days, published.days)} vs published</div>
-          )}
+        <div className="rounded border border-slate-200 px-3 py-1.5">
+          <div className={FIELD_LABEL}>Quoted</div>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-mono text-lg text-charcoal">{quoted.days}d</span>
+            {published && (
+              <span className="text-xs text-slate">{deltaChip(quoted.days, published.days)} vs pub</span>
+            )}
+          </div>
         </div>
       ) : (
         <NotShared label="Quoted" />
       )}
       {calibrated && calP50 !== undefined ? (
-        <div className="rounded border border-slate-200 px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-slate">Calibrated p50</div>
-          <div className="font-mono text-xl text-charcoal">{calP50}d</div>
-          <div className="text-[10px] text-slate mt-0.5">
-            p90 {calibrated.percentiles.p90}d · {calibrated.sample_count} samples
+        <div className="rounded border border-slate-200 px-3 py-1.5">
+          <div className={FIELD_LABEL}>Calibrated p50</div>
+          {/* Horizontal layout: value + supporting metrics + delta flow on one
+              wrapping line so this cell doesn't drive the row height. */}
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="font-mono text-lg text-charcoal">{calP50}d</span>
+            <span className="text-[10px] text-slate">
+              p90 {calibrated.percentiles.p90}d · {calibrated.sample_count} samples
+            </span>
+            {published && (
+              <span className="text-xs text-slate">{deltaChip(calP50, published.days)} vs pub</span>
+            )}
           </div>
-          {published && (
-            <div className="text-xs text-slate mt-1">{deltaChip(calP50, published.days)} vs published</div>
-          )}
         </div>
       ) : (
         <NotShared label="Calibrated p50" />

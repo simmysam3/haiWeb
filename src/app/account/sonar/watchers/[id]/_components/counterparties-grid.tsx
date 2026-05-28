@@ -309,7 +309,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                         </div>
                         <div className="mt-1 grid gap-x-6 gap-y-1.5 md:grid-cols-3">
                           <div>
-                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
                               Lead time
                             </h4>
                             <LeadTimeTriplet
@@ -319,7 +319,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                             />
                           </div>
                           <div>
-                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
                               Available capacity
                             </h4>
                             <CapacityBandPanel
@@ -329,7 +329,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                             />
                           </div>
                           <div>
-                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
                               Delivery events
                             </h4>
                             <DeliveryEventLog
