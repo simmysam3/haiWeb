@@ -13,16 +13,21 @@ import { ScopeSummary } from './scope-summary';
 import { NameField } from '../../_components/name-field';
 import { LifecycleFields } from '../../_components/lifecycle-fields';
 
-const steps: RailStep[] = [
-  { id: 'identity', label: 'Identity', state: 'active' },
-  { id: 'scope', label: 'Scope', state: 'locked' },
-  { id: 'schedule', label: 'Schedule', state: 'todo' },
-  { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
-  { id: 'history', label: 'Run history', state: 'todo' },
-];
-
 export function TemplateEditor({ template }: { template: RunTemplate }) {
   const noun = configNoun(template.observation_class);
+  // Phantom-demand configurations are manual-execution only — no Schedule step
+  // (matches the create wizard). Other modalities keep their cadence editor.
+  const isPhantomDemand = template.observation_class === 'phantom_demand';
+
+  const steps: RailStep[] = [
+    { id: 'identity', label: 'Identity', state: 'active' },
+    { id: 'scope', label: 'Scope', state: 'locked' },
+    ...(isPhantomDemand
+      ? []
+      : [{ id: 'schedule', label: 'Schedule', state: 'todo' as const }]),
+    { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
+    { id: 'history', label: 'Run history', state: 'todo' },
+  ];
   const [name, setName] = useState(template.template_name);
   const [cadence, setCadence] = useState<Cadence>(template.cadence);
   const [enabled, setEnabled] = useState(template.enabled);
@@ -44,8 +49,9 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
       name !== template.template_name ||
       enabled !== template.enabled ||
       retentionDays !== template.retention_days ||
-      JSON.stringify(cadence) !== JSON.stringify(template.cadence),
-    [name, enabled, retentionDays, cadence, template],
+      (!isPhantomDemand &&
+        JSON.stringify(cadence) !== JSON.stringify(template.cadence)),
+    [name, enabled, retentionDays, cadence, template, isPhantomDemand],
   );
 
   function jump(id: string) {
@@ -62,7 +68,8 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           template_name: name,
-          cadence,
+          // PD is manual-only — don't send (immutable) cadence on PATCH.
+          ...(isPhantomDemand ? {} : { cadence }),
           enabled,
           retention_days: retentionDays,
         }),
@@ -128,11 +135,13 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
           <ScopeSummary scope={template.scope} />
         </StepCard>
 
-        <StepCard id="schedule" index={2} title="Schedule">
-          <CadencePicker value={cadence} onChange={setCadence} />
-        </StepCard>
+        {!isPhantomDemand && (
+          <StepCard id="schedule" index={2} title="Schedule">
+            <CadencePicker value={cadence} onChange={setCadence} />
+          </StepCard>
+        )}
 
-        <StepCard id="lifecycle" index={3} title="Lifecycle">
+        <StepCard id="lifecycle" index={isPhantomDemand ? 2 : 3} title="Lifecycle">
           <LifecycleFields
             enabled={enabled}
             retentionDays={retentionDays}
