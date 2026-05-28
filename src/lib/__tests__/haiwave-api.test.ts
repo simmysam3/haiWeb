@@ -165,11 +165,12 @@ describe('HaiwaveClient PD methods (v1.30)', () => {
     expect(String(url)).toContain('limit=25');
   });
 
-  it('getPhantomDemandRun GETs /sonar/phantom-demand/runs/:runId', async () => {
-    const payload = { run_id: 'r1', results: [] };
+  it('getPhantomDemandRun GETs /sonar/phantom-demand/runs/:runId and returns {run, tree}', async () => {
+    const payload = { run: { run_id: 'r1' }, tree: null };
     const fetchMock = mockFetchOnce(payload);
     const res = await client.getPhantomDemandRun('r1');
-    expect(res.run_id).toBe('r1');
+    expect(res.run.run_id).toBe('r1');
+    expect(res.tree).toBeNull();
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs\/r1$/);
     expect(init.method).toBe('GET');
@@ -194,19 +195,44 @@ describe('HaiwaveClient PD methods (v1.30)', () => {
 
   it('triggerPhantomDemand POSTs to /sonar/phantom-demand/runs and maps run_id -> runId', async () => {
     const fetchMock = mockFetchOnce({ run_id: 'new-run-123' });
-    const scope = {
-      kind: 'phantom_demand',
-      authorization_basis: 'bilateral',
-      counterparty: 'cp1',
-      skus: ['sku1'],
-      hypothetical_quantity: 10,
-      hypothetical_timeline: null,
-    };
-    const res = await client.triggerPhantomDemand({ scope, template_id: null });
+    const body = { template_id: 'tmpl-1', qty_override: 100, target_date_override: null };
+    const res = await client.triggerPhantomDemand(body);
     expect(res.runId).toBe('new-run-123');
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/sonar\/phantom-demand\/runs$/);
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body as string)).toEqual({ scope, template_id: null });
+    expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
+  it('listPhantomDemandTemplates GETs /sonar/run-templates with observation_class=phantom_demand', async () => {
+    const fetchMock = mockFetchOnce([]);
+    await client.listPhantomDemandTemplates({ enabled: true, limit: 10 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/sonar/run-templates');
+    expect(String(url)).toContain('observation_class=phantom_demand');
+    expect(String(url)).toContain('enabled=true');
+    expect(String(url)).toContain('limit=10');
+    expect(init.method).toBe('GET');
+  });
+
+  it('getAgentConfig GETs /agents/:agentId/config', async () => {
+    const payload = { agent_id: 'ag-1', sku_picker_scope: 'published_only', mes_enabled: false, mes_config: null };
+    const fetchMock = mockFetchOnce(payload);
+    const res = await client.getAgentConfig('ag-1');
+    expect(res.agent_id).toBe('ag-1');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/agents\/ag-1\/config$/);
+    expect(init.method).toBe('GET');
+  });
+
+  it('putAgentConfig PUTs to /agents/:agentId/config with patch body', async () => {
+    const payload = { agent_id: 'ag-1', sku_picker_scope: 'full_catalog', mes_enabled: false, mes_config: null };
+    const fetchMock = mockFetchOnce(payload);
+    const res = await client.putAgentConfig('ag-1', { sku_picker_scope: 'full_catalog' });
+    expect(res.sku_picker_scope).toBe('full_catalog');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/agents\/ag-1\/config$/);
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ sku_picker_scope: 'full_catalog' });
   });
 });
