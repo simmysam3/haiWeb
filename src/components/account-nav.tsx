@@ -65,13 +65,6 @@ function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive:
         count={data?.awaiting_me_count ?? 0}
         oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
       />
-      {error && (
-        <span
-          className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-400"
-          title="Live updates paused"
-          aria-label="Live updates paused"
-        />
-      )}
     </Link>
   );
 }
