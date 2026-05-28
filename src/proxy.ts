@@ -42,8 +42,8 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     to: () => '/account/sonar/observations?tab=phantom_demand',
   },
   // Retired v1.21 PD usage/forecast dashboard. Only the bare prefix and
-  // /dashboard are dead — /runs/* and /reports/* are live canonical surfaces
-  // under the same prefix and must NOT match.
+  // /dashboard are dead — /runs/* is the live canonical surface under this
+  // prefix and must NOT match. (/reports/* deleted in v1.44 refined-PD.)
   {
     from: /^\/account\/sonar\/phantom-demand(\/dashboard)?\/?$/,
     to: () => '/account/sonar/observations?tab=phantom_demand',
