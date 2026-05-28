@@ -109,34 +109,40 @@ beforeEach(() => {
 });
 
 describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify', () => {
-  it('shows Coverage on the default tab and reveals Cross-modality when its tab is clicked', async () => {
-    fetchBffJson
-      .mockResolvedValueOnce({
-        kind: 'ok',
-        data: { snapshot: snapshot(25) },
-      })
-      .mockResolvedValueOnce({
-        kind: 'ok',
-        data: { points: [snapshot(20), snapshot(25)] },
-      });
-    queueDefaultBestEffortLanes();
+  it(
+    'shows Coverage on the default tab and reveals Cross-modality when its tab is clicked',
+    async () => {
+      fetchBffJson
+        .mockResolvedValueOnce({
+          kind: 'ok',
+          data: { snapshot: snapshot(25) },
+        })
+        .mockResolvedValueOnce({
+          kind: 'ok',
+          data: { points: [snapshot(20), snapshot(25)] },
+        });
+      queueDefaultBestEffortLanes();
 
-    const { default: Page } = await import('../page');
-    render(await Page());
+      const { default: Page } = await import('../page');
+      render(await Page());
 
-    // v1.41: Coverage is the default tab — its heading + stats are visible.
-    expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
-    expect(screen.getByText(/Total products/i)).toBeInTheDocument();
-    // The 'What these numbers mean' explainer carried forward from R1.
-    expect(screen.getByText(/What these numbers mean/i)).toBeInTheDocument();
-    // 'Complete' tile + 'Complete' bullet both exist — assert at least one.
-    expect(screen.getAllByText(/^Complete$/).length).toBeGreaterThanOrEqual(1);
+      // v1.41: Coverage is the default tab — its heading + stats are visible.
+      expect(screen.getByRole('heading', { name: /Compliance coverage/i })).toBeInTheDocument();
+      expect(screen.getByText(/Total products/i)).toBeInTheDocument();
+      // The 'What these numbers mean' explainer carried forward from R1.
+      expect(screen.getByText(/What these numbers mean/i)).toBeInTheDocument();
+      // 'Complete' tile + 'Complete' bullet both exist — assert at least one.
+      expect(screen.getAllByText(/^Complete$/).length).toBeGreaterThanOrEqual(1);
 
-    // The Cross-modality surface lives behind its tab — clicking it reveals
-    // the overview heading (the panel was rendered but hidden).
-    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
-    expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
-  });
+      // The Cross-modality surface lives behind its tab — clicking it reveals
+      // the overview heading (the panel was rendered but hidden).
+      fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
+      expect(screen.getByRole('heading', { name: /Cross-modality overview/i })).toBeInTheDocument();
+    },
+    // Generous timeout: under full-suite load `await Page()` (async Server
+    // Component) resolves slowly; 10 s gives it headroom without being infinite.
+    10_000,
+  );
 
   it('shows the onboarding empty-state when no completed snapshot exists', async () => {
     fetchBffJson

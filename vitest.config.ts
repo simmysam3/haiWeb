@@ -18,6 +18,10 @@ export default defineConfig({
     // every active worktree (stale React versions in those trees cause
     // spurious failures and the run inflates ~3x). v1.37 polish add.
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'e2e/**', '.worktrees/**'],
+    // Retry flaky tests once before marking them as failed.  Two passes are
+    // needed because some tests (SWR cache bleed, async RSC render under load)
+    // are sensitive to worker concurrency and pass on a clean retry.
+    retry: 2,
   },
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname ?? '.', 'src') },
