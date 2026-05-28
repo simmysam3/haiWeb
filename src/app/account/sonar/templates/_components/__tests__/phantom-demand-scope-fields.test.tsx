@@ -17,7 +17,47 @@ const BASE = {
   default_target_date: '',
   vendor_exclude: [] as string[],
   weeks_to_hold: 1,
+  catalog_source: { kind: 'own' as const },
 };
+
+describe('PhantomDemandScopeFields catalog source (v.1.45)', () => {
+  it('defaults to own catalog and hides the trading-partner picker', () => {
+    render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);
+    const own = screen.getByRole('radio', { name: /my own catalog/i });
+    expect(own).toBeChecked();
+    expect(
+      screen.getByRole('radio', { name: /trading partner/i }),
+    ).not.toBeChecked();
+    expect(screen.queryByText(/^trading partner$/i)).not.toBeInTheDocument();
+  });
+
+  it('switching to a trading partner emits counterparty source and clears the sku', () => {
+    const onChange = vi.fn();
+    render(
+      <PhantomDemandScopeFields value={{ ...BASE, sku: 'HC-9000' }} onChange={onChange} />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: /trading partner/i }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sku: '',
+        catalog_source: { kind: 'counterparty', counterparty_id: '' },
+      }),
+    );
+  });
+
+  it('renders the trading-partner picker when source is counterparty', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, catalog_source: { kind: 'counterparty', counterparty_id: '' } }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('radio', { name: /trading partner/i }),
+    ).toBeChecked();
+    expect(screen.getByText(/^trading partner$/i)).toBeInTheDocument();
+  });
+});
 
 describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
   it('renders the SKU, Default Quantity, Default Target Date, hold-for-weeks and Exclude Vendors labels', () => {

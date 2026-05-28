@@ -24,6 +24,7 @@ describe('ScopePicker — phantom_demand', () => {
           default_target_date: '',
           vendor_exclude: [],
           weeks_to_hold: 1,
+          catalog_source: { kind: 'own' },
         }}
         onChange={onChange}
       />,

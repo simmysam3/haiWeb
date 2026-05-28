@@ -33,6 +33,8 @@ function emptyScope(): RunTemplateScope {
     default_target_date: '', // ISO YYYY-MM-DD; filled in by the user
     vendor_exclude: [],
     weeks_to_hold: 1,
+    // v.1.45 — default to the initiator's own catalog (BOM-explosion run).
+    catalog_source: { kind: 'own' },
   } as RunTemplateScope;
 }
 
@@ -52,8 +54,15 @@ export function TemplateWizard() {
   const router = useRouter();
 
   // v.1.44 refined-PD: incomplete when sku is empty (the one required field).
+  // v.1.45: a counterparty-catalog source also requires a selected partner —
+  // an empty counterparty_id would fail the server's uuid validation.
+  const pdNeedsPartner =
+    scope.kind === 'phantom_demand_bom' &&
+    scope.catalog_source?.kind === 'counterparty' &&
+    scope.catalog_source.counterparty_id.length === 0;
   const pdIncomplete =
-    scope.kind === 'phantom_demand_bom' && scope.sku.length === 0;
+    scope.kind === 'phantom_demand_bom' &&
+    (scope.sku.length === 0 || pdNeedsPartner);
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
@@ -79,7 +88,11 @@ export function TemplateWizard() {
     }
     setNameError(false);
     if (pdIncomplete) {
-      setError('Phantom demand requires a SKU.');
+      setError(
+        pdNeedsPartner
+          ? 'Select a trading partner for the counterparty catalog.'
+          : 'Phantom demand requires a SKU.',
+      );
       jump('scope');
       return;
     }

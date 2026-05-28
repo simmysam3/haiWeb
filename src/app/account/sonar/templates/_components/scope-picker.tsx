@@ -29,6 +29,7 @@ export function ScopePicker({ value, onChange }: ScopePickerProps) {
           default_target_date: '',
           vendor_exclude: [],
           weeks_to_hold: 1,
+          catalog_source: { kind: 'own' },
         };
   return <PhantomDemandScopeFields value={pdValue} onChange={onChange} />;
 }

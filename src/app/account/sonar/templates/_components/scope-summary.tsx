@@ -92,8 +92,19 @@ export function ScopeSummary({ scope }: { scope: RunTemplateScope }) {
   }
   // v.1.44 refined-PD: new phantom_demand_bom scope (BOM template defaults).
   if (scope.kind === 'phantom_demand_bom') {
+    const source = scope.catalog_source ?? { kind: 'own' };
     return (
       <div>
+        <Field label="Catalog source">
+          {source.kind === 'counterparty' ? (
+            <>
+              Trading partner
+              <IdChip id={source.counterparty_id} chars={24} />
+            </>
+          ) : (
+            'My own catalog'
+          )}
+        </Field>
         <Field label="SKU">
           <IdChip id={scope.sku} chars={24} />
         </Field>
