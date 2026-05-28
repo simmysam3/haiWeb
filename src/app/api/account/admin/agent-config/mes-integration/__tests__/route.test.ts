@@ -82,7 +82,7 @@ describe('mes-integration BFF routes', () => {
       });
       expect(res.status).toBe(400);
       const json = await res.json();
-      expect(json.error).toBe('agent_id required');
+      expect(json.error.code).toBe('MISSING_PARAMETER');
       expect(getAgentConfig).not.toHaveBeenCalled();
     });
 

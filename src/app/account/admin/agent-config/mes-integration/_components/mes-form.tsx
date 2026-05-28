@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MesConfig {
   endpoint_url: string;
@@ -21,6 +21,13 @@ export function MesForm() {
   const [config, setConfig] = useState<MesConfig>(EMPTY_CONFIG);
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!agentId) {
@@ -66,7 +73,8 @@ export function MesForm() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setStatus('saved');
-      setTimeout(() => setStatus('idle'), 2000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setStatus('idle'), 2000);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setStatus('error');

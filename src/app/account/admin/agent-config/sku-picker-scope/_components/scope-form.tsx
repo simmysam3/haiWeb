@@ -1,11 +1,18 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function ScopeForm() {
   const [agentId, setAgentId] = useState('');
   const [scope, setScope] = useState<'published_only' | 'full_catalog'>('published_only');
   const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!agentId) {
@@ -46,7 +53,8 @@ export function ScopeForm() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setStatus('saved');
-      setTimeout(() => setStatus('idle'), 2000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setStatus('idle'), 2000);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setStatus('error');
