@@ -20,12 +20,14 @@ const BASE = {
 };
 
 describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
-  it('renders the SKU, Default Quantity, Default Target Date, Weeks to Hold and Exclude Vendors labels', () => {
+  it('renders the SKU, Default Quantity, Default Target Date, hold-for-weeks and Exclude Vendors labels', () => {
     render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);
     expect(screen.getByText(/sku/i)).toBeInTheDocument();
     expect(screen.getByText(/default quantity/i)).toBeInTheDocument();
     expect(screen.getByText(/default target date/i)).toBeInTheDocument();
-    expect(screen.getByText(/weeks to hold/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/save phantom demand request for \(weeks\)/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/exclude vendors/i)).toBeInTheDocument();
   });
 

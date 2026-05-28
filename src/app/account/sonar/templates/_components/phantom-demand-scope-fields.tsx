@@ -89,8 +89,11 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
       </label>
 
       <div className="block text-sm text-charcoal">
-        <span className="block mb-1 font-medium">Weeks to Hold</span>
+        <span className="block mb-1 font-medium" id="weeks-to-hold-label">
+          Save Phantom Demand request for (weeks):
+        </span>
         <WeeksToHoldDropdown
+          ariaLabelledBy="weeks-to-hold-label"
           value={value.weeks_to_hold}
           onChange={(weeks_to_hold) => onChange({ ...value, weeks_to_hold })}
         />

@@ -9,7 +9,7 @@ export default function NewPhantomDemandPage() {
   return (
     <div>
       <PageHeader eyebrow="Phantom Demand" title="New demand request" />
-      <TemplateWizard defaultObservationClass="phantom_demand" />
+      <TemplateWizard />
     </div>
   );
 }
