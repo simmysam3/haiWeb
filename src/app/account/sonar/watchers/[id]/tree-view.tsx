@@ -96,16 +96,52 @@ function nodeDisplayName(
   return { label: 'Component', italic: true };
 }
 
+type ComplianceTone = 'green' | 'amber' | 'red';
+
+// Left status-bar tone for audit-run trees (only rendered when complianceBar
+// is set — the watcher tree shares this component but has no provenance
+// compliance semantics, so it opts out):
+//   red   — an explicit gap: the source/identity could not be resolved
+//   amber — no hard gap, but provenance is only partially known (origin didn't
+//           resolve to a real country, or the data is derived/withheld rather
+//           than directly attested)
+//   green — no gap, origin resolved to a real country, directly attested
+function nodeComplianceTone(node: ObservationNode): ComplianceTone {
+  if (node.gap) return 'red';
+  const audit = auditPayload(node);
+  const country = audit?.origin.country_of_origin;
+  const originResolved = !!country && country !== '<unknown>';
+  if (!originResolved || node.synthesis_mode !== 'direct') return 'amber';
+  return 'green';
+}
+
+const COMPLIANCE_BAR_CLASS: Record<ComplianceTone, string> = {
+  green: 'bg-green-300/40',
+  amber: 'bg-amber-300/40',
+  red: 'bg-red-300/40',
+};
+
+const COMPLIANCE_BAR_TITLE: Record<ComplianceTone, string> = {
+  green: 'Source resolved — origin verified, no provenance gaps',
+  amber: 'Partially resolved — origin unknown or redacted/aggregated provenance',
+  red: 'Source not resolved — provenance gap on this node',
+};
+
 export function TreeView({
   node,
   depth = 0,
   overlay,
+  complianceBar = false,
 }: {
   node: ObservationNode;
   depth?: number;
   overlay?: TreeOverlay;
+  // When true, render a narrow left status bar per node spanning its full
+  // subtree height (audit run view). Threaded through the recursion.
+  complianceBar?: boolean;
 }) {
   const audit = auditPayload(node);
+  const tone = nodeComplianceTone(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
   const { label: vendorLabel, italic: vendorLabelItalic } = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
@@ -115,7 +151,17 @@ export function TreeView({
   const showSynthesis = node.synthesis_mode !== 'direct';
 
   return (
-    <details open={depth < 2} className="ml-3 my-1.5">
+    <details
+      open={depth < 2}
+      className={complianceBar ? 'relative ml-3 my-1.5 pl-2.5' : 'ml-3 my-1.5'}
+    >
+      {complianceBar && (
+        <span
+          aria-hidden="true"
+          title={COMPLIANCE_BAR_TITLE[tone]}
+          className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-full ${COMPLIANCE_BAR_CLASS[tone]}`}
+        />
+      )}
       <summary className="cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50 transition-colors">
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -195,7 +241,7 @@ export function TreeView({
       {node.components.length > 0 && (
         <div className="ml-3 mt-1 border-l border-slate/15 pl-2">
           {node.components.map((c, i) => (
-            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} />
+            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} complianceBar={complianceBar} />
           ))}
         </div>
       )}
