@@ -1,143 +1,155 @@
 import { notFound } from 'next/navigation';
-import { cookies, headers } from 'next/headers';
-import Link from 'next/link';
-import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
-import { RollupPanel } from './rollup-panel';
-import { ProductsGrid } from './products-grid';
-import { RunControls } from './run-controls';
-import { RunFailureBanner } from './run-failure-banner';
-import { ThrottledStatusPill } from '@/components/sonar/throttled-status-pill';
+import { PageHeader } from '@/components';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
-import { PageHeader } from '@/components';
+import { CounterpartiesGrid } from './_components/counterparties-grid';
+import { RunControls } from './run-controls';
+import { RunFailureBanner } from './run-failure-banner';
+import type { RunTemplate, WatcherRun, WatcherResult } from '@haiwave/protocol';
 
-interface LoadOk {
-  run: AuditRun;
-  results: AuditRunResult[];
-  resultsError: { status: number } | null;
+interface WatcherRunDetailResponse {
+  run: WatcherRun;
+  results: WatcherResult[];
 }
 
-async function load(runId: string): Promise<LoadOk | null> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-
-  try {
-    const runRes = await fetch(`${baseUrl}/api/account/audit-runs/${runId}`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (runRes.status === 404) return null; // genuinely not found → notFound()
-    if (!runRes.ok) {
-      // Auth / 5xx — a real error, not "not found".
-      throw new Error(`audit run fetch failed: ${runRes.status}`);
-    }
-    const run = (await runRes.json()) as AuditRun;
-    if (!run?.run_id) {
-      // 200 but missing run_id ⇒ broken response contract, not "not found".
-      throw new Error('audit run response missing run_id (contract mismatch)');
-    }
-
-    const resultsRes = await fetch(
-      `${baseUrl}/api/account/audit-runs/${runId}/results`,
-      {
-        headers: { cookie: cookieHeader },
-        cache: 'no-store',
-      },
-    );
-
-    // Distinguish "results not yet available" (200 with empty list) from a
-    // real upstream failure (4xx/5xx). The latter must surface to the user
-    // as a banner rather than silently rendering an empty grid that looks
-    // like a successful "no results" response.
-    if (resultsRes.ok) {
-      const resultsData = (await resultsRes.json()) as { results?: AuditRunResult[] };
-      return { run, results: resultsData.results ?? [], resultsError: null };
-    }
-    return { run, results: [], resultsError: { status: resultsRes.status } };
-  } catch (err) {
-    // Genuine 404 already returned null above; reaching here means a real
-    // failure (network / auth / 5xx / contract). Surface it as an error
-    // instead of a misleading not-found page.
-    console.error('[runs/[id] load] fetch failed', { runId, err });
-    throw err;
-  }
+interface DefinitionResponse {
+  template: RunTemplate;
 }
 
-export default async function RunDetailPage({
-  params,
-}: {
+interface PartnerRecord {
+  id: string;
+  company_name: string;
+}
+
+interface ManifestCatalogResponse {
+  products: Array<{ external_product_id: string; product_name: string }>;
+}
+
+interface RouteContext {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const data = await load(id);
-  if (!data) notFound();
+}
+
+/**
+ * Watcher run-detail page.
+ *
+ * v.1.43 Task 21 — rewritten from the audit-shaped predecessor. Drops the
+ * geo `<RollupPanel>` and `<ProductsGrid>` (audit-specific) and renders the
+ * canonical watcher surface: header + (throttle / failure) banners +
+ * `<CounterpartiesGrid>` of per-counterparty results.
+ */
+export default async function WatcherRunDetailPage({ params }: RouteContext) {
+  const { id: runId } = await params;
+  const result = await fetchBffJson<WatcherRunDetailResponse>(
+    `/api/account/sonar/watcher/runs/${runId}`,
+  );
+
+  if (result.kind === 'error') {
+    if (result.status === 404) notFound();
+    return (
+      <div className="space-y-4">
+        <div
+          role="alert"
+          className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+        >
+          Could not load watcher run ({result.status || 'network error'}).
+        </div>
+      </div>
+    );
+  }
+
+  const { run, results } = result.data;
+
+  // Parallel enrichment: template (for the title) + partners (for vendor names
+  // on the counterparty grid) + manifest catalog (for per-product names on the
+  // two-level grid — Plan 3 E3). WatcherResult only carries participant_id +
+  // external_product_id; the protocol envelopes have no human-readable name,
+  // so we join client-side.
+  const [defResult, partnersResult, manifestResult] = await Promise.all([
+    run.template_id
+      ? fetchBffJson<DefinitionResponse>(
+          `/api/account/sonar/watcher/definitions/${run.template_id}`,
+        )
+      : Promise.resolve({ kind: 'error' as const, status: 0, message: 'no template' }),
+    fetchBffJson<PartnerRecord[]>('/api/account/partners'),
+    fetchBffJson<ManifestCatalogResponse>('/api/account/sonar/manifest-catalog'),
+  ]);
+
+  const templateName =
+    defResult.kind === 'ok' ? defResult.data.template.template_name : null;
+  const partnerNameById = new Map<string, string>();
+  if (partnersResult.kind === 'ok') {
+    for (const p of partnersResult.data) {
+      partnerNameById.set(p.id, p.company_name);
+    }
+  }
+  const productNameByExtId: Record<string, string> = {};
+  if (manifestResult.kind === 'ok') {
+    for (const p of manifestResult.data.products) {
+      productNameByExtId[p.external_product_id] = p.product_name;
+    }
+  }
+
+  const enrichedResults: WatcherResult[] = results.map((r) => ({
+    ...r,
+    counterparty_name: r.counterparty_participant_id
+      ? partnerNameById.get(r.counterparty_participant_id) ?? null
+      : null,
+  })) as WatcherResult[];
+
+  // Title is the watcher's configured name (every run originates from a named
+  // template). Orphan runs without a resolvable template fall back to a
+  // generic "Watcher run" so the page still reads cleanly; the run hash always
+  // lives in the subhead so users can identify which run they're inspecting
+  // without the title becoming a string assembly.
+  const title = templateName ?? 'Watcher run';
+  const runHash = run.run_id.slice(0, 8);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Watcher"
-        title={`Run ${data.run.run_id.slice(0, 8)}`}
-        description={`Triggered ${new Date(data.run.triggered_at).toLocaleString()}`}
-      />
-      <div className="flex items-center gap-3">
-        <RunControls
-          runId={data.run.run_id}
-          initialStatus={data.run.status}
-          initialHopCount={data.run.hop_count}
-          initialGapCount={data.run.gap_count}
-          initialResultsCount={data.results.length}
-          errorMessage={data.run.error_message}
-        />
-        {data.run.status === 'throttled' && data.run.resumption_state && (
-          <ThrottledStatusPill
-            nextResumeAt={data.run.resumption_state.next_resume_at}
-          />
-        )}
-        {data.run.status === 'complete' && (
-          <Link
-            href={`/account/sonar/audit/${data.run.run_id}`}
-            className="text-teal hover:text-navy text-sm"
-          >
-            View Aggregate Report →
-          </Link>
-        )}
-      </div>
-
-      <RunFailureBanner
-        status={data.run.status}
-        errorMessage={data.run.error_message}
-        resultsCount={data.results.length}
+        title={title}
+        description={
+          <>
+            Run <span className="font-mono">{runHash}</span> · Triggered{' '}
+            {new Date(run.triggered_at).toLocaleString()} · depth{' '}
+            {run.depth_limit} · {run.signal_types.length} signals
+          </>
+        }
+        actions={<RunControls run={run} />}
       />
 
-      {data.resultsError && (
-        <div
-          role="alert"
-          className="rounded-md border border-problem/20 bg-problem/5 p-4 text-sm text-problem"
-        >
-          Couldn&apos;t load this run&apos;s results
-          {data.resultsError.status >= 500
-            ? ' — the monitoring service is temporarily unavailable.'
-            : data.resultsError.status === 403
-            ? ' — you do not have permission to view this run.'
-            : ` — server returned ${data.resultsError.status}.`}
-        </div>
-      )}
-
-      {data.run.status === 'throttled' && data.run.resumption_state && (
+      {run.status === 'throttled' && run.resumption_state && (
         <>
           <ThrottleBanner />
-          <ResumptionHistoryTable resumptionState={data.run.resumption_state} />
+          <ResumptionHistoryTable resumptionState={run.resumption_state} />
         </>
       )}
 
-      <RollupPanel results={data.results} />
+      {(run.status === 'failed' || run.status === 'cancelled') && (
+        <RunFailureBanner
+          status={run.status}
+          errorMessage={null}
+          resultsCount={results.length}
+        />
+      )}
 
-      <section>
-        <h2 className="text-sm font-medium text-charcoal mb-2">Products</h2>
-        <ProductsGrid results={data.results} />
+      <section aria-labelledby="counterparties-heading" className="space-y-3">
+        <h2
+          id="counterparties-heading"
+          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+        >
+          Counterparty observations
+        </h2>
+        <p className="text-sm text-slate">
+          One row per vendor in scope. Each row summarises the signals returned
+          (or redacted) on this run; expand a row for the per-signal detail.
+        </p>
+        <CounterpartiesGrid
+          results={enrichedResults}
+          productNameByExtId={productNameByExtId}
+        />
       </section>
     </div>
   );

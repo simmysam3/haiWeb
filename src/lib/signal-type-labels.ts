@@ -18,4 +18,12 @@ export const SIGNAL_TYPE_LABELS: Record<SignalType, SignalTypeLabel> = {
     label: 'Latest delivery event',
     tooltip: 'Most recent shipment status — dispatched, in transit, delayed, delivered, or exception. Premier-tier counterparties only.',
   },
+  published_lead_time: {
+    label: 'Published lead time',
+    tooltip: 'Counterparty-advertised standard lead time for a SKU — what they publish on their product surface for everyone to see.',
+  },
+  quoted_lead_time: {
+    label: 'Quoted lead time',
+    tooltip: 'Counterparty-quoted lead time for a SKU under your specific trading relationship — typically tighter than the published figure.',
+  },
 };

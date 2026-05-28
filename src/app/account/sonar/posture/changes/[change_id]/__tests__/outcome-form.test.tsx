@@ -23,6 +23,8 @@ const base: ComplianceChange = {
   severity: 'critical', detected_at: '2026-05-18T00:00:00.000Z',
   processed_at: null, processed_by: null,
   processed_outcome: null, processed_outcome_description: null,
+  source_kind: 'audit', source_run_id: 'run-1', source_template_id: null,
+  watcher_snapshot_id: null, prior_watcher_snapshot_id: null,
 };
 
 const change = (e: Partial<ComplianceChange>): ComplianceChange => ({ ...base, ...e });

@@ -1,10 +1,11 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { EmittedChangeKind } from '@haiwave/protocol';
+import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
+import { EVENT_KIND_PILLS, KIND_TOOLTIPS } from './_lib/event-kind-pills';
 
 /**
- * "Showing" dropdown for the Events feed.
+ * "Showing" dropdown for the Watcher Backlog feed.
  *
  * Conceptually a view-mode selector. `critical | warning | all` choose a
  * severity filter on the wire; `processed` (v.1.42) is mutually exclusive
@@ -12,52 +13,12 @@ import type { EmittedChangeKind } from '@haiwave/protocol';
  * fetching only already-actioned rows. The page reads either `severity` or
  * `processed` from the URL and forwards as-is to the BFF.
  */
-export const SEVERITY_OPTIONS = [
+const SEVERITY_OPTIONS = [
   { value: 'critical', label: 'Critical Only' },
   { value: 'warning', label: 'Warning Only' },
   { value: 'all', label: 'All' },
   { value: 'processed', label: 'Processed' },
 ] as const;
-export const DEFAULT_SEVERITY = 'critical';
-export const SEVERITY_VALUES: ReadonlySet<string> = new Set(SEVERITY_OPTIONS.map((o) => o.value));
-
-// Turbopack + file: symlink: inline mirror of the Events-feed pill set.
-// Source of truth: packages/protocol/src/audit/compliance-changes.ts —
-// EMITTED_CHANGE_KINDS (v1.34 §5.3) MINUS GAP_LIFECYCLE_KINDS (v.1.41
-// Backlog IA — gap_added / gap_resolved describe the gap's own
-// lifecycle and surface on the Gaps tab, not as Events pills).
-// Turbopack cannot value-import the CJS @haiwave/protocol package
-// through the file: symlink on Windows; a direct import will fail at
-// runtime. Keep this list verbatim in sync with the subset above. Do
-// NOT replace with a direct import.
-// exported for test parity assertion (see __tests__/changes-feed.test.tsx)
-export const EVENT_KIND_PILLS: ReadonlyArray<Exclude<EmittedChangeKind, 'gap_added' | 'gap_resolved'>> = [
-  'origin_shifted_country',
-  'origin_shifted_plant',
-  'vendor_substituted',
-  'lead_time_degraded',
-  'lead_time_improved',
-  'certification_expired_or_revoked',
-  'certification_renewed',
-  'depth_reduced',
-  'depth_increased',
-] as const;
-
-// Tooltip copy: definition first, then the filter action. Mirrors
-// CHANGE_KIND_DEFINITION in PILL_DEFINITIONS (components/pill.tsx) verbatim,
-// with an appended action sentence. Inlined here because these are <button>
-// toggles, not status pills.
-const KIND_TOOLTIPS: Record<(typeof EVENT_KIND_PILLS)[number], string> = {
-  origin_shifted_country: 'Country of origin changed for this vendor/product. Click to filter the feed to country-shift events only.',
-  origin_shifted_plant: 'Plant identifier changed within the same country. Click to filter the feed to plant-shift events only.',
-  vendor_substituted: 'A subcomponent vendor changed. Click to filter the feed to vendor-substitution events only.',
-  lead_time_degraded: 'Lead time increased beyond the degradation threshold. Click to filter the feed to lead-time-degraded events only.',
-  lead_time_improved: 'Lead time decreased beyond the degradation threshold. Click to filter the feed to lead-time-improved events only.',
-  certification_expired_or_revoked: 'A referenced certification became expired or revoked. Click to filter the feed to certification-expiry events only.',
-  certification_renewed: 'Certification status returned to valid. Click to filter the feed to certification-renewal events only.',
-  depth_reduced: 'Maximum traversal depth decreased for this product. Click to filter the feed to depth-reduced events only.',
-  depth_increased: 'Maximum traversal depth increased for this product. Click to filter the feed to depth-increased events only.',
-};
 
 export function FilterPills() {
   const router = useRouter();

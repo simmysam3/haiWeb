@@ -5,12 +5,13 @@ import { shouldRefreshSession } from "@/lib/session-refresh";
 // v1.30 §10: 301 redirects from pre-Sonar URLs to the unified Observations page.
 // Rules are ordered most-specific-first; first match wins.
 //
-// v1.37 IA split — Compliance was decomposed into two top-level Sonar
-// sections: Request Management (`/account/sonar/requests/*`) and Posture
-// (`/account/sonar/posture/*`). The legacy `/account/sonar/compliance/*`
-// paths are redirected here. Earlier rules (v1.30/v1.34/v1.35) were
-// retargeted to the NEW v1.37 URLs to preserve the single-301-hop
-// invariant the redirect tests enforce.
+// v1.37 IA split — Compliance was decomposed into Request Management
+// (`/sonar/requests/*`) and Posture. v.1.43 then relocated the Backlog
+// (Events / Gaps / Obligations) out of Posture and into Sonar Audit
+// (`/sonar/audit/{events,gaps,obligations}`); only trust-bypass remains
+// under `/sonar/posture/*`. Earlier rules (v1.30/v1.34/v1.35/v1.37) were
+// retargeted to the latest URLs to preserve the single-301-hop invariant
+// the redirect tests enforce.
 // v1.40 helper — the legacy `/reports[/<run_id>[/vendor/<vendor_id>]]` shape
 // collapses to the v1.39 Audits surface: `/account/sonar/audit[/<run_id>]`.
 // There is NO `/audit/<run_id>/vendor/<vendor_id>` page, so any vendor tail
@@ -94,7 +95,7 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     to: (p) =>
       p.replace(
         /^\/account\/sonar\/audit\/downstream-gaps/,
-        '/account/sonar/posture/obligations',
+        '/account/sonar/audit/obligations',
       ),
   },
   // v1.34→v1.37: /audit/runs|reports|trust-bypass land on their v1.37 homes.
@@ -174,14 +175,26 @@ const REDIRECTS: Array<{ from: RegExp; to: (path: string) => string }> = [
     from: /^\/account\/sonar\/posture\/coverage\/?$/,
     to: () => '/account/sonar/dashboard',
   },
-  // v1.37 — all other Posture sub-routes (working-list, changes, obligations).
+  // v1.37 → v.1.43 — legacy /compliance/posture/* paths now land on the
+  // Event Backlog under Sonar Audit (Events / Gaps / Obligations). Map the
+  // three sub-paths explicitly; trust-bypass stays at /sonar/posture/trust-bypass
+  // (matched earlier by the dedicated rule) so it isn't claimed here. Anything
+  // else under /compliance/posture/ falls through to /sonar/audit/events.
   {
     from: /^\/account\/sonar\/compliance\/posture(\/.*)?$/,
-    to: (p) =>
-      p.replace(
-        /^\/account\/sonar\/compliance\/posture/,
-        '/account/sonar/posture',
-      ),
+    to: (p) => {
+      const suffix = p.replace(/^\/account\/sonar\/compliance\/posture/, '');
+      if (/^\/changes(\/.*)?$/.test(suffix)) {
+        return `/account/sonar/audit/events${suffix.replace(/^\/changes/, '')}`;
+      }
+      if (/^\/working-list(\/.*)?$/.test(suffix)) {
+        return `/account/sonar/audit/gaps${suffix.replace(/^\/working-list/, '')}`;
+      }
+      if (/^\/obligations(\/.*)?$/.test(suffix)) {
+        return `/account/sonar/audit/obligations${suffix.replace(/^\/obligations/, '')}`;
+      }
+      return '/account/sonar/audit/events';
+    },
   },
   // v1.37 — runs moved under Posture (audit history).
   // v.1.41 Backlog IA retarget: runs moved AGAIN, out to /sonar/watchers.

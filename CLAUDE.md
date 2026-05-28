@@ -76,6 +76,7 @@ src/
 - No `any` types. Use `unknown` and narrow.
 - `kebab-case` for file names
 - **Pills/badges:** every pill or status badge MUST render via `components/pill.tsx` (`<Pill>`), never a hand-rolled `rounded-full` span. Each pill carries a definition tooltip. Status/error pills pass `detail` (e.g. `run.error_message`) so the tooltip shows the specific reason. New pill values get a `PILL_DEFINITIONS` entry in `pill.tsx`; a dev `console.warn` fires (once per `category:value`) for any pill with no resolved definition.
+- **Row-detail affordance:** any row, list item, or summary that reveals more detail when clicked — either navigating to a detail page OR expanding inline — MUST render the shared `<DetailChevron />` from `components/sonar/observations/`. Never hand-roll the SVG, never substitute a bare `›`/`→` glyph, never use a text-only "Open"/"View" button in lieu of the chevron. Place inside an interactive ancestor (`<Link>` or `<button>`) that carries the accessible label and the `group` class for the hover transition. For inline expanders that toggle open/closed (e.g. nested accordions), pass `expanded={isOpen}` so the chevron rotates 90deg to point down when expanded. Text qualifiers on a separate inline link (e.g. `View details →`, `Nominate →`) are fine and do NOT need the chevron — the rule is about un-labelled drill-down indicators, not every link.
 
 ## Requirements Document
 - Full spec: `../haiCore/docs/haiweb-account-requirements.md`

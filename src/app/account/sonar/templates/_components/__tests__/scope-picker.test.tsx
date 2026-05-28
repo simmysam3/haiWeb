@@ -15,6 +15,7 @@ describe('ScopePicker — watcher', () => {
           authorization_basis: 'bilateral',
           counterparties: [],
           signal_types: ['lead_time_distribution'],
+          skus: [],
           depth_limit: 1,
         }}
         onChange={onChange}

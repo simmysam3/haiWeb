@@ -2,53 +2,39 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { RunStatus } from '@haiwave/protocol';
+import type { WatcherRun, WatcherRunStatus } from '@haiwave/protocol';
 import { useRunStatus } from './use-run-status';
 import { Pill } from '@/components/pill';
 
-const TERMINAL: RunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
+const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
 
 interface RunControlsProps {
-  runId: string;
-  initialStatus: RunStatus;
-  initialHopCount: number | null;
-  initialGapCount: number | null;
-  initialResultsCount: number;
-  errorMessage?: string | null;
+  run: WatcherRun;
 }
 
-export function RunControls({
-  runId,
-  initialStatus,
-  initialHopCount,
-  initialGapCount,
-  initialResultsCount,
-  errorMessage,
-}: RunControlsProps) {
+/**
+ * Watcher run-detail status pill + cancel control.
+ *
+ * v.1.43 Task 21 — slimmed from the audit-shaped predecessor: WatcherRun has
+ * no hop_count / gap_count / results_available_count / error_message, so this
+ * component renders only the status pill and (when running) a Cancel button.
+ * Counter chips and the error-tooltip detail line are owned elsewhere.
+ */
+export function RunControls({ run }: RunControlsProps) {
   const router = useRouter();
-  const { status, hopCount, gapCount, resultsAvailableCount, error, mutate } =
-    useRunStatus(runId);
+  const { status, mutate } = useRunStatus(run.run_id);
 
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const effectiveStatus = status ?? initialStatus;
-  // Use === undefined (not ??) so a fresh `null` from the API isn't masked
-  // by a stale SSR value. `undefined` means "hook hasn't resolved its first
-  // poll yet" → fall back to SSR. `null` means "API says no value yet" and
-  // must propagate so the counter line below omits hops/gaps.
-  const effectiveHop = hopCount === undefined ? initialHopCount : hopCount;
-  const effectiveGap = gapCount === undefined ? initialGapCount : gapCount;
-  const effectiveResults = resultsAvailableCount ?? initialResultsCount;
+  const effectiveStatus = status ?? run.status;
 
-  // When status transitions out of running, refresh server data so the
-  // products grid (rendered by the parent SSR) re-fetches its results.
-  // Section 13.2.1 item 2 — cache invalidation on terminal state.
-  // Guarded by `wasNonTerminal` so SSR mounts of already-terminal runs
-  // don't fire a wasted RSC round-trip — only real running → terminal
-  // transitions during the client session trigger the refresh.
+  // Refresh server data when the polled status transitions out of running so
+  // the counterparties grid (parent SSR) re-fetches its results. Guarded by
+  // `wasNonTerminal` so an SSR mount of an already-terminal run doesn't fire
+  // a wasted RSC round-trip.
   const isTerminal = TERMINAL.includes(effectiveStatus);
-  const wasNonTerminal = useRef(!TERMINAL.includes(initialStatus));
+  const wasNonTerminal = useRef(!TERMINAL.includes(run.status));
   useEffect(() => {
     if (isTerminal && wasNonTerminal.current) {
       wasNonTerminal.current = false;
@@ -56,8 +42,7 @@ export function RunControls({
     }
   }, [isTerminal, router]);
 
-  // If the worker has actually transitioned out of running, drop the
-  // local cancelling indicator (the polled status now reflects truth).
+  // Clear the local cancelling indicator once the worker reports terminal.
   useEffect(() => {
     if (cancelling && isTerminal) {
       setCancelling(false);
@@ -68,15 +53,16 @@ export function RunControls({
     setCancelling(true);
     setCancelError(null);
     try {
-      const res = await fetch(`/api/account/audit-runs/${runId}/cancel`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const res = await fetch(
+        `/api/account/sonar/watcher/runs/${run.run_id}/cancel`,
+        { method: 'POST', credentials: 'include' },
+      );
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(text || `Cancel failed: ${res.status}`);
       }
-      // Section 13.2.1 item 6 — one-shot 500ms-delayed reconciliation.
+      // One-shot 500ms-delayed reconciliation — gives the worker a tick to
+      // flip the row before SWR refetches.
       setTimeout(() => {
         void mutate();
       }, 500);
@@ -88,12 +74,7 @@ export function RunControls({
 
   return (
     <div className="flex items-center gap-4">
-      <StatusPill status={effectiveStatus} cancelling={cancelling} errorMessage={errorMessage} />
-      <div className="text-sm text-slate">
-        {effectiveResults} {effectiveResults === 1 ? 'result' : 'results'}
-        {effectiveHop !== null ? ` · ${effectiveHop} hops` : ''}
-        {effectiveGap !== null ? ` · ${effectiveGap} gaps` : ''}
-      </div>
+      <StatusPill status={effectiveStatus} cancelling={cancelling} />
       {effectiveStatus === 'running' && !cancelling && (
         <button
           type="button"
@@ -102,9 +83,6 @@ export function RunControls({
         >
           Cancel
         </button>
-      )}
-      {error && (
-        <span className="text-xs text-problem">Status fetch failed</span>
       )}
       {cancelError && (
         <span className="text-xs text-problem">{cancelError}</span>
@@ -116,11 +94,9 @@ export function RunControls({
 function StatusPill({
   status,
   cancelling,
-  errorMessage,
 }: {
-  status: RunStatus;
+  status: WatcherRunStatus;
   cancelling: boolean;
-  errorMessage?: string | null;
 }) {
   if (cancelling && status === 'running') {
     return (
@@ -132,16 +108,13 @@ function StatusPill({
   }
   const label =
     status === 'running' ? 'Running' :
+    status === 'throttled' ? 'Throttled' :
     status === 'complete' ? 'Complete' :
     status === 'partial' ? 'Partial' :
     status === 'failed' ? 'Failed' :
     'Cancelled';
   return (
-    <Pill
-      category="run_status"
-      value={status}
-      detail={status === 'failed' ? errorMessage ?? undefined : undefined}
-    >
+    <Pill category="run_status" value={status}>
       {label}
     </Pill>
   );

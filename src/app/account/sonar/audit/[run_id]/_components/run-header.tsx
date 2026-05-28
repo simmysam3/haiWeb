@@ -104,7 +104,9 @@ export function RunHeader({ run }: Props) {
       {/* Title row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-charcoal">{title}</h1>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal">
+            {title}
+          </h1>
           {/* One-sentence sub-head replaces the prior pill row. Status + hash
               are folded into the sentence; the footer still carries the full
               canonical Run ID / Hash / timestamps. */}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { AuditException, AuditExceptionsResponse } from '@haiwave/protocol';
 import { Card } from '@/components/card';
 import { GroupedAccordion, AccordionGroupRow } from '@/components/grouped-accordion';
+import { DetailChevron } from '@/components/sonar/observations';
 
 /**
  * v.1.41 Audit Exceptions — "Run exceptions" tab.
@@ -194,23 +195,7 @@ export function RunExceptionsPanel({ onCountChange }: Props) {
                             : '—'}
                         </td>
                         <td className="py-2 pl-4 pr-3 text-right">
-                          <span
-                            aria-hidden="true"
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-teal/10 text-teal transition-colors group-hover:bg-teal/20"
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              className="h-4 w-4"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <polyline points="9 6 15 12 9 18" />
-                            </svg>
-                          </span>
+                          <DetailChevron />
                         </td>
                       </tr>
                     );

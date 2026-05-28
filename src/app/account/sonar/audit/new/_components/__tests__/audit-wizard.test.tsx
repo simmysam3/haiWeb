@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeSubmitLabel, randomOvernightDefault } from '../audit-wizard';
-import { utcToLocal, localToUtc } from '../audit-schedule-picker';
+import { utcToLocal, localToUtc } from '../../../../_components/schedule-picker';
 
 describe('computeSubmitLabel', () => {
   const manual: { kind: 'manual_only' } = { kind: 'manual_only' };

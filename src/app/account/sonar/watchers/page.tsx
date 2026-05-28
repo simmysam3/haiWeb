@@ -1,71 +1,122 @@
-import { cookies, headers } from 'next/headers';
-import type { AuditRun } from '@haiwave/protocol';
-import { getActiveScopes } from '../_lib/scopes';
-import { NoScopesCTA } from '../_shared/no-scopes-cta';
-import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
-import { RunControls } from './run-controls';
-import { RunsTable } from './runs-table';
-import { PageIntro } from '@/components/page-intro';
+import Link from 'next/link';
 import { PageHeader } from '@/components';
+import { fetchBffJson } from '@/lib/server-fetch';
+import { ConfigurationsTable } from '@/components/sonar/observations';
+import { NeedsTriageStrip } from './_components/needs-triage-strip';
+import { watcherConfigurationsColumnPack } from './_components/watcher-column-packs';
+import {
+  WatcherHistoryTable,
+} from './_components/watcher-history-table';
+import type { EnrichedWatcherRun } from './_components/watcher-column-packs';
+import type { RunTemplate, WatcherRun } from '@haiwave/protocol';
 
-async function loadRuns(): Promise<AuditRun[]> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-
-  try {
-    const res = await fetch(`${baseUrl}/api/account/audit-runs?limit=100`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { runs?: AuditRun[] };
-    return data.runs ?? [];
-  } catch (err) {
-    console.error('[runs.loadRuns] network failure', { err });
-    return [];
-  }
+interface DefinitionsPayload {
+  templates: RunTemplate[];
+}
+interface RunsPayload {
+  runs: WatcherRun[];
 }
 
-/**
- * v.1.41 Backlog IA — relocated from /account/sonar/posture/runs.
- * Watchers are configuration + observation surface for the runs that
- * generate Backlog items, not a Backlog item themselves; carving them
- * out of the Backlog section into their own Sonar Observe entry makes
- * the intent clear.
- *
- * URL change: /account/sonar/posture/runs[/...] → /account/sonar/watchers[/...]
- * Old URLs 301-redirect via proxy.ts so external bookmarks survive.
- */
-export default async function WatcherManagementPage() {
-  const scopesResult = await getActiveScopes();
-  if (scopesResult.kind === 'error') {
-    return (
-      <div className="p-6">
-        <ScopesErrorBanner status={scopesResult.status} />
-      </div>
-    );
-  }
-  if (scopesResult.scopes.length === 0) {
-    return (
-      <div className="p-6">
-        <NoScopesCTA context="runs" />
-      </div>
-    );
-  }
-  const runs = await loadRuns();
+type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
+function isWatcherTemplate(t: RunTemplate): t is WatcherTemplate {
+  return t.observation_class === 'watcher';
+}
+
+export default async function WatchersListPage() {
+  const [defsResult, runsResult] = await Promise.all([
+    fetchBffJson<DefinitionsPayload>('/api/account/sonar/watcher/definitions'),
+    fetchBffJson<RunsPayload>('/api/account/sonar/watcher/runs'),
+  ]);
+
+  const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
+  const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
+  const watcherTemplates = allDefinitions.filter(isWatcherTemplate);
+
+  // Enrich each run with its source-watcher name so the history table can
+  // surface the configured name as the primary identifier (not the run id).
+  // Includes audit/PD templates too — the runs feed is watcher-only, but
+  // joining off the broader template set means template renames still resolve
+  // without forcing a second join per row.
+  const templateNameById = new Map<string, string>(
+    allDefinitions.map((t) => [t.template_id, t.template_name]),
+  );
+  const enrichedRuns: EnrichedWatcherRun[] = runs.map((r) => ({
+    ...r,
+    template_name: r.template_id
+      ? templateNameById.get(r.template_id) ?? null
+      : null,
+  }));
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <PageHeader
-        title="Watcher Management"
-        actions={<RunControls />}
+        title="Watchers"
+        description={
+          <>
+            <strong className="text-charcoal">Supply-chain resilience monitoring.</strong>{' '}
+            Continuous drift detection across your trading network. Schedule recurring sweeps
+            or fire ad-hoc checks; the triage strip surfaces configs needing immediate
+            attention, while gap-tier scores drive your long-arc vendor curation.
+          </>
+        }
+        actions={
+          <Link
+            href="/account/sonar/watchers/new"
+            className="shrink-0 whitespace-nowrap rounded bg-teal text-white px-3 py-1.5 text-sm font-medium hover:bg-teal/90"
+          >
+            + New Watcher
+          </Link>
+        }
       />
-      <PageIntro>
-        Configure and observe the watchers that monitor your active scopes — product availability, lead-time drift, capacity shifts, and other supply-chain signals. Start, cancel, or re-run from here; the <em>Sonar Dashboard</em> aggregates the latest results across all modalities, and detected events surface in the <em>Backlog</em>.
-      </PageIntro>
-      <RunsTable runs={runs} />
+
+      <NeedsTriageStrip />
+
+      {defsResult.kind === 'error' && (
+        <div
+          role="alert"
+          className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          Could not load watcher configurations (
+          {defsResult.status !== 0 ? `HTTP ${defsResult.status}` : 'network error'}). Configurations
+          list may be incomplete.
+        </div>
+      )}
+
+      <section aria-labelledby="watcher-configs-heading" className="space-y-3">
+        <h2
+          id="watcher-configs-heading"
+          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+        >
+          Configurations
+        </h2>
+        <ConfigurationsTable
+          rows={watcherTemplates}
+          columns={watcherConfigurationsColumnPack}
+          keyFn={(t) => t.template_id}
+          emptyMessage="No watcher configurations yet. Create one to start monitoring vendor signals."
+        />
+      </section>
+
+      {runsResult.kind === 'error' && (
+        <div
+          role="alert"
+          className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          Could not load run history (
+          {runsResult.status !== 0 ? `HTTP ${runsResult.status}` : 'network error'}). History may
+          be incomplete.
+        </div>
+      )}
+
+      <section aria-labelledby="watcher-history-heading" className="space-y-3">
+        <h2
+          id="watcher-history-heading"
+          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+        >
+          Watcher history
+        </h2>
+        <WatcherHistoryTable initialRows={enrichedRuns} />
+      </section>
     </div>
   );
 }

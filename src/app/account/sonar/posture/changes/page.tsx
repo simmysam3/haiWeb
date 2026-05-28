@@ -1,13 +1,12 @@
 import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
+import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { BacklogTabs } from '../_components/backlog-tabs';
-import { getActiveScopes } from '../../_lib/scopes';
 
 /**
  * Events feed page size. 25 rows fits in one viewport without overwhelming the
@@ -29,12 +28,22 @@ interface SearchParams {
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
-  const kinds = searchParams.kind;
-  if (Array.isArray(kinds)) {
-    kinds.forEach((k) => sp.append('kind', k));
-  } else if (kinds) {
-    sp.append('kind', kinds);
-  }
+  // v.1.43: Watcher Backlog is LT-only. If the user picked specific kinds,
+  // honor them but drop anything outside the LT allowlist (in case an
+  // audit-side kind arrives via a stale URL). If no kind filter at all,
+  // default to the LT pill set so audit-data rows never bleed into this
+  // watcher-side surface.
+  const rawKinds = searchParams.kind;
+  const requested: string[] = Array.isArray(rawKinds)
+    ? rawKinds
+    : rawKinds
+      ? [rawKinds]
+      : [];
+  const allowed = new Set<string>(EVENT_KIND_PILLS);
+  const filteredKinds = requested.length
+    ? requested.filter((k) => allowed.has(k))
+    : [...EVENT_KIND_PILLS];
+  filteredKinds.forEach((k) => sp.append('kind', k));
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);
@@ -75,23 +84,17 @@ export default async function ChangesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const pageParam = Math.max(parseInt(params.page ?? '1', 10) || 1, 1);
   const offset = (pageParam - 1) * PAGE_SIZE;
-  const [result, scopesResult] = await Promise.all([
-    fetchChanges(params, offset),
-    getActiveScopes(),
-  ]);
-  const hasScopes =
-    scopesResult.kind === 'ok' && scopesResult.scopes.length > 0;
+  const result = await fetchChanges(params, offset);
 
   return (
     <div>
       <PageHeader
-        title="Events"
-        description="Consequential supply-chain changes detected between snapshots — default window is 14 days."
+        title="Watcher Backlog"
+        description="Lead-time drift events from your scheduled watcher configurations — default window is 14 days."
         actions={<RefreshButton />}
       />
-      <BacklogTabs hasScopes={hasScopes} />
       <PageIntro>
-        A reverse-chronological alerting feed of consequential changes detected between snapshots: origin shifts, certification expirations and renewals, vendor substitutions, lead-time degradation, depth changes, and similar. Gap openings and closures are tracked separately on the <em>Gaps</em> tab (they describe a gap&apos;s own lifecycle, not an external event). Filter by event kind, partner, or date range. Click Review on any row to view the before-and-after cell detail.
+        Lead-time drift events emitted by your scheduled watcher configurations: degradations when a vendor&apos;s lead time grows past the warning/critical threshold, improvements when it recovers. Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Default view shows critical-only — change the Showing dropdown to see warnings, info, or processed items. Process an event to record an outcome and drop it from the active backlog.
       </PageIntro>
 
       <FilterPills />
