@@ -2,16 +2,16 @@ import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { ConfigurationsTable } from '@/components/sonar/observations';
-import { auditConfigurationsColumnPack } from './_components/audit-column-packs';
+import { auditConfigurationsColumnPack, type EnrichedAuditRun } from './_components/audit-column-packs';
 import { AuditHistoryTable } from './_components/audit-history-table';
-import type { RunTemplate, AuditRun } from '@haiwave/protocol';
+import type { RunTemplate } from '@haiwave/protocol';
 
 interface DefinitionsPayload {
   templates: RunTemplate[];
 }
 
 interface RunsPayload {
-  runs: AuditRun[];
+  runs: EnrichedAuditRun[];
   auditor_country?: string;
 }
 

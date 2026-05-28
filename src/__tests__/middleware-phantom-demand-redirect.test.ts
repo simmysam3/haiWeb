@@ -32,8 +32,7 @@ describe('middleware — retired v1.21 PD dashboard redirect', () => {
 
   it.each([
     '/account/sonar/phantom-demand/runs/09be1dc4-3657-4bee-99bd-0afbbeefd92f',
-    '/account/sonar/phantom-demand/reports/latest',
-    '/account/sonar/phantom-demand/reports/w1/aggregate',
+    // /reports/* deleted in v1.44 refined-PD; only /runs/* remains a pass-through surface
   ])('does NOT redirect the live surface %s to Observations', async (path) => {
     const res = await run(path);
     // Either passes through or (unauthenticated) bounces to /login — but never

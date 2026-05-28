@@ -4,17 +4,6 @@ import { withHaiCore } from '@/lib/with-hai-core';
 import { computeRiskScore } from '@/app/account/sonar/dashboard/_lib/risk-score';
 import { buildPerPartnerAuditWeights, type PartnerAuditWeight } from '@/app/account/sonar/dashboard/_lib/audit-weights';
 
-interface PhantomDemandPerCounterparty {
-  counterparty_participant_id: string;
-  counterparty_display_name: string;
-  response_rate: number;
-}
-
-interface PhantomDemandAggregate {
-  header: { window_id: string };
-  per_counterparty_summary: PhantomDemandPerCounterparty[];
-}
-
 type CapacityBand = 'low' | 'moderate' | 'high' | 'at_capacity';
 const BAND_TO_WEIGHT: Record<CapacityBand, number> = {
   low: 0,
@@ -66,33 +55,10 @@ async function loadPhantomDemand(client: {
   byPartner: Map<string, { response_rate: number; window_id: string; name: string | null }>;
   degraded: boolean;
 }> {
-  const latestRes = await client.fetchRaw('/sonar/phantom-demand/reports/latest');
-  if (!latestRes.ok) {
-    // 404 means no report has been generated yet — not an error.
-    if (latestRes.status !== 404) {
-      console.error('[cross-modality] phantom-demand /latest fetch failed', { status: latestRes.status });
-      return { byPartner: new Map(), degraded: true };
-    }
-    return { byPartner: new Map(), degraded: false };
-  }
-  const { window_id } = (await latestRes.json()) as { window_id: string };
-
-  const aggRes = await client.fetchRaw(`/sonar/phantom-demand/reports/${window_id}/aggregate`);
-  if (!aggRes.ok) {
-    console.error('[cross-modality] phantom-demand aggregate fetch failed', { window_id, status: aggRes.status });
-    return { byPartner: new Map(), degraded: true };
-  }
-  const agg = (await aggRes.json()) as PhantomDemandAggregate;
-
-  const byPartner = new Map<string, { response_rate: number; window_id: string; name: string | null }>();
-  for (const c of agg.per_counterparty_summary) {
-    byPartner.set(c.counterparty_participant_id, {
-      response_rate: c.response_rate,
-      window_id,
-      name: c.counterparty_display_name,
-    });
-  }
-  return { byPartner, degraded: false };
+  // Refined PD (v1.44): legacy /reports endpoints + phantom-demand-aggregate
+  // endpoint deleted. Per-partner PD data no longer aggregated centrally.
+  // Cross-modality shows audit + watcher only. Return empty set gracefully.
+  return { byPartner: new Map(), degraded: false };
 }
 
 async function loadWatcher(client: {

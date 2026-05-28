@@ -67,9 +67,8 @@ import type {
   RunTemplateEvent,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
-  PhantomDemandAggregate,
-  PhantomDemandWindow,
   PhantomDemandScope,
+  BomTree,
   ParticipantModalityPosture,
   Modality,
   Posture,
@@ -231,20 +230,28 @@ export interface PhantomDemandRun {
   updated_at: string;
 }
 
-export interface PhantomDemandResult {
-  result_id: string;
-  run_id: string;
-  sku_id: string;
-  responder_participant_id: string;
-  payload: Record<string, unknown>;
-  synthesis_mode: 'direct' | 'aggregated_derivative' | 'redacted_gap';
-  gap: Record<string, unknown> | null;
-  response_time_ms: number | null;
-  created_at: string;
+// v1.44 refined-PD — run detail now returns a BOM tree (null while queued/running).
+// PhantomDemandResult (flat results[]) was dropped when haiCore migrated to the
+// BOM-tree shape in Plans 1+2.
+export interface PhantomDemandRunDetail {
+  run: PhantomDemandRun;
+  tree: BomTree | null; // null while status='queued'/'running'
 }
 
-export interface PhantomDemandRunDetail extends PhantomDemandRun {
-  results: PhantomDemandResult[];
+// v1.44 — Agent configuration shape. Scaffold: haiCore route
+// GET/PUT /api/v1/agents/:agentId/config does NOT exist yet — flagged as a
+// haiCore-side gap. These client methods are non-blocking scaffolds for
+// Tasks 15-17. Once haiCore adds the routes, no HaiWeb changes are needed.
+export interface AgentConfig {
+  agent_id: string;
+  sku_picker_scope: 'published_only' | 'full_catalog';
+  mes_enabled: boolean;
+  mes_config: {
+    endpoint_url: string;
+    auth_scheme: string;
+    credential_ref: string;
+    work_center_mapping: Record<string, string>;
+  } | null;
 }
 
 // v1.29 Phase 1 — budget window summary returned by GET /sonar/budget/current.
@@ -499,14 +506,23 @@ export interface HaiwaveClient {
     id: string,
     patch: WatcherSignalSubscriptionPatch,
   ): Promise<{ subscription: WatcherSignalSubscription }>;
-  // ─── Phantom Demand Runs (v1.30) ─────────────────────────────────────────
+  // ─── Phantom Demand Runs (v1.44 refined-PD) ──────────────────────────────
   listPhantomDemandRuns(opts: { template_id?: string; limit?: number }): Promise<PhantomDemandRun[]>;
+  listPhantomDemandTemplates(opts: { enabled?: boolean; limit?: number }): Promise<RunTemplate[]>;
   getPhantomDemandRun(runId: string): Promise<PhantomDemandRunDetail>;
   getPhantomDemandRunStatus(runId: string): Promise<{ status: string; cancel_requested_at: string | null }>;
   cancelPhantomDemandRun(runId: string): Promise<{ ok: true }>;
-  triggerPhantomDemand(body: { scope: Record<string, unknown>; template_id?: string | null }): Promise<{ runId: string }>;
-  /** Spec §7.7 — per-counterparty PD posture over a rolling window. */
-  getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }): Promise<PhantomDemandAggregate>;
+  triggerPhantomDemand(body: {
+    template_id: string;
+    qty_override?: number | null;
+    target_date_override?: string | null;
+  }): Promise<{ runId: string }>;
+  // ─── v1.44 — Agent config (scaffold; haiCore route pending) ─────────────
+  getAgentConfig(agentId: string): Promise<AgentConfig>;
+  patchAgentConfig(
+    agentId: string,
+    patch: Partial<Omit<AgentConfig, 'agent_id'>>,
+  ): Promise<AgentConfig>;
   // ─── v1.29 Phase 3 Batch 3a: Run Templates ───────────────────────────────
   listRunTemplates(): Promise<{ templates: RunTemplate[] }>;
   getRunTemplate(templateId: string): Promise<{ template: RunTemplate }>;
@@ -1385,7 +1401,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         {},
       );
     },
-    async triggerPhantomDemand(body: { scope: Record<string, unknown>; template_id?: string | null }) {
+    async triggerPhantomDemand(body: {
+      template_id: string;
+      qty_override?: number | null;
+      target_date_override?: string | null;
+    }) {
       const r = await request<{ run_id: string }>(
         'POST',
         '/sonar/phantom-demand/runs',
@@ -1393,11 +1413,20 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       );
       return { runId: r.run_id };
     },
-    getPhantomDemandAggregate(opts: { window: PhantomDemandWindow }) {
-      return request<PhantomDemandAggregate>(
-        'GET',
-        `/sonar/phantom-demand/aggregate?window=${encodeURIComponent(opts.window)}`,
-      );
+    listPhantomDemandTemplates(opts: { enabled?: boolean; limit?: number }) {
+      const qs = new URLSearchParams();
+      qs.set('observation_class', 'phantom_demand');
+      if (opts.enabled !== undefined) qs.set('enabled', String(opts.enabled));
+      if (opts.limit !== undefined) qs.set('limit', String(opts.limit));
+      return request<RunTemplate[]>('GET', `/sonar/templates?${qs.toString()}`);
+    },
+
+    // ─── v1.44 — Agent config (scaffold; haiCore route pending) ──────────
+    getAgentConfig(agentId: string) {
+      return request<AgentConfig>('GET', `/agents/${encodeURIComponent(agentId)}/config`);
+    },
+    patchAgentConfig(agentId: string, patch: Partial<Omit<AgentConfig, 'agent_id'>>) {
+      return request<AgentConfig>('PATCH', `/agents/${encodeURIComponent(agentId)}/config`, patch);
     },
 
     // ─── v1.29 Phase 3 Batch 3a: Run Templates ─────────────────────

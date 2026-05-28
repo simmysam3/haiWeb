@@ -44,3 +44,7 @@ haiwave-site.zip
 
 # Claude Code session-local state and worktrees
 .claude/
+
+# Playwright run artifacts
+test-results/
+playwright-report/

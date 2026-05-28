@@ -49,12 +49,11 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
     // Templates unreachable — names fall back to "Run <uuid>" client-side.
   }
 
-  type EnrichedRun = AuditRun & { template_name?: string };
+  type EnrichedRun = Omit<AuditRun, 'template_name'> & { template_name?: string };
   const enrichedRuns: EnrichedRun[] = runs.map((run): EnrichedRun => {
-    const template_name = run.template_id
-      ? templateNameById.get(run.template_id)
-      : undefined;
-    return template_name ? { ...run, template_name } : run;
+    const joined = run.template_id ? templateNameById.get(run.template_id) : undefined;
+    const { template_name: _drop, ...rest } = run;
+    return joined ? { ...rest, template_name: joined } : rest;
   });
 
   return NextResponse.json({ runs: enrichedRuns, auditor_country: auditorCountry });

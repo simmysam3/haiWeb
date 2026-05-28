@@ -14,7 +14,7 @@ type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
 // Enriched shape returned by the list BFF (template_id → name join is added
 // by HaiWeb; total_skus and fully_resolved_skus_by_country come straight off
 // the protocol envelope).
-export type EnrichedAuditRun = AuditRun & {
+export type EnrichedAuditRun = Omit<AuditRun, 'template_name'> & {
   template_name?: string;
 };
 

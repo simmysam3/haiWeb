@@ -178,6 +178,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     inbound_obligation:
       'A counterparty is asking you to fulfill a SKU-level compliance obligation.',
   },
+  // v1.44 Phantom Demand — BOM feasibility verdict for a phantom-demand probe
+  // run. Synthesised server-side from worst-case lead-time analysis.
+  pd_verdict: {
+    'on-time': 'Worst-case lead time meets the target date.',
+    marginal: 'Lead time is close to the target date — review the detail.',
+    wall: 'At least one line is blocked (no bilateral access, depth cap, or declined).',
+    infeasible: 'Lead time exceeds the target date even on the best path.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -227,6 +235,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   if (category === 'request-type') {
     if (v === 'inbound_obligation') return 'warn';
     if (v === 'inbound_nomination' || v === 'outbound_nomination') return 'info';
+  }
+  // v1.44 pd_verdict tones: on-time = green, marginal = amber, wall/infeasible = red
+  if (category === 'pd_verdict') {
+    if (v === 'on-time') return 'success';
+    if (v === 'marginal') return 'warn';
+    if (v === 'wall' || v === 'infeasible') return 'problem';
   }
   return 'neutral';
 }
