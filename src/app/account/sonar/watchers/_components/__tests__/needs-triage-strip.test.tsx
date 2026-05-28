@@ -1,8 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { mutate } from 'swr';
 import { NeedsTriageStrip } from '../needs-triage-strip';
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Purge the SWR global cache so a previous test's cached response cannot
+  // bleed into the next one.  Without this, the "empty alerts" test fills
+  // the cache for the triage-alerts key and the second test never sees its
+  // non-empty fetch mock (SWR serves the stale value immediately).
+  await mutate(() => true, undefined, { revalidate: false });
   global.fetch = vi.fn();
 });
 
