@@ -121,7 +121,7 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
       partial: 0,
       total: 10,
     });
-    // Phantom demand now returns null (handled by separate phantom-demand-aggregate endpoint)
+    // Phantom demand now returns null (v1.44 refined-PD: no per-partner PD aggregate)
     expect(a.phantom_demand).toBeNull();
     expect(a.watcher.capacity_band).toBe('high');
     expect(a.watcher.lead_time_p90_days).toBe(14);
@@ -284,9 +284,9 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     );
   });
 
-  it('phantom-demand always returns empty (handled by separate endpoint)', async () => {
+  it('phantom-demand always returns empty (v1.44 refined-PD: no per-partner aggregate)', async () => {
     // Refined PD: cross-modality no longer loads per-partner PD data.
-    // Dashboard has a separate phantom-demand-aggregate endpoint.
+    // phantom-demand-aggregate endpoint deleted in v1.44.
     // All partners will have phantom_demand: null regardless of mock state.
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),

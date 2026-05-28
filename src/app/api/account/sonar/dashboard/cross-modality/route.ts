@@ -55,9 +55,9 @@ async function loadPhantomDemand(client: {
   byPartner: Map<string, { response_rate: number; window_id: string; name: string | null }>;
   degraded: boolean;
 }> {
-  // Refined PD (v1.44): legacy /reports endpoints deleted. Per-partner PD data no longer
-  // aggregated centrally. Cross-modality will only show audit + watcher; dashboard has its
-  // own phantom-demand-aggregate endpoint for PD summary card. Return empty set gracefully.
+  // Refined PD (v1.44): legacy /reports endpoints + phantom-demand-aggregate
+  // endpoint deleted. Per-partner PD data no longer aggregated centrally.
+  // Cross-modality shows audit + watcher only. Return empty set gracefully.
   return { byPartner: new Map(), degraded: false };
 }
 

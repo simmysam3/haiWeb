@@ -1,10 +1,6 @@
 'use client';
 
-import useSWR from 'swr';
-import { jsonFetcher } from '@/lib/swr-fetcher';
-import type { PhantomDemandAggregate } from '@haiwave/protocol';
 import { AuditPostureCard } from './audit-posture-card';
-import { PhantomDemandCard } from './phantom-demand-card';
 import { WatcherSignalsCard } from './watcher-signals-card';
 
 interface Partner {
@@ -18,7 +14,9 @@ interface Props {
 }
 
 export function ModalityLens({ partners }: Props) {
-  // Audit + Watcher: still derived from the cross-modality partners prop.
+  // Audit + Watcher: derived from the cross-modality partners prop.
+  // Phantom Demand card removed in v1.44 refined-PD — no per-counterparty
+  // aggregate exists; PD is now a buyer-graph traversal, not a broadcast.
   let totalCompliant = 0;
   let totalNonCompliant = 0;
   let totalPartial = 0;
@@ -43,24 +41,9 @@ export function ModalityLens({ partners }: Props) {
     ? [...leadTimes].sort((a, b) => a - b)[Math.floor(leadTimes.length / 2)]
     : null;
 
-  // Phantom Demand: v1.30 §7.7 — sourced from the new aggregate BFF route,
-  // not from the cross-modality partners table.
-  const { data: pdAggregate } = useSWR<PhantomDemandAggregate>(
-    '/api/account/sonar/dashboard/phantom-demand-aggregate?window=7d',
-    jsonFetcher,
-  );
-
-  const pdRows = pdAggregate?.rows ?? [];
-  const pdPartnerCount = pdRows.length;
-  const averageResponseRate =
-    pdPartnerCount > 0
-      ? pdRows.reduce((sum, r) => sum + r.response_rate, 0) / pdPartnerCount
-      : null;
-
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <AuditPostureCard totalCompliant={totalCompliant} totalNonCompliant={totalNonCompliant} totalPartial={totalPartial} />
-      <PhantomDemandCard averageResponseRate={averageResponseRate} partnerCount={pdPartnerCount} />
       <WatcherSignalsCard capacityBandCounts={bandCounts} medianLeadTimeP90={medianLeadTimeP90} />
     </div>
   );
