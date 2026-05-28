@@ -519,7 +519,7 @@ export interface HaiwaveClient {
   }): Promise<{ runId: string }>;
   // ─── v1.44 — Agent config (scaffold; haiCore route pending) ─────────────
   getAgentConfig(agentId: string): Promise<AgentConfig>;
-  putAgentConfig(
+  patchAgentConfig(
     agentId: string,
     patch: Partial<Omit<AgentConfig, 'agent_id'>>,
   ): Promise<AgentConfig>;
@@ -1418,15 +1418,15 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       qs.set('observation_class', 'phantom_demand');
       if (opts.enabled !== undefined) qs.set('enabled', String(opts.enabled));
       if (opts.limit !== undefined) qs.set('limit', String(opts.limit));
-      return request<RunTemplate[]>('GET', `/sonar/run-templates?${qs.toString()}`);
+      return request<RunTemplate[]>('GET', `/sonar/templates?${qs.toString()}`);
     },
 
     // ─── v1.44 — Agent config (scaffold; haiCore route pending) ──────────
     getAgentConfig(agentId: string) {
       return request<AgentConfig>('GET', `/agents/${encodeURIComponent(agentId)}/config`);
     },
-    putAgentConfig(agentId: string, patch: Partial<Omit<AgentConfig, 'agent_id'>>) {
-      return request<AgentConfig>('PUT', `/agents/${encodeURIComponent(agentId)}/config`, patch);
+    patchAgentConfig(agentId: string, patch: Partial<Omit<AgentConfig, 'agent_id'>>) {
+      return request<AgentConfig>('PATCH', `/agents/${encodeURIComponent(agentId)}/config`, patch);
     },
 
     // ─── v1.29 Phase 3 Batch 3a: Run Templates ─────────────────────

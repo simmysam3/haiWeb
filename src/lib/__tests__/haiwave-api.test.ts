@@ -204,11 +204,11 @@ describe('HaiwaveClient PD methods (v1.30)', () => {
     expect(JSON.parse(init.body as string)).toEqual(body);
   });
 
-  it('listPhantomDemandTemplates GETs /sonar/run-templates with observation_class=phantom_demand', async () => {
+  it('listPhantomDemandTemplates GETs /sonar/templates with observation_class=phantom_demand', async () => {
     const fetchMock = mockFetchOnce([]);
     await client.listPhantomDemandTemplates({ enabled: true, limit: 10 });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toContain('/sonar/run-templates');
+    expect(String(url)).toContain('/sonar/templates');
     expect(String(url)).toContain('observation_class=phantom_demand');
     expect(String(url)).toContain('enabled=true');
     expect(String(url)).toContain('limit=10');
@@ -225,14 +225,14 @@ describe('HaiwaveClient PD methods (v1.30)', () => {
     expect(init.method).toBe('GET');
   });
 
-  it('putAgentConfig PUTs to /agents/:agentId/config with patch body', async () => {
+  it('patchAgentConfig PATCHes to /agents/:agentId/config with patch body', async () => {
     const payload = { agent_id: 'ag-1', sku_picker_scope: 'full_catalog', mes_enabled: false, mes_config: null };
     const fetchMock = mockFetchOnce(payload);
-    const res = await client.putAgentConfig('ag-1', { sku_picker_scope: 'full_catalog' });
+    const res = await client.patchAgentConfig('ag-1', { sku_picker_scope: 'full_catalog' });
     expect(res.sku_picker_scope).toBe('full_catalog');
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toMatch(/\/agents\/ag-1\/config$/);
-    expect(init.method).toBe('PUT');
+    expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body as string)).toEqual({ sku_picker_scope: 'full_catalog' });
   });
 });
