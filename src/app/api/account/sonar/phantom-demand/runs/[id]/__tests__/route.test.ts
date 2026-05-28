@@ -59,11 +59,44 @@ describe('PD run BFF routes ([id], [id]/status, [id]/cancel)', () => {
       expect(getPhantomDemandRun).not.toHaveBeenCalled();
     });
 
-    it('returns the run detail + results envelope from the client', async () => {
+    it('returns the {run, tree} envelope from the client when tree is present', async () => {
+      const NOW = '2026-05-28T00:00:00.000Z';
       const payload = {
-        run_id: RUN_ID,
-        status: 'complete',
-        results: [{ result_id: 'res-1', sku_id: 'sku-1' }],
+        run: {
+          run_id: RUN_ID,
+          initiator_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          template_id: null,
+          run_origin: 'ad_hoc',
+          authorization_basis: 'bilateral',
+          status: 'complete',
+          scope_snapshot: {},
+          hop_budget: 3,
+          hops_consumed: 2,
+          throttled_at: null,
+          first_throttle_notified_at: null,
+          resumption_count: 0,
+          last_position: null,
+          cancel_requested_at: null,
+          cancelled_at: null,
+          started_at: NOW,
+          completed_at: NOW,
+          triggered_by_user_id: null,
+          created_at: NOW,
+          updated_at: NOW,
+        },
+        tree: {
+          line_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          component_sku: 'HC-9000',
+          component_label: 'Main Assembly',
+          qty_per_parent_unit: 1,
+          qty_required_total: 10,
+          source: 'vendor_stock',
+          on_hand_qty: 50,
+          vendor_block: null,
+          internal_block: null,
+          wall_block: null,
+          subcomponents: [],
+        },
       };
       getPhantomDemandRun.mockResolvedValueOnce(payload);
       const res = await getRun(new NextRequest(detailUrl), {
@@ -71,7 +104,48 @@ describe('PD run BFF routes ([id], [id]/status, [id]/cancel)', () => {
       });
       expect(res.status).toBe(200);
       expect(getPhantomDemandRun).toHaveBeenCalledWith(RUN_ID);
-      expect(await res.json()).toEqual(payload);
+      const body = await res.json();
+      expect(body.run.run_id).toBe(RUN_ID);
+      expect(body.tree.component_sku).toBe('HC-9000');
+      expect(body).toEqual(payload);
+    });
+
+    it('passes tree: null through for queued/running runs', async () => {
+      const NOW = '2026-05-28T00:00:00.000Z';
+      const payload = {
+        run: {
+          run_id: RUN_ID,
+          initiator_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          template_id: null,
+          run_origin: 'ad_hoc',
+          authorization_basis: 'bilateral',
+          status: 'running',
+          scope_snapshot: {},
+          hop_budget: 3,
+          hops_consumed: 0,
+          throttled_at: null,
+          first_throttle_notified_at: null,
+          resumption_count: 0,
+          last_position: null,
+          cancel_requested_at: null,
+          cancelled_at: null,
+          started_at: NOW,
+          completed_at: null,
+          triggered_by_user_id: null,
+          created_at: NOW,
+          updated_at: NOW,
+        },
+        tree: null,
+      };
+      getPhantomDemandRun.mockResolvedValueOnce(payload);
+      const res = await getRun(new NextRequest(detailUrl), {
+        params: Promise.resolve({ id: RUN_ID }),
+      });
+      expect(res.status).toBe(200);
+      expect(getPhantomDemandRun).toHaveBeenCalledWith(RUN_ID);
+      const body = await res.json();
+      expect(body.run.status).toBe('running');
+      expect(body.tree).toBeNull();
     });
 
     it('forwards a 404 verbatim from haiCore', async () => {
