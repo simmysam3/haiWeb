@@ -141,10 +141,6 @@ function signalRow(r: WatcherResult | undefined): {
 export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const [query, setQuery] = useState('');
   const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
-  // Products are open by default once their vendor is expanded — the user
-  // shouldn't have to click every product to see lead-time/capacity detail.
-  // This set tracks the products the user has *explicitly collapsed*.
-  const [productCollapsed, setProductCollapsed] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
     const byKey = new Map<string, CounterpartyGroup>();
@@ -228,14 +224,6 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
     });
   }
 
-  function toggleProduct(key: string) {
-    setProductCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-3">
@@ -293,9 +281,8 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 </span>
               </button>
               {isVendorOpen && (
-                <ul className="mt-3 ml-4 divide-y divide-slate-100">
+                <ul className="mt-1.5 ml-4 divide-y divide-slate-100">
                   {g.productSubGroups.map((sub) => {
-                    const isProductOpen = !productCollapsed.has(sub.key);
                     const cap = sub.results.find(
                       (r) => r.signal_type === 'capacity_utilization_band',
                     );
@@ -311,53 +298,47 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                       'quoted_lead_time',
                     );
                     const calibrated = extractCalibrated(sub.results);
+                    // Products are always shown under an expanded vendor — the
+                    // company row is the only collapse level. Each product is a
+                    // compact label followed by its three signal panels laid out
+                    // in columns to keep the row dense.
                     return (
-                      <li key={sub.key} className="py-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleProduct(sub.key)}
-                          aria-expanded={isProductOpen}
-                          className="group flex w-full items-center gap-3 text-left"
-                        >
-                          <span className="text-charcoal">{sub.productName}</span>
-                          <span className="ml-auto">
-                            <DetailChevron expanded={isProductOpen} />
-                          </span>
-                        </button>
-                        {isProductOpen && (
-                          <div className="mt-2 space-y-3 border-t border-slate-100 pt-2 pl-2">
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Lead time
-                              </h4>
-                              <LeadTimeTriplet
-                                published={published}
-                                quoted={quoted}
-                                calibrated={calibrated}
-                              />
-                            </div>
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Available capacity
-                              </h4>
-                              <CapacityBandPanel
-                                {...(signalRow(cap) as Parameters<
-                                  typeof CapacityBandPanel
-                                >[0])}
-                              />
-                            </div>
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Delivery events
-                              </h4>
-                              <DeliveryEventLog
-                                {...(signalRow(del) as Parameters<
-                                  typeof DeliveryEventLog
-                                >[0])}
-                              />
-                            </div>
+                      <li key={sub.key} className="py-1.5">
+                        <div className="text-sm font-medium text-charcoal">
+                          {sub.productName}
+                        </div>
+                        <div className="mt-1 grid gap-x-6 gap-y-1.5 md:grid-cols-3">
+                          <div>
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                              Lead time
+                            </h4>
+                            <LeadTimeTriplet
+                              published={published}
+                              quoted={quoted}
+                              calibrated={calibrated}
+                            />
                           </div>
-                        )}
+                          <div>
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                              Available capacity
+                            </h4>
+                            <CapacityBandPanel
+                              {...(signalRow(cap) as Parameters<
+                                typeof CapacityBandPanel
+                              >[0])}
+                            />
+                          </div>
+                          <div>
+                            <h4 className="mb-0.5 text-[10px] uppercase tracking-wider text-slate">
+                              Delivery events
+                            </h4>
+                            <DeliveryEventLog
+                              {...(signalRow(del) as Parameters<
+                                typeof DeliveryEventLog
+                              >[0])}
+                            />
+                          </div>
+                        </div>
                       </li>
                     );
                   })}
