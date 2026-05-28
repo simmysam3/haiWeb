@@ -25,7 +25,10 @@ function deltaChip(value: number, baseline: number): string {
   return `${arrow} ${pct > 0 ? '+' : ''}${Math.round(pct)}%`;
 }
 
-const FIELD_LABEL = 'text-[10px] uppercase tracking-wider text-teal-dark font-semibold';
+// Sub-row field labels (Published / Quoted / Calibrated p50 / Not shared) sit
+// under the teal section header (Lead time), so they're a darker gray rather
+// than teal — subordinate to, not competing with, their parent heading.
+const FIELD_LABEL = 'text-[10px] uppercase tracking-wider text-slate-600 font-semibold';
 
 function NotShared({ label }: { label: string }) {
   return (
