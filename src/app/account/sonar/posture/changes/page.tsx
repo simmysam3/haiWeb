@@ -2,7 +2,6 @@ import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
-import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -22,7 +21,6 @@ interface SearchParams {
   from?: string;
   to?: string;
   page?: string;
-  severity?: string;
   processed?: string;
 }
 
@@ -50,25 +48,12 @@ async function fetchChanges(searchParams: SearchParams, offset: number) {
   sp.set('limit', String(PAGE_SIZE));
   sp.set('offset', String(offset));
 
-  // `processed=true` is the v.1.42 "Showing: Processed" view-mode — it short-
-  // circuits the severity filter (the dropdown selection is mutually
-  // exclusive at the UI). Anything else falls through to the severity flow.
-  const isProcessedView = searchParams.processed === 'true';
-  if (isProcessedView) {
+  // v.1.45: severity filtering retired — the feed always returns every
+  // severity (haiCore returns all when `severity` is omitted). The only
+  // remaining view-mode is the Active ↔ Processed toggle: `processed=true`
+  // fetches already-actioned rows; otherwise the active backlog.
+  if (searchParams.processed === 'true') {
     sp.set('processed', 'true');
-  } else {
-    // Severity defaults to `critical` (v.1.41 "Showing" dropdown default).
-    // `all` collapses to no filter on the wire — haiCore returns every
-    // severity when severity is omitted. An unknown value falls back to the
-    // default so a stale URL never bypasses the filter silently.
-    const rawSeverity = searchParams.severity;
-    const severity =
-      rawSeverity && SEVERITY_VALUES.has(rawSeverity)
-        ? rawSeverity
-        : DEFAULT_SEVERITY;
-    if (severity !== 'all' && severity !== 'processed') {
-      sp.set('severity', severity);
-    }
   }
 
   return fetchBffJson<ComplianceChangeFeedResponse>(
@@ -94,7 +79,7 @@ export default async function ChangesPage({ searchParams }: PageProps) {
         actions={<RefreshButton />}
       />
       <PageIntro>
-        Lead-time drift events emitted by your scheduled watcher configurations: degradations when a vendor&apos;s lead time grows past the warning/critical threshold, improvements when it recovers. Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Default view shows critical-only — change the Showing dropdown to see warnings, info, or processed items. Process an event to record an outcome and drop it from the active backlog.
+        Lead-time drift events emitted by your scheduled watcher configurations: degradations when a vendor&apos;s lead time grows past the warning/critical threshold, improvements when it recovers. Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Every drift event is shown regardless of severity. Process an event to record an outcome and drop it from the active backlog — switch the Showing dropdown to <em>Processed</em> to review actioned items.
       </PageIntro>
 
       <FilterPills />
