@@ -18,10 +18,18 @@ interface Props {
 }
 
 const BANDS: Band[] = ['low', 'moderate', 'high', 'at_capacity'];
+// Underlying signal is capacity *utilization* (low utilization → lots of free
+// room). We surface it as *availability* so "Ample" reads unambiguously as
+// "plenty of room to take new work" — the buyer's actual question — rather
+// than "Low" being misread as "low capacity / can't take work".
+//   low utilization      → Ample availability
+//   moderate utilization → Moderate
+//   high utilization     → Limited
+//   at_capacity          → At capacity
 const BAND_LABEL: Record<Band, string> = {
-  low: 'Low',
+  low: 'Ample',
   moderate: 'Moderate',
-  high: 'High',
+  high: 'Limited',
   at_capacity: 'At capacity',
 };
 const BAND_STYLE: Record<Band, string> = {
@@ -42,8 +50,8 @@ export function CapacityBandPanel({ synthesisMode, payload }: Props) {
     return (
       <div className="space-y-2 text-sm">
         <div>
-          <span className="text-slate">modal band</span>{' '}
-          <span className="font-medium text-charcoal">{agg.modal_band}</span>
+          <span className="text-slate">typical availability</span>{' '}
+          <span className="font-medium text-charcoal">{BAND_LABEL[agg.modal_band]}</span>
         </div>
         <div className="flex h-3 overflow-hidden rounded border border-slate-200">
           {BANDS.map((b) => {
@@ -68,7 +76,7 @@ export function CapacityBandPanel({ synthesisMode, payload }: Props) {
     <div className="space-y-2 text-sm">
       <div
         className="flex h-7 overflow-hidden rounded border border-slate-200"
-        aria-label={`Current band: ${direct.band}`}
+        aria-label={`Current availability: ${BAND_LABEL[direct.band]}`}
       >
         {BANDS.map((b) => (
           <div
@@ -84,7 +92,8 @@ export function CapacityBandPanel({ synthesisMode, payload }: Props) {
         ))}
       </div>
       <p className="text-xs text-slate">
-        observed {new Date(direct.observed_at).toLocaleString()}
+        Ample = plenty of room to take new work; At capacity = effectively full.
+        Observed {new Date(direct.observed_at).toLocaleString()}.
       </p>
     </div>
   );

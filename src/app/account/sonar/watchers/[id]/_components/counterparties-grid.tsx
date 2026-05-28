@@ -141,7 +141,10 @@ function signalRow(r: WatcherResult | undefined): {
 export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const [query, setQuery] = useState('');
   const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
-  const [productExpanded, setProductExpanded] = useState<Set<string>>(new Set());
+  // Products are open by default once their vendor is expanded — the user
+  // shouldn't have to click every product to see lead-time/capacity detail.
+  // This set tracks the products the user has *explicitly collapsed*.
+  const [productCollapsed, setProductCollapsed] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
     const byKey = new Map<string, CounterpartyGroup>();
@@ -226,7 +229,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   }
 
   function toggleProduct(key: string) {
-    setProductExpanded((prev) => {
+    setProductCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -292,7 +295,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
               {isVendorOpen && (
                 <ul className="mt-3 ml-4 divide-y divide-slate-100">
                   {g.productSubGroups.map((sub) => {
-                    const isProductOpen = productExpanded.has(sub.key);
+                    const isProductOpen = !productCollapsed.has(sub.key);
                     const cap = sub.results.find(
                       (r) => r.signal_type === 'capacity_utilization_band',
                     );
@@ -335,7 +338,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                             </div>
                             <div>
                               <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Capacity
+                                Available capacity
                               </h4>
                               <CapacityBandPanel
                                 {...(signalRow(cap) as Parameters<

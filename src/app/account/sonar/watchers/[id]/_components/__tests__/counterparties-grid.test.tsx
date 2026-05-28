@@ -78,16 +78,18 @@ describe('<CounterpartiesGrid>', () => {
         ]}
       />,
     );
-    // Step 1: expand vendor row → reveals the product sub-list. Because the
-    // result carries external_product_id=null, the sub-item is the canonical
-    // vendor-aggregate placeholder.
+    // Expand the vendor row → reveals the product sub-list. Because the result
+    // carries external_product_id=null, the sub-item is the canonical
+    // vendor-aggregate placeholder. Products are open by default once the
+    // vendor expands, so the signal panels show immediately — no second click.
     await userEvent.click(screen.getByRole('button', { name: /Apex/i }));
     const productButton = await screen.findByRole('button', {
       name: /Vendor-aggregate/i,
     });
-    // Step 2: expand the product row → reveals the three signal panels.
-    await userEvent.click(productButton);
     expect(screen.getByText(/sample/i)).toBeInTheDocument();
+    // Clicking the product now collapses it (default-open → hidden).
+    await userEvent.click(productButton);
+    expect(screen.queryByText(/sample/i)).toBeNull();
   });
 
   it('search input filters counterparties by name', async () => {
@@ -144,8 +146,9 @@ describe('<CounterpartiesGrid>', () => {
       await screen.findByRole('button', { name: /Widget A/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Widget B/i })).toBeInTheDocument();
-    // Expanding a product reveals the LeadTimeTriplet (Published panel shows days).
-    await userEvent.click(screen.getByRole('button', { name: /Widget A/i }));
+    // Products are open by default once the vendor expands, so the
+    // LeadTimeTriplet (Published panel shows days) is visible without an extra
+    // click.
     expect(screen.getByText('10d')).toBeInTheDocument();
   });
 });
