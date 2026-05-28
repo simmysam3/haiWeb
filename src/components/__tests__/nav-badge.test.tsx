@@ -14,18 +14,18 @@ describe('NavBadge', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('uses grey tone when oldestAgeDays < 3', () => {
-    const { container } = render(<NavBadge count={2} oldestAgeDays={2} />);
-    expect(container.firstChild).toHaveClass('bg-slate-500');
+  it('always uses the brand orange tone regardless of age', () => {
+    for (const age of [1, 5, 11, null]) {
+      const { container } = render(<NavBadge count={3} oldestAgeDays={age} />);
+      expect(container.firstChild).toHaveClass('bg-orange');
+      expect(container.firstChild).not.toHaveClass('bg-slate-500');
+      expect(container.firstChild).not.toHaveClass('bg-amber-500');
+      expect(container.firstChild).not.toHaveClass('bg-red-500');
+    }
   });
 
-  it('uses amber tone when oldestAgeDays in [3,10]', () => {
-    const { container } = render(<NavBadge count={3} oldestAgeDays={5} />);
-    expect(container.firstChild).toHaveClass('bg-amber-500');
-  });
-
-  it('uses red tone when oldestAgeDays > 10', () => {
-    const { container } = render(<NavBadge count={3} oldestAgeDays={11} />);
-    expect(container.firstChild).toHaveClass('bg-red-500');
+  it('renders without the optional oldestAgeDays prop', () => {
+    render(<NavBadge count={4} />);
+    expect(screen.getByText('4')).toBeInTheDocument();
   });
 });
