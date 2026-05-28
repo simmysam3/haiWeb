@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import type { RunTemplate } from '@/lib/haiwave-api';
+import type { RunTemplate } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations';
 

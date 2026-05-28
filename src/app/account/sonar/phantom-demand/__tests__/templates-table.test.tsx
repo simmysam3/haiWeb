@@ -19,7 +19,7 @@ const fakeTpl = {
   weeks_to_hold: 1,
   created_at: '2026-05-28T00:00:00Z',
   updated_at: '2026-05-28T00:00:00Z',
-} as unknown as import('@/lib/haiwave-api').RunTemplate;
+} as unknown as import('@haiwave/protocol').RunTemplate;
 
 describe('TemplatesTable', () => {
   it('renders empty state', () => {
