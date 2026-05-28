@@ -8,6 +8,7 @@ import {
   WeeksToHoldDropdown,
 } from '@/components/sonar/phantom-demand';
 import { CounterpartyPicker } from './counterparty-picker';
+import { CatalogClassBrowser } from './catalog-class-browser';
 
 // v.1.44 refined-PD: operates on the new BOM template scope shape.
 // v.1.45: adds the catalog-source radio — the SKU can be picked from the
@@ -145,9 +146,29 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
           placeholder={
             source.kind === 'counterparty' && !counterpartyId
               ? 'Select a trading partner first…'
-              : 'Type to search the catalog…'
+              : 'Search by product name or SKU…'
           }
         />
+        {source.kind === 'counterparty' && !counterpartyId ? (
+          <p className="mt-2 text-xs italic text-slate">
+            Select a trading partner to browse their catalog.
+          </p>
+        ) : (
+          <div className="mt-2">
+            <span className="block mb-1 text-xs uppercase tracking-wide text-slate">
+              Or browse by product class
+            </span>
+            <CatalogClassBrowser
+              catalog={
+                source.kind === 'counterparty'
+                  ? { kind: 'counterparty', counterpartyId }
+                  : { kind: 'own' }
+              }
+              selectedSku={value.sku}
+              onSelect={(sku) => onChange({ ...value, sku })}
+            />
+          </div>
+        )}
       </div>
 
       <label className="block text-sm text-charcoal">

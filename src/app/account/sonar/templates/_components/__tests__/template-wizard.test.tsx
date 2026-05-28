@@ -21,7 +21,12 @@ describe('TemplateWizard', () => {
     await userEvent.click(
       screen.getByRole('button', { name: /create configuration/i }),
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+    // The catalog browser fetches on mount, so assert specifically that the
+    // template POST was not made (rather than "fetch never called").
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/account/sonar/templates',
+      expect.anything(),
+    );
     expect(screen.getByText(/name is required/i)).toBeInTheDocument();
   });
 
