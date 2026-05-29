@@ -84,4 +84,24 @@ describe('PhantomDemandQueue', () => {
       );
     });
   });
+
+  it('clears a config’s runs via the trash action (only when it has runs)', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(QUEUE));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderQueue();
+
+    await screen.findByText('HC-9000 spot');
+    // Only the config with a run (t-own) shows the trash; the never-run one doesn't.
+    const trash = screen.getAllByRole('button', { name: /clear run history/i });
+    expect(trash).toHaveLength(1);
+
+    fireEvent.click(trash[0]);
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/account/sonar/phantom-demand/runs?template_id=t-own',
+        { method: 'DELETE' },
+      );
+    });
+  });
 });

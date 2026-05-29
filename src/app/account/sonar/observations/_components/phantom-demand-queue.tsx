@@ -27,6 +27,25 @@ interface QueueResponse {
 
 const NEW_HREF = '/account/sonar/templates/new?observation_class=phantom_demand';
 
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 const IN_FLIGHT = new Set(['running', 'in_progress', 'pending', 'queued', 'throttled']);
 const COMPLETED = new Set(['complete', 'completed', 'succeeded']);
 
@@ -66,7 +85,35 @@ export function PhantomDemandQueue() {
     },
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  async function clearRuns(templateId: string) {
+    if (
+      !confirm(
+        'Clear all runs for this request? Phantom-demand runs are transitory — the config is kept.',
+      )
+    ) {
+      return;
+    }
+    setClearingId(templateId);
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/account/sonar/phantom-demand/runs?template_id=${encodeURIComponent(templateId)}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        setActionError('Could not clear the run history. Please try again.');
+        return;
+      }
+      await mutate();
+    } catch {
+      setActionError('Network error — could not clear the run history.');
+    } finally {
+      setClearingId(null);
+    }
+  }
 
   async function rerun(templateId: string) {
     setBusyId(templateId);
@@ -246,6 +293,18 @@ export function PhantomDemandQueue() {
                         >
                           Output ›
                         </span>
+                      )}
+                      {lr && (
+                        <button
+                          type="button"
+                          onClick={() => clearRuns(c.template_id)}
+                          disabled={clearingId === c.template_id}
+                          aria-label="Clear run history"
+                          title="Clear run history — PD runs are transitory; the config is kept"
+                          className="text-slate hover:text-rose-600 disabled:opacity-50"
+                        >
+                          <TrashIcon />
+                        </button>
                       )}
                     </div>
                   </td>

@@ -512,6 +512,7 @@ export interface HaiwaveClient {
   getPhantomDemandRun(runId: string): Promise<PhantomDemandRunDetail>;
   getPhantomDemandRunStatus(runId: string): Promise<{ status: string; cancel_requested_at: string | null }>;
   cancelPhantomDemandRun(runId: string): Promise<{ ok: true }>;
+  deletePhantomDemandRunsForTemplate(templateId: string): Promise<{ deleted: number }>;
   triggerPhantomDemand(body: {
     template_id: string;
     qty_override?: number | null;
@@ -1399,6 +1400,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'POST',
         `/sonar/phantom-demand/runs/${runId}/cancel`,
         {},
+      );
+    },
+    deletePhantomDemandRunsForTemplate(templateId: string) {
+      const qs = new URLSearchParams({ template_id: templateId });
+      return request<{ deleted: number }>(
+        'DELETE',
+        `/sonar/phantom-demand/runs?${qs.toString()}`,
       );
     },
     async triggerPhantomDemand(body: {

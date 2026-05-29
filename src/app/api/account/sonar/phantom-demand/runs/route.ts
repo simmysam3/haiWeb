@@ -39,3 +39,18 @@ export const POST = withHaiCore(async ({ client, request }) => {
   const result = await client.triggerPhantomDemand(parsed.data);
   return NextResponse.json(result, { status: 202 });
 });
+
+// DELETE /api/account/sonar/phantom-demand/runs?template_id=… — clear a
+// config's run history (PD runs are transitory). Proxies to haiCore, which
+// scopes the delete to the caller and cascades BOM snapshots via FK.
+export const DELETE = withHaiCore(async ({ client, request }) => {
+  const templateId = new URL(request.url).searchParams.get('template_id');
+  if (!templateId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION_ERROR', message: 'template_id is required' } },
+      { status: 400 },
+    );
+  }
+  const result = await client.deletePhantomDemandRunsForTemplate(templateId);
+  return NextResponse.json(result);
+});
