@@ -1418,7 +1418,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       qs.set('observation_class', 'phantom_demand');
       if (opts.enabled !== undefined) qs.set('enabled', String(opts.enabled));
       if (opts.limit !== undefined) qs.set('limit', String(opts.limit));
-      return request<RunTemplate[]>('GET', `/sonar/templates?${qs.toString()}`);
+      // haiCore GET /sonar/templates responds { templates: [...] } — unwrap so
+      // the declared RunTemplate[] contract holds for callers (e.g. the queue).
+      return request<{ templates: RunTemplate[] }>(
+        'GET',
+        `/sonar/templates?${qs.toString()}`,
+      ).then((r) => r.templates ?? []);
     },
 
     // ─── v1.44 — Agent config (scaffold; haiCore route pending) ──────────
