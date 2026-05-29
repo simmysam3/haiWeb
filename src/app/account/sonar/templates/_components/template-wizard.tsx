@@ -127,7 +127,18 @@ export function TemplateWizard() {
         );
         return;
       }
-      router.push(`/account/sonar/templates/${newId}`);
+      // v.1.45 — fire the first run, then land on the Phantom Demand queue
+      // where it can be watched (queued → running → completed). A trigger
+      // hiccup doesn't block navigation: the config exists and is runnable
+      // from the queue.
+      try {
+        await fetch(`/api/account/sonar/templates/${newId}/trigger`, {
+          method: 'POST',
+        });
+      } catch {
+        /* ignore — the queue will show the config as "never run". */
+      }
+      router.push('/account/sonar/observations');
     } catch {
       setError('Network error — could not reach the server. Please try again.');
     } finally {
