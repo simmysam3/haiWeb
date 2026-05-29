@@ -12,9 +12,9 @@ export default async function Page({
 }) {
   const { id } = params instanceof Promise ? await params : params;
 
+  const client = await getServerHaiwaveClient();
   let detail: PhantomDemandRunDetail;
   try {
-    const client = await getServerHaiwaveClient();
     detail = await client.getPhantomDemandRun(id);
   } catch (err) {
     if ((err as { status?: number }).status === 404) notFound();
@@ -22,12 +22,23 @@ export default async function Page({
     throw err;
   }
 
+  // Title = the named Phantom Demand request + short run id. Falls back to the
+  // run id alone for ad-hoc runs (no template) or if the request was deleted.
+  const shortId = id.slice(0, 8);
+  let requestName: string | null = null;
+  if (detail.run.template_id) {
+    try {
+      const { template } = await client.getRunTemplate(detail.run.template_id);
+      requestName = template.template_name;
+    } catch {
+      // request unavailable (deleted, etc.) — fall back to the run id alone
+    }
+  }
+  const title = requestName ? `${requestName} · ${shortId}` : `Run ${shortId}`;
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        eyebrow="Phantom Demand"
-        title={`Run ${id.slice(0, 8)}`}
-      />
+      <PageHeader eyebrow="Phantom Demand" title={title} />
       <SpotCheckBanner capturedAt={detail.run.completed_at ?? detail.run.created_at} />
       <RunDetailShell initialDetail={detail} />
     </div>
