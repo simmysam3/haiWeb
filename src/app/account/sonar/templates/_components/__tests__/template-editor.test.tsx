@@ -4,13 +4,15 @@ import userEvent from '@testing-library/user-event';
 import type { RunTemplate } from '@haiwave/protocol';
 import { TemplateEditor } from '../template-editor';
 
+const push = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, refresh: vi.fn() }),
 }));
 
 const fetchMock = vi.fn();
 beforeEach(() => {
   fetchMock.mockReset();
+  push.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
 
@@ -79,6 +81,19 @@ describe('TemplateEditor', () => {
       <TemplateEditor template={{ ...template, template_name: 'daily-auditZ' }} />,
     );
     expect(screen.queryByRole('button', { name: /save changes/i })).toBeNull();
+  });
+
+  it('redirects to the config modality home (not the class-less default) after delete', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    render(<TemplateEditor template={template} />);
+    await userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/account/sonar/templates/abc');
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe('DELETE');
+    // audit template → dispatcher routed by class, not the watcher default.
+    expect(push).toHaveBeenCalledWith(
+      '/account/sonar/templates?observation_class=audit',
+    );
   });
 
   it('shows an error and keeps the save bar when PATCH fails', async () => {

@@ -107,7 +107,12 @@ export function TemplateEditor({ template }: { template: RunTemplate }) {
         setSessionExpired(info.sessionExpired);
         return;
       }
-      router.push('/account/sonar/templates');
+      // Return to this config's modality home (PD → /observations,
+      // audit → /audit, watcher → /watchers) via the dispatcher, rather than
+      // the class-less default which always lands on watchers.
+      router.push(
+        `/account/sonar/templates?observation_class=${template.observation_class}`,
+      );
     } catch {
       setError('Network error — could not reach the server. Please try again.');
     } finally {
