@@ -43,11 +43,19 @@ export const GET = withHaiCore(async ({ client }) => {
     }
   }
 
-  const configs: QueueConfig[] = templates.map((t) => {
+  // Defensive: the queue must only ever show phantom-demand configs. We pass
+  // observation_class=phantom_demand to haiCore, but filter here too so a
+  // watcher/audit template can never leak into the PD queue regardless of
+  // server-side filtering.
+  const pdTemplates = templates.filter(
+    (t) => t.observation_class === 'phantom_demand',
+  );
+
+  const rows = pdTemplates.map((t) => {
     const scope = (t.scope ?? {}) as PdBomScopeShape;
     const isCounterparty = scope.catalog_source?.kind === 'counterparty';
     const lr = latestByTemplate.get(t.template_id);
-    return {
+    const config: QueueConfig = {
       template_id: t.template_id,
       template_name: t.template_name,
       sku: typeof scope.sku === 'string' ? scope.sku : null,
@@ -65,7 +73,14 @@ export const GET = withHaiCore(async ({ client }) => {
           }
         : null,
     };
+    // Sort by latest run time, falling back to the config's own creation
+    // time when it has never run.
+    const sortTs = Date.parse(lr?.created_at ?? t.created_at) || 0;
+    return { config, sortTs };
   });
 
-  return NextResponse.json({ configs });
+  // Most-recent activity at the top, oldest at the bottom.
+  rows.sort((a, b) => b.sortTs - a.sortTs);
+
+  return NextResponse.json({ configs: rows.map((r) => r.config) });
 });
