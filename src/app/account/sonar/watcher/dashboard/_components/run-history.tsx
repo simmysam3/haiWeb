@@ -7,6 +7,29 @@ interface RunHistoryProps {
   runs: WatcherRun[];
   /** Called after a successful cancel so the parent can revalidate SWR. */
   onCancel: () => void;
+  /** Called after a successful delete so the parent can revalidate SWR. */
+  onDelete: () => void;
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
 }
 
 const STATUS_PILL_CLASSES: Record<WatcherRunStatus, string> = {
@@ -37,11 +60,14 @@ function formatTime(value: string | null): string {
  * cancelled / failed). On non-OK response the runId is cleared from the
  * set and an inline error is rendered for that row.
  */
-export function RunHistory({ runs, onCancel }: RunHistoryProps) {
+export function RunHistory({ runs, onCancel, onDelete }: RunHistoryProps) {
   const [cancellingRunIds, setCancellingRunIds] = useState<Set<string>>(
     () => new Set(),
   );
   const [cancelErrors, setCancelErrors] = useState<Record<string, string>>({});
+  const [deletingRunIds, setDeletingRunIds] = useState<Set<string>>(() => new Set());
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // When SWR observes that a previously-cancelling run has left the
   // 'running' state, drop it from the local cancelling set. This keeps
@@ -100,6 +126,39 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
     }
   }
 
+  async function handleDelete(runId: string) {
+    setConfirmDeleteId(null);
+    setDeletingRunIds((prev) => new Set(prev).add(runId));
+    setDeleteErrors((prev) => {
+      if (!(runId in prev)) return prev;
+      const next = { ...prev };
+      delete next[runId];
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/account/sonar/watcher/runs/${runId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || `Delete failed: ${res.status}`);
+      }
+      onDelete();
+    } catch (err) {
+      console.error('[RunHistory] delete failed', { runId, err });
+      setDeletingRunIds((prev) => {
+        if (!prev.has(runId)) return prev;
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+      setDeleteErrors((prev) => ({
+        ...prev,
+        [runId]: err instanceof Error ? err.message : 'Delete failed',
+      }));
+    }
+  }
+
   if (runs.length === 0) {
     return (
       <p className="text-sm text-slate italic">
@@ -154,7 +213,7 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
                 <td className="px-4 py-2 text-charcoal">{formatTime(run.triggered_at)}</td>
                 <td className="px-4 py-2 text-charcoal">{formatTime(run.completed_at)}</td>
                 <td className="px-4 py-2">
-                  {run.status === 'running' && (
+                  {run.status === 'running' ? (
                     <div className="flex flex-col items-end gap-1">
                       <button
                         type="button"
@@ -167,6 +226,45 @@ export function RunHistory({ runs, onCancel }: RunHistoryProps) {
                       {cancelError && (
                         <span className="text-xs text-rose-600">
                           {cancelError}
+                        </span>
+                      )}
+                    </div>
+                  ) : confirmDeleteId === run.run_id ? (
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="text-xs text-slate">Delete?</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(run.run_id)}
+                        className="text-xs font-medium text-rose-600 hover:underline"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-xs text-slate hover:underline"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-end gap-1">
+                      {deletingRunIds.has(run.run_id) ? (
+                        <span className="text-xs italic text-slate">Deleting…</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(run.run_id)}
+                          aria-label="Delete run"
+                          title="Delete run"
+                          className="text-slate-400 transition-colors hover:text-rose-600"
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
+                      {deleteErrors[run.run_id] && (
+                        <span className="text-xs text-rose-600">
+                          {deleteErrors[run.run_id]}
                         </span>
                       )}
                     </div>

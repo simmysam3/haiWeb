@@ -31,7 +31,7 @@ const baseRun: WatcherRun = {
 
 describe('RunHistory', () => {
   it('renders an empty-state message when no runs exist', () => {
-    render(<RunHistory runs={[]} onCancel={() => {}} />);
+    render(<RunHistory runs={[]} onCancel={() => {}} onDelete={() => {}} />);
     expect(screen.getByText(/No runs yet/i)).toBeInTheDocument();
   });
 
@@ -40,7 +40,7 @@ describe('RunHistory', () => {
       { ...baseRun, status: 'complete', completed_at: '2026-04-29T10:05:00Z' },
       { ...baseRun, run_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', status: 'failed' },
     ];
-    const { container } = render(<RunHistory runs={runs} onCancel={() => {}} />);
+    const { container } = render(<RunHistory runs={runs} onCancel={() => {}} onDelete={() => {}} />);
     // Status pills carry capitalize + a status-specific class; use the
     // text content directly via container queries to disambiguate from
     // the "Completed" column header.
@@ -58,7 +58,7 @@ describe('RunHistory', () => {
     });
     const onCancel = vi.fn();
     const user = userEvent.setup();
-    render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
+    render(<RunHistory runs={[baseRun]} onCancel={onCancel} onDelete={() => {}} />);
 
     await user.click(screen.getByRole('button', { name: /Cancel/i }));
 
@@ -72,7 +72,7 @@ describe('RunHistory', () => {
   });
 
   it('does not show Cancel for non-running runs', () => {
-    render(<RunHistory runs={[{ ...baseRun, status: 'complete' }]} onCancel={() => {}} />);
+    render(<RunHistory runs={[{ ...baseRun, status: 'complete' }]} onCancel={() => {}} onDelete={() => {}} />);
     expect(screen.queryByRole('button', { name: /Cancel/i })).not.toBeInTheDocument();
   });
 
@@ -84,7 +84,7 @@ describe('RunHistory', () => {
     });
     const onCancel = vi.fn();
     const user = userEvent.setup();
-    const { rerender } = render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
+    const { rerender } = render(<RunHistory runs={[baseRun]} onCancel={onCancel} onDelete={() => {}} />);
 
     await user.click(screen.getByRole('button', { name: /Cancel/i }));
 
@@ -103,6 +103,7 @@ describe('RunHistory', () => {
       <RunHistory
         runs={[{ ...baseRun, status: 'cancelled', cancelled_at: '2026-04-29T10:01:00Z' }]}
         onCancel={onCancel}
+        onDelete={() => {}}
       />,
     );
     await waitFor(() => {
@@ -120,7 +121,7 @@ describe('RunHistory', () => {
     });
     const onCancel = vi.fn();
     const user = userEvent.setup();
-    render(<RunHistory runs={[baseRun]} onCancel={onCancel} />);
+    render(<RunHistory runs={[baseRun]} onCancel={onCancel} onDelete={() => {}} />);
 
     const button = screen.getByRole('button', { name: /Cancel/i });
     await user.click(button);
@@ -135,5 +136,34 @@ describe('RunHistory', () => {
     expect(screen.getByRole('button', { name: /Cancel/i })).not.toBeDisabled();
     // Status pill is still "running" (no Cancelling… mid-state).
     expect(screen.queryByText(/Cancelling…/)).not.toBeInTheDocument();
+  });
+
+  it('shows a trash button for terminal runs and DELETEs after inline confirm', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      text: () => Promise.resolve(''),
+      json: () => Promise.resolve({ deleted: true }),
+    });
+    const onDelete = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <RunHistory
+        runs={[{ ...baseRun, status: 'complete' }]}
+        onCancel={() => {}}
+        onDelete={onDelete}
+      />,
+    );
+
+    // Trash → inline "Delete?" confirm → Yes
+    await user.click(screen.getByRole('button', { name: /Delete run/i }));
+    await user.click(screen.getByRole('button', { name: /^Yes$/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/account/sonar/watcher/runs/${baseRun.run_id}`,
+        { method: 'DELETE' },
+      );
+      expect(onDelete).toHaveBeenCalled();
+    });
   });
 });

@@ -516,6 +516,7 @@ export interface HaiwaveClient {
   getWatcherRun(runId: string): Promise<{ run: WatcherRun; results: WatcherResult[] }>;
   getWatcherRunStatus(runId: string): Promise<{ status: WatcherRunStatus }>;
   cancelWatcherRun(runId: string): Promise<{ cancelled: boolean }>;
+  deleteWatcherRun(runId: string): Promise<{ deleted: boolean }>;
   listWatcherSubscriptions(): Promise<{ subscriptions: WatcherSignalSubscription[] }>;
   patchWatcherSubscription(
     id: string,
@@ -1401,6 +1402,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ cancelled: boolean }>(
         'POST',
         `/sonar/watcher/runs/${runId}/cancel`,
+      );
+    },
+
+    deleteWatcherRun(runId) {
+      return request<{ deleted: boolean }>(
+        'DELETE',
+        `/sonar/watcher/runs/${runId}`,
       );
     },
 
