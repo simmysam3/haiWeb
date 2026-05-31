@@ -40,6 +40,58 @@ describe('TreeView label taxonomy', () => {
   });
 });
 
+describe('TreeView compliance sliver tone', () => {
+  // The sliver only renders with complianceBar; its accessible meaning is the
+  // title attribute. We assert tone via that title text.
+  const GREEN = 'Source resolved — origin verified, no provenance gaps';
+  const AMBER = 'Partially resolved — origin not disclosed for this node';
+  const RED = 'Source not resolved — provenance gap on this node';
+
+  it('is green when origin resolved + direct', () => {
+    render(<TreeView node={node({})} complianceBar />);
+    expect(screen.getByTitle(GREEN)).toBeInTheDocument();
+  });
+
+  it('is green for an AGGREGATED node whose origin resolved (regression)', () => {
+    // The reported bug: a covered aggregated_derivative vendor (origin US-WA)
+    // painted amber. Disclosure method must not downgrade resolved coverage.
+    render(
+      <TreeView
+        node={node({ synthesis_mode: 'aggregated_derivative' })}
+        complianceBar
+      />,
+    );
+    expect(screen.getByTitle(GREEN)).toBeInTheDocument();
+  });
+
+  it('is amber when origin did not resolve to a real country', () => {
+    render(
+      <TreeView
+        node={node({
+          payload: {
+            kind: 'audit', product_id: null, disclosure_data: null, class_ids: [],
+            origin: { country_of_origin: '<unknown>', state_province: null, city: null,
+              plant_address: null, plant_identifier: null, vendor_name: null },
+            operational_status: { lead_time_meets: null, capacity: null, delivery_state: null },
+          } as ObservationNode['payload'],
+        })}
+        complianceBar
+      />,
+    );
+    expect(screen.getByTitle(AMBER)).toBeInTheDocument();
+  });
+
+  it('is red on a gap node', () => {
+    render(
+      <TreeView
+        node={node({ gap: { kind: 'unauthorized' } as ObservationNode['gap'] })}
+        complianceBar
+      />,
+    );
+    expect(screen.getByTitle(RED)).toBeInTheDocument();
+  });
+});
+
 describe('TreeView attestation/annotation overlay (v1.34 P8)', () => {
   const baseAuditNode = node({
     participant_id: '33333333-3333-3333-3333-333333333333',
