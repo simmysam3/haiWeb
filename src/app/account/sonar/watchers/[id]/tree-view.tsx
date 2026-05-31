@@ -42,13 +42,20 @@ const SYNTHESIS_LABEL: Record<SynthesisMode, string> = {
   redacted_gap: 'redacted',
 };
 
+// haiCore emits two distinct "country couldn't be resolved" sentinels on
+// OriginDisclosure.country_of_origin: 'XX' (source-audit-service /
+// audit-mcp-adapter / orchestrator — see "Use 'XX' as unknown sentinel") and
+// the older '<unknown>'. Treat BOTH (plus empty) as no-country so the UI never
+// prints a bogus "XX" and never scores an unresolved node as covered.
+function resolvedCountry(country: string | null | undefined): string | null {
+  if (!country || country === 'XX' || country === '<unknown>') return null;
+  return country;
+}
+
 function formatOrigin(audit: ReturnType<typeof auditPayload>): string | null {
   if (!audit) return null;
   const o = audit.origin;
-  const country =
-    !o.country_of_origin || o.country_of_origin === '<unknown>'
-      ? null
-      : o.country_of_origin;
+  const country = resolvedCountry(o.country_of_origin);
   const parts = [o.city, o.state_province, country].filter(
     (p): p is string => !!p && p.length > 0,
   );
@@ -96,38 +103,36 @@ function nodeDisplayName(
   return { label: 'Component', italic: true };
 }
 
-type ComplianceTone = 'green' | 'amber' | 'red';
+type ComplianceTone = 'green' | 'red';
 
 // Left status-bar tone for audit-run trees (only rendered when complianceBar
 // is set — the watcher tree shares this component but has no provenance
-// compliance semantics, so it opts out). The sliver tracks COVERAGE — whether
-// we resolved this node's origin — not the disclosure METHOD:
-//   red   — an explicit gap: the source/identity could not be resolved
-//   amber — no hard gap, but origin didn't resolve to a real country (unknown
-//           or fully withheld provenance) — still needs chasing
-//   green — no gap and origin resolved to a real country. Aggregated / derived
-//           rollups count as covered here: a node whose origin IS disclosed
-//           (e.g. Amphenol → US-WA, US) is green even though synthesis_mode is
+// compliance semantics, so it opts out). The sliver tracks COVERAGE of this
+// node's origin — it is intentionally binary:
+//   red   — a hard gap (the source/identity couldn't be resolved at all), OR
+//           the origin country is unresolved (null / '' / 'XX' / '<unknown>').
+//           A row with no real origin cannot be "covered", so it is red.
+//   green — origin resolved to a real country. Aggregated / derived rollups
+//           count as covered here: a node whose origin IS disclosed (e.g.
+//           Amphenol → US-WA, US) is green even though synthesis_mode is
 //           'aggregated_derivative'. The 'aggregated' header pill still flags
 //           that it's a rollup; the sliver shouldn't read as a problem when the
 //           provenance is actually present.
 function nodeComplianceTone(node: ObservationNode): ComplianceTone {
   if (node.gap) return 'red';
-  const country = auditPayload(node)?.origin.country_of_origin;
-  const originResolved = !!country && country !== '<unknown>';
-  return originResolved ? 'green' : 'amber';
+  return resolvedCountry(auditPayload(node)?.origin.country_of_origin)
+    ? 'green'
+    : 'red';
 }
 
 const COMPLIANCE_BAR_CLASS: Record<ComplianceTone, string> = {
   green: 'bg-green-300/40',
-  amber: 'bg-amber-300/40',
   red: 'bg-red-300/40',
 };
 
 const COMPLIANCE_BAR_TITLE: Record<ComplianceTone, string> = {
-  green: 'Source resolved — origin verified, no provenance gaps',
-  amber: 'Partially resolved — origin not disclosed for this node',
-  red: 'Source not resolved — provenance gap on this node',
+  green: 'Source resolved — origin verified for this node',
+  red: 'Not resolved — provenance gap or no origin disclosed for this node',
 };
 
 export function TreeView({

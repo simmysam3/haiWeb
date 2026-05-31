@@ -42,10 +42,22 @@ describe('TreeView label taxonomy', () => {
 
 describe('TreeView compliance sliver tone', () => {
   // The sliver only renders with complianceBar; its accessible meaning is the
-  // title attribute. We assert tone via that title text.
-  const GREEN = 'Source resolved — origin verified, no provenance gaps';
-  const AMBER = 'Partially resolved — origin not disclosed for this node';
-  const RED = 'Source not resolved — provenance gap on this node';
+  // title attribute. We assert tone via that title text. Binary by design:
+  // green = origin resolved, red = gap or no resolved origin.
+  const GREEN = 'Source resolved — origin verified for this node';
+  const RED =
+    'Not resolved — provenance gap or no origin disclosed for this node';
+
+  // Build a node with a specific country_of_origin sentinel.
+  const withCountry = (country: string): ObservationNode =>
+    node({
+      payload: {
+        kind: 'audit', product_id: null, disclosure_data: null, class_ids: [],
+        origin: { country_of_origin: country, state_province: null, city: null,
+          plant_address: null, plant_identifier: null, vendor_name: null },
+        operational_status: { lead_time_meets: null, capacity: null, delivery_state: null },
+      } as ObservationNode['payload'],
+    });
 
   it('is green when origin resolved + direct', () => {
     render(<TreeView node={node({})} complianceBar />);
@@ -53,8 +65,8 @@ describe('TreeView compliance sliver tone', () => {
   });
 
   it('is green for an AGGREGATED node whose origin resolved (regression)', () => {
-    // The reported bug: a covered aggregated_derivative vendor (origin US-WA)
-    // painted amber. Disclosure method must not downgrade resolved coverage.
+    // A covered aggregated_derivative vendor (origin US-WA) must stay green —
+    // disclosure method must not downgrade resolved coverage.
     render(
       <TreeView
         node={node({ synthesis_mode: 'aggregated_derivative' })}
@@ -64,21 +76,16 @@ describe('TreeView compliance sliver tone', () => {
     expect(screen.getByTitle(GREEN)).toBeInTheDocument();
   });
 
-  it('is amber when origin did not resolve to a real country', () => {
-    render(
-      <TreeView
-        node={node({
-          payload: {
-            kind: 'audit', product_id: null, disclosure_data: null, class_ids: [],
-            origin: { country_of_origin: '<unknown>', state_province: null, city: null,
-              plant_address: null, plant_identifier: null, vendor_name: null },
-            operational_status: { lead_time_meets: null, capacity: null, delivery_state: null },
-          } as ObservationNode['payload'],
-        })}
-        complianceBar
-      />,
-    );
-    expect(screen.getByTitle(AMBER)).toBeInTheDocument();
+  it("is RED when country is the 'XX' unknown sentinel (regression)", () => {
+    // The reported bug: a depth-3 node with Origin 'XX' rendered green. 'XX' is
+    // haiCore's unknown-country sentinel — no real origin → red.
+    render(<TreeView node={withCountry('XX')} complianceBar />);
+    expect(screen.getByTitle(RED)).toBeInTheDocument();
+  });
+
+  it("is RED for the legacy '<unknown>' sentinel too", () => {
+    render(<TreeView node={withCountry('<unknown>')} complianceBar />);
+    expect(screen.getByTitle(RED)).toBeInTheDocument();
   });
 
   it('is red on a gap node', () => {
