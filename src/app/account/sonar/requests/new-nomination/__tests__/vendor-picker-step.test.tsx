@@ -29,10 +29,16 @@ describe('VendorPickerStep', () => {
     expect(screen.getByText('Precision Bearings Co')).toBeInTheDocument();
   });
 
-  it('filters list by case-insensitive substring match on legal_name', async () => {
+  it('filters the Trading Pairs list by case-insensitive substring on company_name', async () => {
+    // v.1.45 (#97): the picker is now a two-section search (Trading Pairs +
+    // HaiWave Network). The Trading Pairs section is filtered client-side by
+    // company_name via the shared search box.
     render(<VendorPickerStep onAdvance={() => {}} />);
     await waitFor(() => screen.getByText('Apex Manufacturing'));
-    await userEvent.type(screen.getByPlaceholderText(/search vendors/i), 'great');
+    await userEvent.type(
+      screen.getByPlaceholderText(/search trading pairs and the haiwave network/i),
+      'great',
+    );
     expect(screen.queryByText('Apex Manufacturing')).not.toBeInTheDocument();
     expect(screen.getByText('Great Lakes Components')).toBeInTheDocument();
     expect(screen.queryByText('Precision Bearings Co')).not.toBeInTheDocument();
