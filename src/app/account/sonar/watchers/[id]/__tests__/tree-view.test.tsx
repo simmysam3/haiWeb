@@ -141,9 +141,12 @@ describe('TreeView compliance sliver tone', () => {
       components: [d2],
     });
     const { container } = render(<TreeView node={d1} depth={0} complianceBar />);
-    // d1 starts expanded (depth 0): its own bar is green.
+    // d1 starts expanded (depth 0): its own bar is green. The sliver lives
+    // inside d1's <summary> (so it survives collapse — see the component note),
+    // so target the summary's direct span[title], not the <details>'s.
     const d1Details = container.querySelector('details') as HTMLDetailsElement;
-    const d1Bar = () => d1Details.querySelector(':scope > span[title]') as HTMLElement;
+    const d1Bar = () =>
+      d1Details.querySelector(':scope > summary > span[title]') as HTMLElement;
     expect(d1Bar().getAttribute('title')).toBe(GREEN);
     // Collapse d1 → its bar must become worst-of-subtree = red. Wrap the native
     // <details> toggle in act() so React flushes the onToggle setOpen re-render

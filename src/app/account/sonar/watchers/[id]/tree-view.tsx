@@ -184,14 +184,22 @@ export function TreeView({
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
       className={complianceBar ? 'relative ml-3 my-1.5 pl-2.5' : 'ml-3 my-1.5'}
     >
-      {complianceBar && (
-        <span
-          aria-hidden="true"
-          title={COMPLIANCE_BAR_TITLE[tone]}
-          className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-full ${COMPLIANCE_BAR_CLASS[tone]}`}
-        />
-      )}
       <summary className="cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50 transition-colors">
+        {/* The sliver MUST live inside <summary>: a collapsed <details> hides
+            every direct child except its <summary>, so an absolute span placed
+            as a sibling of <summary> vanishes when collapsed (the reported
+            "have to expand to see the red bar" bug). Kept absolute + positioned
+            against the `relative` <details>, so it still spans the full subtree
+            height when expanded, but survives collapse because <summary> always
+            renders. (jsdom renders all children regardless of open, which is
+            why unit tests couldn't catch this — only a real browser hides it.) */}
+        {complianceBar && (
+          <span
+            aria-hidden="true"
+            title={COMPLIANCE_BAR_TITLE[tone]}
+            className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-full ${COMPLIANCE_BAR_CLASS[tone]}`}
+          />
+        )}
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <>
