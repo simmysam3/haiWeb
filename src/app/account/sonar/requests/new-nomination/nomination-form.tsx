@@ -90,7 +90,10 @@ export function NominationForm({ initialState }: { initialState: InitialState })
   }
 
   function onSubmitted() {
-    router.push('/account/sonar/observations?tab=audit');
+    // Land back on the Request Management queue the user started from — not the
+    // phantom-demand observations queue. A just-sent nomination is awaiting the
+    // counterparty's response, so the 'them' direction surfaces it.
+    router.push('/account/sonar/requests?direction=them');
   }
 
   return (

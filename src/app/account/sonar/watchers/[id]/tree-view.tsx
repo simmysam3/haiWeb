@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import type {
   ObservationNode,
   AuditGapKind,
@@ -42,13 +43,20 @@ const SYNTHESIS_LABEL: Record<SynthesisMode, string> = {
   redacted_gap: 'redacted',
 };
 
+// haiCore emits two distinct "country couldn't be resolved" sentinels on
+// OriginDisclosure.country_of_origin: 'XX' (source-audit-service /
+// audit-mcp-adapter / orchestrator — see "Use 'XX' as unknown sentinel") and
+// the older '<unknown>'. Treat BOTH (plus empty) as no-country so the UI never
+// prints a bogus "XX" and never scores an unresolved node as covered.
+function resolvedCountry(country: string | null | undefined): string | null {
+  if (!country || country === 'XX' || country === '<unknown>') return null;
+  return country;
+}
+
 function formatOrigin(audit: ReturnType<typeof auditPayload>): string | null {
   if (!audit) return null;
   const o = audit.origin;
-  const country =
-    !o.country_of_origin || o.country_of_origin === '<unknown>'
-      ? null
-      : o.country_of_origin;
+  const country = resolvedCountry(o.country_of_origin);
   const parts = [o.city, o.state_province, country].filter(
     (p): p is string => !!p && p.length > 0,
   );
@@ -96,16 +104,72 @@ function nodeDisplayName(
   return { label: 'Component', italic: true };
 }
 
+type ComplianceTone = 'green' | 'red';
+
+// Left status-bar tone for audit-run trees (only rendered when complianceBar
+// is set — the watcher tree shares this component but has no provenance
+// compliance semantics, so it opts out). The sliver tracks COVERAGE of this
+// node's origin — it is intentionally binary:
+//   red   — a hard gap (the source/identity couldn't be resolved at all), OR
+//           the origin country is unresolved (null / '' / 'XX' / '<unknown>').
+//           A row with no real origin cannot be "covered", so it is red.
+//   green — origin resolved to a real country. Aggregated / derived rollups
+//           count as covered here: a node whose origin IS disclosed (e.g.
+//           Amphenol → US-WA, US) is green even though synthesis_mode is
+//           'aggregated_derivative'. The 'aggregated' header pill still flags
+//           that it's a rollup; the sliver shouldn't read as a problem when the
+//           provenance is actually present.
+function nodeComplianceTone(node: ObservationNode): ComplianceTone {
+  if (node.gap) return 'red';
+  return resolvedCountry(auditPayload(node)?.origin.country_of_origin)
+    ? 'green'
+    : 'red';
+}
+
+// Worst (red-dominant) tone across this node AND its entire subtree. Used for
+// the sliver when a node is COLLAPSED: the bar then only spans the summary row,
+// so it must surface any red buried in descendants — otherwise a clean-looking
+// root hides an unresolved sub-tier until the user expands. When expanded, the
+// node shows its OWN tone instead (each child renders its own bar).
+function subtreeWorstTone(node: ObservationNode): ComplianceTone {
+  if (nodeComplianceTone(node) === 'red') return 'red';
+  for (const c of node.components) {
+    if (subtreeWorstTone(c) === 'red') return 'red';
+  }
+  return 'green';
+}
+
+const COMPLIANCE_BAR_CLASS: Record<ComplianceTone, string> = {
+  green: 'bg-green-300/40',
+  red: 'bg-red-300/40',
+};
+
+const COMPLIANCE_BAR_TITLE: Record<ComplianceTone, string> = {
+  green: 'Source resolved — origin verified for this node',
+  red: 'Not resolved — provenance gap or no origin disclosed for this node',
+};
+
 export function TreeView({
   node,
   depth = 0,
   overlay,
+  complianceBar = false,
 }: {
   node: ObservationNode;
   depth?: number;
   overlay?: TreeOverlay;
+  // When true, render a narrow left status bar per node spanning its full
+  // subtree height (audit run view). Threaded through the recursion.
+  complianceBar?: boolean;
 }) {
   const audit = auditPayload(node);
+  const hasChildren = node.components.length > 0;
+  const [open, setOpen] = useState(depth < 2);
+  // Collapsed: surface the worst tone anywhere in the subtree so a buried red
+  // is visible without expanding. Expanded: show this node's own tone (each
+  // child draws its own bar). Leaves are always their own tone.
+  const tone =
+    !open && hasChildren ? subtreeWorstTone(node) : nodeComplianceTone(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
   const { label: vendorLabel, italic: vendorLabelItalic } = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
@@ -115,8 +179,27 @@ export function TreeView({
   const showSynthesis = node.synthesis_mode !== 'direct';
 
   return (
-    <details open={depth < 2} className="ml-3 my-1.5">
+    <details
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      className={complianceBar ? 'relative ml-3 my-1.5 pl-2.5' : 'ml-3 my-1.5'}
+    >
       <summary className="cursor-pointer rounded px-2 py-1.5 hover:bg-slate-50 transition-colors">
+        {/* The sliver MUST live inside <summary>: a collapsed <details> hides
+            every direct child except its <summary>, so an absolute span placed
+            as a sibling of <summary> vanishes when collapsed (the reported
+            "have to expand to see the red bar" bug). Kept absolute + positioned
+            against the `relative` <details>, so it still spans the full subtree
+            height when expanded, but survives collapse because <summary> always
+            renders. (jsdom renders all children regardless of open, which is
+            why unit tests couldn't catch this — only a real browser hides it.) */}
+        {complianceBar && (
+          <span
+            aria-hidden="true"
+            title={COMPLIANCE_BAR_TITLE[tone]}
+            className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-full ${COMPLIANCE_BAR_CLASS[tone]}`}
+          />
+        )}
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <>
@@ -195,7 +278,7 @@ export function TreeView({
       {node.components.length > 0 && (
         <div className="ml-3 mt-1 border-l border-slate/15 pl-2">
           {node.components.map((c, i) => (
-            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} />
+            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} complianceBar={complianceBar} />
           ))}
         </div>
       )}

@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { useApi } from "@/lib/use-api";
+import { AliasEditor, type AliasItem } from "@/components/alias-editor";
 
 const BUSINESS_TYPES = ["Corporation", "LLC", "Partnership", "Sole Proprietorship", "Government", "Nonprofit"];
 
@@ -59,11 +60,69 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState(false);
+  const [aliases, setAliases] = useState<AliasItem[]>([]);
+  const [aliasError, setAliasError] = useState<string | null>(null);
 
   // Sync form fields when API data arrives
   useEffect(() => {
     setForm(profile);
   }, [profile]);
+
+  // Load existing aliases once the participant id is known.
+  useEffect(() => {
+    if (!profile.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/account/aliases");
+        if (!res.ok) return;
+        const body = (await res.json()) as AliasItem[];
+        if (!cancelled) setAliases(Array.isArray(body) ? body : []);
+      } catch {
+        /* leave empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id]);
+
+  async function addAlias(alias: string) {
+    setAliasError(null);
+    try {
+      const res = await fetch("/api/account/aliases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alias }),
+      });
+      if (res.status === 403) {
+        setAliasError("You need account-admin permissions to edit aliases.");
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rec = (await res.json()) as AliasItem;
+      setAliases((prev) =>
+        prev.some((a) => a.alias.toLowerCase() === rec.alias.toLowerCase()) ? prev : [...prev, rec],
+      );
+    } catch {
+      setAliasError("Couldn't add that alias. Try again in a moment.");
+    }
+  }
+
+  async function removeAlias(item: AliasItem) {
+    setAliasError(null);
+    if (!item.id) {
+      setAliases((prev) => prev.filter((a) => a !== item));
+      return;
+    }
+    try {
+      const res = await fetch(`/api/account/aliases/${item.id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      setAliases((prev) => prev.filter((a) => a.id !== item.id));
+    } catch {
+      setAliasError("Couldn't remove that alias. Try again in a moment.");
+    }
+  }
 
   const inputClass = `w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal ${readOnly ? "bg-light-gray cursor-not-allowed" : ""}`;
 
@@ -235,6 +294,26 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
             <label className="block text-sm font-medium text-charcoal mb-1">Company Description</label>
             <textarea value={form.description} onChange={(e) => update("description", e.target.value)} className={`${inputClass} h-24 resize-none`} readOnly={readOnly} />
             <p className="text-xs text-slate mt-1">Shown in the HAIWAVE network directory.</p>
+          </div>
+          <div className="mt-5">
+            <label className="block text-sm font-medium text-charcoal mb-1">Other names &amp; abbreviations</label>
+            <p className="text-xs text-slate mb-2">
+              Alternate names buyers use to find you in search (e.g. &ldquo;US Steel&rdquo;, &ldquo;USS&rdquo;). Saved
+              immediately.
+            </p>
+            {aliasError && <p className="text-xs text-problem mb-2">{aliasError}</p>}
+            <AliasEditor
+              aliases={aliases}
+              suggestContext={{
+                legal_name: form.company_name,
+                dba_name: form.dba || undefined,
+                website_url: form.website || undefined,
+                vendor_description: form.description || undefined,
+              }}
+              onAdd={addAlias}
+              onRemove={removeAlias}
+              disabled={readOnly}
+            />
           </div>
         </div>
 

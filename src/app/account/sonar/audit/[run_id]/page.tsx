@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { RunHeader } from './_components/run-header';
-import { SummaryStrip } from './_components/summary-strip';
 import { EvidenceTreePanel } from './_components/evidence-tree-panel';
+import { TierGapGrid } from './_components/tier-gap-grid';
 import { DispatchedResponsesTable } from './_components/dispatched-responses-table';
 import { InProgressPoller } from './_components/in-progress-poller';
 
@@ -73,11 +73,6 @@ export default async function AuditRunDetailPage({
           start / completion / hash), "Edit / Run Again" CTA */}
       <RunHeader run={run} />
 
-      {/* Summary strip — only meaningful when we have results */}
-      {showTree && !resultsLoadFailed && (
-        <SummaryStrip run={run} results={results} />
-      )}
-
       {/* In-progress placeholder — auto-polls the BFF and triggers a server
           re-render once the run reaches a terminal status. */}
       {isRunning && <InProgressPoller runId={run_id} />}
@@ -97,6 +92,14 @@ export default async function AuditRunDetailPage({
             <p className="mt-1 font-mono text-xs">{run.error_message}</p>
           )}
         </div>
+      )}
+
+      {/* Unified run status bar + tiered gap-count + weighted follow-up
+          priority (restored v.1.45; absorbs the former SummaryStrip). Sits
+          above the evidence tree, which stays the primary surface. Needs the
+          result set, so gated on a successful results load. */}
+      {showTree && !resultsLoadFailed && (
+        <TierGapGrid run={run} results={results} />
       )}
 
       {/* Full-width evidence tree — read-only, no annotation drawer (§6a) */}

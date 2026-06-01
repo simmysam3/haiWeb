@@ -10,7 +10,8 @@ describe('<CapacityBandPanel>', () => {
         payload={{ band: 'high', observed_at: '2026-05-27T10:00:00Z' }}
       />,
     );
-    expect(screen.getByLabelText('Current band: high')).toBeInTheDocument();
+    // 'high' utilization surfaces as 'Limited' availability.
+    expect(screen.getByLabelText('Current availability: Limited')).toBeInTheDocument();
   });
 
   it('renders the modal band + distribution when aggregated', () => {
@@ -23,8 +24,8 @@ describe('<CapacityBandPanel>', () => {
         }}
       />,
     );
-    expect(screen.getByText(/modal band/i)).toBeInTheDocument();
-    expect(screen.getByText('high')).toBeInTheDocument();
+    expect(screen.getByText(/typical availability/i)).toBeInTheDocument();
+    expect(screen.getByText('Limited')).toBeInTheDocument();
   });
 
   it('renders the absent treatment when redacted_gap', () => {

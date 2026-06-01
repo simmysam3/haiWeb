@@ -73,7 +73,7 @@ export function WatcherDashboard() {
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-navy mb-3">
           Run history
         </h2>
-        <RunHistory runs={runs} onCancel={() => mutate()} />
+        <RunHistory runs={runs} onCancel={() => mutate()} onDelete={() => mutate()} />
       </section>
 
       {modalOpen && (

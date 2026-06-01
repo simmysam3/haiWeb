@@ -72,6 +72,7 @@ describe('ScopeSummary', () => {
       default_target_date: '2026-06-15',
       vendor_exclude: [],
       weeks_to_hold: 2,
+      catalog_source: { kind: 'own' },
     };
     render(<ScopeSummary scope={scope} />);
     expect(screen.getByText('HC-9000')).toBeInTheDocument();

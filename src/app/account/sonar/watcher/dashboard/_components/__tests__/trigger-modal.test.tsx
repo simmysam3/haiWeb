@@ -68,12 +68,11 @@ describe('TriggerModal', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it('renders a Save-as-Watch link with the watcher observation_class', () => {
+  it('renders a Save-as-Watch link to the watcher creation flow', () => {
+    // v.1.45 (#98): watcher entry points go to the dedicated /watchers/new
+    // flow, not the generic templates wizard (which is now PD-only).
     render(<TriggerModal onClose={() => {}} onSuccess={() => {}} />);
     const link = screen.getByRole('link', { name: /save as watch instead/i });
-    expect(link).toHaveAttribute(
-      'href',
-      '/account/sonar/templates/new?observation_class=watcher',
-    );
+    expect(link).toHaveAttribute('href', '/account/sonar/watchers/new');
   });
 });

@@ -50,7 +50,11 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
         title={template.template_name}
         description={
           <>
-            {formatCadence(template.cadence)} · Last run{' '}
+            {/* PD is manual-only — omit cadence (matches the create wizard). */}
+            {template.observation_class !== 'phantom_demand' && (
+              <>{formatCadence(template.cadence)} · </>
+            )}
+            Last run{' '}
             {template.last_run_at
               ? new Date(template.last_run_at).toLocaleString()
               : '—'}

@@ -205,7 +205,7 @@ describe('HaiwaveClient PD methods (v1.30)', () => {
   });
 
   it('listPhantomDemandTemplates GETs /sonar/templates with observation_class=phantom_demand', async () => {
-    const fetchMock = mockFetchOnce([]);
+    const fetchMock = mockFetchOnce({ templates: [] });
     await client.listPhantomDemandTemplates({ enabled: true, limit: 10 });
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/sonar/templates');

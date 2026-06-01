@@ -65,13 +65,6 @@ function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive:
         count={data?.awaiting_me_count ?? 0}
         oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
       />
-      {error && (
-        <span
-          className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-400"
-          title="Live updates paused"
-          aria-label="Live updates paused"
-        />
-      )}
     </Link>
   );
 }
@@ -135,9 +128,9 @@ const navSections: NavSection[] = [
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
+      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
       { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
-      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
   },
@@ -158,10 +151,10 @@ const navSections: NavSection[] = [
     label: "Sonar Audit",
     subhead: "Compliance Auditing",
     items: [
-      { href: "/account/sonar/audit", label: "Audit Management", tooltip: "Trigger and review supply-chain audit runs across your counterparties and SKUs." },
-      { href: "/account/compliance", label: "Audit Backlog", tooltip: "Working backlog of non-compliant audit results — latest per (vendor, product) across your recent runs." },
-      { href: BACKLOG_HREF, label: "Event Backlog", tooltip: "Event-first workflow view of audit-data changes: origin shifts, vendor substitutions, certification status, depth changes. Sibling tabs cover Gaps and Obligations." },
-      { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-focused analysis that starts at product classes and resolves down to the component vendors behind each SKU." },
+      { href: "/account/sonar/audit", label: "Audit Management", tooltip: "Run-led workflow view of audit activity: trigger new runs and review past ones across counterparties and SKUs." },
+      { href: "/account/compliance", label: "Audit Backlog", tooltip: "Supplier-led workflow view of non-compliant audit findings — latest result per (vendor, product) across your recent runs." },
+      { href: BACKLOG_HREF, label: "Event Backlog", tooltip: "Event-led workflow view of audit-data changes: origin shifts, vendor substitutions, certification status, depth changes. Sibling tabs cover Gaps and Obligations." },
+      { href: "/account/provenance", label: "Product Provenance", tooltip: "Product-led workflow view that starts at product classes and resolves down to the component vendors behind each SKU." },
       { href: "/account/provenance-keys", label: "Key Management", tooltip: "Issue your own provenance keys and accept ones offered by counterparties — both directions gate audit visibility." },
     ],
   },
