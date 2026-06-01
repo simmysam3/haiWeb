@@ -53,6 +53,19 @@ export async function POST(request: NextRequest) {
     const result = await client.addAlias(session.participant.id, alias, body.alias_type);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
+    console.error("[aliases POST] Handler failed:", err);
+    // Propagate a haiCore 4xx verbatim instead of collapsing it to 500 — the
+    // client must distinguish e.g. 400 duplicate-alias / 403 from a server
+    // outage. `request()` in haiwave-api attaches `status` + `haiCoreBody` for
+    // exactly this (matches the withHaiCore wrapper contract).
+    const status = (err as { status?: number })?.status;
+    const haiCoreBody = (err as { haiCoreBody?: unknown })?.haiCoreBody;
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      return NextResponse.json(
+        haiCoreBody ?? { error: err instanceof Error ? err.message : "Failed to add alias" },
+        { status },
+      );
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to add alias" },
       { status: 500 },
