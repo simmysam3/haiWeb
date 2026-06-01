@@ -7,6 +7,9 @@ import {
   GapTierBar,
   ScorePill,
   tierBucket,
+  tierPoints,
+  tierLabel,
+  tierStyle,
   scoreOf,
 } from '@/components/sonar/observations';
 import { Pill } from '@/components/pill';
@@ -78,6 +81,45 @@ function gapTiersFor(results: WatcherResult[]): Map<number, number> {
   return m;
 }
 
+// The three lead-time signals roll up into one "Lead time" panel.
+const LEAD_TIME_SIGNALS = [
+  'lead_time_distribution',
+  'published_lead_time',
+  'quoted_lead_time',
+] as const;
+
+// Disclosure-gap contribution for one product + signal group, mirroring the
+// vendor-level scoreOf math (tierPoints summed over redacted gaps) scoped to a
+// single row. Lets each section header show what it adds to the vendor's
+// follow-up-priority score, tying the upper-right number to the rows below.
+function gapContribution(
+  results: WatcherResult[],
+  signalTypes: readonly string[],
+): { tier: number; points: number } | null {
+  let tier: number | null = null;
+  let points = 0;
+  for (const r of results) {
+    if (signalTypes.includes(r.signal_type) && r.synthesis_mode === 'redacted_gap') {
+      const t = tierBucket(r.tier);
+      tier = tier === null ? t : Math.min(tier, t);
+      points += tierPoints(t);
+    }
+  }
+  return tier === null ? null : { tier, points };
+}
+
+function GapChip({ tier, points }: { tier: number; points: number }) {
+  const st = tierStyle(tier);
+  return (
+    <span
+      className={`ml-1.5 inline-flex items-baseline gap-1 rounded px-1 py-0.5 text-[9px] font-semibold normal-case tracking-normal ${st.bg} ${st.text}`}
+      title={`Disclosure gap at tier ${tierLabel(tier)} — adds +${points} to this vendor's follow-up priority score`}
+    >
+      gap · T{tierLabel(tier)} · +{points}
+    </span>
+  );
+}
+
 /**
  * Extract a numbered (published or quoted) lead-time payload from a list of
  * results filtered to one product sub-group. Returns the first non-redacted
@@ -141,7 +183,6 @@ function signalRow(r: WatcherResult | undefined): {
 export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const [query, setQuery] = useState('');
   const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
-  const [productExpanded, setProductExpanded] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
     const byKey = new Map<string, CounterpartyGroup>();
@@ -225,14 +266,6 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
     });
   }
 
-  function toggleProduct(key: string) {
-    setProductExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-3">
@@ -290,9 +323,8 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 </span>
               </button>
               {isVendorOpen && (
-                <ul className="mt-3 ml-4 divide-y divide-slate-100">
+                <ul className="mt-1.5 ml-4 divide-y divide-slate-100">
                   {g.productSubGroups.map((sub) => {
-                    const isProductOpen = productExpanded.has(sub.key);
                     const cap = sub.results.find(
                       (r) => r.signal_type === 'capacity_utilization_band',
                     );
@@ -308,53 +340,57 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                       'quoted_lead_time',
                     );
                     const calibrated = extractCalibrated(sub.results);
+                    // Which signals on this product are disclosure gaps, and
+                    // what each contributes to the vendor's score.
+                    const ltGap = gapContribution(sub.results, LEAD_TIME_SIGNALS);
+                    const capGap = gapContribution(sub.results, [
+                      'capacity_utilization_band',
+                    ]);
+                    const delGap = gapContribution(sub.results, ['delivery_event']);
+                    // Products are always shown under an expanded vendor — the
+                    // company row is the only collapse level. Each product is a
+                    // compact label followed by its three signal panels laid out
+                    // in columns to keep the row dense.
                     return (
-                      <li key={sub.key} className="py-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleProduct(sub.key)}
-                          aria-expanded={isProductOpen}
-                          className="group flex w-full items-center gap-3 text-left"
-                        >
-                          <span className="text-charcoal">{sub.productName}</span>
-                          <span className="ml-auto">
-                            <DetailChevron expanded={isProductOpen} />
-                          </span>
-                        </button>
-                        {isProductOpen && (
-                          <div className="mt-2 space-y-3 border-t border-slate-100 pt-2 pl-2">
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Lead time
-                              </h4>
-                              <LeadTimeTriplet
-                                published={published}
-                                quoted={quoted}
-                                calibrated={calibrated}
-                              />
-                            </div>
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Capacity
-                              </h4>
-                              <CapacityBandPanel
-                                {...(signalRow(cap) as Parameters<
-                                  typeof CapacityBandPanel
-                                >[0])}
-                              />
-                            </div>
-                            <div>
-                              <h4 className="mb-1 text-xs uppercase tracking-wider text-slate">
-                                Delivery events
-                              </h4>
-                              <DeliveryEventLog
-                                {...(signalRow(del) as Parameters<
-                                  typeof DeliveryEventLog
-                                >[0])}
-                              />
-                            </div>
+                      <li key={sub.key} className="py-1.5">
+                        <div className="text-sm font-medium text-charcoal">
+                          {sub.productName}
+                        </div>
+                        <div className="mt-1 grid gap-x-6 gap-y-1.5 md:grid-cols-3">
+                          <div>
+                            <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                              Lead time
+                              {ltGap && <GapChip tier={ltGap.tier} points={ltGap.points} />}
+                            </h4>
+                            <LeadTimeTriplet
+                              published={published}
+                              quoted={quoted}
+                              calibrated={calibrated}
+                            />
                           </div>
-                        )}
+                          <div>
+                            <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                              Available capacity
+                              {capGap && <GapChip tier={capGap.tier} points={capGap.points} />}
+                            </h4>
+                            <CapacityBandPanel
+                              {...(signalRow(cap) as Parameters<
+                                typeof CapacityBandPanel
+                              >[0])}
+                            />
+                          </div>
+                          <div>
+                            <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                              Delivery events
+                              {delGap && <GapChip tier={delGap.tier} points={delGap.points} />}
+                            </h4>
+                            <DeliveryEventLog
+                              {...(signalRow(del) as Parameters<
+                                typeof DeliveryEventLog
+                              >[0])}
+                            />
+                          </div>
+                        </div>
                       </li>
                     );
                   })}

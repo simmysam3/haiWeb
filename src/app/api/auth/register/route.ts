@@ -33,6 +33,7 @@ const registerSchema = z.object({
     }),
     website: z.string().optional(),
     description: z.string().optional(),
+    aliases: z.array(z.string()).optional(),
   }),
   payment_method: z.enum(["pay_now", "invoice"]),
 });
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       business_address_country: company.address.country,
       website_url: company.website,
       vendor_description: company.description,
+      aliases: company.aliases,
     });
 
     const participantId = registration.participant_id;

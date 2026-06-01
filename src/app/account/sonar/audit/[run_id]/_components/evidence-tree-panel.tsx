@@ -127,6 +127,7 @@ export function EvidenceTreePanel({ results, auditorCountry }: Props) {
               <TreeView
                 node={result.tree as ObservationNode}
                 // overlay deliberately omitted — read-only mode (§6a)
+                complianceBar
               />
             </div>
           </section>

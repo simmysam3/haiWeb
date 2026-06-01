@@ -72,7 +72,7 @@ function ManifestBody({ manifest }: { manifest: OriginManifest }) {
         <dl className="grid grid-cols-[max-content,1fr] items-baseline gap-x-4 gap-y-2 text-sm">
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">Product</dt>
           <dd className="text-charcoal">{manifest.product_name}</dd>
-          <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">External product ID</dt>
+          <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">External product ID (SKU)</dt>
           <dd className="font-mono text-xs text-charcoal">{manifest.external_product_id}</dd>
           <dt className="text-[11px] font-bold uppercase tracking-widest text-slate">Manifest ID</dt>
           <dd><IdChip id={manifest.origin_manifest_id} /></dd>

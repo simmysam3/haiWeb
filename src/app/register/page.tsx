@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ProgressSteps } from "@/components/progress-steps";
+import { AliasEditor, type AliasItem } from "@/components/alias-editor";
 
 const STEPS = ["Create Account", "Company Profile", "Platform Fee"];
 
@@ -59,6 +60,7 @@ export default function RegisterPage() {
   const [duns, setDuns] = useState("");
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
+  const [aliases, setAliases] = useState<AliasItem[]>([]);
 
   // Step 3
   const [paymentMethod, setPaymentMethod] = useState<"pay_now" | "invoice">("pay_now");
@@ -128,6 +130,7 @@ export default function RegisterPage() {
             phone: companyPhone,
             email: companyEmail,
             dba, tax_id: taxId, duns, website, description,
+            aliases: aliases.map((a) => a.alias),
           },
           payment_method: paymentMethod,
         }),
@@ -293,6 +296,28 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-medium text-charcoal mb-1">Company Description</label>
                     <textarea value={description} onChange={(e) => setDescription(e.target.value)} className={`${inputClass} h-20 resize-none`} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal mb-1">
+                      Other names &amp; abbreviations
+                    </label>
+                    <p className="text-xs text-slate mb-2">
+                      Common ways buyers refer to you (e.g. &ldquo;US Steel&rdquo;, &ldquo;USS&rdquo;). These help
+                      trading partners find you in search. Use &ldquo;Suggest names&rdquo; for ideas.
+                    </p>
+                    <AliasEditor
+                      aliases={aliases}
+                      suggestContext={{
+                        legal_name: companyName,
+                        dba_name: dba || undefined,
+                        website_url: website || undefined,
+                        vendor_description: description || undefined,
+                      }}
+                      onAdd={(alias) => setAliases((prev) => [...prev, { alias }])}
+                      onRemove={(item) =>
+                        setAliases((prev) => prev.filter((a) => a.alias !== item.alias))
+                      }
+                    />
                   </div>
                 </div>
               </div>

@@ -48,8 +48,31 @@ const TIER_STYLE: Record<number, { bg: string; text: string }> = {
   4: { bg: 'bg-slate-50', text: 'text-slate-400' },
 };
 
-function tierStyle(tier: number): { bg: string; text: string } {
+export function tierStyle(tier: number): { bg: string; text: string } {
   return TIER_STYLE[tier] ?? TIER_STYLE[MAX_TIER];
+}
+
+// Qualitative urgency band, driven by the shallowest gapped tier so the word
+// agrees with the pill colour: a tier-1 gap (your direct supplier won't
+// disclose) is High no matter the count; tier-2 Elevated; tier-3+ Low
+// (mostly informational). Gives the raw points a plain-language anchor.
+const BAND_BY_TIER: Record<number, string> = { 1: 'High', 2: 'Elevated', 3: 'Low', 4: 'Low' };
+
+export function priorityBand(tiers: Map<number, number>): string {
+  const wt = worstTier(tiers);
+  return wt ? BAND_BY_TIER[wt] ?? 'Low' : 'Low';
+}
+
+// Human-readable score math for the pill tooltip: one line per gapped tier.
+function scoreBreakdown(tiers: Map<number, number>): string {
+  const parts: string[] = [];
+  for (const t of [1, 2, 3, 4]) {
+    const c = tiers.get(t);
+    if (c) {
+      parts.push(`${c} tier-${tierLabel(t)} gap${c === 1 ? '' : 's'} ×${tierPoints(t)} = ${c * tierPoints(t)}`);
+    }
+  }
+  return parts.join('\n');
 }
 
 // Segmented pill: one cell per tier from 1..deepest-gapped tier. Intermediate
@@ -100,13 +123,23 @@ export function ScorePill({
   if (score === 0) return <span className="text-slate">0</span>;
   const wt = worstTier(tiers);
   const st = wt ? tierStyle(wt) : tierStyle(MAX_TIER);
+  const band = priorityBand(tiers);
+  const title =
+    `Follow-up priority — disclosure gaps weighted by tier\n${scoreBreakdown(tiers)}\n` +
+    `Tier 1 = your direct supplier (most urgent to chase); deeper tiers are more informational.`;
   return (
-    <span
-      className={`inline-flex items-baseline gap-0.5 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums ${st.bg} ${st.text}`}
-      title="Follow-up priority — T1×5 + T2×3 + T3×2 + T4+×1"
-    >
-      {score}
-      <span className="text-[10px] font-normal opacity-70">pts</span>
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className="text-[10px] uppercase tracking-wider text-slate-500">
+        Follow-up priority
+      </span>
+      <span
+        className={`inline-flex items-baseline gap-0.5 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums ${st.bg} ${st.text}`}
+        title={title}
+      >
+        {score}
+        <span className="text-[10px] font-normal opacity-70">pts</span>
+        <span className="text-[10px] font-normal opacity-90">· {band}</span>
+      </span>
     </span>
   );
 }

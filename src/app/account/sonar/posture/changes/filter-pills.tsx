@@ -1,22 +1,19 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { EVENT_KIND_PILLS, KIND_TOOLTIPS } from './_lib/event-kind-pills';
 
 /**
  * "Showing" dropdown for the Watcher Backlog feed.
  *
- * Conceptually a view-mode selector. `critical | warning | all` choose a
- * severity filter on the wire; `processed` (v.1.42) is mutually exclusive
- * with severity — selecting it sets `?processed=true` and clears severity,
- * fetching only already-actioned rows. The page reads either `severity` or
- * `processed` from the URL and forwards as-is to the BFF.
+ * v.1.45: severity filtering retired. The watcher surface now only carries
+ * lead-time drift events (degraded / improved) — none are inherently
+ * "critical" vs "warning" in a way that warrants a filter, so the feed always
+ * shows every severity. The dropdown is now a simple view-mode toggle between
+ * the active backlog and the already-processed rows (`?processed=true`).
  */
-const SEVERITY_OPTIONS = [
-  { value: 'critical', label: 'Critical Only' },
-  { value: 'warning', label: 'Warning Only' },
-  { value: 'all', label: 'All' },
+const SHOWING_OPTIONS = [
+  { value: 'active', label: 'Active' },
   { value: 'processed', label: 'Processed' },
 ] as const;
 
@@ -52,18 +49,15 @@ export function FilterPills() {
     router.push(`${pathname}?${sp}`);
   }
 
-  // Showing dropdown changes are mutually exclusive between the severity and
-  // processed query params: selecting Processed clears severity, and selecting
-  // any severity clears processed. Without this, an old `severity=critical`
-  // URL fragment would silently AND with `processed=true` and confuse the
-  // result set.
+  // Active ↔ Processed view toggle. Processed sets `?processed=true`; Active
+  // clears it. Any stale `severity` fragment from a pre-v.1.45 URL is dropped
+  // either way so it can't silently filter the feed.
   function setShowing(value: string) {
     const sp = new URLSearchParams(searchParams.toString());
+    sp.delete('severity');
     if (value === 'processed') {
       sp.set('processed', 'true');
-      sp.delete('severity');
     } else {
-      sp.set('severity', value);
       sp.delete('processed');
     }
     sp.delete('page');
@@ -77,13 +71,8 @@ export function FilterPills() {
   const partner = searchParams.get('partner') ?? '';
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
-  const rawSeverity = searchParams.get('severity');
   const isProcessedView = searchParams.get('processed') === 'true';
-  const showing = isProcessedView
-    ? 'processed'
-    : rawSeverity && SEVERITY_VALUES.has(rawSeverity)
-      ? rawSeverity
-      : DEFAULT_SEVERITY;
+  const showing = isProcessedView ? 'processed' : 'active';
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -91,10 +80,10 @@ export function FilterPills() {
       <select
         value={showing}
         onChange={(e) => setShowing(e.target.value)}
-        title="Filter the feed by event severity. Defaults to Critical Only. Pick 'Processed' to see rows you've already actioned."
+        title="Toggle between the active backlog and rows you've already processed. All drift events are shown regardless of severity."
         className="rounded-md border border-slate/30 px-2 py-1 text-xs"
       >
-        {SEVERITY_OPTIONS.map((o) => (
+        {SHOWING_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

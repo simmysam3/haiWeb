@@ -167,6 +167,7 @@ export async function registerParticipant(data: {
   business_address_country: string;
   website_url?: string;
   vendor_description?: string;
+  aliases?: string[];
 }): Promise<{ participant_id: string; status: string }> {
   const res = await fetch(`${haiwaveApiUrl}/registration/participant`, {
     method: "POST",
@@ -204,6 +205,17 @@ export interface ConnectionRecord {
 export interface ScoreData {
   composite: number;
   components: Array<{ label: string; value: number }>;
+}
+
+// Company-name alias. Local type (mirrors haiCore ParticipantAlias) so HaiWeb
+// doesn't depend on the protocol build for this v.1.45 surface.
+export interface ParticipantAliasRecord {
+  id: string;
+  participant_id: string;
+  alias: string;
+  alias_type: string;
+  source: string;
+  created_at?: string;
 }
 
 // v1.30 — Phantom Demand run types. Defined locally (not in @haiwave/protocol)
@@ -343,6 +355,9 @@ export interface HaiwaveClient {
   approveRequest(requestId: string): Promise<ConnectionRecord>;
   denyRequest(requestId: string): Promise<ConnectionRecord>;
   updateInvite(connectionId: string, invite: boolean): Promise<ConnectionRecord>;
+  listAliases(participantId: string): Promise<{ participant_id: string; aliases: ParticipantAliasRecord[] }>;
+  addAlias(participantId: string, alias: string, aliasType?: string): Promise<ParticipantAliasRecord>;
+  removeAlias(participantId: string, aliasId: string): Promise<void>;
   getScore(participantId: string): Promise<ScoreData>;
   getScoreHistory(participantId: string): Promise<Record<string, number[]>>;
   getQuarterlyScores(
@@ -501,6 +516,7 @@ export interface HaiwaveClient {
   getWatcherRun(runId: string): Promise<{ run: WatcherRun; results: WatcherResult[] }>;
   getWatcherRunStatus(runId: string): Promise<{ status: WatcherRunStatus }>;
   cancelWatcherRun(runId: string): Promise<{ cancelled: boolean }>;
+  deleteWatcherRun(runId: string): Promise<{ deleted: boolean }>;
   listWatcherSubscriptions(): Promise<{ subscriptions: WatcherSignalSubscription[] }>;
   patchWatcherSubscription(
     id: string,
@@ -745,6 +761,24 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         target_participant_id: targetId,
         message: opts?.message,
       });
+    },
+
+    listAliases(participantId) {
+      return request<{ participant_id: string; aliases: ParticipantAliasRecord[] }>(
+        "GET",
+        `/participants/${participantId}/aliases`,
+      );
+    },
+
+    addAlias(participantId, alias, aliasType) {
+      return request<ParticipantAliasRecord>("POST", `/participants/${participantId}/aliases`, {
+        alias,
+        alias_type: aliasType ?? "other",
+      });
+    },
+
+    removeAlias(participantId, aliasId) {
+      return request<void>("DELETE", `/participants/${participantId}/aliases/${aliasId}`);
     },
 
     async listPendingRequests() {
@@ -1369,6 +1403,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ cancelled: boolean }>(
         'POST',
         `/sonar/watcher/runs/${runId}/cancel`,
+      );
+    },
+
+    deleteWatcherRun(runId) {
+      return request<{ deleted: boolean }>(
+        'DELETE',
+        `/sonar/watcher/runs/${runId}`,
       );
     },
 
