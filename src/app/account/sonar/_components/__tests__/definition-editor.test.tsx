@@ -337,11 +337,16 @@ describe('DefinitionEditor (drift step — watcher only)', () => {
     );
   }
 
-  it('renders a Drift step for watcher observation_class', () => {
+  it('renders a Drift step for watcher observation_class', async () => {
     renderWatcherEditor();
     expect(
       screen.getByRole('heading', { name: 'Drift detection' }),
     ).toBeInTheDocument();
+    // Knobs are collapsed by default behind the "Alter" toggle.
+    expect(screen.queryByLabelText(/Noise floor/i)).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Alter drift thresholds/i }),
+    );
     expect(screen.getByLabelText(/Noise floor/i)).toBeInTheDocument();
   });
 
@@ -361,14 +366,22 @@ describe('DefinitionEditor (drift step — watcher only)', () => {
     expect(
       screen.getByText(/Drift detection requires a scheduled cadence/i),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Noise floor/i)).toBeDisabled();
+    // Locked cadence hides the editor entirely — there's nothing to tune
+    // until the watcher is on a schedule.
+    expect(
+      screen.queryByRole('button', { name: /Alter drift thresholds/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Noise floor/i)).not.toBeInTheDocument();
   });
 
   it('triggers the save bar when drift thresholds change', async () => {
     renderWatcherEditor();
     // No save bar at initial render (drift_thresholds === DEFAULT).
     expect(screen.queryByRole('button', { name: /save changes/i })).toBeNull();
-    // Bump the noise floor by typing.
+    // Expand the collapsed section, then bump the noise floor by typing.
+    await userEvent.click(
+      screen.getByRole('button', { name: /Alter drift thresholds/i }),
+    );
     const noise = screen.getByLabelText(/Noise floor/i);
     await userEvent.clear(noise);
     await userEvent.type(noise, '7');
@@ -380,6 +393,9 @@ describe('DefinitionEditor (drift step — watcher only)', () => {
   it('merges drift_thresholds into scope on PATCH', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
     renderWatcherEditor();
+    await userEvent.click(
+      screen.getByRole('button', { name: /Alter drift thresholds/i }),
+    );
     const noise = screen.getByLabelText(/Noise floor/i);
     await userEvent.clear(noise);
     await userEvent.type(noise, '7');

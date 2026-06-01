@@ -25,7 +25,7 @@ export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Pr
         <p className="text-sm text-slate italic">
           No runs yet —{' '}
           <Link
-            href="/account/sonar/templates/new?observation_class=watcher"
+            href="/account/sonar/watchers/new"
             className="not-italic text-teal hover:underline"
           >
             set up your first watcher →

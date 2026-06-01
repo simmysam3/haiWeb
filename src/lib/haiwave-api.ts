@@ -512,6 +512,7 @@ export interface HaiwaveClient {
   getPhantomDemandRun(runId: string): Promise<PhantomDemandRunDetail>;
   getPhantomDemandRunStatus(runId: string): Promise<{ status: string; cancel_requested_at: string | null }>;
   cancelPhantomDemandRun(runId: string): Promise<{ ok: true }>;
+  deletePhantomDemandRunsForTemplate(templateId: string): Promise<{ deleted: number }>;
   triggerPhantomDemand(body: {
     template_id: string;
     qty_override?: number | null;
@@ -1401,6 +1402,13 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         {},
       );
     },
+    deletePhantomDemandRunsForTemplate(templateId: string) {
+      const qs = new URLSearchParams({ template_id: templateId });
+      return request<{ deleted: number }>(
+        'DELETE',
+        `/sonar/phantom-demand/runs?${qs.toString()}`,
+      );
+    },
     async triggerPhantomDemand(body: {
       template_id: string;
       qty_override?: number | null;
@@ -1418,7 +1426,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       qs.set('observation_class', 'phantom_demand');
       if (opts.enabled !== undefined) qs.set('enabled', String(opts.enabled));
       if (opts.limit !== undefined) qs.set('limit', String(opts.limit));
-      return request<RunTemplate[]>('GET', `/sonar/templates?${qs.toString()}`);
+      // haiCore GET /sonar/templates responds { templates: [...] } — unwrap so
+      // the declared RunTemplate[] contract holds for callers (e.g. the queue).
+      return request<{ templates: RunTemplate[] }>(
+        'GET',
+        `/sonar/templates?${qs.toString()}`,
+      ).then((r) => r.templates ?? []);
     },
 
     // ─── v1.44 — Agent config (scaffold; haiCore route pending) ──────────

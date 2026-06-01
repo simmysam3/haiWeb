@@ -10,26 +10,20 @@ import type {
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../_lib/config-noun';
-import { CadencePicker } from '../../_components/cadence-picker';
 import { ScopePicker } from './scope-picker';
 import { StepRail, type RailStep } from '../../_components/step-rail';
 import { StepCard } from '../../_components/step-card';
 import { NameField } from '../../_components/name-field';
 import { LifecycleFields } from '../../_components/lifecycle-fields';
 
-type ObservationClass = 'watcher' | 'phantom_demand';
+// This wizard creates phantom-demand configurations only. Audits are created
+// via /audit/new (v.1.40) and watchers via /watchers/new (v.1.43 Plan 2); the
+// /templates/new page redirects any watcher entry point to that dedicated
+// wizard. There is therefore no modality choice here — the single modality is
+// phantom_demand.
+const OBSERVATION_CLASS = 'phantom_demand' as const;
 
-function emptyScope(oc: ObservationClass): RunTemplateScope {
-  if (oc === 'watcher') {
-    return {
-      kind: 'watcher',
-      authorization_basis: 'bilateral',
-      counterparties: [],
-      signal_types: ['lead_time_distribution'],
-      skus: [],
-      depth_limit: 1,
-    };
-  }
+function emptyScope(): RunTemplateScope {
   // v.1.44 refined-PD: emit the new BOM template scope shape.
   // No authorization_basis — PhantomDemandBomTemplateScopeSchema does not carry it.
   return {
@@ -39,23 +33,18 @@ function emptyScope(oc: ObservationClass): RunTemplateScope {
     default_target_date: '', // ISO YYYY-MM-DD; filled in by the user
     vendor_exclude: [],
     weeks_to_hold: 1,
+    // v.1.45 — default to the initiator's own catalog (BOM-explosion run).
+    catalog_source: { kind: 'own' },
   } as RunTemplateScope;
 }
 
-export function TemplateWizard({
-  defaultObservationClass,
-}: {
-  defaultObservationClass?: ObservationClass;
-}) {
-  const [observationClass, setObservationClass] = useState<ObservationClass>(
-    defaultObservationClass ?? 'watcher',
-  );
-  const noun = configNoun(observationClass);
+export function TemplateWizard() {
+  const noun = configNoun(OBSERVATION_CLASS);
   const [name, setName] = useState('');
-  const [cadence, setCadence] = useState<Cadence>({ kind: 'manual_only' });
-  const [scope, setScope] = useState<RunTemplateScope>(
-    emptyScope(observationClass),
-  );
+  // Phantom-demand configurations are manual-execution only — there is no
+  // scheduling step, so the cadence is fixed to manual_only.
+  const cadence: Cadence = { kind: 'manual_only' };
+  const [scope, setScope] = useState<RunTemplateScope>(emptyScope());
   const [enabled, setEnabled] = useState(true);
   const [retentionDays, setRetentionDays] = useState(365);
   const [busy, setBusy] = useState(false);
@@ -64,21 +53,20 @@ export function TemplateWizard({
   const [nameError, setNameError] = useState(false);
   const router = useRouter();
 
-  function changeObservationClass(next: ObservationClass) {
-    setObservationClass(next);
-    setScope(emptyScope(next));
-  }
-
   // v.1.44 refined-PD: incomplete when sku is empty (the one required field).
-  const pdIncomplete =
-    observationClass === 'phantom_demand' &&
+  // v.1.45: a counterparty-catalog source also requires a selected partner —
+  // an empty counterparty_id would fail the server's uuid validation.
+  const pdNeedsPartner =
     scope.kind === 'phantom_demand_bom' &&
-    scope.sku.length === 0;
+    scope.catalog_source?.kind === 'counterparty' &&
+    scope.catalog_source.counterparty_id.length === 0;
+  const pdIncomplete =
+    scope.kind === 'phantom_demand_bom' &&
+    (scope.sku.length === 0 || pdNeedsPartner);
 
   const steps: RailStep[] = [
     { id: 'identity', label: 'Identity', state: nameError ? 'error' : 'active' },
     { id: 'scope', label: 'Scope', state: pdIncomplete ? 'error' : 'todo' },
-    { id: 'schedule', label: 'Schedule', state: 'todo' },
     { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
   ];
 
@@ -100,7 +88,11 @@ export function TemplateWizard({
     }
     setNameError(false);
     if (pdIncomplete) {
-      setError('Phantom demand requires a SKU.');
+      setError(
+        pdNeedsPartner
+          ? 'Select a trading partner for the counterparty catalog.'
+          : 'Phantom demand requires a SKU.',
+      );
       jump('scope');
       return;
     }
@@ -108,7 +100,7 @@ export function TemplateWizard({
     try {
       const body = {
         template_name: name,
-        observation_class: observationClass,
+        observation_class: OBSERVATION_CLASS,
         cadence,
         enabled,
         retention_days: retentionDays,
@@ -135,7 +127,18 @@ export function TemplateWizard({
         );
         return;
       }
-      router.push(`/account/sonar/templates/${newId}`);
+      // v.1.45 — fire the first run, then land on the Phantom Demand queue
+      // where it can be watched (queued → running → completed). A trigger
+      // hiccup doesn't block navigation: the config exists and is runnable
+      // from the queue.
+      try {
+        await fetch(`/api/account/sonar/templates/${newId}/trigger`, {
+          method: 'POST',
+        });
+      } catch {
+        /* ignore — the queue will show the config as "never run". */
+      }
+      router.push('/account/sonar/observations');
     } catch {
       setError('Network error — could not reach the server. Please try again.');
     } finally {
@@ -151,38 +154,13 @@ export function TemplateWizard({
       <div className="flex-1 max-w-2xl">
         <StepCard id="identity" index={0} title="Identity">
           <NameField noun={noun} value={name} onChange={setName} />
-          <label className="block text-sm text-charcoal mt-3">
-            <span className="block mb-1 font-medium" id="modality-label">
-              Modality
-            </span>
-            <select
-              aria-labelledby="modality-label"
-              aria-label="Modality"
-              value={observationClass}
-              onChange={(e) =>
-                changeObservationClass(e.target.value as ObservationClass)
-              }
-              className="rounded border border-slate-300 px-2 py-1 text-sm"
-            >
-              <option value="watcher">Watcher</option>
-              <option value="phantom_demand">Phantom Demand</option>
-            </select>
-          </label>
         </StepCard>
 
         <StepCard id="scope" index={1} title="Scope">
-          <ScopePicker
-            observationClass={observationClass}
-            value={scope}
-            onChange={setScope}
-          />
+          <ScopePicker value={scope} onChange={setScope} />
         </StepCard>
 
-        <StepCard id="schedule" index={2} title="Schedule">
-          <CadencePicker value={cadence} onChange={setCadence} />
-        </StepCard>
-
-        <StepCard id="lifecycle" index={3} title="Lifecycle">
+        <StepCard id="lifecycle" index={2} title="Lifecycle">
           <LifecycleFields
             enabled={enabled}
             retentionDays={retentionDays}

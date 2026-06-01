@@ -4,11 +4,13 @@ interface WeeksToHoldDropdownProps {
   value: number;
   onChange: (weeks: number) => void;
   disabled?: boolean;
+  ariaLabelledBy?: string;
 }
 
-export function WeeksToHoldDropdown({ value, onChange, disabled }: WeeksToHoldDropdownProps) {
+export function WeeksToHoldDropdown({ value, onChange, disabled, ariaLabelledBy }: WeeksToHoldDropdownProps) {
   return (
     <select
+      aria-labelledby={ariaLabelledBy}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       disabled={disabled}

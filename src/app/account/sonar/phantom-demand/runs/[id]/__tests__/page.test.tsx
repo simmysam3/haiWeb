@@ -108,4 +108,28 @@ describe('PD run detail page', () => {
     await expect(FreshPage({ params: { id: 'r4' } } as any)).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFound).toHaveBeenCalled();
   });
+
+  it('titles the page with the named request + short run id', async () => {
+    vi.resetModules();
+    vi.doMock('@/lib/server-haiwave-client', () => ({
+      getServerHaiwaveClient: async () => ({
+        getPhantomDemandRun: async () => ({
+          run: {
+            template_id: 't-123',
+            completed_at: '2026-05-28T10:00:00Z',
+            created_at: '2026-05-28T09:55:00Z',
+          },
+          tree: makeTree(),
+        }),
+        getRunTemplate: async (id: string) => {
+          expect(id).toBe('t-123');
+          return { template: { template_name: 'get some brass v3' } };
+        },
+      }),
+    }));
+    const { default: FreshPage } = await import('../page.js');
+    render(await FreshPage({ params: { id: 'fcd157d2-db81-rest' } } as any));
+    // Title reflects the named config + the short run id, not "Run <id>".
+    expect(screen.getByText(/get some brass v3 · fcd157d2/i)).toBeInTheDocument();
+  });
 });

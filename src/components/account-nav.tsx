@@ -65,13 +65,6 @@ function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive:
         count={data?.awaiting_me_count ?? 0}
         oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
       />
-      {error && (
-        <span
-          className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-400"
-          title="Live updates paused"
-          aria-label="Live updates paused"
-        />
-      )}
     </Link>
   );
 }
@@ -135,9 +128,9 @@ const navSections: NavSection[] = [
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
+      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
       { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
-      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
   },

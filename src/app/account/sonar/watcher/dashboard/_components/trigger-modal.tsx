@@ -100,7 +100,7 @@ export function TriggerModal({ onClose, onSuccess }: TriggerModalProps) {
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="flex justify-between items-center gap-2">
           <Link
-            href="/account/sonar/templates/new?observation_class=watcher"
+            href="/account/sonar/watchers/new"
             className="text-sm text-teal hover:underline"
             onClick={onClose}
           >
