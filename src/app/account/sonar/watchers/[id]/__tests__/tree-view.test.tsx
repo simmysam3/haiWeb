@@ -97,6 +97,28 @@ describe('TreeView compliance sliver tone', () => {
     );
     expect(screen.getByTitle(RED)).toBeInTheDocument();
   });
+
+  it('COLLAPSED green parent shows RED when a descendant is unresolved (regression)', () => {
+    // A green (origin-resolved) root with a red XX child. Rendered collapsed
+    // (depth>=2), only the parent's sliver shows — it must surface the buried
+    // red so the user sees the cue without expanding.
+    const parent = node({ components: [withCountry('XX')] });
+    render(<TreeView node={parent} depth={2} complianceBar />);
+    // Parent's sliver is red (worst-of-subtree); no green sliver anywhere.
+    // (jsdom keeps <details> children in the DOM regardless of open state, so
+    // the red leaf also contributes a RED title — hence getAllByTitle.)
+    expect(screen.getAllByTitle(RED).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByTitle(GREEN)).not.toBeInTheDocument();
+  });
+
+  it('EXPANDED green parent shows its own GREEN tone (child draws its own bar)', () => {
+    // Same tree rendered expanded (depth<2): the parent shows its own green,
+    // and the red child renders its own red bar — both tones present.
+    const parent = node({ components: [withCountry('XX')] });
+    render(<TreeView node={parent} depth={0} complianceBar />);
+    expect(screen.getByTitle(GREEN)).toBeInTheDocument();
+    expect(screen.getByTitle(RED)).toBeInTheDocument();
+  });
 });
 
 describe('TreeView attestation/annotation overlay (v1.34 P8)', () => {

@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import type {
   ObservationNode,
   AuditGapKind,
@@ -125,6 +126,19 @@ function nodeComplianceTone(node: ObservationNode): ComplianceTone {
     : 'red';
 }
 
+// Worst (red-dominant) tone across this node AND its entire subtree. Used for
+// the sliver when a node is COLLAPSED: the bar then only spans the summary row,
+// so it must surface any red buried in descendants — otherwise a clean-looking
+// root hides an unresolved sub-tier until the user expands. When expanded, the
+// node shows its OWN tone instead (each child renders its own bar).
+function subtreeWorstTone(node: ObservationNode): ComplianceTone {
+  if (nodeComplianceTone(node) === 'red') return 'red';
+  for (const c of node.components) {
+    if (subtreeWorstTone(c) === 'red') return 'red';
+  }
+  return 'green';
+}
+
 const COMPLIANCE_BAR_CLASS: Record<ComplianceTone, string> = {
   green: 'bg-green-300/40',
   red: 'bg-red-300/40',
@@ -149,7 +163,13 @@ export function TreeView({
   complianceBar?: boolean;
 }) {
   const audit = auditPayload(node);
-  const tone = nodeComplianceTone(node);
+  const hasChildren = node.components.length > 0;
+  const [open, setOpen] = useState(depth < 2);
+  // Collapsed: surface the worst tone anywhere in the subtree so a buried red
+  // is visible without expanding. Expanded: show this node's own tone (each
+  // child draws its own bar). Leaves are always their own tone.
+  const tone =
+    !open && hasChildren ? subtreeWorstTone(node) : nodeComplianceTone(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
   const { label: vendorLabel, italic: vendorLabelItalic } = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
@@ -160,7 +180,8 @@ export function TreeView({
 
   return (
     <details
-      open={depth < 2}
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
       className={complianceBar ? 'relative ml-3 my-1.5 pl-2.5' : 'ml-3 my-1.5'}
     >
       {complianceBar && (
