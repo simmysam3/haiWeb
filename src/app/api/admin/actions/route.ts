@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getToken } from "@/lib/auth";
 import { isJwtLike } from "@/lib/with-hai-core";
+import { loadEnv } from "@/config/env";
 
-const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
+const API_URL = loadEnv().HAIWAVE_API_URL;
 
 // Allowlist: the only admin action slugs the BFF is allowed to relay.
 // Anything else is a path-injection attempt and must be rejected.

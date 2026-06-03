@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { shouldRefreshSession } from "@/lib/session-refresh";
+import { loadEnv } from "@/config/env";
 
 // v1.30 §10: 301 redirects from pre-Sonar URLs to the unified Observations page.
 // Rules are ordered most-specific-first; first match wins.
@@ -339,9 +340,10 @@ export function applyRedirects(pathname: string): string | null {
 // failure legible rather than silent.
 
 const SKEW_SECONDS = 120;
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL ?? 'http://localhost:8080';
-const REALM = process.env.KEYCLOAK_REALM ?? 'haiwave-network';
-const PORTAL_CLIENT_ID = process.env.KEYCLOAK_PORTAL_CLIENT_ID ?? 'haiwave-portal';
+const proxyEnv = loadEnv();
+const KEYCLOAK_URL = proxyEnv.KEYCLOAK_URL;
+const REALM = proxyEnv.KEYCLOAK_REALM;
+const PORTAL_CLIENT_ID = proxyEnv.KEYCLOAK_PORTAL_CLIENT_ID;
 const TOKEN_URL = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
 
 interface RefreshedTokens {

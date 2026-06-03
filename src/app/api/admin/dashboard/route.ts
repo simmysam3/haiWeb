@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, getToken } from "@/lib/auth";
 import { isJwtLike } from "@/lib/with-hai-core";
+import { loadEnv } from "@/config/env";
 
-const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
+const API_URL = loadEnv().HAIWAVE_API_URL;
 
 // Allowlist: only these dashboard sub-paths are proxied.
 const DASHBOARD_TYPES = new Set(["overview", "suspicious", "failed_submissions", "health"]);

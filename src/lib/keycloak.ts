@@ -11,11 +11,14 @@
  * Authenticates to Keycloak via haiwave-portal-admin service account.
  */
 
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL ?? "http://localhost:8080";
-const REALM = process.env.KEYCLOAK_REALM ?? "haiwave-network";
-const ADMIN_CLIENT_ID = process.env.KEYCLOAK_ADMIN_CLIENT_ID ?? "haiwave-portal-admin";
-const ADMIN_CLIENT_SECRET = process.env.KEYCLOAK_ADMIN_CLIENT_SECRET ?? "";
-const PORTAL_CLIENT_ID = process.env.KEYCLOAK_PORTAL_CLIENT_ID ?? "haiwave-portal";
+import { loadEnv } from "@/config/env";
+
+const env = loadEnv();
+const KEYCLOAK_URL = env.KEYCLOAK_URL;
+const REALM = env.KEYCLOAK_REALM;
+const ADMIN_CLIENT_ID = env.KEYCLOAK_ADMIN_CLIENT_ID;
+const ADMIN_CLIENT_SECRET = env.KEYCLOAK_ADMIN_CLIENT_SECRET;
+const PORTAL_CLIENT_ID = env.KEYCLOAK_PORTAL_CLIENT_ID;
 
 export const keycloakAdminUrl = `${KEYCLOAK_URL}/admin/realms/${REALM}`;
 export const keycloakTokenUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;

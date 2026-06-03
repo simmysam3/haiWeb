@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, getToken, hasRole } from "@/lib/auth";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_SESSION } from "@/lib/mock-data";
+import { loadEnv } from "@/config/env";
+
+const API_URL = loadEnv().HAIWAVE_API_URL;
 
 /**
  * GET /api/account/profile
@@ -45,7 +48,7 @@ export async function PUT(request: NextRequest) {
     };
 
     const res = await fetch(
-      `${process.env.HAIWAVE_API_URL ?? "http://localhost:3000"}/api/v1/company/${session.participant.id}/profile`,
+      `${API_URL}/api/v1/company/${session.participant.id}/profile`,
       { method: "PUT", headers, body: JSON.stringify(body) },
     );
 
