@@ -178,6 +178,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     inbound_obligation:
       'A counterparty is asking you to fulfill a SKU-level compliance obligation.',
   },
+  // v1.47 Secure Supplier Registration — jurisdiction risk tier on a pending
+  // registration request (synchronous jurisdiction screen). Severity-coded
+  // (info/warn/problem), never orange (orange is nav-only).
+  risk_tier: {
+    standard: 'Domestic jurisdiction — standard review.',
+    elevated: 'Foreign jurisdiction — elevated review.',
+    blocked: 'Sanctioned jurisdiction — approval requires an audited override.',
+  },
   // v1.44 Phantom Demand — BOM feasibility verdict for a phantom-demand probe
   // run. Synthesised server-side from worst-case lead-time analysis.
   pd_verdict: {
@@ -235,6 +243,13 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   if (category === 'request-type') {
     if (v === 'inbound_obligation') return 'warn';
     if (v === 'inbound_nomination' || v === 'outbound_nomination') return 'info';
+  }
+  // v1.47 risk_tier tones: standard = info (teal), elevated = warn, blocked = problem (red).
+  // Severity tones only — never orange (nav-only).
+  if (category === 'risk_tier') {
+    if (v === 'standard') return 'info';
+    if (v === 'elevated') return 'warn';
+    if (v === 'blocked') return 'problem';
   }
   // v1.44 pd_verdict tones: on-time = green, marginal = amber, wall/infeasible = red
   if (category === 'pd_verdict') {
