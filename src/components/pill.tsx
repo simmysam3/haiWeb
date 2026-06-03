@@ -186,6 +186,12 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     elevated: 'Foreign jurisdiction — elevated review.',
     blocked: 'Sanctioned jurisdiction — approval requires an audited override.',
   },
+  // v1.47 — adjudication state of a registration request.
+  registration_status: {
+    pending_approval: 'Awaiting gatekeeper adjudication.',
+    approved: 'Approved; a participant identity has been provisioned.',
+    rejected: 'Rejected; applicant PII is redacted to a tombstone.',
+  },
   // v1.44 Phantom Demand — BOM feasibility verdict for a phantom-demand probe
   // run. Synthesised server-side from worst-case lead-time analysis.
   pd_verdict: {
@@ -250,6 +256,11 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'standard') return 'info';
     if (v === 'elevated') return 'warn';
     if (v === 'blocked') return 'problem';
+  }
+  if (category === 'registration_status') {
+    if (v === 'approved') return 'success';
+    if (v === 'rejected') return 'problem';
+    if (v === 'pending_approval') return 'warn';
   }
   // v1.44 pd_verdict tones: on-time = green, marginal = amber, wall/infeasible = red
   if (category === 'pd_verdict') {
