@@ -11,8 +11,9 @@ import { NextResponse } from 'next/server';
 // participant creation happens in haiWeb anymore.
 //
 // This handler is kept only to return an explicit 410 (instead of a confusing
-// 404) for any stale client still POSTing the old signup payload.
-export function POST() {
+// 404) for any stale client still POSTing the old signup payload. The request
+// is intentionally ignored — no body is read, parsed, or acted on.
+export function POST(_request: Request) {
   return NextResponse.json(
     {
       error: 'Self-service registration is closed.',
