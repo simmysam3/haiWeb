@@ -18,6 +18,7 @@
 // with packages/protocol/src/version.ts.
 const PROTOCOL_VERSION = '3.0.0';
 
+import { loadEnv } from "@/config/env";
 import type {
   ProvenanceKey,
   ProvenanceKeyWithCounts,
@@ -147,7 +148,7 @@ type AuditEventResponseMirror = {
   page_size: number;
 };
 
-const API_URL = process.env.HAIWAVE_API_URL ?? "http://localhost:3000";
+const API_URL = loadEnv().HAIWAVE_API_URL;
 
 export const haiwaveApiUrl = `${API_URL}/api/v1`;
 
