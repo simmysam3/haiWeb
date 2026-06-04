@@ -69,7 +69,7 @@ export function RegistrationsTable({ rows }: Props) {
       columns={columns}
       data={rows}
       keyFn={(r) => r.id}
-      emptyMessage="No pending registration requests."
+      emptyMessage="No registration requests match the current filters."
     />
   );
 }
