@@ -149,7 +149,7 @@ export function RegistrationDetail({ detail }: Props) {
         <Field label="Contact" value={contactName || null} />
         <Field label="Email" value={detail.contact_email} />
         <Field label="Role" value={detail.role_title} />
-        <Field label="Country of origin" value={detail.country_of_origin} />
+        <Field label="Headquarters country" value={detail.country_of_origin} />
         <Field label="Corporate website" value={detail.corporate_website} />
         <Field label="Tax ID" value={detail.tax_id} />
         <Field label="DUNS" value={detail.duns} />
