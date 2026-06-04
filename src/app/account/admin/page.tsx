@@ -10,6 +10,11 @@ export default function AdminLanding() {
             Agent configuration
           </Link>
         </li>
+        <li>
+          <Link href="/account/admin/registrations" className="text-teal-700 hover:underline">
+            Registrations
+          </Link>
+        </li>
       </ul>
     </div>
   );
