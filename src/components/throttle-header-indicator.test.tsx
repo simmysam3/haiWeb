@@ -23,6 +23,17 @@ describe('ThrottleHeaderIndicator', () => {
     expect(container.textContent).toBe('');
   });
 
+  it('renders nothing when data is an error payload with no numeric count', () => {
+    mockedUseSWR.mockReturnValue({
+      data: { error: { code: 'UNAUTHENTICATED' } },
+      error: undefined,
+      isLoading: false,
+      mutate: vi.fn(),
+    } as never);
+    const { container } = render(<ThrottleHeaderIndicator />);
+    expect(container.textContent).toBe('');
+  });
+
   it('renders count + label when count > 0', () => {
     mockedUseSWR.mockReturnValue({
       data: { count: 2, most_recent_modality: 'audit' },
@@ -32,6 +43,17 @@ describe('ThrottleHeaderIndicator', () => {
     } as never);
     render(<ThrottleHeaderIndicator />);
     expect(screen.getByText(/2.*throttled/i)).toBeInTheDocument();
+  });
+
+  it('renders the badge when count is a positive number', () => {
+    mockedUseSWR.mockReturnValue({
+      data: { count: 3, most_recent_modality: 'audit' },
+      error: undefined,
+      isLoading: false,
+      mutate: vi.fn(),
+    } as never);
+    render(<ThrottleHeaderIndicator />);
+    expect(screen.getByText(/3 runs throttled/i)).toBeInTheDocument();
   });
 
   it('renders link to /account/usage with modality querystring', () => {

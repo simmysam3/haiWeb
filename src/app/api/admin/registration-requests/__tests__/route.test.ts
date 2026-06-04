@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { PROTOCOL_VERSION } from '@haiwave/protocol';
 
 const { getSession, getToken } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -64,5 +65,13 @@ describe('GET /api/admin/registration-requests (BFF list)', () => {
   it('passes a haiCore error status through', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 502 })));
     expect((await get()).status).toBe(502);
+  });
+
+  it('forwards a haiCore-compatible protocol version header (not the stale 1.0.0)', async () => {
+    await get();
+    const [, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+    const sent = (init.headers as Record<string, string>)['X-HaiWave-Protocol-Version'];
+    // haiCore rejects mismatched MAJOR versions; the server is on PROTOCOL_VERSION.
+    expect(sent).toBe(PROTOCOL_VERSION);
   });
 });

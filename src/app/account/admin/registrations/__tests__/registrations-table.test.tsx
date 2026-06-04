@@ -32,9 +32,11 @@ describe('RegistrationsTable', () => {
     expect(screen.getByText('IR')).toBeInTheDocument();
     expect(screen.getByText('US')).toBeInTheDocument();
 
-    // risk_tier Pills render the tier label
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    // risk_tier renders literal pills: blocked → Foreign + Sanctioned; standard → Standard
+    expect(screen.getByText('Foreign')).toBeInTheDocument();
+    expect(screen.getByText('Sanctioned')).toBeInTheDocument();
     expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.queryByText('Blocked')).not.toBeInTheDocument();
 
     // each row drills into its detail page via a labelled link (DetailChevron inside)
     const blockedLink = screen.getByRole('link', { name: /Sanctioned Metals LLC/i });

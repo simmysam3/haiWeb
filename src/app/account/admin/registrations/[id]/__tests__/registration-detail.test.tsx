@@ -18,7 +18,12 @@ function makeDetail(over: Partial<Detail> = {}): Detail {
     contact_email: 'jane@example.com',
     role_title: 'CFO',
     corporate_website: 'https://example.com',
-    tax_id_or_duns: '12-3456789',
+    tax_id: '12-3456789',
+    duns: '987654321',
+    hq_street: '500 Foundry Rd',
+    hq_city: 'Tehran',
+    hq_region: 'Tehran Province',
+    hq_postal_code: '11369',
     screening_reason: 'Country IR is on the sanctioned list.',
     source: 'public_join',
     adjudicated_by: null,
@@ -53,8 +58,45 @@ describe('RegistrationDetail', () => {
     expect(screen.getByText('Sanctioned Metals LLC')).toBeInTheDocument();
     expect(screen.getByText('jane@example.com')).toBeInTheDocument();
     expect(screen.getByText(/sanctioned list/i)).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument(); // risk_tier pill
+    // blocked tier renders literal pills: Foreign + Sanctioned (not "Blocked")
+    expect(screen.getByText('Foreign')).toBeInTheDocument();
+    expect(screen.getByText('Sanctioned')).toBeInTheDocument();
+    expect(screen.queryByText('Blocked')).not.toBeInTheDocument();
     expect(screen.getByText('Pending approval')).toBeInTheDocument(); // status pill
+  });
+
+  it('renders tax_id, duns, and the composed HQ address', () => {
+    render(<RegistrationDetail detail={makeDetail()} />);
+    expect(screen.getByText('Tax ID')).toBeInTheDocument();
+    expect(screen.getByText('12-3456789')).toBeInTheDocument();
+    expect(screen.getByText('DUNS')).toBeInTheDocument();
+    expect(screen.getByText('987654321')).toBeInTheDocument();
+    expect(screen.getByText('HQ address')).toBeInTheDocument();
+    expect(screen.getByText('500 Foundry Rd')).toBeInTheDocument();
+    expect(screen.getByText('Tehran, Tehran Province 11369')).toBeInTheDocument();
+  });
+
+  it('on a declined record (tax_id null) renders contact + DUNS + HQ but "Tax ID —"', () => {
+    render(
+      <RegistrationDetail
+        detail={makeDetail({
+          status: 'rejected',
+          pii_redacted: true,
+          tax_id: null,
+          role_title: null,
+        })}
+      />,
+    );
+    // contact retained
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText('jane@example.com')).toBeInTheDocument();
+    // duns + HQ retained
+    expect(screen.getByText('987654321')).toBeInTheDocument();
+    expect(screen.getByText('500 Foundry Rd')).toBeInTheDocument();
+    // tax_id nulled → empty treatment under the Tax ID label
+    const taxIdLabel = screen.getByText('Tax ID');
+    const taxIdValue = taxIdLabel.parentElement?.querySelector('dd');
+    expect(taxIdValue).toHaveTextContent('—');
   });
 
   it('blocked approve requires an override reason, then POSTs {override:true,reason} and reflects approved', async () => {

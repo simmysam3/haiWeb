@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Pill } from '@/components/pill';
+import { RiskTierPills } from '../risk-tier-pills';
 import { Modal } from '@/components/modal';
 import { useToast } from '@/lib/use-toast';
 import type {
@@ -122,12 +123,25 @@ export function RegistrationDetail({ detail }: Props) {
   const approveDisabled = submitting || (isBlocked && reason.trim().length === 0);
   const rejectDisabled = submitting || reason.trim().length === 0;
   const contactName = [detail.first_name, detail.last_name].filter(Boolean).join(' ');
+  const cityLine = [
+    detail.hq_city,
+    [detail.hq_region, detail.hq_postal_code].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const hqAddress =
+    detail.hq_street || cityLine ? (
+      <span className="block">
+        {detail.hq_street && <span className="block">{detail.hq_street}</span>}
+        {cityLine && <span className="block">{cityLine}</span>}
+      </span>
+    ) : null;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-semibold text-navy">{detail.legal_entity_name}</h1>
-        <Pill category="risk_tier" value={detail.risk_tier} />
+        <RiskTierPills tier={detail.risk_tier} />
         <Pill category="registration_status" value={status} />
       </div>
 
@@ -135,9 +149,11 @@ export function RegistrationDetail({ detail }: Props) {
         <Field label="Contact" value={contactName || null} />
         <Field label="Email" value={detail.contact_email} />
         <Field label="Role" value={detail.role_title} />
-        <Field label="Country of origin" value={detail.country_of_origin} />
+        <Field label="Headquarters country" value={detail.country_of_origin} />
         <Field label="Corporate website" value={detail.corporate_website} />
-        <Field label="Tax ID / DUNS" value={detail.tax_id_or_duns} />
+        <Field label="Tax ID" value={detail.tax_id} />
+        <Field label="DUNS" value={detail.duns} />
+        <Field label="HQ address" value={hqAddress} />
         <Field label="Source" value={detail.source} />
         <Field label="Submitted" value={detail.submitted_at} />
       </dl>

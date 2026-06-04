@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PROTOCOL_VERSION } from "@haiwave/protocol";
 import { getSession, getToken } from "@/lib/auth";
 import { isJwtLike } from "@/lib/with-hai-core";
 import { loadEnv } from "@/config/env";
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "X-HaiWave-Protocol-Version": "1.0.0",
+        "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
       },
       body: JSON.stringify(rest),
     });

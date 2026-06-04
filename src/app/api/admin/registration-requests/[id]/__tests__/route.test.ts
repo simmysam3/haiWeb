@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { PROTOCOL_VERSION } from '@haiwave/protocol';
 
 const { getSession, getToken } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -56,6 +57,9 @@ describe('GET /api/admin/registration-requests/:id (BFF detail)', () => {
     expect(calledUrl).toContain('/api/v1/admin/registration-requests/req-1');
     expect((init.headers as Record<string, string>).Authorization).toBe(
       'Bearer header.payload.signature',
+    );
+    expect((init.headers as Record<string, string>)['X-HaiWave-Protocol-Version']).toBe(
+      PROTOCOL_VERSION,
     );
   });
 
