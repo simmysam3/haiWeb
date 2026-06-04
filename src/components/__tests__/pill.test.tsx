@@ -66,6 +66,39 @@ describe('Pill', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
+  it('renders risk_tier pills with resolved definitions (no missing-definition warn)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <>
+        <Pill category="risk_tier" value="standard" />
+        <Pill category="risk_tier" value="elevated" />
+        <Pill category="risk_tier" value="blocked" />
+      </>,
+    );
+    // exact-case labels (TITLE_CASE) — won't collide with the lowercase tooltip copy
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('Elevated')).toBeInTheDocument();
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    // every tier resolves a definition → no "[Pill] no definition" warning
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('risk_tier tones are severity-coded (info / warn / problem), never orange', () => {
+    const { container } = render(
+      <>
+        <Pill category="risk_tier" value="standard" />
+        <Pill category="risk_tier" value="elevated" />
+        <Pill category="risk_tier" value="blocked" />
+      </>,
+    );
+    const pills = container.querySelectorAll('[data-testid="pill"]');
+    expect(pills[0].className).toContain('text-teal-dark'); // standard → info
+    expect(pills[1].className).toContain('text-warning'); // elevated → warn
+    expect(pills[2].className).toContain('text-problem'); // blocked → problem
+    // orange is nav-only — never on a severity pill
+    [...pills].forEach((p) => expect(p.className).not.toMatch(/orange/i));
+  });
+
   it('probe_verdict resolves its static definition (not only the dynamic detail)', () => {
     render(
       <Pill
