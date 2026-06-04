@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { DataTable, type Column } from '@/components/data-table';
-import { Pill } from '@/components/pill';
+import { RiskTierPills } from './risk-tier-pills';
 import { DetailChevron } from '@/components/sonar/observations';
 import type { RegistrationListItem } from '@/lib/registration-types';
 
@@ -38,7 +38,7 @@ export function RegistrationsTable({ rows }: Props) {
     {
       key: 'risk_tier',
       label: 'Risk tier',
-      render: (r) => <Pill category="risk_tier" value={r.risk_tier} />,
+      render: (r) => <RiskTierPills tier={r.risk_tier} />,
       nowrap: true,
     },
     {

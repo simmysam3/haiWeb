@@ -37,7 +37,7 @@ export function ThrottleHeaderIndicator() {
     }
   }, []);
 
-  if (!data || data.count === 0 || dismissed) return null;
+  if (!data || typeof data.count !== 'number' || data.count <= 0 || dismissed) return null;
 
   const href = data.most_recent_modality
     ? `/account/usage?tab=${data.most_recent_modality}&scrollTo=active-runs`

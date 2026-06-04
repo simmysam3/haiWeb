@@ -53,7 +53,10 @@ describe('RegistrationDetail', () => {
     expect(screen.getByText('Sanctioned Metals LLC')).toBeInTheDocument();
     expect(screen.getByText('jane@example.com')).toBeInTheDocument();
     expect(screen.getByText(/sanctioned list/i)).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument(); // risk_tier pill
+    // blocked tier renders literal pills: Foreign + Sanctioned (not "Blocked")
+    expect(screen.getByText('Foreign')).toBeInTheDocument();
+    expect(screen.getByText('Sanctioned')).toBeInTheDocument();
+    expect(screen.queryByText('Blocked')).not.toBeInTheDocument();
     expect(screen.getByText('Pending approval')).toBeInTheDocument(); // status pill
   });
 

@@ -185,6 +185,10 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     standard: 'Domestic jurisdiction — standard review.',
     elevated: 'Foreign jurisdiction — elevated review.',
     blocked: 'Sanctioned jurisdiction — approval requires an audited override.',
+    // Literal display pills (see RiskTierPills): elevated renders as "Foreign";
+    // blocked renders as "Foreign" + "Sanctioned".
+    foreign: 'Foreign jurisdiction — elevated review.',
+    sanctioned: 'Sanctioned jurisdiction — approval requires an audited override.',
   },
   // v1.47 — adjudication state of a registration request.
   registration_status: {
@@ -254,8 +258,8 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   // Severity tones only — never orange (nav-only).
   if (category === 'risk_tier') {
     if (v === 'standard') return 'info';
-    if (v === 'elevated') return 'warn';
-    if (v === 'blocked') return 'problem';
+    if (v === 'elevated' || v === 'foreign') return 'warn';
+    if (v === 'blocked' || v === 'sanctioned') return 'problem';
   }
   if (category === 'registration_status') {
     if (v === 'approved') return 'success';

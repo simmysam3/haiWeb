@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PROTOCOL_VERSION } from "@haiwave/protocol";
 import { getSession, getToken, hasRole } from "@/lib/auth";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_SESSION } from "@/lib/mock-data";
@@ -43,7 +44,7 @@ export async function PUT(request: NextRequest) {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       "x-participant-id": session.participant.id,
-      "X-HaiWave-Protocol-Version": "1.0.0",
+      "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
       "Content-Type": "application/json",
     };
 

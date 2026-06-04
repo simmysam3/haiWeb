@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { Pill } from '@/components/pill';
+import { RiskTierPills } from '../risk-tier-pills';
 import { Modal } from '@/components/modal';
 import { useToast } from '@/lib/use-toast';
 import type {
@@ -127,7 +128,7 @@ export function RegistrationDetail({ detail }: Props) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-semibold text-navy">{detail.legal_entity_name}</h1>
-        <Pill category="risk_tier" value={detail.risk_tier} />
+        <RiskTierPills tier={detail.risk_tier} />
         <Pill category="registration_status" value={status} />
       </div>
 
