@@ -123,6 +123,19 @@ export function RegistrationDetail({ detail }: Props) {
   const approveDisabled = submitting || (isBlocked && reason.trim().length === 0);
   const rejectDisabled = submitting || reason.trim().length === 0;
   const contactName = [detail.first_name, detail.last_name].filter(Boolean).join(' ');
+  const cityLine = [
+    detail.hq_city,
+    [detail.hq_region, detail.hq_postal_code].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const hqAddress =
+    detail.hq_street || cityLine ? (
+      <span className="block">
+        {detail.hq_street && <span className="block">{detail.hq_street}</span>}
+        {cityLine && <span className="block">{cityLine}</span>}
+      </span>
+    ) : null;
 
   return (
     <div className="space-y-6">
@@ -138,7 +151,9 @@ export function RegistrationDetail({ detail }: Props) {
         <Field label="Role" value={detail.role_title} />
         <Field label="Country of origin" value={detail.country_of_origin} />
         <Field label="Corporate website" value={detail.corporate_website} />
-        <Field label="Tax ID / DUNS" value={detail.tax_id_or_duns} />
+        <Field label="Tax ID" value={detail.tax_id} />
+        <Field label="DUNS" value={detail.duns} />
+        <Field label="HQ address" value={hqAddress} />
         <Field label="Source" value={detail.source} />
         <Field label="Submitted" value={detail.submitted_at} />
       </dl>
