@@ -53,7 +53,16 @@ function TreeNode({
         </span>
         <span className="font-mono text-slate-900">{node.component_sku}</span>
         <span className="ml-1 text-slate-500">{node.component_label}</span>
-        <span className="ml-auto text-xs text-slate-400">×{node.qty_required_total}</span>
+        {/* qty column: show the rolled-up total as a plain quantity for 1:1 /
+            run-qty nodes, but surface the real per-parent multiplier when a
+            component explodes (e.g. 3 ingots per blank → "×3 → 360"). A bare
+            "×{total}" here previously read as a multiplier and made an exploded
+            component look larger than the run quantity. */}
+        <span className="ml-auto whitespace-nowrap text-xs text-slate-400">
+          {node.qty_per_parent_unit === 1
+            ? node.qty_required_total
+            : `×${node.qty_per_parent_unit} → ${node.qty_required_total}`}
+        </span>
       </button>
       {node.subcomponents.length > 0 && (
         <ul>

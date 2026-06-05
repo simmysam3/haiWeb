@@ -64,3 +64,40 @@ describe('BomNodeDetail', () => {
     expect(screen.getByText(/no bilateral access/i)).toBeInTheDocument();
   });
 });
+
+describe('BomNodeDetail — exploded-component quantity breakdown', () => {
+  const brassNode: BomNode = {
+    line_id: '00000000-0000-0000-0000-000000000099',
+    component_sku: 'BRASS-STOCK-APX-BR-CART-15',
+    component_label: 'Cartridge brass foundry ingot, C260',
+    qty_per_parent_unit: 3,
+    qty_required_total: 360,
+    source: 'vendor_stock',
+    on_hand_qty: 40,
+    vendor_block: {
+      vendor_participant_id: '00000000-0000-0000-0000-000000000010',
+      vendor_sku: 'USS-ING-BR-CART-100',
+      mto_reference: null,
+      plt_days: null,
+      qlt: null,
+      inventory_disclosure: 'exact',
+      on_hand_qty_at_vendor: 0,
+      historical_lt: null,
+    },
+    internal_block: null,
+    wall_block: null,
+    subcomponents: [],
+  };
+
+  it('shows the rolled-up total AND the per-parent multiplier for an exploded component', () => {
+    render(<BomNodeDetail node={brassNode} />);
+    expect(screen.getByText(/qty required: 360/i)).toBeInTheDocument();
+    expect(screen.getByText(/×3 per parent/i)).toBeInTheDocument();
+  });
+
+  it('omits the per-parent breakdown for a 1:1 component', () => {
+    render(<BomNodeDetail node={vendorNode} />);
+    expect(screen.getByText(/qty required: 30/i)).toBeInTheDocument();
+    expect(screen.queryByText(/per parent/i)).toBeNull();
+  });
+});
