@@ -2,6 +2,7 @@
 
 import type { ManifestSkuRow } from '@haiwave/protocol';
 import { AccordionLeafRow } from '@/components/grouped-accordion';
+import { DetailChevron } from '@/components/sonar/observations';
 import { ManifestRecencyChip } from './manifest-recency-chip';
 
 interface Props {
@@ -17,7 +18,7 @@ export function ManifestsSkuRow({ sku, onInspect }: Props) {
         <>
           <span className="text-xs font-mono text-slate truncate">{sku.external_product_id}</span>
           <ManifestRecencyChip updatedAt={sku.updated_at} />
-          <span className="text-teal text-lg font-bold">›</span>
+          <DetailChevron />
         </>
       }
       onClick={() => onInspect(sku)}

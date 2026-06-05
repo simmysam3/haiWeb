@@ -2,6 +2,7 @@
 
 import type { ManifestSearchMatch, ManifestSkuRow } from '@haiwave/protocol';
 import { AccordionLeafRow } from '@/components/grouped-accordion';
+import { DetailChevron } from '@/components/sonar/observations';
 import { Pill } from '@/components/pill';
 import { ManifestRecencyChip } from './manifest-recency-chip';
 
@@ -97,7 +98,7 @@ export function ManifestsSearchResults({
             <>
               <span className="text-xs font-mono text-slate truncate">{m.external_product_id}</span>
               <ManifestRecencyChip updatedAt={m.updated_at} />
-              <span className="text-teal text-lg font-bold">›</span>
+              <DetailChevron />
             </>
           }
           onClick={() => onInspect(m)}
