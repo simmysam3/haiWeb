@@ -48,6 +48,11 @@ export function BomNodeDetail({ node }: BomNodeDetailProps) {
         <p className="text-sm text-slate-600">{node.component_label}</p>
         <p className="mt-1 text-sm text-slate-500">
           {`Qty required: ${node.qty_required_total}`}
+          {node.qty_per_parent_unit !== 1 && (
+            <span className="text-slate-400">
+              {` (×${node.qty_per_parent_unit} per parent unit)`}
+            </span>
+          )}
         </p>
       </header>
 

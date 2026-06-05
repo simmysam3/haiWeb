@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { BomTreeView } from '../bom-tree-view';
-import type { BomTree } from '@haiwave/protocol';
+import type { BomTree, BomNode } from '@haiwave/protocol';
 
 const tree: BomTree = {
   line_id: '00000000-0000-0000-0000-000000000001',
@@ -62,5 +62,80 @@ describe('BomTreeView', () => {
     );
     const selected = container.querySelector('[aria-selected="true"]');
     expect(selected?.textContent).toContain('ABS-HSG-25');
+  });
+});
+
+// Regression: the qty column rendered `×{qty_required_total}`, so an exploded
+// component (3 brass ingots per blank → 360 from a 120-unit run) showed "×360"
+// — larger than the 120 run qty and wearing a multiplier glyph, which read as
+// if the run quantity had changed. Surface the true per-parent multiplier and
+// label the rolled-up total instead.
+const brass: BomNode = {
+  line_id: 'l-brass',
+  component_sku: 'BRASS-STOCK-APX-BR-CART-15',
+  component_label: 'Cartridge brass foundry ingot, C260',
+  qty_per_parent_unit: 3,
+  qty_required_total: 360,
+  source: 'vendor_stock',
+  on_hand_qty: 40,
+  vendor_block: {
+    vendor_participant_id: '00000000-0000-0000-0000-000000000020',
+    vendor_sku: 'USS-ING-BR-CART-100',
+    mto_reference: null,
+    plt_days: null,
+    qlt: null,
+    inventory_disclosure: 'exact',
+    on_hand_qty_at_vendor: 0,
+    historical_lt: null,
+  },
+  internal_block: null,
+  wall_block: null,
+  subcomponents: [],
+};
+
+const machining: BomNode = {
+  line_id: 'l-cnc',
+  component_sku: 'APX-MACH-APX-BR-CART-15',
+  component_label: 'CNC machining + finishing (internal)',
+  qty_per_parent_unit: 1,
+  qty_required_total: 120,
+  source: 'internal_mfg',
+  on_hand_qty: null,
+  vendor_block: null,
+  internal_block: { standard_lt_days: 10, historical_lt: null, live_capacity: null },
+  wall_block: null,
+  subcomponents: [],
+};
+
+const explodedTree: BomTree = {
+  line_id: 'l-root',
+  component_sku: 'APX-BR-CART-15',
+  component_label: 'Cartridge Valve Body Blank, 1-1/2 in.',
+  qty_per_parent_unit: 1,
+  qty_required_total: 120,
+  source: 'internal_mfg',
+  on_hand_qty: null,
+  vendor_block: null,
+  internal_block: { standard_lt_days: 0, historical_lt: null, live_capacity: null },
+  wall_block: null,
+  subcomponents: [machining, brass],
+};
+
+describe('BomTreeView — multiplier vs total disambiguation', () => {
+  it('surfaces the per-parent multiplier and rolled-up total (×3 → 360), not a bare ×360', () => {
+    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} />);
+    const node = screen.getByRole('button', { name: /BRASS-STOCK/i });
+    expect(node).toHaveTextContent('×3 → 360');
+    expect(node).not.toHaveTextContent('×360');
+  });
+
+  it('shows 1:1 / run-qty nodes as a plain quantity, never a "×" multiplier', () => {
+    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} />);
+    const root = screen.getByRole('button', { name: /Cartridge Valve Body Blank/i });
+    expect(root).toHaveTextContent('120');
+    expect(root).not.toHaveTextContent('×120');
+    const cnc = screen.getByRole('button', { name: /CNC machining/i });
+    expect(cnc).toHaveTextContent('120');
+    expect(cnc).not.toHaveTextContent('×120');
   });
 });

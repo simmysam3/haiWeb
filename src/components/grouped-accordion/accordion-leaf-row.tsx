@@ -38,7 +38,7 @@ export function AccordionLeafRow({ controlSlot, label, metaSlot, onClick }: Prop
         // pr-3 keeps the right-aligned chevron / meta from sitting flush
         // against the row's right edge — matches the breathing room of
         // text-right table cells like run-exceptions-panel.tsx.
-        className="flex w-full items-center gap-2 py-0.5 pr-3 text-left hover:bg-gray-50 cursor-pointer"
+        className="group flex w-full items-center gap-2 py-0.5 pr-3 text-left hover:bg-gray-50 cursor-pointer"
       >
         {content}
       </button>
