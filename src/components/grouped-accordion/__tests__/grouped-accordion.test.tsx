@@ -114,4 +114,12 @@ describe('<AccordionLeafRow>', () => {
     fireEvent.click(screen.getByRole('treeitem', { name: /L/i }));
     expect(clicked).toBe(true);
   });
+
+  // The clickable row must carry `group` so a descendant <DetailChevron /> in
+  // metaSlot lights its `group-hover:` transition on row hover (the actual CSS
+  // hover isn't observable in jsdom; this pins the structural contract).
+  it('carries the `group` class for descendant hover transitions', () => {
+    render(<AccordionLeafRow label="L" metaSlot={null} onClick={() => {}} />);
+    expect(screen.getByRole('treeitem', { name: /L/i })).toHaveClass('group');
+  });
 });
