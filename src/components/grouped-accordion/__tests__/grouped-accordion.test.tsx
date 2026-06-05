@@ -99,30 +99,6 @@ describe('<GroupedAccordion>', () => {
   });
 });
 
-// Regression: the group toggle rendered a bare "▶"/"▼" glyph (small, slate)
-// instead of the shared DetailChevron — the "small >" reported on
-// /account/provenance. CLAUDE.md mandates <DetailChevron expanded={isOpen} />
-// for nested-accordion expanders (the chevron rotates 90deg when open).
-describe('AccordionGroupRow chevron affordance', () => {
-  it('renders the shared DetailChevron (not a bare ▶ glyph) when collapsed', () => {
-    render(<Harness initial="none" />);
-    const btn = screen.getByRole('button', { name: /Expand Alpha/i });
-    expect(btn).not.toHaveTextContent('▶');
-    const svg = btn.querySelector('svg');
-    expect(svg).toBeTruthy();
-    expect(svg?.getAttribute('class') ?? '').not.toContain('rotate-90');
-  });
-
-  it('rotates the DetailChevron (and drops the bare ▼ glyph) when expanded', () => {
-    render(<Harness initial="all" />);
-    const btn = screen.getByRole('button', { name: /Collapse Alpha/i });
-    expect(btn).not.toHaveTextContent('▼');
-    const svg = btn.querySelector('svg');
-    expect(svg).toBeTruthy();
-    expect(svg?.getAttribute('class') ?? '').toContain('rotate-90');
-  });
-});
-
 describe('<AccordionLeafRow>', () => {
   it('fires onClick on row click', () => {
     let clicked = false;

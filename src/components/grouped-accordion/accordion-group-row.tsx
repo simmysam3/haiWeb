@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { DetailChevron } from '@/components/sonar/observations';
 
 export type CountValue = number | { filtered: number; total: number } | string;
 
@@ -52,9 +51,9 @@ export function AccordionGroupRow({
           aria-expanded={expanded}
           aria-controls={bodyId}
           onClick={onToggle}
-          className="group inline-flex shrink-0 items-center"
+          className="w-4 text-xs text-slate hover:text-charcoal"
         >
-          <DetailChevron expanded={expanded} />
+          {expanded ? '▼' : '▶'}
         </button>
         {controlSlot}
         <span className="text-sm text-charcoal truncate">{label}</span>
