@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  // Standalone output: emits a self-contained server (+ traced node_modules) at
+  // .next/standalone, so the prod container ships only the runtime, not the full
+  // monorepo. outputFileTracingRoot is set to the workspace parent so the cross-
+  // repo `@haiwave/protocol` dep (resolved outside the haiWeb root) is traced in.
+  output: "standalone",
+  outputFileTracingRoot: path.join(import.meta.dirname, ".."),
   // @haiwave/protocol is a `file:` workspace dep symlinked from
   // ../haiCore/packages/protocol — outside the HaiWeb project root. Turbopack
   // refuses to resolve modules outside the project root by default, so

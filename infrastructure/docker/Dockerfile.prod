@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1
+# =============================================================================
+# Dockerfile.prod -- FIPS-first production image for haiWeb (Next.js standalone).
+# Matches haiCore's FIPS posture (gate 1.6/1.7, D-8/SC-13): OpenSSL-3 FIPS
+# provider configured IN-CONTAINER on the runtime stage only (no host fips=1),
+# so it works on serverless Cloud Run. The BUILD stage is deliberately NOT
+# FIPS-configured -- Next/webpack content hashing uses md4/md5, which a FIPS
+# OpenSSL blocks; building non-FIPS and running FIPS avoids that footgun.
+#
+# Cross-repo dep: haiWeb depends on @haiwave/protocol via `file:../haiCore/
+# packages/protocol`. Build CONTEXT must be the workspace parent (dev/hw) with
+# both trees present at their relative paths. Build from a staged context:
+#   docker build -f haiWeb/infrastructure/docker/Dockerfile.prod <staged-ctx>
+# =============================================================================
+
+ARG UBI=registry.access.redhat.com/ubi9/nodejs-22@sha256:6a3eed5bfd580871fde7329421ce0b2ae533e28792f6db1accbd77602e271ad7
+
+# ---- Stage 1: build @haiwave/protocol (tsc -> dist) ----
+FROM ${UBI} AS protocol
+USER 0
+WORKDIR /app/haiCore/packages/protocol
+COPY haiCore/tsconfig.base.json /app/haiCore/tsconfig.base.json
+COPY haiCore/packages/protocol/package.json haiCore/packages/protocol/tsconfig.json ./
+RUN npm install --no-audit --no-fund
+COPY haiCore/packages/protocol/src ./src
+RUN npm run build
+
+# ---- Stage 2: build haiWeb (Next standalone; NON-FIPS so md4/md5 hashing works) ----
+FROM ${UBI} AS builder
+USER 0
+WORKDIR /app/haiWeb
+ENV NEXT_TELEMETRY_DISABLED=1
+# The built protocol must sit at the path haiWeb's `file:` dep resolves to.
+COPY --from=protocol /app/haiCore/packages/protocol /app/haiCore/packages/protocol
+COPY haiWeb/package.json haiWeb/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY haiWeb/ ./
+# Placeholder so any production env validation that runs during `next build`
+# (NODE_ENV=production) passes; the real SESSION_SECRET is injected at runtime.
+ENV SESSION_SECRET=build-time-placeholder-not-used-at-runtime
+RUN npm run build
+
+# ---- Stage 3: runtime (UBI9 nodejs-22 + OpenSSL-3 FIPS provider) ----
+FROM ${UBI} AS runtime
+USER 0
+WORKDIR /app
+RUN cat > /etc/pki/tls/openssl-fips.cnf <<'EOF'
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+alg_section = evp_properties
+
+[provider_sect]
+fips = fips_sect
+base = base_sect
+
+[base_sect]
+activate = 1
+
+[fips_sect]
+.include /etc/pki/tls/fips_local.cnf
+
+[evp_properties]
+default_properties = fips=yes
+EOF
+ENV OPENSSL_CONF=/etc/pki/tls/openssl-fips.cnf \
+    NODE_ENV=production \
+    PORT=8080 \
+    HOSTNAME=0.0.0.0 \
+    NEXT_TELEMETRY_DISABLED=1
+# Next standalone output. outputFileTracingRoot=<parent> nests the app under
+# haiWeb/, so server.js lands at /app/haiWeb/server.js and traced node_modules
+# at /app/node_modules.
+COPY --from=builder --chown=1001:0 /app/haiWeb/.next/standalone ./
+COPY --from=builder --chown=1001:0 /app/haiWeb/.next/static ./haiWeb/.next/static
+COPY --from=builder --chown=1001:0 /app/haiWeb/public ./haiWeb/public
+EXPOSE 8080
+USER 1001
+CMD ["node", "haiWeb/server.js"]
