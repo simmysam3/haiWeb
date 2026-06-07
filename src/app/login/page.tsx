@@ -58,7 +58,13 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(readStickyRedirectTarget());
+      // Admins land directly on the gatekeeper console (registration queue);
+      // everyone else follows the sticky last-visited /account path. The login
+      // route reports is_admin since the session cookie is httpOnly.
+      const data = (await res.json().catch(() => ({}))) as { is_admin?: boolean };
+      router.push(
+        data.is_admin ? "/account/admin/registrations" : readStickyRedirectTarget(),
+      );
     } catch {
       setError("Network error. Please try again.");
     } finally {

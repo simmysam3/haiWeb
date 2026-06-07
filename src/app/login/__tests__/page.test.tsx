@@ -232,3 +232,52 @@ describe('LoginPage — session stickiness (v.1.41)', () => {
     expect(target).toBe('/account');
   });
 });
+
+describe('LoginPage — admin landing (gatekeeper console)', () => {
+  it('routes admins straight to the gatekeeper console on success', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, is_admin: true }),
+    } as Response);
+
+    render(<LoginPage />);
+    (screen.getByPlaceholderText(/you@company.com/i) as HTMLInputElement).value = 'admin@haiwave.ai';
+    (document.querySelector('input[name="password"]') as HTMLInputElement).value = 'secret';
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/account/admin/registrations'),
+    );
+  });
+
+  it('admin landing wins over a stored last-account path', async () => {
+    window.localStorage.setItem('haiwave:last-account-path', '/account/profile');
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, is_admin: true }),
+    } as Response);
+
+    render(<LoginPage />);
+    (screen.getByPlaceholderText(/you@company.com/i) as HTMLInputElement).value = 'admin@haiwave.ai';
+    (document.querySelector('input[name="password"]') as HTMLInputElement).value = 'secret';
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() =>
+      expect(mockPush).toHaveBeenCalledWith('/account/admin/registrations'),
+    );
+  });
+
+  it('non-admins still follow the sticky/account redirect', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, is_admin: false }),
+    } as Response);
+
+    render(<LoginPage />);
+    (screen.getByPlaceholderText(/you@company.com/i) as HTMLInputElement).value = 'user@example.com';
+    (document.querySelector('input[name="password"]') as HTMLInputElement).value = 'secret';
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/account'));
+  });
+});

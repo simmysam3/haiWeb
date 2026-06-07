@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/keycloak";
+import { isAdminFromAccessToken } from "@/lib/jwt-claims";
 
 /**
  * POST /api/auth/login
@@ -21,7 +22,12 @@ export async function POST(request: NextRequest) {
   try {
     const tokens = await authenticateUser(email, password);
 
-    const response = NextResponse.json({ success: true });
+    // is_admin lets the client land admins on the gatekeeper console; the
+    // session cookie is httpOnly so the browser can't read the role itself.
+    const response = NextResponse.json({
+      success: true,
+      is_admin: isAdminFromAccessToken(tokens.access_token),
+    });
 
     const isProd = process.env.NODE_ENV === "production";
 
