@@ -17,3 +17,9 @@ describe('haiWeb server env', () => {
     process.env = prev as NodeJS.ProcessEnv;
   });
 });
+
+describe('loadEnv — PORTAL_BASE_URL', () => {
+  it('defaults PORTAL_BASE_URL to the dev portal origin', () => {
+    expect(loadEnv().PORTAL_BASE_URL).toBe('http://localhost:3001');
+  });
+});

@@ -26,6 +26,10 @@ const EnvSchema = z.object({
   KEYCLOAK_PORTAL_CLIENT_ID: z.string().default('haiwave-portal'),
   KEYCLOAK_ADMIN_CLIENT_ID: z.string().default('haiwave-portal-admin'),
   KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().default(''),
+  // Portal origin (server-side). Used to build the OIDC redirect_uri and
+  // post-logout redirect. Must match the Keycloak client's registered
+  // redirectUris exactly. Prod: https://console.haiwave.ai
+  PORTAL_BASE_URL: z.string().url().default('http://localhost:3001'),
 
   // Stripe
   STRIPE_SECRET_KEY: z.string().default(''),
