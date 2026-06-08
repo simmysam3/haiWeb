@@ -1,72 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser } from "@/lib/keycloak";
-import { isAdminFromAccessToken } from "@/lib/jwt-claims";
+import { NextRequest, NextResponse } from 'next/server';
+import { loadEnv } from '@/config/env';
+import { randomToken, pkceChallenge, buildAuthorizeUrl } from '@/lib/oidc';
 
 /**
- * POST /api/auth/login
+ * GET /api/auth/login
  *
- * Authenticates via Keycloak. Falls back to mock session in dev.
+ * Starts the OIDC Authorization-Code + PKCE flow: stashes verifier/state/nonce
+ * in short-lived httpOnly cookies and 302s the browser to Keycloak.
  */
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { email, password } = body;
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/account';
+  return raw;
+}
 
-  if (!email || !password) {
-    return NextResponse.json(
-      { error: "Email and password are required" },
-      { status: 400 },
-    );
-  }
+export async function GET(request: NextRequest) {
+  const env = loadEnv();
+  const isProd = env.NODE_ENV === 'production';
 
-  // Try Keycloak authentication
-  try {
-    const tokens = await authenticateUser(email, password);
+  const verifier = randomToken(32);
+  const state = randomToken(16);
+  const nonce = randomToken(16);
+  const challenge = await pkceChallenge(verifier);
+  const next = safeNext(request.nextUrl.searchParams.get('next'));
+  const redirectUri = `${env.PORTAL_BASE_URL}/api/auth/callback`;
 
-    // is_admin lets the client land admins on the gatekeeper console; the
-    // session cookie is httpOnly so the browser can't read the role itself.
-    const response = NextResponse.json({
-      success: true,
-      is_admin: isAdminFromAccessToken(tokens.access_token),
-    });
-
-    const isProd = process.env.NODE_ENV === "production";
-
-    response.cookies.set("haiwave_session", tokens.access_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      maxAge: tokens.expires_in,
-      path: "/",
-    });
-
-    response.cookies.set("haiwave_refresh", tokens.refresh_token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      maxAge: 86400, // 24 hours
-      path: "/",
-    });
-
-    return response;
-  } catch {
-    // Dev fallback: if Keycloak unavailable, use mock cookie
-    if (process.env.NODE_ENV === "development") {
-      const isAdmin = email.toLowerCase().includes("admin");
-      const response = NextResponse.json({ success: true });
-
-      response.cookies.set("haiwave_session", isAdmin ? "admin" : "user", {
-        httpOnly: true,
-        sameSite: "lax",
-        maxAge: 1800,
-        path: "/",
-      });
-
-      return response;
-    }
-
-    return NextResponse.json(
-      { error: "Invalid email or password" },
-      { status: 401 },
-    );
-  }
+  const res = NextResponse.redirect(buildAuthorizeUrl({ redirectUri, state, nonce, codeChallenge: challenge }));
+  const opts = { httpOnly: true, secure: isProd, sameSite: 'lax' as const, maxAge: 600, path: '/api/auth' };
+  res.cookies.set('kc_verifier', verifier, opts);
+  res.cookies.set('kc_state', state, opts);
+  res.cookies.set('kc_nonce', nonce, opts);
+  res.cookies.set('kc_next', next, opts);
+  return res;
 }
