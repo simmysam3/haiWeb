@@ -17,13 +17,13 @@ afterEach(() => {
   created.length = 0;
 });
 
-function initRepo(): string {
+function initRepo(pkg: Record<string, unknown> = { name: 'agent', version: '9.9.9' }): string {
   const dir = tmp('agentzip-repo-');
   const git = (...a: string[]) => execFileSync('git', ['-C', dir, ...a], { stdio: 'pipe' });
   git('init', '-q');
   git('config', 'user.email', 't@t.t');
   git('config', 'user.name', 'T');
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'agent', version: '9.9.9' }));
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(pkg));
   writeFileSync(join(dir, 'index.ts'), 'export const x = 1;\n');
   writeFileSync(join(dir, '.gitignore'), '.env\n');
   writeFileSync(join(dir, '.env'), 'SECRET=shh\n'); // gitignored → must be excluded
@@ -50,11 +50,17 @@ describe('buildAgentZip', () => {
     const entries = execFileSync('unzip', ['-Z1', join(out, manifest.zipFile)]).toString();
     expect(entries).toContain('index.ts');
     expect(entries).toContain('package.json');
-    expect(entries).not.toContain('.env');
+    expect(entries.split('\n')).not.toContain('.env');
   });
 
   it('throws on a non-git path', () => {
     const out = tmp('agentzip-out-');
     expect(() => buildAgentZip({ repoPath: out, outDir: out })).toThrow(/git repository/);
+  });
+
+  it('throws when package.json has no version', () => {
+    const repo = initRepo({ name: 'agent' }); // no version field
+    const out = tmp('agentzip-out-');
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/version/);
   });
 });

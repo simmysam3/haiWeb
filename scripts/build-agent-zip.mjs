@@ -7,6 +7,9 @@ import { join, resolve } from 'node:path';
  * (tracked files only — .env*, data/, *.duckdb, node_modules are gitignored and
  * therefore excluded), and write a manifest describing it.
  *
+ * NOTE: this excludes gitignored files only. A *tracked* secret (e.g. someone
+ * `git add`ed a real .env or key) WOULD be archived — keep secrets gitignored.
+ *
  * @param {{ repoPath: string, outDir: string, now?: Date }} opts
  * @returns {{ version: string, zipFile: string, zipBytes: number, builtAt: string }}
  */
