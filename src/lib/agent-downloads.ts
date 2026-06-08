@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 /** Non-public directory holding the agent downloads (outside `public/`). */
 export const DOWNLOAD_DIR = join(process.cwd(), 'private', 'agent-downloads');
@@ -35,8 +35,9 @@ export async function fileExists(name: string, dir: string = DOWNLOAD_DIR): Prom
 
 /**
  * Map an allowlisted public key to a fixed on-disk file. The key (not raw user
- * input) selects the filename, so there is no path-traversal surface. Returns
- * null for unknown keys, or for "agent" before the zip has been built.
+ * input) selects which file; for the manifest-derived zip the name is reduced
+ * to a basename, so no path segment can escape the download dir. Returns null
+ * for unknown keys, or for "agent" before the zip has been built.
  */
 export async function resolveDownloadSpec(
   file: string,
@@ -47,7 +48,11 @@ export async function resolveDownloadSpec(
   }
   if (file === 'agent') {
     const manifest = await loadManifest(dir);
-    return manifest?.zipFile ? { name: manifest.zipFile, contentType: 'application/zip' } : null;
+    if (!manifest?.zipFile) return null;
+    // The manifest is server-generated, but treat its filename as untrusted:
+    // reduce to a bare basename so a stray path segment can never escape the
+    // download dir when the route joins it onto DOWNLOAD_DIR.
+    return { name: basename(manifest.zipFile), contentType: 'application/zip' };
   }
   return null;
 }

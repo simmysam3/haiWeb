@@ -49,4 +49,10 @@ describe('resolveDownloadSpec', () => {
   it('returns null for an unknown key', async () => {
     expect(await resolveDownloadSpec('passwd', '/d')).toBeNull();
   });
+  it('reduces a manifest zipFile with path segments to its basename (no traversal)', async () => {
+    readFile.mockResolvedValue(JSON.stringify({ zipFile: '../../etc/passwd' }));
+    expect(await resolveDownloadSpec('agent', '/d')).toEqual({
+      name: 'passwd', contentType: 'application/zip',
+    });
+  });
 });
