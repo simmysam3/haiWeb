@@ -65,5 +65,15 @@ export function loadEnv(): Env {
       'KEYCLOAK_CLIENT_SECRET is empty but NODE_ENV=production — the portal is a confidential client; set it explicitly.',
     );
   }
+  if (result.data.NODE_ENV === 'production' && result.data.KEYCLOAK_ADMIN_CLIENT_SECRET === '') {
+    throw new Error(
+      'KEYCLOAK_ADMIN_CLIENT_SECRET is empty but NODE_ENV=production — set it explicitly.',
+    );
+  }
+  if (result.data.KEYCLOAK_PORTAL_CLIENT_ID !== result.data.KEYCLOAK_CLIENT_ID) {
+    throw new Error(
+      'KEYCLOAK_CLIENT_ID and KEYCLOAK_PORTAL_CLIENT_ID must reference the same portal client; they differ.',
+    );
+  }
   return result.data;
 }
