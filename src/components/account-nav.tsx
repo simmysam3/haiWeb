@@ -196,6 +196,16 @@ const navSections: NavSection[] = [
       { href: "/account/billing", label: "Billing", tooltip: "Stripe subscription and metered-usage billing for your HAIWAVE account." },
     ],
   },
+  {
+    label: "Agent Software",
+    items: [
+      {
+        href: "/account/agent-software",
+        label: "Agent Software",
+        tooltip: "Download the agent configuration guide and the latest agent client software.",
+      },
+    ],
+  },
 ];
 
 interface AccountNavProps {
