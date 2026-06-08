@@ -60,5 +60,10 @@ export function loadEnv(): Env {
       'SESSION_SECRET is the dev default but NODE_ENV=production — set it explicitly.',
     );
   }
+  if (result.data.NODE_ENV === 'production' && result.data.KEYCLOAK_CLIENT_SECRET === '') {
+    throw new Error(
+      'KEYCLOAK_CLIENT_SECRET is empty but NODE_ENV=production — the portal is a confidential client; set it explicitly.',
+    );
+  }
   return result.data;
 }

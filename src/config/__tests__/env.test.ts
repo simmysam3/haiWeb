@@ -16,6 +16,19 @@ describe('haiWeb server env', () => {
     expect(() => loadEnv()).toThrow(/SESSION_SECRET/);
     process.env = prev as NodeJS.ProcessEnv;
   });
+
+  it('throws when KEYCLOAK_CLIENT_SECRET is empty in production', () => {
+    const prev = { ...process.env };
+    const mutable = process.env as Record<string, string | undefined>;
+    mutable.NODE_ENV = 'production';
+    mutable.SESSION_SECRET = 'a-real-session-secret';
+    mutable.KEYCLOAK_CLIENT_SECRET = '';
+    try {
+      expect(() => loadEnv()).toThrow(/KEYCLOAK_CLIENT_SECRET/);
+    } finally {
+      process.env = prev as NodeJS.ProcessEnv;
+    }
+  });
 });
 
 describe('loadEnv — PORTAL_BASE_URL', () => {
