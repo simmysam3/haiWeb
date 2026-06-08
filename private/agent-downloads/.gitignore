@@ -1,0 +1,4 @@
+# Build artifacts + user-provided binaries — never commit these.
+*
+!.gitkeep
+!.gitignore
