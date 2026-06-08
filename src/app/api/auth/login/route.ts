@@ -6,10 +6,21 @@ import { randomToken, pkceChallenge, buildAuthorizeUrl } from '@/lib/oidc';
  * GET /api/auth/login
  *
  * Starts the OIDC Authorization-Code + PKCE flow: stashes verifier/state/nonce
- * in short-lived httpOnly cookies and 302s the browser to Keycloak.
+ * in short-lived httpOnly cookies and redirects (307) the browser to Keycloak.
+ */
+/**
+ * Return a safe in-portal redirect path. Rejects anything the URL parser would
+ * resolve to a different origin — protocol-relative (`//host`), backslash variants
+ * (`/\host`), and absolute/scheme URLs — to defend against open redirects.
  */
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/account';
+  if (!raw || !raw.startsWith('/')) return '/account';
+  try {
+    const u = new URL(raw, 'http://localhost');
+    if (u.origin !== 'http://localhost') return '/account';
+  } catch {
+    return '/account';
+  }
   return raw;
 }
 

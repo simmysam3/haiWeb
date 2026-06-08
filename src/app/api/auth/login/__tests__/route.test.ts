@@ -21,6 +21,9 @@ describe('GET /api/auth/login — Authorization-Code redirect', () => {
     expect(setCookie).toContain('kc_nonce=');
     expect(setCookie).toContain('HttpOnly');
     expect(setCookie).toContain('Path=/api/auth');
+
+    const stateInUrl = loc.searchParams.get('state')!;
+    expect(setCookie).toContain(`kc_state=${stateInUrl}`);
   });
 
   it('persists a safe ?next as the kc_next cookie and rejects an unsafe one', async () => {
@@ -29,5 +32,10 @@ describe('GET /api/auth/login — Authorization-Code redirect', () => {
 
     const bad = await GET(req('http://localhost:3001/api/auth/login?next=//evil.com'));
     expect(bad.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount');
+  });
+
+  it('rejects a backslash open-redirect (/\\evil.com) and falls back to /account', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login?next=/\\evil.com'));
+    expect(res.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount');
   });
 });
