@@ -1,7 +1,7 @@
 # Agent Software page (HaiWeb console) — Design
 
 **Date:** 2026-06-08
-**Status:** Approved (design); pending spec review
+**Status:** Approved
 **Scope:** A new "Agent Software" page in the signed-in HaiWeb console that lets a
 logged-in partner download (a) the agent configuration guide PDF and (b) a zip of
 the latest haiClient agent source. Both downloads are gated behind authentication.
@@ -49,12 +49,16 @@ Covered by the existing `account-nav.test.tsx` (extend it to assert the link).
   `/account/*` pages: same layout wrapper, heading, card styling).
 - Calls `getSession()` from `@/lib/auth`; if `null`, redirect to the login route
   (same pattern other gated account pages use).
-- Reads `private/agent-downloads/manifest.json` (server-side `fs`) to render:
+- Reads `private/agent-downloads/manifest.json` (server-side `fs`) for the zip
+  version + build date, and determines each file's availability by checking the
+  filesystem directly (`configuration-guide.pdf` fixed name; zip name from the
+  manifest):
   - **Configuration Guide (PDF)** download button → `/api/agent-software/download/guide`
   - **Agent — Latest Version (v<version>)** download button →
     `/api/agent-software/download/agent`, with version + build date.
-- If a file is absent in the manifest, its button renders disabled with a
-  "Not yet published" note (page still renders).
+- A file that is missing — or a missing/absent `manifest.json` (no build run yet)
+  — renders that button disabled with a "Not yet published" note; the page still
+  renders.
 
 ### 3. Gated download route — `src/app/api/agent-software/download/[file]/route.ts`
 - `GET`. Calls `getSession()`; returns **401** JSON if `null`.
@@ -72,7 +76,8 @@ Outside `public/`, so files are **not** statically served and are only reachable
 through the gated route. Contents:
 - `configuration-guide.pdf` — provided by the user.
 - `haiwave-agent-v<version>.zip` — produced by the build script.
-- `manifest.json` — `{ version, zipFile, zipBytes, pdfFile, builtAt }`.
+- `manifest.json` — `{ version, zipFile, zipBytes, builtAt }` (zip metadata only;
+  the PDF is user-provided and detected by filesystem presence, not the manifest).
 A `.gitignore` in this dir ignores the PDF and zip (binaries) but keeps a
 `.gitkeep` so the directory exists. `manifest.json` may be committed or ignored;
 default: ignored (it references build artifacts).
@@ -118,6 +123,7 @@ Console nav "Agent Software"
 | Unauthenticated download request | 401 JSON |
 | `file` not in allowlist | 400 JSON |
 | Requested file not on disk | 404 JSON; page shows button disabled ("Not yet published") |
+| `manifest.json` absent (no build run yet) | page renders both buttons disabled; agent download route 404s |
 | Build script: missing/invalid haiClient repo | non-zero exit, clear error |
 
 ## Testing (TDD)
