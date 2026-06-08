@@ -35,9 +35,14 @@ COPY --from=protocol /app/haiCore/packages/protocol /app/haiCore/packages/protoc
 COPY haiWeb/package.json haiWeb/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY haiWeb/ ./
-# Placeholder so any production env validation that runs during `next build`
-# (NODE_ENV=production) passes; the real SESSION_SECRET is injected at runtime.
-ENV SESSION_SECRET=build-time-placeholder-not-used-at-runtime
+# Placeholders so the production env validation that runs during `next build`
+# (NODE_ENV=production) passes; the real values are injected at runtime by Cloud
+# Run (--update-secrets / --update-env-vars) and override these. The confidential
+# portal client secret + admin client secret guards were added with the OIDC
+# Authorization-Code cutover (dec3681) and need the same treatment as SESSION_SECRET.
+ENV SESSION_SECRET=build-time-placeholder-not-used-at-runtime \
+    KEYCLOAK_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime \
+    KEYCLOAK_ADMIN_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime
 RUN npm run build
 
 # ---- Stage 3: runtime (UBI9 nodejs-22 + OpenSSL-3 FIPS provider) ----
