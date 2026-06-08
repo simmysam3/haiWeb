@@ -2,7 +2,7 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { DownloadCard } from "@/components/download-card";
-import { loadManifest, fileExists } from "@/lib/agent-downloads";
+import { loadManifest, fileExists, resolveDownloadSpec } from "@/lib/agent-downloads";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,8 @@ export default async function AgentSoftwarePage() {
 
   const manifest = await loadManifest();
   const guideAvailable = await fileExists("configuration-guide.pdf");
-  const agentAvailable = manifest ? await fileExists(manifest.zipFile) : false;
+  const agentSpec = await resolveDownloadSpec("agent");
+  const agentAvailable = agentSpec ? await fileExists(agentSpec.name) : false;
 
   return (
     <div className="space-y-6">
@@ -33,7 +34,7 @@ export default async function AgentSoftwarePage() {
           title={`Agent — Latest Version${manifest ? ` (v${manifest.version})` : ""}`}
           subtitle={
             manifest
-              ? `Built ${new Date(manifest.builtAt).toLocaleDateString()}`
+              ? `Built ${manifest.builtAt.slice(0, 10)}`
               : "Source archive of the latest agent client."
           }
           href="/api/agent-software/download/agent"
