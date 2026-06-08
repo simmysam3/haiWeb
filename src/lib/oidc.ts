@@ -76,7 +76,12 @@ export async function exchangeCode(opts: {
       redirect_uri: opts.redirectUri,
     }),
   });
-  if (!res.ok) throw new Error(`code exchange failed: ${res.status}`);
+  if (!res.ok) {
+    // Drain the body to release the undici socket (matches lib/keycloak.ts);
+    // the body is Keycloak's error JSON (e.g. {"error":"invalid_grant"}), not a secret.
+    const body = await res.text();
+    throw new Error(`code exchange failed: ${res.status} ${body}`);
+  }
   return res.json();
 }
 
@@ -85,6 +90,8 @@ export async function verifyIdTokenNonce(idToken: string, expectedNonce: string)
   const { payload } = await jwtVerify(idToken, JWKS, {
     issuer: ISSUER,
     audience: env.KEYCLOAK_CLIENT_ID,
+    // Pin the asymmetric algorithm allowlist (matches lib/auth.ts) — reject alg:none and weak algs.
+    algorithms: ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'],
   });
   if (payload.nonce !== expectedNonce) throw new Error('nonce mismatch');
 }
