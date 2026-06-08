@@ -21,7 +21,7 @@ function safeNext(raw: string | null): string {
   } catch {
     return '/account';
   }
-  return raw;
+  return raw.replace(/[\r\n]/g, '');
 }
 
 export async function GET(request: NextRequest) {

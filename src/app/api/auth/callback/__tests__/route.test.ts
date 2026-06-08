@@ -63,4 +63,17 @@ describe('GET /api/auth/callback', () => {
     const res = await GET(cbReq('code=abc&state=real', { kc_state: 'real', kc_verifier: 'v', kc_nonce: 'n' }));
     expect(res.headers.get('location')).toContain('/login?error=exchange');
   });
+
+  it('does not set a session when nonce verification fails (token-stuffing defense)', async () => {
+    exchangeCode.mockResolvedValue({
+      access_token: fakeJwt({ realm_access: { roles: ['buyer_view_only'] } }),
+      refresh_token: 'r', id_token: fakeJwt({ nonce: 'WRONG' }), expires_in: 3600,
+    });
+    verifyIdTokenNonce.mockRejectedValue(new Error('nonce mismatch'));
+    const res = await GET(cbReq('code=abc&state=real', { kc_state: 'real', kc_verifier: 'v', kc_nonce: 'n' }));
+    expect(res.headers.get('location')).toContain('/login?error=exchange');
+    const setCookie = res.headers.getSetCookie().join('; ');
+    expect(setCookie).not.toContain('haiwave_session=ey');
+    expect(setCookie).not.toContain('haiwave_refresh=r');
+  });
 });

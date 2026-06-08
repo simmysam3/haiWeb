@@ -38,4 +38,9 @@ describe('GET /api/auth/login — Authorization-Code redirect', () => {
     const res = await GET(req('http://localhost:3001/api/auth/login?next=/\\evil.com'));
     expect(res.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount');
   });
+
+  it('strips CR/LF from next to prevent header injection', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login?next=' + encodeURIComponent('/account\r\nX')));
+    expect(res.headers.getSetCookie().join('; ')).toContain('kc_next=%2FaccountX');
+  });
 });
