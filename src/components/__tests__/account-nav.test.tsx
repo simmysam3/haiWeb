@@ -84,4 +84,21 @@ describe('AccountNav', () => {
     const link = screen.getByRole('link', { name: 'Agent Software' });
     expect(link.getAttribute('href')).toBe('/account/agent-software');
   });
+
+  // Regression: Sign Out must NOT be a <Link>/<a> to the logout route. Next's
+  // router prefetches visible <Link>s on navigation, and a prefetch of a
+  // GET-mutating logout route silently destroys the session → the user is
+  // bounced to re-login when merely moving between pages. Logout is a
+  // mutation and must be a POST form (forms are never prefetched).
+  it('renders Sign Out as a POST form, never a prefetchable logout link', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    // No anchor to the logout route (a <Link> would be prefetched by Next).
+    expect(screen.queryByRole('link', { name: /sign out/i })).toBeNull();
+    // It is a submit button inside a POST form targeting the logout route.
+    const button = screen.getByRole('button', { name: /sign out/i });
+    const form = button.closest('form');
+    expect(form).not.toBeNull();
+    expect(form?.getAttribute('action')).toBe('/api/auth/logout');
+    expect((form?.getAttribute('method') ?? '').toLowerCase()).toBe('post');
+  });
 });

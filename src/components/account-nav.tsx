@@ -291,12 +291,18 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
         <p className="text-xs text-light-slate">Signed in as</p>
         <p className="text-sm text-white truncate mt-0.5">{userName}</p>
         <p className="text-xs text-light-slate truncate">{userEmail}</p>
-        <Link
-          href="/api/auth/logout"
-          className="block mt-3 text-xs text-light-slate hover:text-white transition-colors"
-        >
-          Sign Out
-        </Link>
+        {/* Logout is a mutation → POST form, never a prefetchable <Link>.
+            Next prefetches visible <Link>s on navigation; a prefetch of the
+            GET logout route silently destroyed the session, bouncing the
+            user to re-login when merely moving between pages. */}
+        <form action="/api/auth/logout" method="post" className="mt-3">
+          <button
+            type="submit"
+            className="block text-xs text-light-slate hover:text-white transition-colors cursor-pointer"
+          >
+            Sign Out
+          </button>
+        </form>
       </div>
     </aside>
   );
