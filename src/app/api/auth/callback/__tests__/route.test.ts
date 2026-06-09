@@ -29,6 +29,24 @@ describe('GET /api/auth/callback', () => {
     expect(exchangeCode).not.toHaveBeenCalled();
   });
 
+  it('expired CSRF cookies + valid code/state → auto-restarts login once (no error page)', async () => {
+    // The short-lived kc_* cookies lapsed (user sat on the Keycloak login — common
+    // with passkeys) but Keycloak returned a valid code+state and the SSO session
+    // is live. Restart the flow instead of surfacing /login?error=state.
+    const res = await GET(cbReq('code=abc&state=real', {}));
+    expect(res.headers.get('location')).toBe('http://localhost:3001/api/auth/login');
+    expect(res.headers.getSetCookie().join('; ')).toMatch(/kc_retry=1/);
+    expect(exchangeCode).not.toHaveBeenCalled();
+  });
+
+  it('expired cookies but already auto-retried → error page, no loop', async () => {
+    const res = await GET(cbReq('code=abc&state=real', { kc_retry: '1' }));
+    expect(res.headers.get('location')).toContain('/login?error=state');
+    // kc_retry is reset (cleared) so a future fresh attempt can retry again.
+    expect(res.headers.getSetCookie().join('; ')).toMatch(/kc_retry=;|kc_retry="";/i);
+    expect(exchangeCode).not.toHaveBeenCalled();
+  });
+
   it('on valid code: exchanges, verifies nonce, sets session cookies, redirects', async () => {
     exchangeCode.mockResolvedValue({
       access_token: fakeJwt({ realm_access: { roles: ['buyer_view_only'] } }),

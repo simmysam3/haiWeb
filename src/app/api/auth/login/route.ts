@@ -36,7 +36,9 @@ export async function GET(request: NextRequest) {
   const redirectUri = `${env.PORTAL_BASE_URL}/api/auth/callback`;
 
   const res = NextResponse.redirect(buildAuthorizeUrl({ redirectUri, state, nonce, codeChallenge: challenge }));
-  const opts = { httpOnly: true, secure: isProd, sameSite: 'lax' as const, maxAge: 600, path: '/api/auth' };
+  // 30 min: long enough for a slow login (e.g. sitting on the Keycloak passkey
+  // prompt) so the CSRF cookies don't lapse mid-flow and bounce to error=state.
+  const opts = { httpOnly: true, secure: isProd, sameSite: 'lax' as const, maxAge: 1800, path: '/api/auth' };
   res.cookies.set('kc_verifier', verifier, opts);
   res.cookies.set('kc_state', state, opts);
   res.cookies.set('kc_nonce', nonce, opts);

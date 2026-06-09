@@ -26,6 +26,13 @@ describe('GET /api/auth/login — Authorization-Code redirect', () => {
     expect(setCookie).toContain(`kc_state=${stateInUrl}`);
   });
 
+  it('gives the CSRF cookies a generous lifetime so a slow (passkey) login does not expire mid-flow', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login'));
+    // 600s was too short — users sitting on the Keycloak passkey prompt lapsed
+    // and bounced to /login?error=state. 1800s (30 min) covers a slow ceremony.
+    expect(res.headers.getSetCookie().join('; ')).toMatch(/Max-Age=1800/);
+  });
+
   it('persists a safe ?next as the kc_next cookie and rejects an unsafe one', async () => {
     const ok = await GET(req('http://localhost:3001/api/auth/login?next=/account/agents'));
     expect(ok.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount%2Fagents');
