@@ -3,7 +3,7 @@ import { loadEnv } from '@/config/env';
 import { exchangeCode, verifyIdTokenNonce } from '@/lib/oidc';
 import { isAdminFromAccessToken } from '@/lib/jwt-claims';
 
-const TEMP_COOKIES = ['kc_verifier', 'kc_state', 'kc_nonce', 'kc_next'] as const;
+const TEMP_COOKIES = ['kc_verifier', 'kc_state', 'kc_nonce', 'kc_next', 'kc_retry'] as const;
 
 function clearTemp(res: NextResponse): NextResponse {
   for (const c of TEMP_COOKIES) {
@@ -24,8 +24,30 @@ export async function GET(request: NextRequest) {
   const nonce = request.cookies.get('kc_nonce')?.value;
   const next = request.cookies.get('kc_next')?.value ?? '/account';
 
-  if (!code || !state || !cookieState || state !== cookieState || !verifier || !nonce) {
+  // Separate a genuinely bad callback from the benign "CSRF cookies expired"
+  // case. The kc_* cookies are short-lived; if the user sits on the Keycloak
+  // login (common with passkeys) they lapse, yet Keycloak still returns a valid
+  // code+state against a live SSO session. A malformed callback or a real state
+  // MISMATCH is not recoverable → error page. Expired cookies (state/verifier/
+  // nonce simply absent) ARE recoverable → restart the flow ONCE, guarded by
+  // kc_retry so a persistently-failing case can't loop. This keeps the user from
+  // seeing /login?error=state for a login that actually succeeds on retry.
+  const malformed = !code || !state;
+  const mismatch = !!cookieState && state !== cookieState;
+  const cookiesExpired = !cookieState || !verifier || !nonce;
+
+  if (malformed || mismatch) {
     return clearTemp(NextResponse.redirect(`${base}/login?error=state`));
+  }
+  if (cookiesExpired) {
+    if (request.cookies.get('kc_retry')?.value) {
+      // Already auto-retried and the cookies STILL didn't take → real problem;
+      // show the manual error page (clearTemp resets kc_retry too).
+      return clearTemp(NextResponse.redirect(`${base}/login?error=state`));
+    }
+    const res = clearTemp(NextResponse.redirect(`${base}/api/auth/login`));
+    res.cookies.set('kc_retry', '1', { httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 120, path: '/api/auth' });
+    return res;
   }
 
   let tokens;
