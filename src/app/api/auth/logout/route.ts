@@ -4,9 +4,16 @@ import { loadEnv } from "@/config/env";
 
 /**
  * POST /api/auth/logout
- * GET  /api/auth/logout (convenience for link-based logout)
  *
- * Ends Keycloak session, clears cookies.
+ * Ends the Keycloak session, clears the session cookies, and redirects to
+ * /login.
+ *
+ * POST-only by design. Logout mutates state, so it must NOT be reachable via
+ * GET: Next's router prefetches visible <Link>s on navigation, and a GET
+ * prefetch of a destructive logout route silently destroyed the session,
+ * bouncing the user to re-login when merely moving between pages. The Sign Out
+ * control is therefore a POST <form> (see components/account-nav.tsx), and the
+ * old "convenience" GET handler has been removed.
  */
 function clearCookies(response: NextResponse) {
   response.cookies.set("haiwave_session", "", {
@@ -31,25 +38,13 @@ export async function POST(request: NextRequest) {
     try {
       await endSession(refreshToken);
     } catch {
-      // Best effort — still clear cookies
-    }
-  }
-
-  return clearCookies(NextResponse.json({ success: true }));
-}
-
-export async function GET(request: NextRequest) {
-  const refreshToken = request.cookies.get("haiwave_refresh")?.value;
-
-  if (refreshToken) {
-    try {
-      await endSession(refreshToken);
-    } catch {
       // Best effort — still clear cookies + redirect.
     }
   }
 
   const baseUrl = loadEnv().PORTAL_BASE_URL;
-  const response = NextResponse.redirect(new URL("/login", baseUrl));
+  // 303 See Other so the browser converts the form POST into a GET on /login
+  // (a 307/308 would re-POST to /login).
+  const response = NextResponse.redirect(new URL("/login", baseUrl), 303);
   return clearCookies(response);
 }
