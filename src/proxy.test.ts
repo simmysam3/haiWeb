@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { applyRedirects } from './proxy';
+import { NextRequest } from 'next/server';
+import { applyRedirects, proxy } from './proxy';
 
 // These tests cover the v1.35 redirect rules (legacy /audit-nominations
 // monitoring URL + /compliance/posture/nominations consolidation). v1.37
@@ -256,5 +257,37 @@ describe('v.1.41 Backlog IA — /posture/runs cluster → /sonar/watchers', () =
   it('/sonar/watchers and /sonar/watchers/<id> are terminal (no redirect)', () => {
     expect(applyRedirects('/account/sonar/watchers')).toBeNull();
     expect(applyRedirects('/account/sonar/watchers/run-abc')).toBeNull();
+  });
+});
+
+// Portal login-experience redesign — Task 1: an unauthenticated request to a
+// protected *page* route is sent straight to the OIDC start route
+// (/api/auth/login) instead of the /login interstitial card, carrying the
+// originally-requested path as `next` so the user lands back where they were
+// headed. The login route's own safeNext() validates the value, so no extra
+// validator lives here.
+describe('gated-route redirect → /api/auth/login (bypass /login card)', () => {
+  it('redirects unauthenticated /account/* to /api/auth/login with next', async () => {
+    // No haiwave_session / haiwave_refresh cookies → hasSession is false and
+    // shouldRefreshSession short-circuits on the missing refresh token, so no
+    // token-exchange fetch is attempted.
+    const req = new NextRequest(
+      new URL('/account/profile', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    const url = new URL(res.headers.get('location')!);
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('next')).toBe('/account/profile');
+  });
+
+  it('preserves the original query string in the next param', async () => {
+    const req = new NextRequest(
+      new URL('/account/agents?tab=monitoring', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    const url = new URL(res.headers.get('location')!);
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('next')).toBe('/account/agents?tab=monitoring');
   });
 });

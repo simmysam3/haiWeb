@@ -409,7 +409,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     (pathname.startsWith('/account') || pathname.startsWith('/admin')) &&
     !hasSession
   ) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    // Skip the /login interstitial: go straight to the OIDC start route,
+    // preserving where the user was headed (the route's safeNext() validates it).
+    const loginUrl = new URL('/api/auth/login', request.url);
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (!refreshed) {
