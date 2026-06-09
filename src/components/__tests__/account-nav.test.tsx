@@ -78,4 +78,10 @@ describe('AccountNav', () => {
     const audit = screen.queryAllByRole('link', { name: 'Audit Nominations' });
     expect(audit).toHaveLength(0);
   });
+
+  it('shows the Agent Software link in the bottom nav section', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    const link = screen.getByRole('link', { name: 'Agent Software' });
+    expect(link.getAttribute('href')).toBe('/account/agent-software');
+  });
 });
