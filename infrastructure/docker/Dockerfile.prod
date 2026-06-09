@@ -75,6 +75,14 @@ ENV OPENSSL_CONF=/etc/pki/tls/openssl-fips.cnf \
 COPY --from=builder --chown=1001:0 /app/haiWeb/.next/standalone ./
 COPY --from=builder --chown=1001:0 /app/haiWeb/.next/static ./haiWeb/.next/static
 COPY --from=builder --chown=1001:0 /app/haiWeb/public ./haiWeb/public
+# Agent Software downloads (config-guide PDF + agent source zip + manifest). The
+# route/page resolve these from process.cwd()/private/agent-downloads; the runtime
+# CMD launches node from WORKDIR /app, so cwd=/app → target ./private/agent-downloads.
+# Files are produced per-release (`npm run build:agent-zip`) and the PDF is
+# user-provided, dropped into haiWeb/private/agent-downloads/ in the build context
+# BEFORE the image is built. If absent, only the tracked .gitkeep/.gitignore copy
+# over and the page degrades gracefully ("Not yet published").
+COPY --from=builder --chown=1001:0 /app/haiWeb/private/agent-downloads ./private/agent-downloads
 EXPOSE 8080
 USER 1001
 CMD ["node", "haiWeb/server.js"]
