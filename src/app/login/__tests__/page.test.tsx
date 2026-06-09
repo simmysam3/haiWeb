@@ -19,4 +19,14 @@ describe('LoginPage', () => {
       '/api/auth/login?next=' + encodeURIComponent('/account/billing'),
     );
   });
+
+  it('renders an error page (no OIDC redirect) when ?error= is present', async () => {
+    // A failed callback bounces back here with ?error=. Re-entering the OIDC
+    // flow would loop, so we must NOT redirect — we render an actionable error.
+    const r = await LoginPage({
+      searchParams: Promise.resolve({ error: 'exchange' }),
+    } as never);
+    expect(redirect).not.toHaveBeenCalled();
+    expect(r).toBeTruthy();
+  });
 });
