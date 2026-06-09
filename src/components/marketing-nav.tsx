@@ -44,7 +44,7 @@ export function MarketingNav() {
             </Link>
           ))}
           <Link
-            href="/login"
+            href="/api/auth/login"
             className="text-sm text-slate hover:text-navy transition-colors"
           >
             Sign In
@@ -87,7 +87,7 @@ export function MarketingNav() {
             </Link>
           ))}
           <Link
-            href="/login"
+            href="/api/auth/login"
             onClick={() => setMobileOpen(false)}
             className="text-sm text-slate hover:text-navy transition-colors"
           >
