@@ -26,6 +26,10 @@ const EnvSchema = z.object({
   KEYCLOAK_PORTAL_CLIENT_ID: z.string().default('haiwave-portal'),
   KEYCLOAK_ADMIN_CLIENT_ID: z.string().default('haiwave-portal-admin'),
   KEYCLOAK_ADMIN_CLIENT_SECRET: z.string().default(''),
+  // Portal origin (server-side). Used to build the OIDC redirect_uri and
+  // post-logout redirect. Must match the Keycloak client's registered
+  // redirectUris exactly. Prod: https://console.haiwave.ai
+  PORTAL_BASE_URL: z.string().url().default('http://localhost:3001'),
 
   // Stripe
   STRIPE_SECRET_KEY: z.string().default(''),
@@ -54,6 +58,21 @@ export function loadEnv(): Env {
   if (result.data.NODE_ENV === 'production' && result.data.SESSION_SECRET === DEV_SESSION_SECRET) {
     throw new Error(
       'SESSION_SECRET is the dev default but NODE_ENV=production — set it explicitly.',
+    );
+  }
+  if (result.data.NODE_ENV === 'production' && result.data.KEYCLOAK_CLIENT_SECRET === '') {
+    throw new Error(
+      'KEYCLOAK_CLIENT_SECRET is empty but NODE_ENV=production — the portal is a confidential client; set it explicitly.',
+    );
+  }
+  if (result.data.NODE_ENV === 'production' && result.data.KEYCLOAK_ADMIN_CLIENT_SECRET === '') {
+    throw new Error(
+      'KEYCLOAK_ADMIN_CLIENT_SECRET is empty but NODE_ENV=production — set it explicitly.',
+    );
+  }
+  if (result.data.KEYCLOAK_PORTAL_CLIENT_ID !== result.data.KEYCLOAK_CLIENT_ID) {
+    throw new Error(
+      'KEYCLOAK_CLIENT_ID and KEYCLOAK_PORTAL_CLIENT_ID must reference the same portal client; they differ.',
     );
   }
   return result.data;

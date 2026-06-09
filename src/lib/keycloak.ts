@@ -19,6 +19,7 @@ const REALM = env.KEYCLOAK_REALM;
 const ADMIN_CLIENT_ID = env.KEYCLOAK_ADMIN_CLIENT_ID;
 const ADMIN_CLIENT_SECRET = env.KEYCLOAK_ADMIN_CLIENT_SECRET;
 const PORTAL_CLIENT_ID = env.KEYCLOAK_PORTAL_CLIENT_ID;
+const PORTAL_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET;
 
 export const keycloakAdminUrl = `${KEYCLOAK_URL}/admin/realms/${REALM}`;
 export const keycloakTokenUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
@@ -104,29 +105,6 @@ interface TokenResponse {
   expires_in: number;
 }
 
-export async function authenticateUser(
-  email: string,
-  password: string,
-): Promise<TokenResponse> {
-  const res = await fetch(keycloakTokenUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "password",
-      client_id: PORTAL_CLIENT_ID,
-      username: email,
-      password: password,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Authentication failed: ${res.status} ${body}`);
-  }
-
-  return res.json();
-}
-
 export async function refreshToken(
   token: string,
 ): Promise<TokenResponse> {
@@ -136,6 +114,7 @@ export async function refreshToken(
     body: new URLSearchParams({
       grant_type: "refresh_token",
       client_id: PORTAL_CLIENT_ID,
+      client_secret: PORTAL_CLIENT_SECRET,
       refresh_token: token,
     }),
   });
@@ -155,6 +134,7 @@ export async function endSession(token: string): Promise<void> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: PORTAL_CLIENT_ID,
+      client_secret: PORTAL_CLIENT_SECRET,
       refresh_token: token,
     }),
   });

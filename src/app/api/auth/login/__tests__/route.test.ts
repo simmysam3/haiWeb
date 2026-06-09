@@ -1,47 +1,46 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
+import { GET } from '../route';
 
-const { authenticateUser } = vi.hoisted(() => ({ authenticateUser: vi.fn() }));
-vi.mock('@/lib/keycloak', () => ({ authenticateUser }));
-
-import { POST } from '../route';
-
-function fakeJwt(payload: object): string {
-  const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
-  return `${enc({ alg: 'RS256', typ: 'JWT' })}.${enc(payload)}.signature`;
+function req(url: string): NextRequest {
+  return new NextRequest(url, { method: 'GET' });
 }
 
-function loginReq(body: object): NextRequest {
-  return new NextRequest('http://localhost/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'content-type': 'application/json' },
-  });
-}
+describe('GET /api/auth/login — Authorization-Code redirect', () => {
+  it('302s to the Keycloak authorize endpoint with PKCE + state + nonce cookies', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login'));
+    expect(res.status).toBe(307); // NextResponse.redirect default
+    const loc = new URL(res.headers.get('location')!);
+    expect(loc.pathname).toMatch(/\/protocol\/openid-connect\/auth$/);
+    expect(loc.searchParams.get('response_type')).toBe('code');
+    expect(loc.searchParams.get('code_challenge_method')).toBe('S256');
 
-describe('POST /api/auth/login — is_admin in the response body', () => {
-  beforeEach(() => vi.clearAllMocks());
+    const setCookie = res.headers.getSetCookie().join('; ');
+    expect(setCookie).toContain('kc_verifier=');
+    expect(setCookie).toContain('kc_state=');
+    expect(setCookie).toContain('kc_nonce=');
+    expect(setCookie).toContain('HttpOnly');
+    expect(setCookie).toContain('Path=/api/auth');
 
-  it('reports is_admin:true when the access token carries haiwave_admin', async () => {
-    authenticateUser.mockResolvedValue({
-      access_token: fakeJwt({ realm_access: { roles: ['offline_access', 'haiwave_admin'] } }),
-      refresh_token: fakeJwt({ typ: 'Refresh' }),
-      expires_in: 3600,
-    });
-
-    const res = await POST(loginReq({ email: 'admin@haiwave.ai', password: 'x' }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ success: true, is_admin: true });
+    const stateInUrl = loc.searchParams.get('state')!;
+    expect(setCookie).toContain(`kc_state=${stateInUrl}`);
   });
 
-  it('reports is_admin:false for a non-admin token', async () => {
-    authenticateUser.mockResolvedValue({
-      access_token: fakeJwt({ realm_access: { roles: ['uma_authorization'] } }),
-      refresh_token: fakeJwt({ typ: 'Refresh' }),
-      expires_in: 3600,
-    });
+  it('persists a safe ?next as the kc_next cookie and rejects an unsafe one', async () => {
+    const ok = await GET(req('http://localhost:3001/api/auth/login?next=/account/agents'));
+    expect(ok.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount%2Fagents');
 
-    const res = await POST(loginReq({ email: 'user@example.com', password: 'x' }));
-    expect(await res.json()).toMatchObject({ success: true, is_admin: false });
+    const bad = await GET(req('http://localhost:3001/api/auth/login?next=//evil.com'));
+    expect(bad.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount');
+  });
+
+  it('rejects a backslash open-redirect (/\\evil.com) and falls back to /account', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login?next=/\\evil.com'));
+    expect(res.headers.getSetCookie().join('; ')).toContain('kc_next=%2Faccount');
+  });
+
+  it('strips CR/LF from next to prevent header injection', async () => {
+    const res = await GET(req('http://localhost:3001/api/auth/login?next=' + encodeURIComponent('/account\r\nX')));
+    expect(res.headers.getSetCookie().join('; ')).toContain('kc_next=%2FaccountX');
   });
 });

@@ -5,16 +5,15 @@ import { NextRequest } from 'next/server';
 // These collaborators implemented the retired instant-provision bypass.
 // After D-19 the BFF must NOT touch any of them — provisioning lives in
 // haiCore behind the admin gatekeeper.
-const { createUser, deleteUser, authenticateUser, createCustomer, registerParticipant } =
+const { createUser, deleteUser, createCustomer, registerParticipant } =
   vi.hoisted(() => ({
     createUser: vi.fn(),
     deleteUser: vi.fn(),
-    authenticateUser: vi.fn(),
     createCustomer: vi.fn(),
     registerParticipant: vi.fn(),
   }));
 
-vi.mock('@/lib/keycloak', () => ({ createUser, deleteUser, authenticateUser }));
+vi.mock('@/lib/keycloak', () => ({ createUser, deleteUser }));
 vi.mock('@/lib/stripe', () => ({ createCustomer }));
 vi.mock('@/lib/haiwave-api', () => ({ registerParticipant }));
 
@@ -51,7 +50,6 @@ describe('POST /api/auth/register (retired open self-signup)', () => {
     expect(createUser).not.toHaveBeenCalled();
     expect(createCustomer).not.toHaveBeenCalled();
     expect(registerParticipant).not.toHaveBeenCalled();
-    expect(authenticateUser).not.toHaveBeenCalled();
   });
 
   it('returns 410 Gone and never issues a session cookie', async () => {

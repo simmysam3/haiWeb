@@ -16,4 +16,54 @@ describe('haiWeb server env', () => {
     expect(() => loadEnv()).toThrow(/SESSION_SECRET/);
     process.env = prev as NodeJS.ProcessEnv;
   });
+
+  it('throws when KEYCLOAK_CLIENT_SECRET is empty in production', () => {
+    const prev = { ...process.env };
+    const mutable = process.env as Record<string, string | undefined>;
+    mutable.NODE_ENV = 'production';
+    mutable.SESSION_SECRET = 'a-real-session-secret';
+    mutable.KEYCLOAK_CLIENT_SECRET = '';
+    try {
+      expect(() => loadEnv()).toThrow(/KEYCLOAK_CLIENT_SECRET/);
+    } finally {
+      process.env = prev as NodeJS.ProcessEnv;
+    }
+  });
+});
+
+describe('loadEnv — PORTAL_BASE_URL', () => {
+  it('defaults PORTAL_BASE_URL to the dev portal origin', () => {
+    expect(loadEnv().PORTAL_BASE_URL).toBe('http://localhost:3001');
+  });
+});
+
+describe('loadEnv — client-id divergence guard', () => {
+  it('throws when the two portal client-id vars diverge', () => {
+    const prev = { ...process.env };
+    process.env.KEYCLOAK_CLIENT_ID = 'haiwave-portal';
+    process.env.KEYCLOAK_PORTAL_CLIENT_ID = 'something-else';
+    try {
+      expect(() => loadEnv()).toThrow(/client[_ -]?id/i);
+    } finally {
+      process.env = prev as NodeJS.ProcessEnv;
+    }
+  });
+});
+
+describe('loadEnv — KEYCLOAK_ADMIN_CLIENT_SECRET prod guard', () => {
+  it('throws when KEYCLOAK_ADMIN_CLIENT_SECRET is empty in production', () => {
+    const prev = { ...process.env };
+    const mutable = process.env as Record<string, string | undefined>;
+    mutable.NODE_ENV = 'production';
+    mutable.SESSION_SECRET = 'a-real-session-secret';
+    mutable.KEYCLOAK_CLIENT_SECRET = 'a-real-client-secret';
+    mutable.KEYCLOAK_CLIENT_ID = 'haiwave-portal';
+    mutable.KEYCLOAK_PORTAL_CLIENT_ID = 'haiwave-portal';
+    mutable.KEYCLOAK_ADMIN_CLIENT_SECRET = '';
+    try {
+      expect(() => loadEnv()).toThrow(/KEYCLOAK_ADMIN_CLIENT_SECRET/);
+    } finally {
+      process.env = prev as NodeJS.ProcessEnv;
+    }
+  });
 });

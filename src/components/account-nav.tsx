@@ -187,6 +187,7 @@ const navSections: NavSection[] = [
     label: "Settings",
     items: [
       { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
+      { href: "/account/security", label: "Sign-in & Security", tooltip: "Manage your password, two-factor authentication, and passkeys for signing in to HAIWAVE." },
     ],
   },
   {
