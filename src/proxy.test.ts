@@ -290,4 +290,47 @@ describe('gated-route redirect → /api/auth/login (bypass /login card)', () => 
     expect(url.pathname).toBe('/api/auth/login');
     expect(url.searchParams.get('next')).toBe('/account/agents?tab=monitoring');
   });
+
+  // The gating predicate is `startsWith('/account') || startsWith('/admin')`,
+  // but only /account was exercised above. Pin the /admin branch.
+  it('redirects unauthenticated /admin/* to /api/auth/login with next', async () => {
+    const req = new NextRequest(
+      new URL('/admin/registrations', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    const url = new URL(res.headers.get('location')!);
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('next')).toBe('/admin/registrations');
+  });
+
+  // The `!isApi` guard keeps fetch()/XHR from being bounced to a login page
+  // (which would break the BFF). An unauthenticated API request must fall
+  // through to NextResponse.next(), never a 307 to /api/auth/login.
+  it('does NOT redirect an unauthenticated /api/* request to the login route', async () => {
+    const req = new NextRequest(
+      new URL('/api/whatever', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    const location = res.headers.get('location');
+    // Either no location at all, or — if some other path sets one — it must
+    // not point at the OIDC start route.
+    if (location) {
+      expect(new URL(location).pathname).not.toBe('/api/auth/login');
+    }
+    expect(res.status).not.toBe(307);
+  });
+
+  // Bare /account (no sub-path, no query) must produce next=/account, guarding
+  // against an empty-search concatenation bug (e.g. next=/account?).
+  it('bare /account (no query) yields next=/account', async () => {
+    const req = new NextRequest(
+      new URL('/account', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    const url = new URL(res.headers.get('location')!);
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('next')).toBe('/account');
+  });
 });
