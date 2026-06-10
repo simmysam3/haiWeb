@@ -22,12 +22,18 @@ export function ConfigurationsAccordion({ count, scheduledCount, children }: Pro
   const summary = `${count} configuration${count === 1 ? '' : 's'} · ${scheduledCount} scheduled`;
 
   return (
-    <section aria-labelledby="watcher-configs-heading" className="space-y-3">
+    // Full-width white card so the folded configurations keep a slight
+    // highlighted presence against the page background instead of reading
+    // as a stray line of text.
+    <section
+      aria-labelledby="watcher-configs-heading"
+      className="rounded-lg border border-slate/20 bg-white"
+    >
       <button
         type="button"
         aria-expanded={expanded}
         onClick={() => setExpanded((v) => !v)}
-        className="group flex w-full items-center gap-3 text-left"
+        className="group flex w-full items-center gap-3 px-4 py-3 text-left"
       >
         <h2
           id="watcher-configs-heading"
@@ -36,9 +42,13 @@ export function ConfigurationsAccordion({ count, scheduledCount, children }: Pro
           Configurations
         </h2>
         <span className="text-sm text-slate">{summary}</span>
-        <DetailChevron expanded={expanded} />
+        <span className="ml-auto">
+          <DetailChevron expanded={expanded} />
+        </span>
       </button>
-      {expanded && children}
+      {expanded && (
+        <div className="border-t border-slate/10 px-4 pb-4 pt-3">{children}</div>
+      )}
     </section>
   );
 }
