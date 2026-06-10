@@ -164,8 +164,30 @@ describe('/api/account/library', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('application/pdf');
     expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
     const text = await res.text();
     expect(text).toContain('test');
+  });
+
+  it('neutralizes non-allowlisted content types — html serves as an octet-stream download, never inline', async () => {
+    client.getLibraryArtifactFile.mockResolvedValueOnce(
+      new Response(Buffer.from('<script>alert(1)</script>'), {
+        status: 200,
+        headers: {
+          'content-type': 'text/html',
+          'content-disposition': 'inline; filename="snapshot.html"',
+        },
+      }),
+    );
+    const { GET } = await import('../artifacts/[id]/file/route');
+    const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+      params: Promise.resolve({ id: 'a3' }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/octet-stream');
+    expect(res.headers.get('content-disposition')).toContain('attachment');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
   it('file route propagates upstream 404', async () => {
