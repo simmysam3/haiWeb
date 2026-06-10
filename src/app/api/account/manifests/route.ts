@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
-import {
-  MOCK_INBOUND_REQUIREMENTS,
-  MOCK_OUTBOUND_POSTURES,
-  MOCK_PRICING_DEFAULTS,
-} from "@/lib/mock-data";
+import { MOCK_PRICING_DEFAULTS } from "@/lib/mock-data";
 
 const MOCK_MANIFEST_BUNDLE = {
-  inbound_requirements: MOCK_INBOUND_REQUIREMENTS,
-  outbound_postures: MOCK_OUTBOUND_POSTURES,
   pricing_defaults: MOCK_PRICING_DEFAULTS,
 };
 

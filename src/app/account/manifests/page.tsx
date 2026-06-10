@@ -7,9 +7,12 @@ import { Tabs } from "@/components/tabs";
 import { CounterpartyManifest } from "./counterparty-manifest";
 import { PricingDefaults } from "./pricing-defaults";
 import { SharingPolicyPanel } from "./sharing-policy-panel";
+import { LibraryTab } from "./library/library-tab";
 
 const MANIFEST_TABS = [
   { key: "counterparty", label: "Counterparty Manifest" },
+  { key: "library_sharing", label: "Library — Sharing" },
+  { key: "library_requirements", label: "Library — Requirements" },
   { key: "pricing", label: "Baseline Pricing" },
   { key: "sharing", label: "Sharing Policy" },
 ];
@@ -28,6 +31,8 @@ export default function ManifestsPage() {
       </PageIntro>
       <Tabs tabs={MANIFEST_TABS} active={activeTab} onChange={setActiveTab} />
       {activeTab === "counterparty" && <CounterpartyManifest />}
+      {activeTab === "library_sharing" && <LibraryTab context="share" />}
+      {activeTab === "library_requirements" && <LibraryTab context="require" />}
       {activeTab === "pricing" && <PricingDefaults />}
       {activeTab === "sharing" && <SharingPolicyPanel />}
     </div>

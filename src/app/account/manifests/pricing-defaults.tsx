@@ -5,7 +5,6 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
-import type { MockRequirement, MockPosture } from "@/lib/mock-types";
 
 interface VolumeTier {
   min_qty: number;
@@ -26,14 +25,10 @@ interface PricingDefaultsData {
 }
 
 interface ManifestData {
-  inbound_requirements: MockRequirement[];
-  outbound_postures: MockPosture[];
   pricing_defaults: PricingDefaultsData;
 }
 
 const EMPTY_MANIFEST: ManifestData = {
-  inbound_requirements: [],
-  outbound_postures: [],
   pricing_defaults: {
     default_currency: "USD",
     default_payment_terms: "Net 30",
