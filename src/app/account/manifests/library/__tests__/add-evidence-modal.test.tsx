@@ -184,6 +184,32 @@ it('shows the API error and stays open on failure', async () => {
   expect(onClose).not.toHaveBeenCalled();
 });
 
+it('clears a stale error when switching modes', async () => {
+  vi.stubGlobal('fetch', okFetch());
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'X' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'ftp://nope' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  expect(await screen.findByText(/http:\/\//i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  expect(screen.queryByText(/http:\/\//i)).not.toBeInTheDocument();
+});
+
+it('rejects a non-object structured value without fetching', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={structuredAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '[1,2,3]' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/JSON object/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
 it('renders nothing when element is null', () => {
   const { container } = render(<AddEvidenceModal element={null} onClose={vi.fn()} onSaved={vi.fn()} />);
   expect(container).toBeEmptyDOMElement();

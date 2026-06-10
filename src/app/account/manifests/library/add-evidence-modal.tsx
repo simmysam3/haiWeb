@@ -110,12 +110,18 @@ function AddEvidenceForm({
       if (element.value_type === 'boolean') {
         value = boolValue === 'true';
       } else if (element.value_type === 'structured') {
+        let parsed: unknown;
         try {
-          value = JSON.parse(attrValue);
+          parsed = JSON.parse(attrValue);
         } catch {
           setError('Enter valid JSON');
           return;
         }
+        if (parsed === null || Array.isArray(parsed) || typeof parsed !== 'object') {
+          setError('Value must be a JSON object');
+          return;
+        }
+        value = parsed;
       } else {
         value = attrValue;
       }
@@ -167,14 +173,18 @@ function AddEvidenceForm({
     <Modal open onClose={onClose} title={`Add evidence — ${element.label}`}>
       <form onSubmit={onSubmit} className="space-y-4">
         {!isAttribute && (
-          <fieldset className="flex gap-4" aria-label="Source">
+          <fieldset className="flex gap-4">
+            <legend className="sr-only">Source</legend>
             <label className="inline-flex items-center gap-2 text-sm text-charcoal">
               <input
                 type="radio"
                 name="mode"
                 value="upload"
                 checked={mode === 'upload'}
-                onChange={() => setMode('upload')}
+                onChange={() => {
+                  setMode('upload');
+                  setError(null);
+                }}
               />
               Upload
             </label>
@@ -184,7 +194,10 @@ function AddEvidenceForm({
                 name="mode"
                 value="url"
                 checked={mode === 'url'}
-                onChange={() => setMode('url')}
+                onChange={() => {
+                  setMode('url');
+                  setError(null);
+                }}
               />
               URL
             </label>
