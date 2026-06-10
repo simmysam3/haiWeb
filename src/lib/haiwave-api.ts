@@ -109,6 +109,12 @@ import type {
   DownstreamGapFilters,
 } from '@/app/account/sonar/audit/obligations/_lib/types';
 
+import type {
+  LibraryView,
+  LibraryTier,
+  PolicyContext,
+} from '@/lib/library-types';
+
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
 export interface CatalogClass {
@@ -373,6 +379,12 @@ export interface HaiwaveClient {
   getCounterpartyManifest(id: string): Promise<Record<string, unknown>>;
   updateCounterpartyManifest(data: unknown): Promise<Record<string, unknown>>;
   updatePricingManifest(data: unknown): Promise<Record<string, unknown>>;
+  // Company Library
+  getLibrary(): Promise<LibraryView>;
+  setLibraryPolicy(body: { element_key: string; context: PolicyContext; tier: LibraryTier; enabled: boolean }): Promise<unknown>;
+  upsertLibraryAttribute(elementKey: string, body: Record<string, unknown>): Promise<unknown>;
+  createLibraryUrlArtifact(body: Record<string, unknown>): Promise<{ artifact: { id: string } }>;
+  affirmLibraryItem(id: string): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Admin
   getAdminOverview(): Promise<Record<string, unknown>>;
@@ -851,6 +863,22 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
 
     updatePricingManifest(data) {
       return request<Record<string, unknown>>("PUT", "/manifest/pricing", data);
+    },
+
+    getLibrary() {
+      return request<LibraryView>("GET", "/library");
+    },
+    setLibraryPolicy(body) {
+      return request<unknown>("PUT", "/library/policies", body);
+    },
+    upsertLibraryAttribute(elementKey, body) {
+      return request<unknown>("PUT", `/library/attributes/${encodeURIComponent(elementKey)}`, body);
+    },
+    createLibraryUrlArtifact(body) {
+      return request<{ artifact: { id: string } }>("POST", "/library/artifacts/url", body);
+    },
+    affirmLibraryItem(id) {
+      return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/affirm`);
     },
 
     getAgentStatus(agentId) {
