@@ -52,7 +52,7 @@ const view: LibraryView = {
 function renderMatrix(props: Partial<React.ComponentProps<typeof LibraryMatrix>> = {}) {
   const onChanged = vi.fn();
   const onAddEvidence = vi.fn();
-  render(
+  const ui = (extra: Partial<React.ComponentProps<typeof LibraryMatrix>> = {}) => (
     <LibraryMatrix
       view={view}
       context="share"
@@ -60,9 +60,11 @@ function renderMatrix(props: Partial<React.ComponentProps<typeof LibraryMatrix>>
       onChanged={onChanged}
       onAddEvidence={onAddEvidence}
       {...props}
-    />,
+      {...extra}
+    />
   );
-  return { onChanged, onAddEvidence };
+  const { rerender } = render(ui());
+  return { onChanged, onAddEvidence, rerender: (extra: Partial<React.ComponentProps<typeof LibraryMatrix>>) => rerender(ui(extra)) };
 }
 
 describe('LibraryMatrix', () => {
@@ -147,5 +149,64 @@ describe('LibraryMatrix', () => {
 
     fireEvent.click(cells[0]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clears the optimistic override on success so the cell follows the revalidated view', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    const { onChanged, rerender } = renderMatrix();
+
+    const cell = screen.getByRole('switch', { name: 'ISO 9001 Certificate — Trading Pair' });
+    expect(cell).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(cell);
+    expect(cell).toHaveAttribute('aria-checked', 'true');
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+
+    // Another admin flips it back OFF on the server; the revalidated view says OFF.
+    const serverSaysOff: LibraryView = {
+      sections: [
+        {
+          section: 'quality',
+          elements: [
+            {
+              ...gapEl,
+              policies: {
+                share: { premier: true, trading_pair: false, connection: false, qualified: false },
+                require: { premier: false, trading_pair: false, connection: false, qualified: false },
+              },
+            },
+          ],
+        },
+        { section: 'legal_commercial', elements: [fullEl] },
+      ],
+    };
+    rerender({ view: serverSaysOff });
+
+    expect(
+      screen.getByRole('switch', { name: 'ISO 9001 Certificate — Trading Pair' }),
+    ).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('disables a cell while its PUT is in flight and blocks a second toggle', async () => {
+    let resolveFetch: (v: { ok: boolean }) => void = () => {};
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise<{ ok: boolean }>((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { onChanged } = renderMatrix();
+
+    const cell = screen.getByRole('switch', { name: 'ISO 9001 Certificate — Trading Pair' });
+    fireEvent.click(cell);
+
+    await waitFor(() => expect(cell).toBeDisabled());
+    fireEvent.click(cell);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveFetch({ ok: true });
+    await waitFor(() => expect(cell).not.toBeDisabled());
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 });

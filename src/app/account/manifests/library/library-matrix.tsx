@@ -23,6 +23,7 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
     () => new Set(view.sections.map((s) => s.section)),
   );
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   function toggleSection(key: string) {
@@ -37,9 +38,11 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
   async function toggleCell(el: LibraryElement, tier: (typeof LIBRARY_TIERS)[number]) {
     if (readOnly) return;
     const k = `${el.key}|${tier}`;
+    if (pending.has(k)) return;
     const current = overrides[k] ?? el.policies[context][tier];
     const next = !current;
     setOverrides((prev) => ({ ...prev, [k]: next }));
+    setPending((p) => new Set(p).add(k));
 
     try {
       const res = await fetch('/api/account/library/policies', {
@@ -48,6 +51,12 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
         body: JSON.stringify({ element_key: el.key, context, tier, enabled: next }),
       });
       if (!res.ok) throw new Error('save failed');
+      // On success drop the override so the cell follows the revalidated view.
+      setOverrides((prev) => {
+        const copy = { ...prev };
+        delete copy[k];
+        return copy;
+      });
       setError(null);
       onChanged();
     } catch {
@@ -57,6 +66,12 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
         return copy;
       });
       setError(`Couldn't save ${el.label} — ${TIER_LABELS[tier]}; reverted.`);
+    } finally {
+      setPending((p) => {
+        const s = new Set(p);
+        s.delete(k);
+        return s;
+      });
     }
   }
 
@@ -129,7 +144,7 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
                               enabled={effective}
                               context={context}
                               label={`${el.label} — ${TIER_LABELS[tier]}`}
-                              disabled={readOnly}
+                              disabled={readOnly || pending.has(k)}
                               onToggle={() => toggleCell(el, tier)}
                             />
                           </td>
