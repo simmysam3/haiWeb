@@ -196,6 +196,21 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     approved: 'Approved; a participant identity has been provisioned.',
     rejected: 'Rejected; applicant PII is redacted to a tombstone.',
   },
+  // Company Library Phase B — lifecycle status of a library artifact/attribute.
+  library_status: {
+    draft: 'Gathered or uploaded, awaiting admin confirmation.',
+    active: 'Current and in effect.',
+    expired: 'Validity date has passed — refresh the document or value.',
+    superseded: 'Replaced by a newer version.',
+    revoked: 'Withdrawn by an administrator.',
+  },
+  // Company Library Phase B — provenance tier of a library element's evidence.
+  library_source: {
+    self_declared: 'Entered by the company without supporting evidence.',
+    auto_gathered: "Collected automatically from the company's public web presence.",
+    document_backed: 'Supported by a document on file.',
+    verified: 'Confirmed by a third party.',
+  },
   // v1.44 Phantom Demand — BOM feasibility verdict for a phantom-demand probe
   // run. Synthesised server-side from worst-case lead-time analysis.
   pd_verdict: {
@@ -265,6 +280,21 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'approved') return 'success';
     if (v === 'rejected') return 'problem';
     if (v === 'pending_approval') return 'warn';
+  }
+  // Company Library Phase B — library_status tones: active = green, draft = amber,
+  // expired/revoked = red, superseded = neutral.
+  if (category === 'library_status') {
+    if (v === 'active') return 'success';
+    if (v === 'draft') return 'warn';
+    if (v === 'expired' || v === 'revoked') return 'problem';
+    if (v === 'superseded') return 'neutral';
+  }
+  // Company Library Phase B — library_source tones: document_backed/verified = green,
+  // auto_gathered = info (teal), self_declared = neutral.
+  if (category === 'library_source') {
+    if (v === 'document_backed' || v === 'verified') return 'success';
+    if (v === 'auto_gathered') return 'info';
+    if (v === 'self_declared') return 'neutral';
   }
   // v1.44 pd_verdict tones: on-time = green, marginal = amber, wall/infeasible = red
   if (category === 'pd_verdict') {
