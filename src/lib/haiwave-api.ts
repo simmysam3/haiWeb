@@ -384,6 +384,12 @@ export interface HaiwaveClient {
   setLibraryPolicy(body: { element_key: string; context: PolicyContext; tier: LibraryTier; enabled: boolean }): Promise<unknown>;
   upsertLibraryAttribute(elementKey: string, body: Record<string, unknown>): Promise<unknown>;
   createLibraryUrlArtifact(body: Record<string, unknown>): Promise<{ artifact: { id: string } }>;
+  /** Uploads a document artifact as multipart/form-data. The boundary is set by
+   * fetch from the FormData body — do NOT add a Content-Type header. */
+  uploadLibraryArtifact(form: FormData): Promise<{ artifact: { id: string } }>;
+  /** Returns the raw upstream Response for an artifact's file (unconsumed body)
+   * so the BFF can stream it through with the upstream content headers. */
+  getLibraryArtifactFile(id: string): Promise<Response>;
   affirmLibraryItem(id: string): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Admin
@@ -876,6 +882,32 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     createLibraryUrlArtifact(body) {
       return request<{ artifact: { id: string } }>("POST", "/library/artifacts/url", body);
+    },
+    async uploadLibraryArtifact(form) {
+      // No Content-Type header — fetch derives the multipart boundary from the
+      // FormData body. baseHeaders carries auth + participant + protocol only.
+      const res = await fetch(`${haiwaveApiUrl}/library/artifacts`, {
+        method: "POST",
+        headers: { ...baseHeaders },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        const err = new Error(
+          `haiCore POST /library/artifacts: ${res.status} ${text}`,
+        ) as Error & { status?: number; haiCoreBody?: unknown };
+        err.status = res.status;
+        try { err.haiCoreBody = JSON.parse(text); } catch { /* non-JSON body */ }
+        throw err;
+      }
+      return res.json() as Promise<{ artifact: { id: string } }>;
+    },
+    getLibraryArtifactFile(id) {
+      // Return the raw Response unconsumed — the caller streams the body.
+      return fetch(
+        `${haiwaveApiUrl}/library/artifacts/${encodeURIComponent(id)}/file`,
+        { headers: { ...baseHeaders } },
+      );
     },
     affirmLibraryItem(id) {
       return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/affirm`);
