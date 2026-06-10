@@ -3,6 +3,7 @@ import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { ConfigurationsTable } from '@/components/sonar/observations';
 import { NeedsTriageStrip } from './_components/needs-triage-strip';
+import { ConfigurationsAccordion } from './_components/configurations-accordion';
 import { watcherConfigurationsColumnPack } from './_components/watcher-column-packs';
 import {
   WatcherHistoryTable,
@@ -82,29 +83,28 @@ export default async function WatchersListPage() {
         </div>
       )}
 
-      <section aria-labelledby="watcher-configs-heading" className="space-y-3">
-        <h2
-          id="watcher-configs-heading"
-          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-        >
-          Configurations
-        </h2>
+      <ConfigurationsAccordion
+        count={watcherTemplates.length}
+        scheduledCount={
+          watcherTemplates.filter((t) => t.cadence.kind !== 'manual_only').length
+        }
+      >
         <ConfigurationsTable
           rows={watcherTemplates}
           columns={watcherConfigurationsColumnPack}
           keyFn={(t) => t.template_id}
           emptyMessage="No watcher configurations yet. Create one to start monitoring vendor signals."
         />
-      </section>
+      </ConfigurationsAccordion>
 
       {runsResult.kind === 'error' && (
         <div
           role="alert"
           className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
-          Could not load run history (
-          {runsResult.status !== 0 ? `HTTP ${runsResult.status}` : 'network error'}). History may
-          be incomplete.
+          Could not load runs (
+          {runsResult.status !== 0 ? `HTTP ${runsResult.status}` : 'network error'}). Runs list
+          may be incomplete.
         </div>
       )}
 
@@ -113,7 +113,7 @@ export default async function WatchersListPage() {
           id="watcher-history-heading"
           className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
         >
-          Watcher history
+          Runs
         </h2>
         <WatcherHistoryTable initialRows={enrichedRuns} />
       </section>
