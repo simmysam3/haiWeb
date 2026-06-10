@@ -23,9 +23,16 @@ export const GET = withHaiCore(
  * Updates counterparty or pricing manifest via haiCore.
  * Body: { type: "counterparty" | "pricing", data: {...} }
  * Requires account_admin or higher.
+ *
+ * For the counterparty type the client only sends the lead-time posture
+ * ({ lead_time_trend_sharing }). haiCore's CounterpartyManifestSchema requires
+ * the full manifest (manifest_id, participant_id, manifest_type, version,
+ * effective_date, baseline_requirements), and the posture lives inside
+ * baseline_requirements — so the BFF reads the current manifest, merges the
+ * posture in, and writes the whole object back.
  */
 export const PUT = withHaiCore(
-  async ({ client, request }) => {
+  async ({ client, session, request }) => {
     const body = await request.json();
     const { type, data } = body;
 
@@ -37,7 +44,22 @@ export const PUT = withHaiCore(
     }
 
     if (type === "counterparty") {
-      return client.updateCounterpartyManifest(data);
+      const current = await client.getCounterpartyManifest(session.participant.id);
+      if (!current) {
+        return NextResponse.json(
+          { error: "No counterparty manifest on file yet" },
+          { status: 409 },
+        );
+      }
+      const baseline = (current.baseline_requirements ?? {}) as Record<string, unknown>;
+      const merged = {
+        ...current,
+        baseline_requirements: {
+          ...baseline,
+          lead_time_trend_sharing: data.lead_time_trend_sharing,
+        },
+      };
+      return client.updateCounterpartyManifest(merged);
     }
     return client.updatePricingManifest(data);
   },
