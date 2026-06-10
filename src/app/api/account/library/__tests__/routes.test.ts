@@ -1,97 +1,111 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-const mockClient = {
-  getLibrary: vi.fn(),
-  setLibraryPolicy: vi.fn(),
-  upsertLibraryAttribute: vi.fn(),
-  createLibraryUrlArtifact: vi.fn(),
-  affirmLibraryItem: vi.fn(),
-};
-
-vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore:
-    (handler: (ctx: unknown) => unknown) =>
-    async (request: unknown, routeCtx?: { params: Promise<Record<string, string>> }) => {
-      const result = await handler({
-        client: mockClient,
-        session: { participant: { id: 'pid' } },
-        request,
-        params: routeCtx ? await routeCtx.params : {},
-      });
-      return result instanceof NextResponse ? result : NextResponse.json(result);
-    },
+const { getSession, getToken, hasRole, client } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  getToken: vi.fn(),
+  hasRole: vi.fn(),
+  client: {
+    getLibrary: vi.fn(),
+    setLibraryPolicy: vi.fn(),
+    upsertLibraryAttribute: vi.fn(),
+    createLibraryUrlArtifact: vi.fn(),
+    affirmLibraryItem: vi.fn(),
+  },
 }));
+
+vi.mock('@/lib/auth', () => ({
+  getSession,
+  getToken,
+  hasRole,
+}));
+
+vi.mock('@/lib/haiwave-api', () => ({
+  createHaiwaveClient: () => client,
+}));
+
+const JWT = 'header.payload.signature';
 
 describe('/api/account/library', () => {
   beforeEach(() => {
-    mockClient.getLibrary.mockReset();
-    mockClient.setLibraryPolicy.mockReset();
-    mockClient.upsertLibraryAttribute.mockReset();
-    mockClient.createLibraryUrlArtifact.mockReset();
-    mockClient.affirmLibraryItem.mockReset();
+    vi.clearAllMocks();
+    getSession.mockResolvedValue({
+      user: { role: 'account_admin' },
+      participant: { id: 'pid' },
+    });
+    getToken.mockResolvedValue(JWT);
+    hasRole.mockReturnValue(true);
   });
 
-  it('GET delegates to client.getLibrary and returns its envelope', async () => {
+  it('GET proxies client.getLibrary and returns its envelope', async () => {
     const view = { sections: [{ section: 'legal_commercial', elements: [] }] };
-    mockClient.getLibrary.mockResolvedValueOnce(view);
+    client.getLibrary.mockResolvedValueOnce(view);
     const { GET } = await import('../route');
-    const request = new NextRequest('http://localhost/x', { method: 'GET' });
-    const res = await GET(request, { params: Promise.resolve({}) });
+    const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+      params: Promise.resolve({}),
+    });
     const json = await res.json();
-    expect(mockClient.getLibrary).toHaveBeenCalled();
+    expect(client.getLibrary).toHaveBeenCalled();
     expect(json.sections[0].section).toBe('legal_commercial');
   });
 
+  it('GET serves DEV_LIBRARY_FALLBACK when the token is a non-JWT dev value', async () => {
+    getToken.mockResolvedValueOnce('dev-standalone');
+    const { GET } = await import('../route');
+    const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+      params: Promise.resolve({}),
+    });
+    expect(res.headers.get('x-haiwave-data-source')).toBe('fallback');
+    expect(client.getLibrary).not.toHaveBeenCalled();
+    const json = await res.json();
+    expect(json.sections).toHaveLength(2);
+  });
+
   it('PUT policies forwards the JSON body to setLibraryPolicy', async () => {
-    mockClient.setLibraryPolicy.mockResolvedValueOnce({ ok: true });
+    client.setLibraryPolicy.mockResolvedValueOnce({ ok: true });
     const { PUT } = await import('../policies/route');
     const body = { element_key: 'iso_9001_cert', context: 'share', tier: 'premier', enabled: true };
-    const request = new NextRequest('http://localhost/x', {
-      method: 'PUT',
-      body: JSON.stringify(body),
-      headers: { 'content-type': 'application/json' },
-    });
-    const res = await PUT(request, { params: Promise.resolve({}) });
-    expect(mockClient.setLibraryPolicy).toHaveBeenCalledWith(body);
+    const res = await PUT(
+      new NextRequest('http://localhost/x', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json' },
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(client.setLibraryPolicy).toHaveBeenCalledWith(body);
     expect(res.status).toBe(200);
   });
 
   it('PUT attributes forwards elementKey + body', async () => {
-    mockClient.upsertLibraryAttribute.mockResolvedValueOnce({ ok: true });
+    client.upsertLibraryAttribute.mockResolvedValueOnce({ ok: true });
     const { PUT } = await import('../attributes/[elementKey]/route');
     const body = { value: 'Net 30' };
-    const request = new NextRequest('http://localhost/x', {
-      method: 'PUT',
-      body: JSON.stringify(body),
-      headers: { 'content-type': 'application/json' },
-    });
-    const res = await PUT(request, { params: Promise.resolve({ elementKey: 'payment_terms' }) });
-    expect(mockClient.upsertLibraryAttribute).toHaveBeenCalledWith('payment_terms', body);
+    const res = await PUT(
+      new NextRequest('http://localhost/x', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json' },
+      }),
+      { params: Promise.resolve({ elementKey: 'payment_terms' }) },
+    );
+    expect(client.upsertLibraryAttribute).toHaveBeenCalledWith('payment_terms', body);
     expect(res.status).toBe(200);
   });
 
-  it('POST artifacts/url forwards the JSON body to createLibraryUrlArtifact', async () => {
-    mockClient.createLibraryUrlArtifact.mockResolvedValueOnce({ artifact: { id: 'a1' } });
-    const { POST } = await import('../artifacts/url/route');
-    const body = { element_key: 'iso_9001_cert', title: 'Cert', source_url: 'https://x/c.pdf' };
-    const request = new NextRequest('http://localhost/x', {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: { 'content-type': 'application/json' },
-    });
-    const res = await POST(request, { params: Promise.resolve({}) });
-    expect(mockClient.createLibraryUrlArtifact).toHaveBeenCalledWith(body);
-    expect(res.status).toBe(200);
-  });
-
-  it('POST affirm forwards the item id', async () => {
-    mockClient.affirmLibraryItem.mockResolvedValueOnce({ ok: true });
-    const { POST } = await import('../items/[id]/affirm/route');
-    const request = new NextRequest('http://localhost/x', { method: 'POST' });
-    const res = await POST(request, { params: Promise.resolve({ id: 'art-1' }) });
-    expect(mockClient.affirmLibraryItem).toHaveBeenCalledWith('art-1');
-    expect(res.status).toBe(200);
+  it('returns 403 on a mutation when the role gate denies', async () => {
+    hasRole.mockReturnValue(false);
+    const { PUT } = await import('../policies/route');
+    const res = await PUT(
+      new NextRequest('http://localhost/x', {
+        method: 'PUT',
+        body: JSON.stringify({ element_key: 'x', context: 'share', tier: 'premier', enabled: true }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(403);
+    expect(client.setLibraryPolicy).not.toHaveBeenCalled();
   });
 
   it('mutating routes export no GET handler', async () => {

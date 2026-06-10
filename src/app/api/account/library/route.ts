@@ -30,7 +30,7 @@ const DEV_LIBRARY_FALLBACK: LibraryView = {
           kind: "attribute",
           value_type: "string",
           validity: false,
-          modal_fields: ["standard"],
+          modal_fields: [],
           attribute: {
             id: "attr-payment-terms",
             elementKey: "payment_terms",
