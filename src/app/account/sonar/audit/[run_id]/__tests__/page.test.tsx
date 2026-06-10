@@ -130,7 +130,7 @@ describe('AuditRunDetailPage — complete run', () => {
     expect(screen.getByText('abcdef')).toBeInTheDocument();
   });
 
-  it('renders the evidence tree panel for a complete run', async () => {
+  it('folds each SKU evidence tree into the gap grid (no separate Evidence-tree section)', async () => {
     vi.resetModules();
     mockCompleteRun();
 
@@ -138,7 +138,14 @@ describe('AuditRunDetailPage — complete run', () => {
     const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
     render(ui as React.ReactElement);
 
-    expect(screen.getByRole('heading', { name: /evidence tree/i })).toBeInTheDocument();
+    // One collapsed per-SKU expander inside the grid; the old standalone
+    // section (which re-listed every SKU) is gone.
+    expect(
+      screen.getByRole('button', { name: /view evidence tree/i }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.queryByRole('heading', { name: /evidence tree/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders the dispatched-responses empty-state', async () => {
@@ -249,12 +256,12 @@ describe('AuditRunDetailPage — results-fetch error', () => {
     const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
     render(ui as React.ReactElement);
 
-    // The evidence-tree section still renders its heading...
-    expect(
-      screen.getByRole('heading', { name: /evidence tree/i }),
-    ).toBeInTheDocument();
-    // ...but with an alert notice instead of an empty tree.
+    // An alert notice renders instead of a silently-empty grid.
     expect(screen.getByText(/couldn't load the evidence tree/i)).toBeInTheDocument();
+    // And no per-SKU expanders appear (there are no results to expand).
+    expect(
+      screen.queryByRole('button', { name: /view evidence tree/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders an empty tree (no error notice) for a genuinely empty complete run', async () => {
@@ -274,10 +281,9 @@ describe('AuditRunDetailPage — results-fetch error', () => {
     const ui = await Page({ params: Promise.resolve({ run_id: RUN_ID }) });
     render(ui as React.ReactElement);
 
-    expect(
-      screen.getByRole('heading', { name: /evidence tree/i }),
-    ).toBeInTheDocument();
-    // No error notice for a legitimately empty result.
+    // The grid's empty state renders — no error notice for a legitimately
+    // empty result.
+    expect(screen.getByText(/no results recorded for this run/i)).toBeInTheDocument();
     expect(screen.queryByText(/couldn't load the evidence tree/i)).not.toBeInTheDocument();
   });
 });

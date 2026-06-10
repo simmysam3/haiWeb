@@ -44,4 +44,18 @@ describe('formatRunLabel', () => {
       formatRunLabel({ run_id: 'abcdef1234567890', template_name: '' }),
     ).toBe('Run abcdef12');
   });
+  it('labels template-less ad-hoc runs as Ad-hoc sweep', () => {
+    expect(
+      formatRunLabel({ run_id: 'abcdef1234567890', run_origin: 'ad_hoc' }),
+    ).toBe('Ad-hoc sweep — Run abcdef12');
+  });
+  it('a named run keeps its name even when ad-hoc origin', () => {
+    expect(
+      formatRunLabel({
+        run_id: 'abcdef1234567890',
+        template_name: 'Apex daily sweep',
+        run_origin: 'ad_hoc',
+      }),
+    ).toBe('Apex daily sweep — Run abcdef12');
+  });
 });
