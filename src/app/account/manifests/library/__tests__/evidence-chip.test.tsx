@@ -106,9 +106,57 @@ describe('EvidenceChip', () => {
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
 
-  it('GapBadge renders the needed marker with tooltip', () => {
+  it('skips a superseded artifact and links the active one', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      gap: false,
+      artifacts: [
+        {
+          id: 'old',
+          elementKey: 'iso_9001_cert',
+          title: 'ISO 9001:2008 (old)',
+          status: 'superseded',
+          origin: 'upload',
+          sourceTier: 'document_backed',
+          sourceUrl: null,
+          mimeType: 'application/pdf',
+          validFrom: null,
+          validUntil: null,
+          affirmedBy: null,
+          affirmedAt: null,
+        },
+        {
+          id: 'new',
+          elementKey: 'iso_9001_cert',
+          title: 'ISO 9001:2015 (active)',
+          status: 'active',
+          origin: 'upload',
+          sourceTier: 'document_backed',
+          sourceUrl: null,
+          mimeType: 'application/pdf',
+          validFrom: null,
+          validUntil: null,
+          affirmedBy: null,
+          affirmedAt: null,
+        },
+      ],
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} />);
+    expect(screen.getByRole('link', { name: /active/ }).getAttribute('href')).toBe(
+      '/api/account/library/artifacts/new/file',
+    );
+    expect(screen.queryByRole('link', { name: /old/ })).not.toBeInTheDocument();
+  });
+
+  it('GapBadge renders the needed marker with a definition tooltip', () => {
     render(<GapBadge />);
     expect(screen.getByText('Needed')).toBeInTheDocument();
+    const pill = screen.getByTestId('pill');
+    const describedby = pill.getAttribute('aria-describedby');
+    expect(describedby).toBeTruthy();
+    expect(document.getElementById(describedby as string)).toHaveTextContent(
+      /no document or value on file/i,
+    );
   });
 });
 

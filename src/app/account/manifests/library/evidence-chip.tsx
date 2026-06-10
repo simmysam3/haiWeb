@@ -12,7 +12,7 @@ function ArtifactLink({ artifact }: { artifact: LibraryArtifactRow }) {
       <a
         href={`/api/account/library/artifacts/${artifact.id}/file`}
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         className="text-teal underline hover:text-navy"
       >
         {artifact.title}
@@ -24,7 +24,7 @@ function ArtifactLink({ artifact }: { artifact: LibraryArtifactRow }) {
       <a
         href={artifact.sourceUrl ?? '#'}
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         className="text-teal underline hover:text-navy"
       >
         {artifact.title}
@@ -46,7 +46,8 @@ function formatValue(value: unknown): string {
 }
 
 export function EvidenceChip({ element, onAdd }: EvidenceChipProps) {
-  const artifact = element.artifacts[0] ?? null;
+  const artifact =
+    element.artifacts.find((a) => a.status !== 'superseded') ?? element.artifacts[0] ?? null;
   const attribute = element.attribute;
 
   if (!artifact && !attribute) {
