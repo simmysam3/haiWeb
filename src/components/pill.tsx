@@ -212,6 +212,13 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     document_backed: 'Supported by a document on file.',
     verified: 'Confirmed by a third party.',
   },
+  // Entity Approvals (spec 2026-06-11) — decision state of a counterparty in the
+  // reviewer's approvals queue.
+  approval_status: {
+    pending: 'A submission awaiting your review and decision.',
+    approved: 'You approved this counterparty to a HAIWAVE tier.',
+    revoked: 'You withdrew this counterparty\'s tier and blocked the connection.',
+  },
   // v1.44 Phantom Demand — BOM feasibility verdict for a phantom-demand probe
   // run. Synthesised server-side from worst-case lead-time analysis.
   pd_verdict: {
@@ -296,6 +303,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'document_backed' || v === 'verified') return 'success';
     if (v === 'auto_gathered') return 'info';
     if (v === 'self_declared') return 'neutral';
+  }
+  // Entity Approvals approval_status tones: pending = warn, approved = success, revoked = problem.
+  if (category === 'approval_status') {
+    if (v === 'pending') return 'warn';
+    if (v === 'approved') return 'success';
+    if (v === 'revoked') return 'problem';
   }
   // v1.44 pd_verdict tones: on-time = green, marginal = amber, wall/infeasible = red
   if (category === 'pd_verdict') {

@@ -118,4 +118,19 @@ describe('Pill', () => {
     // never in the dynamic detail — so this assertion is vacuous-proof.
     expect(tip).toHaveTextContent('not a decline');
   });
+
+  // Entity Approvals — approval_status pill category (pending warn / approved success / revoked problem).
+  describe('approval_status category', () => {
+    it.each([
+      ['pending', 'warn', 'bg-warning/10'],
+      ['approved', 'success', 'bg-success/10'],
+      ['revoked', 'problem', 'bg-problem/10'],
+    ])('%s resolves a definition and derives the %s tone', (value, _tone, toneClass) => {
+      render(<Pill category="approval_status" value={value} />);
+      const pill = screen.getByTestId('pill');
+      expect(pill.className).toContain(toneClass);
+      const tip = document.getElementById(pill.getAttribute('aria-describedby') as string);
+      expect(tip?.textContent).toBeTruthy();
+    });
+  });
 });

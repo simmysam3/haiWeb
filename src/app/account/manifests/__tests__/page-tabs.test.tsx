@@ -56,7 +56,7 @@ function mockLibraryLoaded() {
 }
 
 describe('ManifestsPage tabs', () => {
-  it('renders five tabs including the two Library tabs', () => {
+  it('renders six tabs including the two Library tabs and Entity Approvals', () => {
     mockLibraryLoaded();
     render(<ManifestsPage />);
     expect(screen.getByRole('button', { name: 'Counterparty Manifest' })).toBeInTheDocument();
@@ -64,6 +64,14 @@ describe('ManifestsPage tabs', () => {
     expect(screen.getByRole('button', { name: 'Library — Requirements' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Baseline Pricing' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Audit Permissions' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entity Approvals' })).toBeInTheDocument();
+  });
+
+  it('Entity Approvals tab sits after Audit Permissions', () => {
+    mockLibraryLoaded();
+    render(<ManifestsPage />);
+    const labels = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(labels.indexOf('Entity Approvals')).toBeGreaterThan(labels.indexOf('Audit Permissions'));
   });
 
   it('switching to Library — Requirements renders the require-context legend', () => {

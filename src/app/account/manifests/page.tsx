@@ -8,6 +8,7 @@ import { CounterpartyManifest } from "./counterparty-manifest";
 import { PricingDefaults } from "./pricing-defaults";
 import { SharingPolicyPanel } from "./sharing-policy-panel";
 import { LibraryTab } from "./library/library-tab";
+import { EntityApprovalsTab } from "./entity-approvals/entity-approvals-tab";
 
 const MANIFEST_TABS = [
   { key: "counterparty", label: "Counterparty Manifest" },
@@ -15,6 +16,7 @@ const MANIFEST_TABS = [
   { key: "library_requirements", label: "Library — Requirements" },
   { key: "pricing", label: "Baseline Pricing" },
   { key: "sharing", label: "Audit Permissions" },
+  { key: "entity_approvals", label: "Entity Approvals" },
 ];
 
 export default function ManifestsPage() {
@@ -35,6 +37,7 @@ export default function ManifestsPage() {
       {activeTab === "library_requirements" && <LibraryTab context="require" />}
       {activeTab === "pricing" && <PricingDefaults />}
       {activeTab === "sharing" && <SharingPolicyPanel />}
+      {activeTab === "entity_approvals" && <EntityApprovalsTab />}
     </div>
   );
 }
