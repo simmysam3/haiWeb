@@ -20,6 +20,31 @@ const FIELD_LABELS: Record<'standard' | 'issuer' | 'cert_number' | 'scope', stri
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
+ * One reusable document from GET /api/account/library/documents. Contract
+ * (haiCore built in parallel): wrapped envelope {documents: [...]} with
+ * artifact_id/title/element_key/origin/mime_type/file_size_bytes/source_url/
+ * has_file/created_at per document; the BFF passes it through verbatim.
+ * The modal only consumes the fields below.
+ */
+interface LibraryDocument {
+  artifact_id: string;
+  title: string;
+  origin: string;
+  created_at: string;
+}
+
+const ORIGIN_LABELS: Record<string, string> = {
+  upload: 'uploaded',
+  url: 'linked',
+  auto_gathered: 'gathered',
+};
+
+function describeDocument(doc: LibraryDocument): string {
+  const origin = ORIGIN_LABELS[doc.origin] ?? doc.origin;
+  return `${doc.title} — ${origin} ${doc.created_at.slice(0, 10)}`;
+}
+
+/**
  * Pulls a human-readable message out of whatever the BFF returned. On a 4xx,
  * with-hai-core.ts forwards haiCore's body verbatim ({error:{code,message}});
  * on a 500 / missing body it falls back to {error: "<string>"}. Handle both.
@@ -50,12 +75,15 @@ function AddEvidenceForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [mode, setMode] = useState<'upload' | 'url'>('upload');
+  const [mode, setMode] = useState<'upload' | 'url' | 'existing'>('upload');
   const [title, setTitle] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [validUntil, setValidUntil] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [docs, setDocs] = useState<LibraryDocument[] | null>(null);
+  const [docsState, setDocsState] = useState<'idle' | 'loading' | 'error' | 'loaded'>('idle');
+  const [selectedDocId, setSelectedDocId] = useState('');
   const [attrValue, setAttrValue] = useState(''); // string / structured raw text
   const [boolValue, setBoolValue] = useState('false');
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +103,19 @@ function AddEvidenceForm({
     }
     if (element.validity && validUntil) out.valid_until = `${validUntil}T00:00:00Z`;
     return out;
+  }
+
+  async function loadDocuments() {
+    setDocsState('loading');
+    try {
+      const res = await fetch('/api/account/library/documents');
+      if (!res.ok) throw new Error(`GET documents: ${res.status}`);
+      const body = (await res.json()) as { documents?: LibraryDocument[] };
+      setDocs(Array.isArray(body.documents) ? body.documents : []);
+      setDocsState('loaded');
+    } catch {
+      setDocsState('error');
+    }
   }
 
   async function send(url: string, init: RequestInit) {
@@ -152,6 +193,25 @@ function AddEvidenceForm({
       return;
     }
 
+    // existing-document mode — reuse a library document as evidence here
+    if (mode === 'existing') {
+      if (!selectedDocId) {
+        setError('Choose a document to reuse');
+        return;
+      }
+      await send('/api/account/library/artifacts/from-existing', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          element_key: element.key,
+          source_artifact_id: selectedDocId,
+          title,
+          ...optionalFields(),
+        }),
+      });
+      return;
+    }
+
     // url mode
     if (!/^https?:\/\//.test(sourceUrl)) {
       setError('Enter a URL starting with http:// or https://');
@@ -201,6 +261,21 @@ function AddEvidenceForm({
               />
               URL
             </label>
+            <label className="inline-flex items-center gap-2 text-sm text-charcoal">
+              <input
+                type="radio"
+                name="mode"
+                value="existing"
+                checked={mode === 'existing'}
+                onChange={() => {
+                  setMode('existing');
+                  setError(null);
+                  // Fetch once on first selection; an earlier failure retries.
+                  if (docsState === 'idle' || docsState === 'error') void loadDocuments();
+                }}
+              />
+              Existing document
+            </label>
           </fieldset>
         )}
 
@@ -215,7 +290,39 @@ function AddEvidenceForm({
               />
             </Field>
 
-            {mode === 'upload' ? (
+            {mode === 'existing' ? (
+              docsState === 'error' ? (
+                <p className="text-sm text-problem">
+                  Could not load your documents — reselect Existing document to retry.
+                </p>
+              ) : docsState === 'loaded' && docs !== null && docs.length === 0 ? (
+                <p className="text-sm text-slate">
+                  No documents in your library yet — upload or link one first.
+                </p>
+              ) : docsState === 'loaded' && docs !== null ? (
+                <Field label="Document">
+                  <select
+                    className={inputClass}
+                    value={selectedDocId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedDocId(id);
+                      const doc = docs.find((d) => d.artifact_id === id);
+                      if (doc) setTitle(doc.title);
+                    }}
+                  >
+                    <option value="">Select a document…</option>
+                    {docs.map((d) => (
+                      <option key={d.artifact_id} value={d.artifact_id}>
+                        {describeDocument(d)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ) : (
+                <p className="text-sm text-slate">Loading documents…</p>
+              )
+            ) : mode === 'upload' ? (
               <Field label="File">
                 <span className="flex items-center gap-3">
                   {/* Visually-hidden native input keeps keyboard + screen-reader

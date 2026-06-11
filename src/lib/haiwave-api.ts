@@ -390,6 +390,15 @@ export interface HaiwaveClient {
   /** Returns the raw upstream Response for an artifact's file (unconsumed body)
    * so the BFF can stream it through with the upstream content headers. */
   getLibraryArtifactFile(id: string): Promise<Response>;
+  /** Lists all reusable document artifacts in the company library.
+   * Contract assumption (haiCore built in parallel): returns a WRAPPED
+   * envelope {documents: [...]} — unlike e.g. searchParticipants (bare
+   * array) but like listInstallationsForKey ({installations}). The BFF
+   * passes through whatever haiCore returns. */
+  listLibraryDocuments(): Promise<unknown>;
+  /** Reuses an existing document artifact as evidence for another element.
+   * haiCore: 404 LIBRARY_SOURCE_ARTIFACT_NOT_FOUND, 400 unknown element. */
+  createArtifactFromExisting(body: Record<string, unknown>): Promise<unknown>;
   affirmLibraryItem(id: string): Promise<unknown>;
   /** Rejects (hard-deletes) a draft library item. haiCore returns 404 for non-draft/unknown ids. */
   rejectLibraryItem(id: string): Promise<unknown>;
@@ -912,6 +921,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `${haiwaveApiUrl}/library/artifacts/${encodeURIComponent(id)}/file`,
         { headers: { ...baseHeaders } },
       );
+    },
+    listLibraryDocuments() {
+      return request<unknown>("GET", "/library/documents");
+    },
+    createArtifactFromExisting(body) {
+      return request<unknown>("POST", "/library/artifacts/from-existing", body);
     },
     affirmLibraryItem(id) {
       return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/affirm`);

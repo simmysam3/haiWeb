@@ -15,6 +15,8 @@ const { getSession, getToken, hasRole, client } = vi.hoisted(() => ({
     runLibraryGather: vi.fn(),
     uploadLibraryArtifact: vi.fn(),
     getLibraryArtifactFile: vi.fn(),
+    listLibraryDocuments: vi.fn(),
+    createArtifactFromExisting: vi.fn(),
   },
 }));
 
@@ -264,6 +266,136 @@ describe('/api/account/library', () => {
       expect(res.status).toBe(404);
       const json = await res.json();
       expect(json.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  describe('GET /api/account/library/documents', () => {
+    it('returns 401 without a session', async () => {
+      getSession.mockResolvedValue(null);
+      const { GET } = await import('../documents/route');
+      const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.status).toBe(401);
+      expect(client.listLibraryDocuments).not.toHaveBeenCalled();
+    });
+
+    it('proxies client.listLibraryDocuments and returns its envelope (no admin role needed, like the library view GET)', async () => {
+      hasRole.mockReturnValue(false); // reads are not role-gated
+      const envelope = {
+        documents: [
+          {
+            artifact_id: 'a1',
+            title: 'ISO 9001 Certificate',
+            element_key: 'iso_9001_cert',
+            origin: 'upload',
+            mime_type: 'application/pdf',
+            file_size_bytes: 99,
+            source_url: null,
+            has_file: true,
+            created_at: '2026-06-10T12:00:00Z',
+          },
+        ],
+      };
+      client.listLibraryDocuments.mockResolvedValueOnce(envelope);
+      const { GET } = await import('../documents/route');
+      const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+        params: Promise.resolve({}),
+      });
+      expect(client.listLibraryDocuments).toHaveBeenCalled();
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.documents[0].artifact_id).toBe('a1');
+    });
+
+    it('serves an empty dev fallback when the token is a non-JWT dev value', async () => {
+      getToken.mockResolvedValueOnce('dev-standalone');
+      const { GET } = await import('../documents/route');
+      const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.headers.get('x-haiwave-data-source')).toBe('fallback');
+      expect(client.listLibraryDocuments).not.toHaveBeenCalled();
+      const json = await res.json();
+      expect(json.documents).toEqual([]);
+    });
+  });
+
+  describe('POST /api/account/library/artifacts/from-existing', () => {
+    const body = {
+      element_key: 'iso_14001_cert',
+      source_artifact_id: 'a1',
+      title: 'ISO 14001 Certificate',
+      issuer: 'TUV',
+    };
+
+    function makeReq() {
+      return new NextRequest('http://localhost/x', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    it('exports no GET handler', async () => {
+      const mod = await import('../artifacts/from-existing/route');
+      expect((mod as Record<string, unknown>).GET).toBeUndefined();
+    });
+
+    it('returns 401 without a session', async () => {
+      getSession.mockResolvedValue(null);
+      const { POST } = await import('../artifacts/from-existing/route');
+      const res = await POST(makeReq(), { params: Promise.resolve({}) });
+      expect(res.status).toBe(401);
+      expect(client.createArtifactFromExisting).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 without account_admin', async () => {
+      hasRole.mockReturnValue(false);
+      const { POST } = await import('../artifacts/from-existing/route');
+      const res = await POST(makeReq(), { params: Promise.resolve({}) });
+      expect(res.status).toBe(403);
+      expect(client.createArtifactFromExisting).not.toHaveBeenCalled();
+    });
+
+    it('forwards the JSON body and returns the artifact envelope', async () => {
+      client.createArtifactFromExisting.mockResolvedValueOnce({ artifact: { id: 'a2' } });
+      const { POST } = await import('../artifacts/from-existing/route');
+      const res = await POST(makeReq(), { params: Promise.resolve({}) });
+      expect(client.createArtifactFromExisting).toHaveBeenCalledWith(body);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.artifact.id).toBe('a2');
+    });
+
+    it('propagates a haiCore 404 LIBRARY_SOURCE_ARTIFACT_NOT_FOUND verbatim', async () => {
+      const err = new Error('haiCore POST /library/artifacts/from-existing: 404') as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = 404;
+      err.haiCoreBody = { error: { code: 'LIBRARY_SOURCE_ARTIFACT_NOT_FOUND', message: 'gone' } };
+      client.createArtifactFromExisting.mockRejectedValueOnce(err);
+      const { POST } = await import('../artifacts/from-existing/route');
+      const res = await POST(makeReq(), { params: Promise.resolve({}) });
+      expect(res.status).toBe(404);
+      const json = await res.json();
+      expect(json.error.code).toBe('LIBRARY_SOURCE_ARTIFACT_NOT_FOUND');
+    });
+
+    it('propagates a haiCore 400 unknown-element verbatim', async () => {
+      const err = new Error('haiCore POST /library/artifacts/from-existing: 400') as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = 400;
+      err.haiCoreBody = { error: { code: 'UNKNOWN_ELEMENT', message: 'unknown element' } };
+      client.createArtifactFromExisting.mockRejectedValueOnce(err);
+      const { POST } = await import('../artifacts/from-existing/route');
+      const res = await POST(makeReq(), { params: Promise.resolve({}) });
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error.code).toBe('UNKNOWN_ELEMENT');
     });
   });
 
