@@ -64,11 +64,20 @@ export function EvidenceChip({ element, onAdd, onDraftAction }: EvidenceChipProp
     );
   }
 
+  // Claim without evidence (PO 2026-06-11): an active attribute_with_evidence
+  // value with no usable document renders the amber Artifact Missing pill —
+  // the claim stands, but counterparties can see it is not yet evidenced.
+  const artifactMissing =
+    element.kind === 'attribute_with_evidence' &&
+    attribute?.status === 'active' &&
+    !element.artifacts.some((a) => a.status === 'active' || a.status === 'draft');
+
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {attribute && <span className="text-sm">{formatValue(attribute.valueJson)}</span>}
       {artifact && <ArtifactLink artifact={artifact} />}
       {displayed && <Pill category="library_status" value={displayed.status} />}
+      {artifactMissing && <Pill category="library_status" value="artifact_missing" />}
       {displayed && displayed.status === 'draft' && onDraftAction && (
         <>
           <button

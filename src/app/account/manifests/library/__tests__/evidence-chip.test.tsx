@@ -56,6 +56,39 @@ describe('EvidenceChip', () => {
     expect(screen.getByText(/valid until/i)).toBeInTheDocument();
   });
 
+  it('renders a yellow Artifact Missing pill for an active claim with no evidence document (PO 2026-06-11)', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'iso_9001_certified',
+      label: 'ISO 9001 Certified',
+      kind: 'attribute_with_evidence',
+      value_type: 'boolean',
+      gap: false,
+      attribute: {
+        id: 'at1', elementKey: 'iso_9001_certified', valueJson: true, status: 'active',
+        sourceTier: 'self_declared', evidenceArtifactId: null, validUntil: null, affirmedBy: null,
+      },
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} />);
+    expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText(/artifact missing/i)).toBeInTheDocument();
+
+    // With an evidence document attached, the pill disappears.
+    const withDoc: LibraryElement = {
+      ...el,
+      artifacts: [
+        {
+          id: 'a8', elementKey: 'iso_9001_certified', title: 'ISO 9001 Cert', status: 'active',
+          origin: 'upload', sourceTier: 'document_backed', sourceUrl: null,
+          mimeType: 'application/pdf', validFrom: null, validUntil: null,
+          affirmedBy: null, affirmedAt: null,
+        },
+      ],
+    };
+    render(<EvidenceChip element={withDoc} onAdd={() => {}} />);
+    expect(screen.queryAllByText(/artifact missing/i)).toHaveLength(1); // only the first render's
+  });
+
   it('shows "no expiration" for an explicitly never-expiring artifact (PO 2026-06-11)', () => {
     const el: LibraryElement = {
       ...baseEl,

@@ -160,15 +160,89 @@ it('structured attribute rejects invalid JSON without fetching', async () => {
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
-it('attribute_with_evidence shows the helper line', () => {
-  const el = makeElement({
-    key: 'insurance',
-    label: 'Insurance',
-    kind: 'attribute_with_evidence',
-    value_type: 'string',
+const claimEl = makeElement({
+  key: 'iso_9001_certified',
+  label: 'ISO 9001 Certified',
+  kind: 'attribute_with_evidence',
+  value_type: 'boolean',
+  validity: true,
+  modal_fields: ['standard', 'issuer', 'cert_number', 'scope'],
+});
+
+it('attribute_with_evidence saves the value only when no evidence source is chosen (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={vi.fn()} onSaved={onSaved} />);
+
+  // Evidence section offered but defaulting to None.
+  expect(screen.getByRole('radio', { name: /none/i })).toBeChecked();
+
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'true' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/attributes/iso_9001_certified');
+  expect(init.method).toBe('PUT');
+  expect(JSON.parse(init.body)).toEqual({ value: true });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+});
+
+it('attribute_with_evidence with Upload evidence chains artifact POST then PUT with evidence_artifact_id (PO 2026-06-11)', async () => {
+  const fetchMock = vi.fn().mockImplementation((url: string) => {
+    if (url === '/api/account/library/artifacts') {
+      return Promise.resolve({
+        ok: true, status: 201, json: () => Promise.resolve({ artifact: { id: 'new-art-1' } }),
+      });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
   });
-  render(<AddEvidenceModal element={el} onClose={vi.fn()} onSaved={vi.fn()} />);
-  expect(screen.getByText(/matching document element/i)).toBeInTheDocument();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={vi.fn()} onSaved={onSaved} />);
+
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'true' } });
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'ISO 9001 Cert' } });
+  const file = new File([new Uint8Array(8)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  const [artUrl, artInit] = fetchMock.mock.calls[0];
+  expect(artUrl).toBe('/api/account/library/artifacts');
+  expect((artInit.body as FormData).get('element_key')).toBe('iso_9001_certified');
+  const [putUrl, putInit] = fetchMock.mock.calls[1];
+  expect(putUrl).toBe('/api/account/library/attributes/iso_9001_certified');
+  expect(JSON.parse(putInit.body)).toEqual({ value: true, evidence_artifact_id: 'new-art-1' });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+});
+
+it('attribute_with_evidence aborts the PUT when the evidence upload fails', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: false, status: 400,
+    json: () => Promise.resolve({ error: { code: 'BAD', message: 'upload rejected by haiCore' } }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={onClose} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Cert' } });
+  const file = new File([new Uint8Array(8)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/upload rejected by haiCore/i)).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(1); // no attribute PUT after a failed upload
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('plain attribute elements offer no evidence section', () => {
+  render(<AddEvidenceModal element={booleanAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.queryByRole('radio', { name: /none/i })).toBeNull();
+  expect(screen.queryByRole('radio', { name: /upload/i })).toBeNull();
 });
 
 it('shows the API error and stays open on failure', async () => {

@@ -90,7 +90,12 @@ function AddEvidenceForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [mode, setMode] = useState<'upload' | 'url' | 'existing'>('upload');
+  // 'none' = attribute_with_evidence with no evidence attached (the default
+  // there — evidence is optional, PO 2026-06-11). Artifact elements start on
+  // upload; plain attributes never render the section and stay on 'none'.
+  const [mode, setMode] = useState<'none' | 'upload' | 'url' | 'existing'>(
+    element.kind === 'artifact' ? 'upload' : 'none',
+  );
   const [title, setTitle] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   // Valid-until is segmented month/year/day, all pre-selected to today (PO
@@ -126,6 +131,8 @@ function AddEvidenceForm({
   const [saving, setSaving] = useState(false);
 
   const isAttribute = element.kind === 'attribute' || element.kind === 'attribute_with_evidence';
+  const isAttrWithEvidence = element.kind === 'attribute_with_evidence';
+  const showArtifactDetails = !isAttribute || (isAttrWithEvidence && mode !== 'none');
 
   function setField(k: string, v: string) {
     setFields((prev) => ({ ...prev, [k]: v }));
@@ -178,6 +185,104 @@ function AddEvidenceForm({
     }
   }
 
+  /** Validates the artifact inputs for the current source mode and builds the
+   *  request. Returns null after setting a user-facing error. Shared by
+   *  artifact elements and the optional-evidence path on claims. */
+  function buildArtifactRequest(): { url: string; init: RequestInit } | null {
+    if (mode === 'upload') {
+      if (!file) {
+        setError('Choose a file to upload');
+        return null;
+      }
+      if (file.size > MAX_BYTES) {
+        setError('File exceeds the 10MB limit');
+        return null;
+      }
+      const form = new FormData();
+      form.append('file', file);
+      form.append('element_key', element.key);
+      form.append('title', title);
+      for (const [k, v] of Object.entries(optionalFields())) form.append(k, v);
+      return { url: '/api/account/library/artifacts', init: { method: 'POST', body: form } };
+    }
+
+    if (mode === 'existing') {
+      if (!selectedDocId) {
+        setError('Choose a document to reuse');
+        return null;
+      }
+      return {
+        url: '/api/account/library/artifacts/from-existing',
+        init: {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            element_key: element.key,
+            source_artifact_id: selectedDocId,
+            title,
+            ...optionalFields(),
+          }),
+        },
+      };
+    }
+
+    // url mode
+    if (!/^https?:\/\//.test(sourceUrl)) {
+      setError('Enter a URL starting with http:// or https://');
+      return null;
+    }
+    const urlFields = optionalFields();
+    if (noExpiry) delete urlFields.valid_until;
+    return {
+      url: '/api/account/library/artifacts/url',
+      init: {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          element_key: element.key,
+          title,
+          source_url: sourceUrl,
+          ...urlFields,
+          ...(noExpiry ? { no_expiry: true } : {}),
+        }),
+      },
+    };
+  }
+
+  /** Creates the optional evidence artifact and returns its id, or null after
+   *  surfacing the error — the attribute PUT must not run on failure. */
+  async function createEvidenceArtifact(): Promise<string | null> {
+    const req = buildArtifactRequest();
+    if (!req) return null;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(req.url, req.init);
+      if (!res.ok) {
+        let body: unknown = null;
+        try {
+          body = await res.json();
+        } catch {
+          /* non-JSON body */
+        }
+        setError(extractError(body) ?? 'Save failed — try again');
+        return null;
+      }
+      const body = (await res.json()) as { artifact?: { id?: string } };
+      const id = body.artifact?.id;
+      if (!id) {
+        setError('Save failed — try again');
+        return null;
+      }
+      return id;
+    } catch {
+      setError('Save failed — try again');
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
@@ -202,78 +307,91 @@ function AddEvidenceForm({
       } else {
         value = attrValue;
       }
+      // Optional evidence (PO 2026-06-11): create the document first, then
+      // link it on the claim. A failed evidence save aborts the whole submit.
+      let evidenceId: string | null = null;
+      if (isAttrWithEvidence && mode !== 'none') {
+        evidenceId = await createEvidenceArtifact();
+        if (evidenceId === null) return;
+      }
       await send(`/api/account/library/attributes/${encodeURIComponent(element.key)}`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ value }),
-      });
-      return;
-    }
-
-    // artifact
-    if (mode === 'upload') {
-      if (!file) {
-        setError('Choose a file to upload');
-        return;
-      }
-      if (file.size > MAX_BYTES) {
-        setError('File exceeds the 10MB limit');
-        return;
-      }
-      const form = new FormData();
-      form.append('file', file);
-      form.append('element_key', element.key);
-      form.append('title', title);
-      for (const [k, v] of Object.entries(optionalFields())) form.append(k, v);
-      await send('/api/account/library/artifacts', { method: 'POST', body: form });
-      return;
-    }
-
-    // existing-document mode — reuse a library document as evidence here
-    if (mode === 'existing') {
-      if (!selectedDocId) {
-        setError('Choose a document to reuse');
-        return;
-      }
-      await send('/api/account/library/artifacts/from-existing', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          element_key: element.key,
-          source_artifact_id: selectedDocId,
-          title,
-          ...optionalFields(),
+          value,
+          ...(evidenceId !== null ? { evidence_artifact_id: evidenceId } : {}),
         }),
       });
       return;
     }
 
-    // url mode
-    if (!/^https?:\/\//.test(sourceUrl)) {
-      setError('Enter a URL starting with http:// or https://');
-      return;
-    }
-    const urlFields = optionalFields();
-    if (noExpiry) delete urlFields.valid_until;
-    await send('/api/account/library/artifacts/url', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        element_key: element.key,
-        title,
-        source_url: sourceUrl,
-        ...urlFields,
-        ...(noExpiry ? { no_expiry: true } : {}),
-      }),
-    });
+    // artifact element — the request IS the save
+    const req = buildArtifactRequest();
+    if (!req) return;
+    await send(req.url, req.init);
   }
 
   return (
     <Modal open onClose={onClose} title={`Add evidence — ${element.label}`}>
       <form onSubmit={onSubmit} className="space-y-4">
-        {!isAttribute && (
-          <fieldset className="flex gap-4">
-            <legend className="sr-only">Source</legend>
+        {isAttribute && (
+          <>
+            {element.value_type === 'boolean' ? (
+              <Field label="Value">
+                <select
+                  className={inputClass}
+                  value={boolValue}
+                  onChange={(e) => setBoolValue(e.target.value)}
+                >
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </Field>
+            ) : element.value_type === 'structured' ? (
+              <Field label="Value">
+                <textarea
+                  className={`${inputClass} font-mono`}
+                  rows={5}
+                  value={attrValue}
+                  onChange={(e) => setAttrValue(e.target.value)}
+                />
+              </Field>
+            ) : (
+              <Field label="Value">
+                <input
+                  className={inputClass}
+                  value={attrValue}
+                  onChange={(e) => setAttrValue(e.target.value)}
+                />
+              </Field>
+            )}
+          </>
+        )}
+
+        {(!isAttribute || isAttrWithEvidence) && (
+          <fieldset className="flex flex-wrap gap-4">
+            {isAttrWithEvidence ? (
+              <legend className="mb-1 block w-full text-sm font-medium text-charcoal">
+                Evidence document (optional)
+              </legend>
+            ) : (
+              <legend className="sr-only">Source</legend>
+            )}
+            {isAttrWithEvidence && (
+              <label className="inline-flex items-center gap-2 text-sm text-charcoal">
+                <input
+                  type="radio"
+                  name="mode"
+                  value="none"
+                  checked={mode === 'none'}
+                  onChange={() => {
+                    setMode('none');
+                    setError(null);
+                  }}
+                />
+                None
+              </label>
+            )}
             <label className="inline-flex items-center gap-2 text-sm text-charcoal">
               <input
                 type="radio"
@@ -318,7 +436,7 @@ function AddEvidenceForm({
           </fieldset>
         )}
 
-        {!isAttribute && (
+        {showArtifactDetails && (
           <>
             <Field label="Title">
               <input
@@ -477,47 +595,6 @@ function AddEvidenceForm({
                   </label>
                 )}
               </>
-            )}
-          </>
-        )}
-
-        {isAttribute && (
-          <>
-            {element.value_type === 'boolean' ? (
-              <Field label="Value">
-                <select
-                  className={inputClass}
-                  value={boolValue}
-                  onChange={(e) => setBoolValue(e.target.value)}
-                >
-                  <option value="true">Yes</option>
-                  <option value="false">No</option>
-                </select>
-              </Field>
-            ) : element.value_type === 'structured' ? (
-              <Field label="Value">
-                <textarea
-                  className={`${inputClass} font-mono`}
-                  rows={5}
-                  value={attrValue}
-                  onChange={(e) => setAttrValue(e.target.value)}
-                />
-              </Field>
-            ) : (
-              <Field label="Value">
-                <input
-                  className={inputClass}
-                  value={attrValue}
-                  onChange={(e) => setAttrValue(e.target.value)}
-                />
-              </Field>
-            )}
-
-            {element.kind === 'attribute_with_evidence' && (
-              <p className="text-sm text-slate">
-                Attach the supporting document via its matching document element — linking arrives in
-                a later phase.
-              </p>
             )}
           </>
         )}

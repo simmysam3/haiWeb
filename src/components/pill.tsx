@@ -201,6 +201,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     draft: 'Gathered or uploaded, awaiting admin confirmation.',
     active: 'Current and in effect.',
     expired: 'Validity date has passed — refresh the document or value.',
+    artifact_missing: 'Claimed by the company; no supporting document attached yet.',
     superseded: 'Replaced by a newer version.',
     revoked: 'Withdrawn by an administrator.',
   },
@@ -285,7 +286,7 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   // expired/revoked = red, superseded = neutral.
   if (category === 'library_status') {
     if (v === 'active') return 'success';
-    if (v === 'draft') return 'warn';
+    if (v === 'draft' || v === 'artifact_missing') return 'warn';
     if (v === 'expired' || v === 'revoked') return 'problem';
     if (v === 'superseded') return 'neutral';
   }
