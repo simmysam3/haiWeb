@@ -10,8 +10,6 @@ import type {
   MockAccessRequest,
   MockDirectoryCompany,
   MockInvoice,
-  MockRequirement,
-  MockPosture,
   LeadTimeTrendSharingPosture,
   MockParticipant,
   MockApprovalRules,
@@ -28,8 +26,6 @@ export type {
   MockAccessRequest,
   MockDirectoryCompany,
   MockInvoice,
-  MockRequirement,
-  MockPosture,
   LeadTimeTrendSharingPosture,
   MockParticipant,
   MockApprovalRules,
@@ -274,26 +270,6 @@ export const MOCK_INVOICES: MockInvoice[] = [
   { id: "inv-004", date: "2025-12-01", description: "Connection Fees — December 2025", amount: 300, status: "paid", pdf_url: "#" },
   { id: "inv-005", date: "2025-11-01", description: "Connection Fees — November 2025", amount: 200, status: "paid", pdf_url: "#" },
   { id: "inv-006", date: "2025-10-15", description: "Connection Fees — October 2025", amount: 100, status: "past_due", pdf_url: "#" },
-];
-
-// ─── Mock Counterparty Manifest ──────────────────────────────
-
-export const MOCK_INBOUND_REQUIREMENTS: MockRequirement[] = [
-  { id: "req-w9", field_name: "w9_form", display_name: "W-9 Form", required: true, enabled: true, description: "IRS Form W-9 for tax identification." },
-  { id: "req-coi", field_name: "certificate_of_insurance", display_name: "Certificate of Insurance", required: true, enabled: true, description: "Proof of general liability insurance coverage." },
-  { id: "req-resale", field_name: "resale_certificate", display_name: "Resale Certificate", required: false, enabled: true, description: "State-issued resale certificate for tax-exempt purchases." },
-  { id: "req-license", field_name: "business_license", display_name: "Business License", required: false, enabled: false, description: "Valid business license for the operating jurisdiction." },
-  { id: "req-credit", field_name: "credit_references", display_name: "Credit References", required: false, enabled: false, description: "Three trade credit references." },
-  { id: "req-financial", field_name: "financial_statements", display_name: "Financial Statements", required: false, enabled: false, description: "Most recent annual financial statements." },
-];
-
-export const MOCK_OUTBOUND_POSTURES: MockPosture[] = [
-  { id: "pos-w9", document_type: "w9_form", display_name: "W-9 Form", posture: "support", score_threshold: null, notification_email: "" },
-  { id: "pos-coi", document_type: "certificate_of_insurance", display_name: "Certificate of Insurance", posture: "support", score_threshold: 85, notification_email: "" },
-  { id: "pos-resale", document_type: "resale_certificate", display_name: "Resale Certificate", posture: "support", score_threshold: null, notification_email: "" },
-  { id: "pos-license", document_type: "business_license", display_name: "Business License", posture: "support", score_threshold: null, notification_email: "" },
-  { id: "pos-credit", document_type: "credit_references", display_name: "Credit References", posture: "exception", score_threshold: null, notification_email: "sarah.chen@apexmfg.com" },
-  { id: "pos-financial", document_type: "financial_statements", display_name: "Financial Statements", posture: "not_supported", score_threshold: null, notification_email: "" },
 ];
 
 // ─── Mock Pricing Defaults ───────────────────────────────────
