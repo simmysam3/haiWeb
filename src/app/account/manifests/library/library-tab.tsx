@@ -9,8 +9,9 @@ import { AddEvidenceModal } from './add-evidence-modal';
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function LibraryTab({ context }: { context: PolicyContext }) {
-  const { data, mutate, isLoading } = useSWR<LibraryView>('/api/account/library', fetcher);
+  const { data, mutate, isLoading, error } = useSWR<LibraryView>('/api/account/library', fetcher);
   const [modalElement, setModalElement] = useState<LibraryElement | null>(null);
+  if (error) return <p className="text-sm text-problem">Couldn&apos;t load the library — refresh to retry.</p>;
   if (isLoading || !data) return <p className="text-sm text-slate">Loading library…</p>;
   return (
     <div className="space-y-4">

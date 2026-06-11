@@ -59,6 +59,18 @@ describe('LibraryTab', () => {
     expect(screen.getByText(/loading library/i)).toBeInTheDocument();
   });
 
+  it('shows a failure note (not the loading text) when the fetch errors', () => {
+    mockedUseSWR.mockReturnValueOnce({
+      data: undefined,
+      error: new Error('network down'),
+      isLoading: false,
+      mutate,
+    } as never);
+    render(<LibraryTab context="share" />);
+    expect(screen.getByText(/couldn't load the library/i)).toBeInTheDocument();
+    expect(screen.queryByText(/loading library/i)).toBeNull();
+  });
+
   it('opens the AddEvidenceModal when an element + Add affordance is clicked', () => {
     render(<LibraryTab context="require" />);
     expect(screen.queryByText(/add evidence — iso 9001/i)).toBeNull();
