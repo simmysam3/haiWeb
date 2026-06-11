@@ -18,6 +18,7 @@ function makeDetail(over: Partial<Detail> = {}): Detail {
     contact_email: 'jane@example.com',
     role_title: 'CFO',
     corporate_website: 'https://example.com',
+    terms_url: 'https://example.com/terms',
     tax_id: '12-3456789',
     duns: '987654321',
     hq_street: '500 Foundry Rd',
@@ -97,6 +98,17 @@ describe('RegistrationDetail', () => {
     const taxIdLabel = screen.getByText('Tax ID');
     const taxIdValue = taxIdLabel.parentElement?.querySelector('dd');
     expect(taxIdValue).toHaveTextContent('—');
+  });
+
+  it('renders the Terms page field, dashing it when terms_url is null', () => {
+    const { rerender } = render(<RegistrationDetail detail={makeDetail()} />);
+    expect(screen.getByText('Terms page')).toBeInTheDocument();
+    expect(screen.getByText('https://example.com/terms')).toBeInTheDocument();
+
+    rerender(<RegistrationDetail detail={makeDetail({ terms_url: null })} />);
+    const termsLabel = screen.getByText('Terms page');
+    const termsValue = termsLabel.parentElement?.querySelector('dd');
+    expect(termsValue).toHaveTextContent('—');
   });
 
   it('blocked approve requires an override reason, then POSTs {override:true,reason} and reflects approved', async () => {
