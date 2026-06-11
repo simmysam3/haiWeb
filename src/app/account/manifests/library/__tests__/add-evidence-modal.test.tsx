@@ -599,3 +599,51 @@ it('upload mode shows an explicit file-picker affordance with the selected filen
   expect(screen.getByText('cert.pdf')).toBeInTheDocument();
   expect(screen.queryByText('No file selected')).toBeNull();
 });
+
+const amountAttrEl = makeElement({
+  key: 'general_liability_limits',
+  label: 'General Liability Limits',
+  kind: 'attribute',
+  value_type: 'amount',
+});
+
+it('amount element renders a USD amount input and optional detail input', () => {
+  render(<AddEvidenceModal element={amountAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.getByLabelText(/amount \(usd\)/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/detail/i)).toBeInTheDocument();
+  // No generic value text input.
+  expect(screen.queryByLabelText(/^value$/i)).toBeNull();
+});
+
+it('amount element blocks submit with a message when the amount is empty', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={amountAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  expect(await screen.findByText(/enter an amount/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('amount element PUTs { value: { amount_usd, detail } } and omits a blank detail', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={amountAttrEl} onClose={vi.fn()} onSaved={onSaved} />);
+  fireEvent.change(screen.getByLabelText(/amount \(usd\)/i), { target: { value: '3000000' } });
+  fireEvent.change(screen.getByLabelText(/detail/i), { target: { value: 'per occurrence' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/attributes/general_liability_limits');
+  const body = JSON.parse((init as RequestInit).body as string);
+  expect(body.value).toEqual({ amount_usd: 3000000, detail: 'per occurrence' });
+
+  // Blank detail is omitted.
+  fetchMock.mockClear();
+  render(<AddEvidenceModal element={amountAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.change(screen.getAllByLabelText(/amount \(usd\)/i)[1], { target: { value: '5000000' } });
+  fireEvent.click(screen.getAllByRole('button', { name: /save/i })[1]);
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  const body2 = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+  expect(body2.value).toEqual({ amount_usd: 5000000 });
+});

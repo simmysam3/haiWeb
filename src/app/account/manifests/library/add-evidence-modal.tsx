@@ -127,6 +127,8 @@ function AddEvidenceForm({
   const [prefilledTitle, setPrefilledTitle] = useState<string | null>(null);
   const [attrValue, setAttrValue] = useState(''); // string / structured raw text
   const [boolValue, setBoolValue] = useState('false');
+  const [amountValue, setAmountValue] = useState(''); // amount value_type — USD
+  const [amountDetail, setAmountDetail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -291,6 +293,14 @@ function AddEvidenceForm({
       let value: unknown;
       if (element.value_type === 'boolean') {
         value = boolValue === 'true';
+      } else if (element.value_type === 'amount') {
+        const amount = Number(amountValue);
+        if (amountValue.trim() === '' || Number.isNaN(amount)) {
+          setError('Enter an amount in USD');
+          return;
+        }
+        const detail = amountDetail.trim();
+        value = detail ? { amount_usd: amount, detail } : { amount_usd: amount };
       } else if (element.value_type === 'structured') {
         let parsed: unknown;
         try {
@@ -347,6 +357,27 @@ function AddEvidenceForm({
                   <option value="false">No</option>
                 </select>
               </Field>
+            ) : element.value_type === 'amount' ? (
+              <>
+                <Field label="Amount (USD)">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    className={inputClass}
+                    value={amountValue}
+                    onChange={(e) => setAmountValue(e.target.value)}
+                  />
+                </Field>
+                <Field label="Detail (optional)">
+                  <input
+                    className={inputClass}
+                    placeholder="e.g. per occurrence / aggregate"
+                    value={amountDetail}
+                    onChange={(e) => setAmountDetail(e.target.value)}
+                  />
+                </Field>
+              </>
             ) : element.value_type === 'structured' ? (
               <Field label="Value">
                 <textarea

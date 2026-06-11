@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import type { LibraryView, LibraryElement, PolicyContext } from '@/lib/library-types';
-import { LIBRARY_TIERS, TIER_LABELS, SECTION_LABELS } from '@/lib/library-types';
+import { LIBRARY_TIERS, TIER_LABELS, SECTION_LABELS, compactUsd } from '@/lib/library-types';
 import { GroupedAccordion } from '@/components/grouped-accordion/grouped-accordion';
 import { AccordionGroupRow } from '@/components/grouped-accordion/accordion-group-row';
 import { EvidenceChip } from './evidence-chip';
 import { GapBadge } from './gap-badge';
 import { MatrixCell } from './matrix-cell';
+
+/** Lowest tier at which this element's require policy is enabled, or undefined. */
+function firstEnabledRequireTier(el: LibraryElement): (typeof LIBRARY_TIERS)[number] | undefined {
+  return LIBRARY_TIERS.find((t) => el.policies.require[t]);
+}
 
 interface LibraryMatrixProps {
   view: LibraryView;
@@ -33,6 +38,36 @@ export function LibraryMatrix({
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  // Per-element draft text for the Coverage-required amount input (require
+  // context, amount elements). Undefined = follow the element's stored value.
+  const [coverageDrafts, setCoverageDrafts] = useState<Record<string, string>>({});
+
+  async function saveCoverage(el: LibraryElement, raw: string) {
+    const trimmed = raw.trim();
+    const required_value = trimmed === '' ? null : { min_amount_usd: Number(trimmed) };
+    if (required_value && Number.isNaN(required_value.min_amount_usd)) return;
+    try {
+      const res = await fetch('/api/account/library/policies', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        // required_value rides the same require-context policy row; tier is not
+        // meaningful for the per-element minimum, so send the lowest enabled (or
+        // 'connection' default) — haiCore stores it tierlessly.
+        body: JSON.stringify({
+          element_key: el.key,
+          context: 'require',
+          tier: firstEnabledRequireTier(el) ?? 'connection',
+          enabled: true,
+          required_value,
+        }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setError(null);
+      onChanged();
+    } catch {
+      setError(`Couldn't save Coverage required for ${el.label}.`);
+    }
+  }
 
   function toggleSection(key: string) {
     setExpanded((prev) => {
@@ -138,6 +173,13 @@ export function LibraryMatrix({
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-charcoal">{el.label}</span>
                           {el.gap && <GapBadge />}
+                          {context === 'require' &&
+                            el.value_type === 'amount' &&
+                            el.required_value && (
+                              <span className="rounded-full bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal-dark">
+                                ≥ {compactUsd(el.required_value.min_amount_usd)}
+                              </span>
+                            )}
                         </div>
                         <div className="mt-1">
                           <EvidenceChip
@@ -146,6 +188,29 @@ export function LibraryMatrix({
                             onDraftAction={onDraftAction}
                           />
                         </div>
+                        {context === 'require' &&
+                          el.value_type === 'amount' &&
+                          firstEnabledRequireTier(el) && (
+                            <label className="mt-2 flex items-center gap-2 text-xs text-slate">
+                              <span>Coverage required (USD)</span>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1000}
+                                aria-label={`Coverage required — ${el.label}`}
+                                disabled={readOnly}
+                                value={
+                                  coverageDrafts[el.key] ??
+                                  (el.required_value ? String(el.required_value.min_amount_usd) : '')
+                                }
+                                onChange={(e) =>
+                                  setCoverageDrafts((prev) => ({ ...prev, [el.key]: e.target.value }))
+                                }
+                                onBlur={(e) => saveCoverage(el, e.target.value)}
+                                className="w-32 rounded-lg border border-slate/25 px-2 py-1 text-charcoal focus:border-teal focus:outline-none"
+                              />
+                            </label>
+                          )}
                       </td>
                       {LIBRARY_TIERS.map((tier) => {
                         const k = `${el.key}|${tier}`;
