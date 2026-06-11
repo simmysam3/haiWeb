@@ -14,7 +14,7 @@ const MANIFEST_TABS = [
   { key: "library_sharing", label: "Library — Sharing" },
   { key: "library_requirements", label: "Library — Requirements" },
   { key: "pricing", label: "Baseline Pricing" },
-  { key: "sharing", label: "Sharing Policy" },
+  { key: "sharing", label: "Audit Permissions" },
 ];
 
 export default function ManifestsPage() {
@@ -24,10 +24,10 @@ export default function ManifestsPage() {
     <div>
       <PageHeader
         title="Manifests"
-        description="Configure counterparty requirements, baseline pricing, and your sharing policy."
+        description="Configure counterparty requirements, baseline pricing, and audit permissions."
       />
       <PageIntro>
-        Manifests are forward declarations: how you tell counterparties what you&apos;ll require of them and what posture they should expect from you — counterparty obligations, baseline pricing, and your sharing policy. Edit them here to change obligations, propagate pricing, and shape what your trading partners see when they connect.
+        Manifests are forward declarations: how you tell counterparties what you&apos;ll require of them and what posture they should expect from you — counterparty obligations, baseline pricing, and audit permissions. Edit them here to change obligations, propagate pricing, and shape what your trading partners see when they connect.
       </PageIntro>
       <Tabs tabs={MANIFEST_TABS} active={activeTab} onChange={setActiveTab} />
       {activeTab === "counterparty" && <CounterpartyManifest />}
