@@ -15,9 +15,13 @@ export function formatRelative(iso: string): string {
 export function formatRunLabel(run: {
   run_id: string;
   template_name?: string | null;
+  run_origin?: string | null;
 }): string {
   const hash = `Run ${run.run_id.slice(0, 8)}`;
   if (run.template_name) return `${run.template_name} — ${hash}`;
+  // Template-less ad-hoc runs (legacy trigger surface, removed 2026-06-09)
+  // have no user-given name — say what the run IS rather than a bare id.
+  if (run.run_origin === 'ad_hoc') return `Ad-hoc sweep — ${hash}`;
   return hash;
 }
 

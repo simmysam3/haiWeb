@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
-import type { AuditRun, RunTriggerRequest } from '@haiwave/protocol';
+import type { AuditRun } from '@haiwave/protocol';
 
 /**
  * GET /api/account/sonar/audit/runs — list audit runs for the caller's org.
  *   Optional query params: status, limit (both forwarded to haiCore; filtering
  *   and pagination are enforced server-side).
  *
- * POST /api/account/sonar/audit/runs — ad-hoc trigger an audit run.
- *   Body is a RunTriggerRequest (discriminated on scope_type: 'company' | 'key').
- *   run_origin is NOT a request field — it is determined by haiCore.
+ * NO POST. The ad-hoc trigger was removed 2026-06-09: it had no UI callers and
+ * created template-less runs that can never carry the user-given audit name
+ * (the "Run <uuid>"-labeled rows). Every portal trigger goes through the
+ * definitions flow (POST /definitions then /definitions/:id/run) so the run is
+ * always bound to a named template.
  *
  * Enrichment (GET): each run is augmented with the friendly `template_name`
  * (resolved from the run's template_id via a single listRunTemplates fetch
@@ -57,9 +59,4 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
   });
 
   return NextResponse.json({ runs: enrichedRuns, auditor_country: auditorCountry });
-});
-
-export const POST = withHaiCore(async ({ client, request }) => {
-  const body = (await request.json().catch(() => ({}))) as RunTriggerRequest;
-  return NextResponse.json(await client.triggerAuditRun(body));
 });

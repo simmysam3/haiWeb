@@ -9,6 +9,10 @@ import type {
 } from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
 import { Pill as SharedPill } from '@/components/pill';
+import {
+  DomesticFlagBadge,
+  isDomesticOrigin,
+} from '@/app/account/sonar/audit/_lib/domestic';
 
 export interface TreeOverlay {
   byNodeKey: Map<string, { attestations: NodeAttestation[]; currentAnnotation: Annotation | null }>;
@@ -154,6 +158,7 @@ export function TreeView({
   depth = 0,
   overlay,
   complianceBar = false,
+  auditorCountry,
 }: {
   node: ObservationNode;
   depth?: number;
@@ -161,6 +166,11 @@ export function TreeView({
   // When true, render a narrow left status bar per node spanning its full
   // subtree height (audit run view). Threaded through the recursion.
   complianceBar?: boolean;
+  // ISO-2 auditor home country (audit surfaces only). When a vendor line's
+  // own origin is resolved AND matches, the line carries the domestic flag —
+  // geography is a primary concern on audit reports. Threaded through the
+  // recursion; watcher contexts simply omit it.
+  auditorCountry?: string;
 }) {
   const audit = auditPayload(node);
   const hasChildren = node.components.length > 0;
@@ -211,6 +221,14 @@ export function TreeView({
             {vendorName && node.participant_id && !node.identity_redacted && (
               <IdChip id={node.participant_id} />
             )}
+            {auditorCountry &&
+              isDomesticOrigin(audit?.origin.country_of_origin, auditorCountry) && (
+                <DomesticFlagBadge
+                  country={auditorCountry}
+                  title={`Verified ${auditorCountry} origin`}
+                  className="h-3 w-auto rounded-[1px] shadow-sm"
+                />
+              )}
           </>
           {showSynthesis && (
             <Pill tone="slate">{SYNTHESIS_LABEL[node.synthesis_mode]}</Pill>
@@ -278,7 +296,7 @@ export function TreeView({
       {node.components.length > 0 && (
         <div className="ml-3 mt-1 border-l border-slate/15 pl-2">
           {node.components.map((c, i) => (
-            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} complianceBar={complianceBar} />
+            <TreeView key={i} node={c} depth={depth + 1} overlay={overlay} complianceBar={complianceBar} auditorCountry={auditorCountry} />
           ))}
         </div>
       )}

@@ -13,6 +13,9 @@ function formatRunTitle(run: AuditRun): string {
   // from the linked RunTemplate so the H1 shows the user-given audit name.
   const enriched = run as AuditRun & { template_name?: string | null };
   if (enriched.template_name) return enriched.template_name;
+  // Template-less ad-hoc runs (legacy trigger surface, removed 2026-06-09)
+  // carry no user-given name — title them by what they are.
+  if (run.run_origin === 'ad_hoc') return `Ad-hoc sweep — Run ${run.run_id.slice(0, 8)}`;
   return `Run ${run.run_id.slice(0, 8)}`;
 }
 
