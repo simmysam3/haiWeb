@@ -1,0 +1,601 @@
+import '@testing-library/jest-dom/vitest';
+import { it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { AddEvidenceModal } from '../add-evidence-modal';
+import type { LibraryElement } from '@/lib/library-types';
+
+afterEach(() => vi.restoreAllMocks());
+
+function makeElement(over: Partial<LibraryElement> & { key: string; label: string }): LibraryElement {
+  return {
+    kind: 'artifact',
+    validity: false,
+    modal_fields: [],
+    attribute: null,
+    artifacts: [],
+    policies: {
+      share: { premier: false, trading_pair: false, connection: false, qualified: false },
+      require: { premier: false, trading_pair: false, connection: false, qualified: false },
+    },
+    gap: false,
+    ...over,
+  };
+}
+
+const artifactEl = makeElement({
+  key: 'iso_9001_cert',
+  label: 'ISO 9001 Certificate',
+  kind: 'artifact',
+  validity: true,
+  modal_fields: ['standard', 'issuer', 'cert_number', 'scope'],
+});
+
+const booleanAttrEl = makeElement({
+  key: 'liability_cap_present',
+  label: 'Liability Cap Present',
+  kind: 'attribute',
+  value_type: 'boolean',
+});
+
+const structuredAttrEl = makeElement({
+  key: 'address',
+  label: 'HQ Address',
+  kind: 'attribute',
+  value_type: 'structured',
+});
+
+function okFetch() {
+  return vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({}) });
+}
+
+it('artifact element offers Upload and URL modes with registry-driven fields and valid-until', () => {
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.getByRole('radio', { name: /upload/i })).toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: /url/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/^title$/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/^standard$/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/^issuer$/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/certificate number/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/^scope$/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until month/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until day/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until year/i)).toBeInTheDocument();
+});
+
+it('URL mode posts JSON with entered fields', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={artifactEl} onClose={onClose} onSaved={onSaved} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'My Cert' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/cert.pdf' } });
+  fireEvent.change(screen.getByLabelText(/^standard$/i), { target: { value: 'ISO 9001' } });
+  fireEvent.change(screen.getByLabelText(/valid until month/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until day/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until year/i), { target: { value: '2027' } });
+
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/artifacts/url');
+  expect(init.method).toBe('POST');
+  const body = JSON.parse(init.body);
+  expect(body).toMatchObject({
+    element_key: 'iso_9001_cert',
+    title: 'My Cert',
+    source_url: 'https://example.com/cert.pdf',
+    standard: 'ISO 9001',
+    valid_until: '2027-01-01T00:00:00Z',
+  });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(onClose).toHaveBeenCalled();
+});
+
+it('upload mode posts FormData with the file and rejects oversize client-side', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const { unmount } = render(
+    <AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />,
+  );
+
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Doc' } });
+  const file = new File([new Uint8Array(8)], 'doc.pdf', { type: 'application/pdf' });
+  const input = screen.getByLabelText(/file/i) as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/artifacts');
+  expect(init.method).toBe('POST');
+  expect(init.body).toBeInstanceOf(FormData);
+  expect((init.body as FormData).get('element_key')).toBe('iso_9001_cert');
+  expect((init.body as FormData).get('file')).toBeTruthy();
+  unmount();
+
+  // Second render: oversize file rejected client-side, no fetch.
+  fetchMock.mockClear();
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Big' } });
+  const bigFile = new File([new Uint8Array(8)], 'big.pdf', { type: 'application/pdf' });
+  Object.defineProperty(bigFile, 'size', { value: 10 * 1024 * 1024 + 1 });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [bigFile] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/10MB/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('boolean attribute renders Yes/No select and PUTs a real boolean', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={booleanAttrEl} onClose={vi.fn()} onSaved={onSaved} />);
+
+  const select = screen.getByRole('combobox');
+  fireEvent.change(select, { target: { value: 'true' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/attributes/liability_cap_present');
+  expect(init.method).toBe('PUT');
+  expect(JSON.parse(init.body)).toEqual({ value: true });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+});
+
+it('structured attribute rejects invalid JSON without fetching', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={structuredAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'not json' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/valid JSON/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+const claimEl = makeElement({
+  key: 'iso_9001_certified',
+  label: 'ISO 9001 Certified',
+  kind: 'attribute_with_evidence',
+  value_type: 'boolean',
+  validity: true,
+  modal_fields: ['standard', 'issuer', 'cert_number', 'scope'],
+});
+
+it('attribute_with_evidence saves the value only when no evidence source is chosen (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={vi.fn()} onSaved={onSaved} />);
+
+  // Evidence section offered but defaulting to None.
+  expect(screen.getByRole('radio', { name: /none/i })).toBeChecked();
+
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'true' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toBe('/api/account/library/attributes/iso_9001_certified');
+  expect(init.method).toBe('PUT');
+  expect(JSON.parse(init.body)).toEqual({ value: true });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+});
+
+it('attribute_with_evidence with Upload evidence chains artifact POST then PUT with evidence_artifact_id (PO 2026-06-11)', async () => {
+  const fetchMock = vi.fn().mockImplementation((url: string) => {
+    if (url === '/api/account/library/artifacts') {
+      return Promise.resolve({
+        ok: true, status: 201, json: () => Promise.resolve({ artifact: { id: 'new-art-1' } }),
+      });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={vi.fn()} onSaved={onSaved} />);
+
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'true' } });
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'ISO 9001 Cert' } });
+  const file = new File([new Uint8Array(8)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  const [artUrl, artInit] = fetchMock.mock.calls[0];
+  expect(artUrl).toBe('/api/account/library/artifacts');
+  expect((artInit.body as FormData).get('element_key')).toBe('iso_9001_certified');
+  const [putUrl, putInit] = fetchMock.mock.calls[1];
+  expect(putUrl).toBe('/api/account/library/attributes/iso_9001_certified');
+  expect(JSON.parse(putInit.body)).toEqual({ value: true, evidence_artifact_id: 'new-art-1' });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+});
+
+it('attribute_with_evidence aborts the PUT when the evidence upload fails', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: false, status: 400,
+    json: () => Promise.resolve({ error: { code: 'BAD', message: 'upload rejected by haiCore' } }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={claimEl} onClose={onClose} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Cert' } });
+  const file = new File([new Uint8Array(8)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/upload rejected by haiCore/i)).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledTimes(1); // no attribute PUT after a failed upload
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('plain attribute elements offer no evidence section', () => {
+  render(<AddEvidenceModal element={booleanAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.queryByRole('radio', { name: /none/i })).toBeNull();
+  expect(screen.queryByRole('radio', { name: /upload/i })).toBeNull();
+});
+
+it('shows the API error and stays open on failure', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: false,
+    status: 400,
+    json: () =>
+      Promise.resolve({ error: { code: 'BAD', message: 'justification of at least 10 characters required' } }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={booleanAttrEl} onClose={onClose} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/justification of at least 10 characters required/i)).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('clears a stale error when switching modes', async () => {
+  vi.stubGlobal('fetch', okFetch());
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'X' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'ftp://nope' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  expect(await screen.findByText(/http:\/\//i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('radio', { name: /upload/i }));
+  expect(screen.queryByText(/http:\/\//i)).not.toBeInTheDocument();
+});
+
+it('rejects a non-object structured value without fetching', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={structuredAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '[1,2,3]' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/JSON object/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('renders nothing when element is null', () => {
+  const { container } = render(<AddEvidenceModal element={null} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(container).toBeEmptyDOMElement();
+});
+
+it('artifact element offers an Existing document mode; attribute elements do not', () => {
+  const { unmount } = render(
+    <AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />,
+  );
+  expect(screen.getByRole('radio', { name: /existing document/i })).toBeInTheDocument();
+  unmount();
+  render(<AddEvidenceModal element={booleanAttrEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  expect(screen.queryByRole('radio', { name: /existing document/i })).toBeNull();
+});
+
+const DOCUMENTS = {
+  documents: [
+    {
+      artifact_id: 'a1',
+      title: 'Quality Manual',
+      element_key: 'quality_manual',
+      origin: 'upload',
+      mime_type: 'application/pdf',
+      file_size_bytes: 1234,
+      source_url: null,
+      has_file: true,
+      created_at: '2026-06-10T12:00:00Z',
+    },
+    {
+      artifact_id: 'a2',
+      title: 'Insurance Certificate',
+      element_key: 'insurance_cert',
+      origin: 'url',
+      mime_type: null,
+      file_size_bytes: null,
+      source_url: 'https://example.com/ins.pdf',
+      has_file: false,
+      created_at: '2026-05-01T00:00:00Z',
+    },
+    {
+      artifact_id: 'a3',
+      title: 'Legacy Drawing',
+      element_key: 'tech_drawing',
+      origin: 'auto_gathered',
+      mime_type: 'application/pdf',
+      file_size_bytes: 5678,
+      source_url: null,
+      has_file: true,
+      created_at: null, // defensive: haiCore may omit/null the timestamp
+    },
+  ],
+};
+
+function documentsFetch(listBody: unknown = DOCUMENTS) {
+  return vi.fn().mockImplementation((url: string) => {
+    if (url === '/api/account/library/documents') {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(listBody) });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+  });
+}
+
+it('selecting Existing document fetches the library documents and populates the dropdown; picking one prefills the title', async () => {
+  const fetchMock = documentsFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/documents'),
+  );
+
+  const select = (await screen.findByLabelText(/^document$/i)) as HTMLSelectElement;
+  expect(
+    screen.getByRole('option', { name: 'Quality Manual — uploaded 2026-06-10' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('option', { name: 'Insurance Certificate — linked 2026-05-01' }),
+  ).toBeInTheDocument();
+  // Null created_at: the date is simply omitted from the label.
+  expect(
+    screen.getByRole('option', { name: 'Legacy Drawing — gathered' }),
+  ).toBeInTheDocument();
+
+  fireEvent.change(select, { target: { value: 'a1' } });
+  expect((screen.getByLabelText(/^title$/i) as HTMLInputElement).value).toBe('Quality Manual');
+});
+
+it('re-selecting a document re-prefills an untouched title but never clobbers a user-edited one', async () => {
+  vi.stubGlobal('fetch', documentsFetch());
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  const select = (await screen.findByLabelText(/^document$/i)) as HTMLSelectElement;
+  const title = screen.getByLabelText(/^title$/i) as HTMLInputElement;
+
+  // Untouched title follows the selection.
+  fireEvent.change(select, { target: { value: 'a1' } });
+  expect(title.value).toBe('Quality Manual');
+  fireEvent.change(select, { target: { value: 'a2' } });
+  expect(title.value).toBe('Insurance Certificate');
+
+  // A user edit sticks across re-selection.
+  fireEvent.change(title, { target: { value: 'My Custom Title' } });
+  fireEvent.change(select, { target: { value: 'a1' } });
+  expect(title.value).toBe('My Custom Title');
+});
+
+it('shows a friendly empty state when the library has no reusable documents', async () => {
+  // PO 2026-06-11: drafts are excluded from reuse (haiCore filters them out),
+  // so the empty state nudges toward accepting/adding rather than uploading.
+  vi.stubGlobal('fetch', documentsFetch({ documents: [] }));
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+
+  expect(
+    await screen.findByText(/no reusable documents yet — accept or add one first\./i),
+  ).toBeInTheDocument();
+  expect(screen.queryByLabelText(/^document$/i)).toBeNull();
+});
+
+it('existing-document mode posts element_key + source_artifact_id + title + optional fields', async () => {
+  const fetchMock = documentsFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const onSaved = vi.fn();
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={artifactEl} onClose={onClose} onSaved={onSaved} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  const select = await screen.findByLabelText(/^document$/i);
+  fireEvent.change(select, { target: { value: 'a1' } });
+  // Title prefilled from the document, but editable.
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Quality Manual (QMS)' } });
+  fireEvent.change(screen.getByLabelText(/^issuer$/i), { target: { value: 'TUV' } });
+  fireEvent.change(screen.getByLabelText(/valid until month/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until day/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until year/i), { target: { value: '2027' } });
+
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/account/library/artifacts/from-existing',
+      expect.anything(),
+    ),
+  );
+  const call = fetchMock.mock.calls.find(
+    (c: unknown[]) => c[0] === '/api/account/library/artifacts/from-existing',
+  )!;
+  const init = call[1] as RequestInit;
+  expect(init.method).toBe('POST');
+  expect(JSON.parse(init.body as string)).toEqual({
+    element_key: 'iso_9001_cert',
+    source_artifact_id: 'a1',
+    title: 'Quality Manual (QMS)',
+    issuer: 'TUV',
+    valid_until: '2027-01-01T00:00:00Z',
+  });
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  expect(onClose).toHaveBeenCalled();
+});
+
+it('existing-document mode requires a selected document before posting', async () => {
+  const fetchMock = documentsFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  await screen.findByLabelText(/^document$/i);
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'T' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/choose a document to reuse/i)).toBeInTheDocument();
+  expect(
+    fetchMock.mock.calls.filter(
+      (c: unknown[]) => c[0] === '/api/account/library/artifacts/from-existing',
+    ),
+  ).toHaveLength(0);
+});
+
+it('existing-document mode surfaces a haiCore 404 message and stays open', async () => {
+  const fetchMock = vi.fn().mockImplementation((url: string) => {
+    if (url === '/api/account/library/documents') {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(DOCUMENTS) });
+    }
+    return Promise.resolve({
+      ok: false,
+      status: 404,
+      json: () =>
+        Promise.resolve({
+          // haiCore wire code for a missing/foreign/draft source is the
+          // generic NOT_FOUND (like every library route).
+          error: { code: 'NOT_FOUND', message: 'Source document no longer exists' },
+        }),
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  const onClose = vi.fn();
+  render(<AddEvidenceModal element={artifactEl} onClose={onClose} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  fireEvent.change(await screen.findByLabelText(/^document$/i), { target: { value: 'a1' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/source document no longer exists/i)).toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('shows a load-error state when the documents fetch fails', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: false,
+    status: 500,
+    json: () => Promise.resolve({ error: 'boom' }),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+
+  expect(await screen.findByText(/could not load your documents/i)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/^document$/i)).toBeNull();
+});
+
+it('URL mode offers a No-document-expiration checkbox that sends no_expiry and disables the date (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const { unmount } = render(
+    <AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />,
+  );
+
+  // Upload mode: no checkbox.
+  expect(screen.queryByLabelText(/no document expiration/i)).toBeNull();
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  const checkbox = screen.getByLabelText(/no document expiration/i) as HTMLInputElement;
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Evergreen Terms' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
+  fireEvent.click(checkbox);
+  expect((screen.getByLabelText(/valid until month/i) as HTMLSelectElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/valid until day/i) as HTMLSelectElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/valid until year/i) as HTMLSelectElement).disabled).toBe(true);
+
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(body.no_expiry).toBe(true);
+  expect(body.valid_until).toBeUndefined();
+  unmount();
+
+  // Elements without validity tracking get neither the date nor the checkbox in URL mode.
+  const noValidity = makeElement({ key: 'w9_form', label: 'W-9', validity: false });
+  render(<AddEvidenceModal element={noValidity} onClose={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  expect(screen.queryByLabelText(/no document expiration/i)).toBeNull();
+});
+
+it('Valid-until defaults to today (month/year/day selects) and the picker state is captured on submit (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  const month = screen.getByLabelText(/valid until month/i) as HTMLSelectElement;
+  const year = screen.getByLabelText(/valid until year/i) as HTMLSelectElement;
+  const day = screen.getByLabelText(/valid until day/i) as HTMLSelectElement;
+
+  // Defaults: today's month, year, and day — never a blank value.
+  const today = new Date();
+  expect(month.value).toBe(String(today.getMonth() + 1));
+  expect(year.value).toBe(String(today.getFullYear()));
+  expect(day.value).toBe(String(today.getDate()));
+
+  // Change only the year — untouched month/day are captured as intentional.
+  fireEvent.change(year, { target: { value: String(today.getFullYear() + 2) } });
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Terms' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  expect(body.valid_until).toBe(`${today.getFullYear() + 2}-${mm}-${dd}T00:00:00Z`);
+});
+
+it('day select clamps when the chosen month has fewer days', () => {
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  const month = screen.getByLabelText(/valid until month/i) as HTMLSelectElement;
+  const year = screen.getByLabelText(/valid until year/i) as HTMLSelectElement;
+  const day = screen.getByLabelText(/valid until day/i) as HTMLSelectElement;
+
+  // Force a 31-day month and pick day 31, then switch to February of a non-leap year.
+  fireEvent.change(month, { target: { value: '1' } });
+  fireEvent.change(day, { target: { value: '31' } });
+  fireEvent.change(year, { target: { value: '2027' } });
+  fireEvent.change(month, { target: { value: '2' } });
+  expect(day.value).toBe('28');
+});
+
+it('upload mode shows an explicit file-picker affordance with the selected filename', () => {
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  // Explicit control + empty state.
+  expect(screen.getByText('Choose file…')).toBeInTheDocument();
+  expect(screen.getByText('No file selected')).toBeInTheDocument();
+  // Picking a file via the (label-associated) native input shows its name.
+  const file = new File([new Uint8Array(4)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  expect(screen.getByText('cert.pdf')).toBeInTheDocument();
+  expect(screen.queryByText('No file selected')).toBeNull();
+});

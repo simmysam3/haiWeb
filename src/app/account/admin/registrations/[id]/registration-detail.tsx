@@ -151,6 +151,7 @@ export function RegistrationDetail({ detail }: Props) {
         <Field label="Role" value={detail.role_title} />
         <Field label="Headquarters country" value={detail.country_of_origin} />
         <Field label="Corporate website" value={detail.corporate_website} />
+        <Field label="Terms page" value={detail.terms_url} />
         <Field label="Tax ID" value={detail.tax_id} />
         <Field label="DUNS" value={detail.duns} />
         <Field label="HQ address" value={hqAddress} />

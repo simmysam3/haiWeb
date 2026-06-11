@@ -89,24 +89,6 @@ export interface MockInvoice {
   pdf_url: string;
 }
 
-export interface MockRequirement {
-  id: string;
-  field_name: string;
-  display_name: string;
-  required: boolean;
-  enabled: boolean;
-  description: string;
-}
-
-export interface MockPosture {
-  id: string;
-  document_type: string;
-  display_name: string;
-  posture: "support" | "not_supported" | "exception";
-  score_threshold: number | null;
-  notification_email: string;
-}
-
 export type LeadTimeTrendSharingPosture = "require" | "prefer" | "not_required";
 
 export interface MockParticipant {

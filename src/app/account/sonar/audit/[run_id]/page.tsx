@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
 import { RunHeader } from './_components/run-header';
-import { EvidenceTreePanel } from './_components/evidence-tree-panel';
 import { TierGapGrid } from './_components/tier-gap-grid';
 import { DispatchedResponsesTable } from './_components/dispatched-responses-table';
 import { InProgressPoller } from './_components/in-progress-poller';
@@ -95,35 +94,25 @@ export default async function AuditRunDetailPage({
       )}
 
       {/* Unified run status bar + tiered gap-count + weighted follow-up
-          priority (restored v.1.45; absorbs the former SummaryStrip). Sits
-          above the evidence tree, which stays the primary surface. Needs the
-          result set, so gated on a successful results load. */}
+          priority. Each SKU row carries its own collapsed evidence tree
+          (accordion) + the domestic flag when fully domestic — the page lists
+          each SKU exactly once (the former standalone Evidence-tree section
+          repeated the whole set). */}
       {showTree && !resultsLoadFailed && (
-        <TierGapGrid run={run} results={results} />
+        <TierGapGrid run={run} results={results} auditorCountry={auditor_country} />
       )}
 
-      {/* Full-width evidence tree — read-only, no annotation drawer (§6a) */}
-      {showTree && (
-        <section aria-labelledby="tree-heading" className="space-y-3">
-          <h2
-            id="tree-heading"
-            className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-          >
-            Evidence tree
-          </h2>
-          {resultsLoadFailed ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-problem/20 bg-problem/5 px-5 py-4 text-sm text-problem"
-            >
-              Couldn&apos;t load the evidence tree for this run. The run
-              completed, but its results couldn&apos;t be fetched — try
-              refreshing the page.
-            </div>
-          ) : (
-            <EvidenceTreePanel results={results} auditorCountry={auditor_country} />
-          )}
-        </section>
+      {/* Results-fetch failure — surfaced as a notice, never a silently-empty
+          grid (the run itself completed). */}
+      {showTree && resultsLoadFailed && (
+        <div
+          role="alert"
+          className="rounded-lg border border-problem/20 bg-problem/5 px-5 py-4 text-sm text-problem"
+        >
+          Couldn&apos;t load the evidence tree for this run. The run
+          completed, but its results couldn&apos;t be fetched — try
+          refreshing the page.
+        </div>
       )}
 
       {/* Dispatched responses — always rendered (always empty in v.1.39, §6a) */}

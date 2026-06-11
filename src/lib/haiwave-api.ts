@@ -109,6 +109,12 @@ import type {
   DownstreamGapFilters,
 } from '@/app/account/sonar/audit/obligations/_lib/types';
 
+import type {
+  LibraryView,
+  LibraryTier,
+  PolicyContext,
+} from '@/lib/library-types';
+
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
 export interface CatalogClass {
@@ -373,6 +379,32 @@ export interface HaiwaveClient {
   getCounterpartyManifest(id: string): Promise<Record<string, unknown>>;
   updateCounterpartyManifest(data: unknown): Promise<Record<string, unknown>>;
   updatePricingManifest(data: unknown): Promise<Record<string, unknown>>;
+  // Company Library
+  getLibrary(): Promise<LibraryView>;
+  setLibraryPolicy(body: { element_key: string; context: PolicyContext; tier: LibraryTier; enabled: boolean }): Promise<unknown>;
+  upsertLibraryAttribute(elementKey: string, body: Record<string, unknown>): Promise<unknown>;
+  createLibraryUrlArtifact(body: Record<string, unknown>): Promise<{ artifact: { id: string } }>;
+  /** Uploads a document artifact as multipart/form-data. The boundary is set by
+   * fetch from the FormData body — do NOT add a Content-Type header. */
+  uploadLibraryArtifact(form: FormData): Promise<{ artifact: { id: string } }>;
+  /** Returns the raw upstream Response for an artifact's file (unconsumed body)
+   * so the BFF can stream it through with the upstream content headers. */
+  getLibraryArtifactFile(id: string): Promise<Response>;
+  /** Lists all reusable document artifacts in the company library.
+   * Contract assumption (haiCore built in parallel): returns a WRAPPED
+   * envelope {documents: [...]} — unlike e.g. searchParticipants (bare
+   * array) but like listInstallationsForKey ({installations}). The BFF
+   * passes through whatever haiCore returns. */
+  listLibraryDocuments(): Promise<unknown>;
+  /** Reuses an existing document artifact as evidence for another element.
+   * haiCore: 404 (generic wire code NOT_FOUND) for a missing/foreign/draft
+   * source, 400 unknown element. */
+  createArtifactFromExisting(body: Record<string, unknown>): Promise<unknown>;
+  affirmLibraryItem(id: string): Promise<unknown>;
+  /** Rejects (hard-deletes) a draft library item. haiCore returns 404 for non-draft/unknown ids. */
+  rejectLibraryItem(id: string): Promise<unknown>;
+  /** Kicks off a library gather run. haiCore replies 202 {status:'started'} | 422 NO_WEBSITE_URL | 400 | 503. */
+  runLibraryGather(body: { terms_url?: string }): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Admin
   getAdminOverview(): Promise<Record<string, unknown>>;
@@ -851,6 +883,60 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
 
     updatePricingManifest(data) {
       return request<Record<string, unknown>>("PUT", "/manifest/pricing", data);
+    },
+
+    getLibrary() {
+      return request<LibraryView>("GET", "/library");
+    },
+    setLibraryPolicy(body) {
+      return request<unknown>("PUT", "/library/policies", body);
+    },
+    upsertLibraryAttribute(elementKey, body) {
+      return request<unknown>("PUT", `/library/attributes/${encodeURIComponent(elementKey)}`, body);
+    },
+    createLibraryUrlArtifact(body) {
+      return request<{ artifact: { id: string } }>("POST", "/library/artifacts/url", body);
+    },
+    async uploadLibraryArtifact(form) {
+      // No Content-Type header — fetch derives the multipart boundary from the
+      // FormData body. baseHeaders carries auth + participant + protocol only.
+      const res = await fetch(`${haiwaveApiUrl}/library/artifacts`, {
+        method: "POST",
+        headers: { ...baseHeaders },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        const err = new Error(
+          `haiCore POST /library/artifacts: ${res.status} ${text}`,
+        ) as Error & { status?: number; haiCoreBody?: unknown };
+        err.status = res.status;
+        try { err.haiCoreBody = JSON.parse(text); } catch { /* non-JSON body */ }
+        throw err;
+      }
+      return res.json() as Promise<{ artifact: { id: string } }>;
+    },
+    getLibraryArtifactFile(id) {
+      // Return the raw Response unconsumed — the caller streams the body.
+      return fetch(
+        `${haiwaveApiUrl}/library/artifacts/${encodeURIComponent(id)}/file`,
+        { headers: { ...baseHeaders } },
+      );
+    },
+    listLibraryDocuments() {
+      return request<unknown>("GET", "/library/documents");
+    },
+    createArtifactFromExisting(body) {
+      return request<unknown>("POST", "/library/artifacts/from-existing", body);
+    },
+    affirmLibraryItem(id) {
+      return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/affirm`);
+    },
+    rejectLibraryItem(id) {
+      return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/reject`);
+    },
+    runLibraryGather(body) {
+      return request<unknown>("POST", "/library/gather", body);
     },
 
     getAgentStatus(agentId) {

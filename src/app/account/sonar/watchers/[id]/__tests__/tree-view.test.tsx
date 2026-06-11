@@ -192,3 +192,39 @@ describe('TreeView attestation/annotation overlay (v1.34 P8)', () => {
     expect(screen.getByRole('button', { name: /annotate/i })).toBeInTheDocument();
   });
 });
+
+describe('TreeView domestic vendor-line flag', () => {
+  const us = (over: Partial<ObservationNode> = {}) =>
+    node({ participant_id: 'p1', vendor_legal_name: 'Gary Works', ...over });
+
+  it('flags a vendor line whose resolved origin matches auditorCountry', () => {
+    render(<TreeView node={us()} auditorCountry="US" />);
+    expect(screen.getByLabelText('Verified US origin')).toBeInTheDocument();
+  });
+
+  it('no flag when origin is foreign or unresolved', () => {
+    const foreign = node({
+      participant_id: 'p2', vendor_legal_name: 'Shenzhen Metals',
+      payload: { kind: 'audit', product_id: null, disclosure_data: null, class_ids: [],
+        origin: { country_of_origin: 'CN', state_province: null, city: null,
+          plant_address: null, plant_identifier: null, vendor_name: null },
+        operational_status: { lead_time_meets: null, capacity: null, delivery_state: null } } as ObservationNode['payload'],
+    });
+    render(<TreeView node={foreign} auditorCountry="US" />);
+    expect(screen.queryByLabelText(/Verified .* origin/)).toBeNull();
+  });
+
+  it('no flag when auditorCountry is not provided (watcher context)', () => {
+    render(<TreeView node={us()} />);
+    expect(screen.queryByLabelText(/Verified .* origin/)).toBeNull();
+  });
+
+  it('flags qualifying child nodes through the recursion', () => {
+    const tree = us({
+      depth_level: 1,
+      components: [us({ participant_id: 'p3', vendor_legal_name: 'Tacoma Refinery', depth_level: 2 })],
+    });
+    render(<TreeView node={tree} auditorCountry="US" />);
+    expect(screen.getAllByLabelText('Verified US origin')).toHaveLength(2);
+  });
+});

@@ -125,33 +125,15 @@ describe('GET /api/account/sonar/audit/runs', () => {
 });
 
 describe('POST /api/account/sonar/audit/runs', () => {
-  beforeEach(() => {
-    (globalThis as any).__mockClient = {
-      listAuditRuns: vi.fn(),
-      triggerAuditRun: vi.fn(),
-    };
+  it('is not exported — ad-hoc triggers create nameless template-less runs; the wizard path (definitions + /run) is the only trigger', async () => {
+    const mod = await import('../route');
+    expect((mod as Record<string, unknown>).POST).toBeUndefined();
   });
+});
 
-  it('forwards the request body to triggerAuditRun and returns its result', async () => {
-    const mockResult = { run_id: 'r-new', status: 'pending' };
-    (globalThis as any).__mockClient.triggerAuditRun.mockResolvedValue(mockResult);
-
-    const { POST } = await import('../route');
-    const reqBody = { scope_type: 'company', scope_ids: ['org-1'], depth_limit: 2, hop_budget: 10 };
-    const req = new NextRequest(
-      'http://localhost:3001/api/account/sonar/audit/runs',
-      {
-        method: 'POST',
-        body: JSON.stringify(reqBody),
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
-    const res = await POST(req, { params: Promise.resolve({}) });
-    const body = await res.json();
-
-    expect(body).toEqual(mockResult);
-    const callArg = (globalThis as any).__mockClient.triggerAuditRun.mock.calls[0][0];
-    expect(callArg).toEqual(reqBody);
-    expect(callArg).not.toHaveProperty('run_origin');
+describe('POST /api/account/audit-runs (legacy)', () => {
+  it('is not exported — same ad-hoc trigger surface, no UI callers', async () => {
+    const mod = await import('../../../../audit-runs/route');
+    expect((mod as Record<string, unknown>).POST).toBeUndefined();
   });
 });

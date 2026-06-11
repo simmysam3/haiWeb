@@ -11,7 +11,13 @@ import {
   mergeTiers,
   GapTierBar,
   ScorePill,
+  DetailChevron,
 } from '@/components/sonar/observations';
+import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
+import {
+  DomesticFlagBadge,
+  isFullyDomestic,
+} from '@/app/account/sonar/audit/_lib/domestic';
 
 // Bucket every gap in the subtree by tier (depth_level, clamped at 4+).
 // Persisted result subtrees are rooted at a depth-1 child (the direct vendor),
@@ -98,12 +104,74 @@ function StatCell({
  * the weighted priority rollup) — folded in from the former SummaryStrip so the
  * page shows ONE status treatment instead of two stacked stat rows.
  */
+/**
+ * One SKU row + its collapsed evidence tree. The tree is the SKU's own result
+ * subtree — surfaced inline (accordion) so the page lists each SKU exactly
+ * once instead of repeating the full set in a separate evidence section.
+ */
+function SkuEvidenceRow({
+  row,
+  auditorCountry,
+}: {
+  row: SkuRow;
+  auditorCountry?: string;
+}) {
+  const [treeOpen, setTreeOpen] = useState(false);
+  const domestic =
+    auditorCountry !== undefined &&
+    isFullyDomestic(row.result.geo_rollup, auditorCountry);
+
+  return (
+    <li className="text-sm">
+      <div className="flex items-center justify-between gap-3 px-4 py-2">
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-charcoal">{row.productId || '—'}</span>
+          {domestic && auditorCountry && (
+            <DomesticFlagBadge
+              country={auditorCountry}
+              title={`All components verified ${auditorCountry}-origin`}
+            />
+          )}
+        </span>
+        <span className="flex items-center gap-2">
+          <GapTierBar tiers={row.gapTiers} />
+          <ScorePill score={row.score} tiers={row.gapTiers} />
+        </span>
+      </div>
+      {/* Collapsed-by-default evidence tree for THIS SKU only. */}
+      <button
+        type="button"
+        aria-expanded={treeOpen}
+        onClick={() => setTreeOpen((v) => !v)}
+        className="group flex w-full items-center gap-2 px-4 pb-2 text-left text-xs text-slate hover:text-navy"
+      >
+        <DetailChevron expanded={treeOpen} />
+        View evidence tree
+      </button>
+      {treeOpen && (
+        <div className="mx-4 mb-3 rounded border border-slate/10 bg-white px-2 py-2">
+          <TreeView
+            node={row.result.tree as ObservationNode}
+            // overlay deliberately omitted — read-only mode (§6a)
+            complianceBar
+            auditorCountry={auditorCountry}
+          />
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function TierGapGrid({
   run,
   results,
+  auditorCountry,
 }: {
   run: AuditRun;
   results: AuditRunResult[];
+  // ISO-2 auditor home country — drives the fully-domestic SKU flag and the
+  // per-vendor-line flags inside each SKU's evidence tree.
+  auditorCountry?: string;
 }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortMode>('priority');
@@ -321,18 +389,11 @@ export function TierGapGrid({
               </summary>
               <ul className="divide-y divide-slate/10 border-t border-slate/10">
                 {g.skus.map((r) => (
-                  <li
+                  <SkuEvidenceRow
                     key={r.result.result_id}
-                    className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
-                  >
-                    <span className="font-mono text-charcoal">
-                      {r.productId || '—'}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <GapTierBar tiers={r.gapTiers} />
-                      <ScorePill score={r.score} tiers={r.gapTiers} />
-                    </span>
-                  </li>
+                    row={r}
+                    auditorCountry={auditorCountry}
+                  />
                 ))}
               </ul>
             </details>
