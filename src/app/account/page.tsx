@@ -4,6 +4,7 @@ import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
+import { NotificationsPanel } from "./_components/notifications-panel";
 import { fetchFromApi } from "@/lib/fetch-api";
 import { getSession } from "@/lib/auth";
 import {
@@ -127,7 +128,12 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {/* Row 3: Agent Overview */}
+      {/* Row 3: Notifications */}
+      <div className="mb-8">
+        <NotificationsPanel />
+      </div>
+
+      {/* Row 4: Agent Overview */}
       <Card title="Agent Overview">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
