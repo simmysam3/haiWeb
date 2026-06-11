@@ -35,13 +35,16 @@ interface Props {
   row: EntityApprovalQueueRow;
   onClose: () => void;
   onDecided: () => void;
+  /** Proactive approval of a counterparty with no inbound submission (Task 14). Approve-only. */
+  proactive?: boolean;
 }
 
-export function ReviewWizard({ row, onClose, onDecided }: Props) {
+export function ReviewWizard({ row, onClose, onDecided, proactive = false }: Props) {
   const [tier, setTier] = useState<LibraryTier>(DEFAULT_TIER);
   const [active, setActive] = useState("requirements");
-  // Revoke is only meaningful for a relationship that's already approved.
-  const canRevoke = row.status === "approved";
+  // Revoke is only meaningful for an already-approved relationship, and never in
+  // proactive mode (there is nothing yet to revoke).
+  const canRevoke = !proactive && row.status === "approved";
   const [mode, setMode] = useState<Mode>("approve");
   const [reason, setReason] = useState("");
   const [outOfBand, setOutOfBand] = useState("");
@@ -159,7 +162,12 @@ export function ReviewWizard({ row, onClose, onDecided }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-charcoal">Review — {row.counterparty.name}</p>
+        <div>
+          <p className="text-sm font-medium text-charcoal">Review — {row.counterparty.name}</p>
+          {proactive && (
+            <p className="text-xs text-slate">Proactive approval — no inbound submission.</p>
+          )}
+        </div>
         <Button size="sm" variant="secondary" onClick={onClose}>
           Back to queue
         </Button>

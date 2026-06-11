@@ -236,3 +236,44 @@ describe('ReviewWizard — decision + confirm steps', () => {
     expect(preview).toHaveTextContent(/Connection/);
   });
 });
+
+const PROACTIVE_ROW: EntityApprovalQueueRow = {
+  request_id: null,
+  counterparty: { id: 'cp-9', name: 'Gamma Plastics' },
+  submitted_at: null,
+  gap_count: 0,
+  status: 'pending',
+  last_decision: null,
+};
+
+describe('ReviewWizard — proactive (counterparty) mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockScorecard(NO_GAP_SCORECARD);
+  });
+
+  it('fetches the scorecard from the counterparty endpoint', () => {
+    render(<ReviewWizard row={PROACTIVE_ROW} proactive onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect((useApi.mock.calls[0][0] as { url: string }).url).toBe(
+      '/api/account/entity-approvals/counterparty/cp-9/scorecard?tier=connection',
+    );
+  });
+
+  it('shows the proactive subtitle and offers no revoke radio', () => {
+    render(<ReviewWizard row={PROACTIVE_ROW} proactive onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect(screen.getByText(/proactive approval/i)).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /revoke/i })).toBeNull();
+  });
+
+  it('approve POSTs to the counterparty approve endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    const onDecided = vi.fn();
+    render(<ReviewWizard row={PROACTIVE_ROW} proactive onClose={vi.fn()} onDecided={onDecided} />);
+    fireEvent.click(screen.getByRole('button', { name: /^submit/i }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/account/entity-approvals/counterparty/cp-9/approve');
+    await vi.waitFor(() => expect(onDecided).toHaveBeenCalled());
+    vi.unstubAllGlobals();
+  });
+});
