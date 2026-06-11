@@ -57,7 +57,9 @@ it('artifact element offers Upload and URL modes with registry-driven fields and
   expect(screen.getByLabelText(/^issuer$/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/certificate number/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/^scope$/i)).toBeInTheDocument();
-  expect(screen.getByLabelText(/valid until/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until month/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until day/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/valid until year/i)).toBeInTheDocument();
 });
 
 it('URL mode posts JSON with entered fields', async () => {
@@ -71,7 +73,9 @@ it('URL mode posts JSON with entered fields', async () => {
   fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'My Cert' } });
   fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/cert.pdf' } });
   fireEvent.change(screen.getByLabelText(/^standard$/i), { target: { value: 'ISO 9001' } });
-  fireEvent.change(screen.getByLabelText(/valid until/i), { target: { value: '2027-01-01' } });
+  fireEvent.change(screen.getByLabelText(/valid until month/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until day/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until year/i), { target: { value: '2027' } });
 
   fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
@@ -345,7 +349,9 @@ it('existing-document mode posts element_key + source_artifact_id + title + opti
   // Title prefilled from the document, but editable.
   fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Quality Manual (QMS)' } });
   fireEvent.change(screen.getByLabelText(/^issuer$/i), { target: { value: 'TUV' } });
-  fireEvent.change(screen.getByLabelText(/valid until/i), { target: { value: '2027-01-01' } });
+  fireEvent.change(screen.getByLabelText(/valid until month/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until day/i), { target: { value: '1' } });
+  fireEvent.change(screen.getByLabelText(/valid until year/i), { target: { value: '2027' } });
 
   fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
@@ -447,7 +453,9 @@ it('URL mode offers a No-document-expiration checkbox that sends no_expiry and d
   fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Evergreen Terms' } });
   fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
   fireEvent.click(checkbox);
-  expect((screen.getByLabelText(/valid until/i) as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/valid until month/i) as HTMLSelectElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/valid until day/i) as HTMLSelectElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/valid until year/i) as HTMLSelectElement).disabled).toBe(true);
 
   fireEvent.click(screen.getByRole('button', { name: /save/i }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -463,23 +471,47 @@ it('URL mode offers a No-document-expiration checkbox that sends no_expiry and d
   expect(screen.queryByLabelText(/no document expiration/i)).toBeNull();
 });
 
-it('URL mode requires either a Valid-until date or the no-expiration checkbox (PO 2026-06-11)', async () => {
+it('Valid-until defaults to today (month/year/day selects) and the picker state is captured on submit (PO 2026-06-11)', async () => {
   const fetchMock = okFetch();
   vi.stubGlobal('fetch', fetchMock);
   render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
 
   fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  const month = screen.getByLabelText(/valid until month/i) as HTMLSelectElement;
+  const year = screen.getByLabelText(/valid until year/i) as HTMLSelectElement;
+  const day = screen.getByLabelText(/valid until day/i) as HTMLSelectElement;
+
+  // Defaults: today's month, year, and day — never a blank value.
+  const today = new Date();
+  expect(month.value).toBe(String(today.getMonth() + 1));
+  expect(year.value).toBe(String(today.getFullYear()));
+  expect(day.value).toBe(String(today.getDate()));
+
+  // Change only the year — untouched month/day are captured as intentional.
+  fireEvent.change(year, { target: { value: String(today.getFullYear() + 2) } });
   fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Terms' } });
   fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
   fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
-  expect(await screen.findByText(/valid until date or check/i)).toBeInTheDocument();
-  expect(fetchMock).not.toHaveBeenCalled();
-
-  // Providing the date satisfies the rule.
-  fireEvent.change(screen.getByLabelText(/valid until/i), { target: { value: '2027-01-01' } });
-  fireEvent.click(screen.getByRole('button', { name: /save/i }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  expect(body.valid_until).toBe(`${today.getFullYear() + 2}-${mm}-${dd}T00:00:00Z`);
+});
+
+it('day select clamps when the chosen month has fewer days', () => {
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  const month = screen.getByLabelText(/valid until month/i) as HTMLSelectElement;
+  const year = screen.getByLabelText(/valid until year/i) as HTMLSelectElement;
+  const day = screen.getByLabelText(/valid until day/i) as HTMLSelectElement;
+
+  // Force a 31-day month and pick day 31, then switch to February of a non-leap year.
+  fireEvent.change(month, { target: { value: '1' } });
+  fireEvent.change(day, { target: { value: '31' } });
+  fireEvent.change(year, { target: { value: '2027' } });
+  fireEvent.change(month, { target: { value: '2' } });
+  expect(day.value).toBe('28');
 });
 
 it('upload mode shows an explicit file-picker affordance with the selected filename', () => {

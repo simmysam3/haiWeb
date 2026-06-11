@@ -19,6 +19,19 @@ const FIELD_LABELS: Record<'standard' | 'issuer' | 'cert_number' | 'scope', stri
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+function pad2(n: string): string {
+  return n.padStart(2, '0');
+}
+
 /**
  * One reusable document from GET /api/account/library/documents. Contract
  * (haiCore built in parallel): wrapped envelope {documents: [...]} with
@@ -80,10 +93,24 @@ function AddEvidenceForm({
   const [mode, setMode] = useState<'upload' | 'url' | 'existing'>('upload');
   const [title, setTitle] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [validUntil, setValidUntil] = useState('');
+  // Valid-until is segmented month/year/day, all pre-selected to today (PO
+  // 2026-06-11): expiry dates are rarely day-sensitive, so the picker state at
+  // submit time is captured as intentional — a value is always present.
+  const today = new Date();
+  const [vuMonth, setVuMonth] = useState(String(today.getMonth() + 1));
+  const [vuYear, setVuYear] = useState(String(today.getFullYear()));
+  const [vuDay, setVuDay] = useState(String(today.getDate()));
+  const vuDays = daysInMonth(Number(vuYear), Number(vuMonth));
+  const validUntil = `${vuYear}-${pad2(vuMonth)}-${pad2(vuDay)}`;
   // URL mode only (PO 2026-06-11): explicit "never expires", mutually exclusive
   // with a Valid-until date — haiCore stores it distinctly from a blank date.
   const [noExpiry, setNoExpiry] = useState(false);
+
+  /** Month/year changes clamp an out-of-range day (e.g. Jan 31 → Feb 28). */
+  function clampDay(year: string, month: string) {
+    const max = daysInMonth(Number(year), Number(month));
+    setVuDay((d) => (Number(d) > max ? String(max) : d));
+  }
   const [sourceUrl, setSourceUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [docs, setDocs] = useState<LibraryDocument[] | null>(null);
@@ -224,12 +251,6 @@ function AddEvidenceForm({
     // url mode
     if (!/^https?:\/\//.test(sourceUrl)) {
       setError('Enter a URL starting with http:// or https://');
-      return;
-    }
-    // Linked documents must state expiry intent explicitly (PO 2026-06-11) —
-    // a blank date is ambiguous between "never expires" and "forgot to enter".
-    if (element.validity && !validUntil && !noExpiry) {
-      setError('Enter a Valid until date or check "No document expiration"');
       return;
     }
     const urlFields = optionalFields();
@@ -387,15 +408,61 @@ function AddEvidenceForm({
 
             {element.validity && (
               <>
-                <Field label="Valid until">
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={validUntil}
-                    disabled={mode === 'url' && noExpiry}
-                    onChange={(e) => setValidUntil(e.target.value)}
-                  />
-                </Field>
+                <fieldset>
+                  <legend className="mb-1 block text-sm font-medium text-charcoal">
+                    Valid until
+                  </legend>
+                  <div className="flex gap-2">
+                    <select
+                      aria-label="Valid until month"
+                      className={inputClass}
+                      value={vuMonth}
+                      disabled={mode === 'url' && noExpiry}
+                      onChange={(e) => {
+                        setVuMonth(e.target.value);
+                        clampDay(vuYear, e.target.value);
+                      }}
+                    >
+                      {MONTH_NAMES.map((name, i) => (
+                        <option key={name} value={String(i + 1)}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Valid until day"
+                      className={`${inputClass} w-24`}
+                      value={vuDay}
+                      disabled={mode === 'url' && noExpiry}
+                      onChange={(e) => setVuDay(e.target.value)}
+                    >
+                      {Array.from({ length: vuDays }, (_, i) => (
+                        <option key={i + 1} value={String(i + 1)}>
+                          {i + 1}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Valid until year"
+                      className={`${inputClass} w-28`}
+                      value={vuYear}
+                      disabled={mode === 'url' && noExpiry}
+                      onChange={(e) => {
+                        setVuYear(e.target.value);
+                        clampDay(e.target.value, vuMonth);
+                      }}
+                    >
+                      {Array.from({ length: 21 }, (_, i) => {
+                        const y = today.getFullYear() + i;
+                        return (
+                          <option key={y} value={String(y)}>
+                            {y}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </fieldset>
                 {mode === 'url' && (
                   <label className="inline-flex items-center gap-2 text-sm text-charcoal">
                     <input
@@ -403,7 +470,6 @@ function AddEvidenceForm({
                       checked={noExpiry}
                       onChange={(e) => {
                         setNoExpiry(e.target.checked);
-                        if (e.target.checked) setValidUntil('');
                         setError(null);
                       }}
                     />
