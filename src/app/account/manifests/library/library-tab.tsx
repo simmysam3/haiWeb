@@ -78,8 +78,8 @@ export function LibraryTab({ context }: { context: PolicyContext }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate">
           {context === 'share'
-            ? 'Click a cell to share that element with counterparties at that trust tier.'
-            : 'Click a cell to require that element of counterparties at that trust tier.'}
+            ? 'Maintain your company documents and business terms in this one place — agents reconcile counterparty requirements against your library automatically. Each item is wrapped in a permission level: click a cell to set which class of counterparty (Qualified through Premier) must be in place before that item is shared.'
+            : 'Declare what you require of counterparties at each trust tier — agents evaluate their library against these requirements when reconciling between parties. Click a cell to toggle a requirement.'}
         </p>
         <button
           type="button"
