@@ -217,12 +217,22 @@ function AddEvidenceForm({
 
             {mode === 'upload' ? (
               <Field label="File">
-                <input
-                  type="file"
-                  accept="application/pdf,image/png,image/jpeg"
-                  className="block w-full text-sm text-charcoal"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                />
+                <span className="flex items-center gap-3">
+                  {/* Visually-hidden native input keeps keyboard + screen-reader
+                      access (focus ring shows on the styled control via peer). */}
+                  <input
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg"
+                    className="peer sr-only"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <span className="shrink-0 cursor-pointer rounded-lg border border-slate/25 px-4 py-2 text-sm text-charcoal hover:bg-cloud peer-focus-visible:ring-2 peer-focus-visible:ring-teal/50">
+                    Choose file…
+                  </span>
+                  <span className="truncate text-sm text-slate">
+                    {file ? file.name : 'No file selected'}
+                  </span>
+                </span>
               </Field>
             ) : (
               <Field label="Source URL">

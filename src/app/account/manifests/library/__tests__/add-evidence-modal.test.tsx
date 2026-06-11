@@ -214,3 +214,15 @@ it('renders nothing when element is null', () => {
   const { container } = render(<AddEvidenceModal element={null} onClose={vi.fn()} onSaved={vi.fn()} />);
   expect(container).toBeEmptyDOMElement();
 });
+
+it('upload mode shows an explicit file-picker affordance with the selected filename', () => {
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+  // Explicit control + empty state.
+  expect(screen.getByText('Choose file…')).toBeInTheDocument();
+  expect(screen.getByText('No file selected')).toBeInTheDocument();
+  // Picking a file via the (label-associated) native input shows its name.
+  const file = new File([new Uint8Array(4)], 'cert.pdf', { type: 'application/pdf' });
+  fireEvent.change(screen.getByLabelText(/file/i), { target: { files: [file] } });
+  expect(screen.getByText('cert.pdf')).toBeInTheDocument();
+  expect(screen.queryByText('No file selected')).toBeNull();
+});

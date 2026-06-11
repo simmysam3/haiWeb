@@ -27,7 +27,7 @@ async function verifySessionJwt(token: string): Promise<JWTPayload | null> {
 
 export type UserRole =
   | "account_owner"
-  | "account_admin"   // retained as permission reference level for hasRole checks
+  | "account_admin"
   | "procurement_read_only"
   | "procurement_transact"
   | "buyer_view_only"
@@ -55,6 +55,7 @@ export interface Session {
 
 const PRIORITIZED_ROLES: UserRole[] = [
   "account_owner",
+  "account_admin",
   "procurement_transact",
   "buyer_full_transact",
   "inside_sales_transact",
@@ -63,6 +64,16 @@ const PRIORITIZED_ROLES: UserRole[] = [
   "inside_sales_read_only",
   "buyer_view_only"
 ];
+
+/**
+ * Resolve the portal role from the Keycloak realm roles on the token.
+ * `haiwave_admin` maps to account_owner; otherwise the highest-priority
+ * assignable role wins, defaulting to buyer_view_only.
+ */
+export function resolveUserRole(roles: string[]): UserRole {
+  if (roles.includes("haiwave_admin")) return "account_owner";
+  return PRIORITIZED_ROLES.find((r) => roles.includes(r)) ?? "buyer_view_only";
+}
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies();
@@ -81,13 +92,7 @@ export async function getSession(): Promise<Session | null> {
     const roles = (payload.realm_access as { roles?: string[] })?.roles ?? [];
     const isAdmin = roles.includes("haiwave_admin");
 
-    let role: UserRole = "buyer_view_only";
-    if (isAdmin) {
-      role = "account_owner";
-    } else {
-      const foundRole = PRIORITIZED_ROLES.find(r => roles.includes(r));
-      if (foundRole) role = foundRole;
-    }
+    const role = resolveUserRole(roles);
 
     return {
       user: {
