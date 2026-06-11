@@ -4,6 +4,7 @@ import { Pill } from '@/components/pill';
 interface EvidenceChipProps {
   element: LibraryElement;
   onAdd: () => void;
+  onDraftAction?: (itemId: string, action: 'affirm' | 'reject') => void;
 }
 
 function ArtifactLink({ artifact }: { artifact: LibraryArtifactRow }) {
@@ -45,10 +46,11 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-export function EvidenceChip({ element, onAdd }: EvidenceChipProps) {
+export function EvidenceChip({ element, onAdd, onDraftAction }: EvidenceChipProps) {
   const artifact =
     element.artifacts.find((a) => a.status !== 'superseded') ?? element.artifacts[0] ?? null;
   const attribute = element.attribute;
+  const displayed = attribute ?? artifact;
 
   if (!artifact && !attribute) {
     return (
@@ -66,8 +68,24 @@ export function EvidenceChip({ element, onAdd }: EvidenceChipProps) {
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {attribute && <span className="text-sm">{formatValue(attribute.valueJson)}</span>}
       {artifact && <ArtifactLink artifact={artifact} />}
-      {(attribute ?? artifact) && (
-        <Pill category="library_status" value={(attribute ?? artifact)!.status} />
+      {displayed && <Pill category="library_status" value={displayed.status} />}
+      {displayed && displayed.status === 'draft' && onDraftAction && (
+        <>
+          <button
+            type="button"
+            onClick={() => onDraftAction(displayed.id, 'affirm')}
+            className="rounded border border-teal px-1.5 py-0.5 text-xs text-teal hover:bg-teal/10"
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            onClick={() => onDraftAction(displayed.id, 'reject')}
+            className="rounded border border-slate/30 px-1.5 py-0.5 text-xs text-slate hover:bg-light-gray/40"
+          >
+            Reject
+          </button>
+        </>
       )}
       {artifact?.validUntil && (
         <span className="text-xs text-slate">

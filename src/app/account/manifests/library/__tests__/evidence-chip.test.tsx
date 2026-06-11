@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { EvidenceChip } from '../evidence-chip';
 import { GapBadge } from '../gap-badge';
 import { Pill } from '@/components/pill';
@@ -157,6 +157,77 @@ describe('EvidenceChip', () => {
     expect(document.getElementById(describedby as string)).toHaveTextContent(
       /no document or value on file/i,
     );
+  });
+});
+
+describe('EvidenceChip draft actions', () => {
+  const draftArtifactEl: LibraryElement = {
+    ...baseEl,
+    gap: false,
+    artifacts: [
+      {
+        id: 'dr1',
+        elementKey: 'iso_9001_cert',
+        title: 'ISO 9001 (gathered)',
+        status: 'draft',
+        origin: 'auto_gathered',
+        sourceTier: 'auto_gathered',
+        sourceUrl: 'https://example.com/cert',
+        mimeType: null,
+        validFrom: null,
+        validUntil: null,
+        affirmedBy: null,
+        affirmedAt: null,
+      },
+    ],
+  };
+
+  it('renders Accept/Reject for a draft artifact and fires the callback with (id, action)', () => {
+    const onDraftAction = vi.fn();
+    render(<EvidenceChip element={draftArtifactEl} onAdd={() => {}} onDraftAction={onDraftAction} />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('dr1', 'affirm');
+    fireEvent.click(screen.getByRole('button', { name: /^reject$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('dr1', 'reject');
+  });
+
+  it('renders Accept/Reject for a draft attribute using the attribute id', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'liability_cap_present',
+      kind: 'attribute',
+      gap: false,
+      attribute: {
+        id: 'at-draft',
+        elementKey: 'liability_cap_present',
+        valueJson: true,
+        status: 'draft',
+        sourceTier: 'auto_gathered',
+        evidenceArtifactId: null,
+        validUntil: null,
+        affirmedBy: null,
+      },
+    };
+    const onDraftAction = vi.fn();
+    render(<EvidenceChip element={el} onAdd={() => {}} onDraftAction={onDraftAction} />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('at-draft', 'affirm');
+  });
+
+  it('omits the buttons when the displayed item is not a draft', () => {
+    const el: LibraryElement = {
+      ...draftArtifactEl,
+      artifacts: [{ ...draftArtifactEl.artifacts[0], status: 'active' }],
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} onDraftAction={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
+  });
+
+  it('omits the buttons when onDraftAction is not provided', () => {
+    render(<EvidenceChip element={draftArtifactEl} onAdd={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
   });
 });
 

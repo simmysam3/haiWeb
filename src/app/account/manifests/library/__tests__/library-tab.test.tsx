@@ -36,6 +36,37 @@ const VIEW: LibraryView = {
   ],
 };
 
+// Same shape as VIEW but the element carries a draft auto-gathered artifact,
+// so the tab should surface the DraftReviewBanner and per-item draft actions.
+const DRAFT_VIEW: LibraryView = {
+  sections: [
+    {
+      section: 'quality',
+      elements: [
+        {
+          ...VIEW.sections[0].elements[0],
+          artifacts: [
+            {
+              id: 'dr1',
+              elementKey: 'iso9001',
+              title: 'ISO 9001 (gathered)',
+              status: 'draft',
+              origin: 'auto_gathered',
+              sourceTier: 'auto_gathered',
+              sourceUrl: 'https://example.com/cert',
+              mimeType: null,
+              validFrom: null,
+              validUntil: null,
+              affirmedBy: null,
+              affirmedAt: null,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 beforeEach(() => {
   mockedUseSWR.mockReset();
   mutate.mockReset();
@@ -90,6 +121,72 @@ describe('LibraryTab', () => {
     // Matrix cells render as role="switch", labelled "<element> — <tier>".
     fireEvent.click(screen.getByRole('switch', { name: /ISO 9001 — Premier/i }));
     await waitFor(() => expect(mutate).toHaveBeenCalled());
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the draft review banner when the view contains draft items', () => {
+    mockedUseSWR.mockReturnValueOnce({
+      data: DRAFT_VIEW,
+      error: undefined,
+      isLoading: false,
+      mutate,
+    } as never);
+    render(<LibraryTab context="share" />);
+    expect(screen.getByText(/1 gathered item\(s\) awaiting review/i)).toBeInTheDocument();
+  });
+
+  it('hides the draft review banner when nothing is in draft', () => {
+    render(<LibraryTab context="share" />);
+    expect(screen.queryByText(/awaiting review/i)).toBeNull();
+  });
+
+  it('posts to the gather endpoint and flips to a started state on 202', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 202 } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LibraryTab context="share" />);
+    fireEvent.click(screen.getByRole('button', { name: /gather from website/i }));
+    const started = await screen.findByRole('button', {
+      name: /gather started — drafts will appear shortly/i,
+    });
+    expect(started).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/gather', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('surfaces the no-website-url message when gather returns 422', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 422 } as Response)),
+    );
+    render(<LibraryTab context="share" />);
+    fireEvent.click(screen.getByRole('button', { name: /gather from website/i }));
+    expect(
+      await screen.findByText('No website URL on record for your company.'),
+    ).toBeInTheDocument();
+    // The button stays available for retry.
+    expect(screen.getByRole('button', { name: /gather from website/i })).toBeEnabled();
+    vi.unstubAllGlobals();
+  });
+
+  it('posts a per-item draft action and revalidates on success', async () => {
+    mockedUseSWR.mockReturnValueOnce({
+      data: DRAFT_VIEW,
+      error: undefined,
+      isLoading: false,
+      mutate,
+    } as never);
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200 } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LibraryTab context="share" />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/items/dr1/affirm', {
+      method: 'POST',
+    });
     vi.unstubAllGlobals();
   });
 });
