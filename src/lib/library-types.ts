@@ -40,3 +40,37 @@ export const SECTION_LABELS: Record<string, string> = {
   origin_trade_financial: 'Origin, Trade & Financial',
   insurance: 'Insurance',
 };
+
+// Entity Approvals (spec 2026-06-11) — local mirror of the @haiwave/protocol
+// scorecard shape. Mirrored here (not value-imported) because client components
+// can't resolve the CJS protocol package through the file: symlink on Windows.
+export type EvalStatus =
+  | 'met' | 'insufficient' | 'expired' | 'claimed' | 'waived' | 'missing' | 'not_shared';
+
+export interface ScorecardEvidence {
+  artifact_id: string | null;
+  title: string;
+  source_url: string | null;
+  has_file: boolean;
+  valid_until: string | null;
+  no_expiry?: boolean;
+}
+
+export interface ScorecardRow {
+  element_key: string;
+  label: string;
+  kind: 'artifact' | 'attribute' | 'attribute_with_evidence';
+  status: EvalStatus;
+  required_min_amount_usd: number | null;
+  held_amount_usd: number | null;
+  held_value: unknown;
+  evidence: ScorecardEvidence[];
+  waiver_reason: string | null;
+}
+
+export interface Scorecard {
+  tier: LibraryTier;
+  rows: ScorecardRow[];
+  gap_count: number;
+  counts: Record<string, number>;
+}

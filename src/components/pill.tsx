@@ -212,6 +212,17 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     document_backed: 'Supported by a document on file.',
     verified: 'Confirmed by a third party.',
   },
+  // Entity Approvals (spec 2026-06-11) — per-requirement evaluation status on the
+  // review scorecard.
+  eval_status: {
+    met: 'The requirement is satisfied by an active, unexpired item.',
+    claimed: 'Claimed by the counterparty but no supporting document is attached (Artifact Missing). Not counted as a gap.',
+    insufficient: 'Held, but the coverage amount is below the required minimum.',
+    expired: 'An item is held but its validity date has passed.',
+    missing: 'Nothing is held against this requirement.',
+    waived: 'An administrator waived this requirement out of band. Not counted as a gap.',
+    not_shared: "The counterparty's sharing policy hides this element at the evaluation tier — request it out of band.",
+  },
   // Entity Approvals (spec 2026-06-11) — decision state of a counterparty in the
   // reviewer's approvals queue.
   approval_status: {
@@ -303,6 +314,14 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'document_backed' || v === 'verified') return 'success';
     if (v === 'auto_gathered') return 'info';
     if (v === 'self_declared') return 'neutral';
+  }
+  // Entity Approvals eval_status tones: met = success, claimed/insufficient = warn,
+  // expired/missing = problem, waived/not_shared = neutral.
+  if (category === 'eval_status') {
+    if (v === 'met') return 'success';
+    if (v === 'claimed' || v === 'insufficient') return 'warn';
+    if (v === 'expired' || v === 'missing') return 'problem';
+    if (v === 'waived' || v === 'not_shared') return 'neutral';
   }
   // Entity Approvals approval_status tones: pending = warn, approved = success, revoked = problem.
   if (category === 'approval_status') {
