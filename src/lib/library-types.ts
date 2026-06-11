@@ -38,4 +38,5 @@ export const SECTION_LABELS: Record<string, string> = {
   quality: 'Quality Certifications',
   infosec_compliance: 'Information Security & Compliance',
   origin_trade_financial: 'Origin, Trade & Financial',
+  insurance: 'Insurance',
 };
