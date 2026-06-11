@@ -10,6 +10,8 @@ export interface LibraryArtifactRow {
   origin: 'upload' | 'url' | 'auto_gathered'; sourceTier: string;
   sourceUrl: string | null; mimeType: string | null;
   validFrom: string | null; validUntil: string | null;
+  /** Explicit never-expires (PO 2026-06-11); optional — absent on pre-migration rows. */
+  noExpiry?: boolean;
   affirmedBy: string | null; affirmedAt: string | null;
 }
 export interface LibraryAttributeRow {

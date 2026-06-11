@@ -56,6 +56,33 @@ describe('EvidenceChip', () => {
     expect(screen.getByText(/valid until/i)).toBeInTheDocument();
   });
 
+  it('shows "no expiration" for an explicitly never-expiring artifact (PO 2026-06-11)', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'terms_of_sale',
+      gap: false,
+      artifacts: [
+        {
+          id: 'a9',
+          elementKey: 'terms_of_sale',
+          title: 'Evergreen Terms',
+          status: 'active',
+          origin: 'url',
+          sourceTier: 'document_backed',
+          sourceUrl: 'https://example.com/terms',
+          mimeType: null,
+          validFrom: null,
+          validUntil: null,
+          noExpiry: true,
+          affirmedBy: null,
+          affirmedAt: null,
+        },
+      ],
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} />);
+    expect(screen.getByText(/no expiration/i)).toBeInTheDocument();
+  });
+
   it('renders a url-origin document linking to its source', () => {
     const el: LibraryElement = {
       ...baseEl,

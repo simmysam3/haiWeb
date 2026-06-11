@@ -81,6 +81,9 @@ function AddEvidenceForm({
   const [title, setTitle] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [validUntil, setValidUntil] = useState('');
+  // URL mode only (PO 2026-06-11): explicit "never expires", mutually exclusive
+  // with a Valid-until date — haiCore stores it distinctly from a blank date.
+  const [noExpiry, setNoExpiry] = useState(false);
   const [sourceUrl, setSourceUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [docs, setDocs] = useState<LibraryDocument[] | null>(null);
@@ -223,6 +226,14 @@ function AddEvidenceForm({
       setError('Enter a URL starting with http:// or https://');
       return;
     }
+    // Linked documents must state expiry intent explicitly (PO 2026-06-11) —
+    // a blank date is ambiguous between "never expires" and "forgot to enter".
+    if (element.validity && !validUntil && !noExpiry) {
+      setError('Enter a Valid until date or check "No document expiration"');
+      return;
+    }
+    const urlFields = optionalFields();
+    if (noExpiry) delete urlFields.valid_until;
     await send('/api/account/library/artifacts/url', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -230,7 +241,8 @@ function AddEvidenceForm({
         element_key: element.key,
         title,
         source_url: sourceUrl,
-        ...optionalFields(),
+        ...urlFields,
+        ...(noExpiry ? { no_expiry: true } : {}),
       }),
     });
   }
@@ -374,14 +386,31 @@ function AddEvidenceForm({
             ))}
 
             {element.validity && (
-              <Field label="Valid until">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                />
-              </Field>
+              <>
+                <Field label="Valid until">
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={validUntil}
+                    disabled={mode === 'url' && noExpiry}
+                    onChange={(e) => setValidUntil(e.target.value)}
+                  />
+                </Field>
+                {mode === 'url' && (
+                  <label className="inline-flex items-center gap-2 text-sm text-charcoal">
+                    <input
+                      type="checkbox"
+                      checked={noExpiry}
+                      onChange={(e) => {
+                        setNoExpiry(e.target.checked);
+                        if (e.target.checked) setValidUntil('');
+                        setError(null);
+                      }}
+                    />
+                    No document expiration
+                  </label>
+                )}
+              </>
             )}
           </>
         )}

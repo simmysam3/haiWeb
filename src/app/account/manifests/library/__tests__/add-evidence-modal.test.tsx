@@ -432,6 +432,56 @@ it('shows a load-error state when the documents fetch fails', async () => {
   expect(screen.queryByLabelText(/^document$/i)).toBeNull();
 });
 
+it('URL mode offers a No-document-expiration checkbox that sends no_expiry and disables the date (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  const { unmount } = render(
+    <AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />,
+  );
+
+  // Upload mode: no checkbox.
+  expect(screen.queryByLabelText(/no document expiration/i)).toBeNull();
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  const checkbox = screen.getByLabelText(/no document expiration/i) as HTMLInputElement;
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Evergreen Terms' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
+  fireEvent.click(checkbox);
+  expect((screen.getByLabelText(/valid until/i) as HTMLInputElement).disabled).toBe(true);
+
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+  expect(body.no_expiry).toBe(true);
+  expect(body.valid_until).toBeUndefined();
+  unmount();
+
+  // Elements without validity tracking get neither the date nor the checkbox in URL mode.
+  const noValidity = makeElement({ key: 'w9_form', label: 'W-9', validity: false });
+  render(<AddEvidenceModal element={noValidity} onClose={vi.fn()} onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  expect(screen.queryByLabelText(/no document expiration/i)).toBeNull();
+});
+
+it('URL mode requires either a Valid-until date or the no-expiration checkbox (PO 2026-06-11)', async () => {
+  const fetchMock = okFetch();
+  vi.stubGlobal('fetch', fetchMock);
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /url/i }));
+  fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'Terms' } });
+  fireEvent.change(screen.getByLabelText(/source url/i), { target: { value: 'https://example.com/terms' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+  expect(await screen.findByText(/valid until date or check/i)).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  // Providing the date satisfies the rule.
+  fireEvent.change(screen.getByLabelText(/valid until/i), { target: { value: '2027-01-01' } });
+  fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+});
+
 it('upload mode shows an explicit file-picker affordance with the selected filename', () => {
   render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
   // Explicit control + empty state.

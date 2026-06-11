@@ -92,6 +92,7 @@ export function EvidenceChip({ element, onAdd, onDraftAction }: EvidenceChipProp
           valid until {new Date(artifact.validUntil).toLocaleDateString()}
         </span>
       )}
+      {artifact?.noExpiry && <span className="text-xs text-slate">no expiration</span>}
     </span>
   );
 }
