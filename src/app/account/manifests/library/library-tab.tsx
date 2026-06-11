@@ -81,7 +81,11 @@ export function LibraryTab({ context }: { context: PolicyContext }) {
           {gatherStarted ? 'Gather started — drafts will appear shortly' : 'Gather from website'}
         </button>
       </div>
-      {actionError && <p className="text-sm text-problem">{actionError}</p>}
+      {actionError && (
+        <p role="alert" className="text-sm text-problem">
+          {actionError}
+        </p>
+      )}
       <DraftReviewBanner draftIds={draftIds} onChanged={() => mutate()} />
       <LibraryMatrix
         view={data}

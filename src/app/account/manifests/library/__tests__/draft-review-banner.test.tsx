@@ -14,13 +14,15 @@ describe('DraftReviewBanner', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('shows the draft count and bulk-accepts every draft via the affirm endpoint', async () => {
+  it('shows a pluralized draft count and bulk-accepts every draft via the affirm endpoint', async () => {
     const fetchMock = vi.fn(() => Promise.resolve({ ok: true } as Response));
     vi.stubGlobal('fetch', fetchMock);
     const onChanged = vi.fn();
     render(<DraftReviewBanner draftIds={['d1', 'd2', 'd3']} onChanged={onChanged} />);
 
-    expect(screen.getByText(/3 gathered item\(s\) awaiting review/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 gathered items awaiting review/i)).toBeInTheDocument();
+    // Live region so the count change is announced to assistive tech.
+    expect(screen.getByRole('status')).toHaveTextContent(/3 gathered items awaiting review/i);
 
     fireEvent.click(screen.getByRole('button', { name: /accept all/i }));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
@@ -31,6 +33,12 @@ describe('DraftReviewBanner', () => {
         method: 'POST',
       });
     }
+  });
+
+  it('uses singular copy for exactly one draft', () => {
+    render(<DraftReviewBanner draftIds={['d1']} onChanged={() => {}} />);
+    expect(screen.getByText(/1 gathered item awaiting review/i)).toBeInTheDocument();
+    expect(screen.queryByText(/items awaiting review/i)).toBeNull();
   });
 
   it('disables the button and shows the busy label while accepting', async () => {

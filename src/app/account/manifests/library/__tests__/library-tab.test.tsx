@@ -132,7 +132,57 @@ describe('LibraryTab', () => {
       mutate,
     } as never);
     render(<LibraryTab context="share" />);
-    expect(screen.getByText(/1 gathered item\(s\) awaiting review/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 gathered item awaiting review/i)).toBeInTheDocument();
+  });
+
+  it('counts draft artifacts AND draft attributes across elements, bulk-accepting both', async () => {
+    const bothKindsView: LibraryView = {
+      sections: [
+        {
+          section: 'quality',
+          elements: [
+            // Element 1: draft ARTIFACT.
+            DRAFT_VIEW.sections[0].elements[0],
+            // Element 2: draft ATTRIBUTE.
+            {
+              ...VIEW.sections[0].elements[0],
+              key: 'liability_cap_present',
+              label: 'Liability Cap',
+              kind: 'attribute',
+              attribute: {
+                id: 'at1',
+                elementKey: 'liability_cap_present',
+                valueJson: true,
+                status: 'draft',
+                sourceTier: 'auto_gathered',
+                evidenceArtifactId: null,
+                validUntil: null,
+                affirmedBy: null,
+              },
+            },
+          ],
+        },
+      ],
+    };
+    mockedUseSWR.mockReturnValueOnce({
+      data: bothKindsView,
+      error: undefined,
+      isLoading: false,
+      mutate,
+    } as never);
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200 } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LibraryTab context="share" />);
+    expect(screen.getByText(/2 gathered items awaiting review/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /accept all/i }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/items/dr1/affirm', {
+      method: 'POST',
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/items/at1/affirm', {
+      method: 'POST',
+    });
+    vi.unstubAllGlobals();
   });
 
   it('hides the draft review banner when nothing is in draft', () => {
@@ -164,9 +214,12 @@ describe('LibraryTab', () => {
     );
     render(<LibraryTab context="share" />);
     fireEvent.click(screen.getByRole('button', { name: /gather from website/i }));
-    expect(
-      await screen.findByText('No website URL on record for your company.'),
-    ).toBeInTheDocument();
+    const message = await screen.findByText('No website URL on record for your company.');
+    expect(message).toBeInTheDocument();
+    // Announced as a live alert for assistive tech.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'No website URL on record for your company.',
+    );
     // The button stays available for retry.
     expect(screen.getByRole('button', { name: /gather from website/i })).toBeEnabled();
     vi.unstubAllGlobals();
@@ -185,6 +238,24 @@ describe('LibraryTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     expect(fetchMock).toHaveBeenCalledWith('/api/account/library/items/dr1/affirm', {
+      method: 'POST',
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('posts a per-item reject to the reject endpoint', async () => {
+    mockedUseSWR.mockReturnValueOnce({
+      data: DRAFT_VIEW,
+      error: undefined,
+      isLoading: false,
+      mutate,
+    } as never);
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200 } as Response));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<LibraryTab context="share" />);
+    fireEvent.click(screen.getByRole('button', { name: /^reject$/i }));
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith('/api/account/library/items/dr1/reject', {
       method: 'POST',
     });
     vi.unstubAllGlobals();

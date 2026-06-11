@@ -33,12 +33,12 @@ export function DraftReviewBanner({ draftIds, onChanged }: DraftReviewBannerProp
   }
 
   return (
-    <div className="rounded-md bg-amber-50 border border-amber-200 p-4">
+    <div role="status" className="rounded-md bg-amber-50 border border-amber-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-amber-900">
           <span className="font-medium">Review your gathered library</span> — {draftIds.length}{' '}
-          gathered item(s) awaiting review. Accept or reject each item below, or accept everything
-          at once.
+          gathered {draftIds.length === 1 ? 'item' : 'items'} awaiting review. Accept or reject
+          each item below, or accept everything at once.
         </p>
         <button
           type="button"
