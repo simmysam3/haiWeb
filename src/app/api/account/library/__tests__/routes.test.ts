@@ -11,6 +11,8 @@ const { getSession, getToken, hasRole, client } = vi.hoisted(() => ({
     upsertLibraryAttribute: vi.fn(),
     createLibraryUrlArtifact: vi.fn(),
     affirmLibraryItem: vi.fn(),
+    rejectLibraryItem: vi.fn(),
+    runLibraryGather: vi.fn(),
     uploadLibraryArtifact: vi.fn(),
     getLibraryArtifactFile: vi.fn(),
   },
@@ -208,5 +210,144 @@ describe('/api/account/library', () => {
     expect((affirm as Record<string, unknown>).GET).toBeUndefined();
     const urlArtifacts = await import('../artifacts/url/route');
     expect((urlArtifacts as Record<string, unknown>).GET).toBeUndefined();
+    const reject = await import('../items/[id]/reject/route');
+    expect((reject as Record<string, unknown>).GET).toBeUndefined();
+    const gather = await import('../gather/route');
+    expect((gather as Record<string, unknown>).GET).toBeUndefined();
+  });
+
+  describe('POST /api/account/library/items/[id]/reject', () => {
+    it('returns 401 without a session', async () => {
+      getSession.mockResolvedValue(null);
+      const { POST } = await import('../items/[id]/reject/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ id: 'item-1' }),
+      });
+      expect(res.status).toBe(401);
+      expect(client.rejectLibraryItem).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 without account_admin', async () => {
+      hasRole.mockReturnValue(false);
+      const { POST } = await import('../items/[id]/reject/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ id: 'item-1' }),
+      });
+      expect(res.status).toBe(403);
+      expect(client.rejectLibraryItem).not.toHaveBeenCalled();
+    });
+
+    it('proxies client.rejectLibraryItem and returns its envelope', async () => {
+      client.rejectLibraryItem.mockResolvedValueOnce({ status: 'rejected' });
+      const { POST } = await import('../items/[id]/reject/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ id: 'item-1' }),
+      });
+      expect(client.rejectLibraryItem).toHaveBeenCalledWith('item-1');
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.status).toBe('rejected');
+    });
+
+    it('propagates a haiCore 404 verbatim', async () => {
+      const err = new Error('haiCore POST /library/items/missing/reject: 404') as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = 404;
+      err.haiCoreBody = { error: { code: 'NOT_FOUND' } };
+      client.rejectLibraryItem.mockRejectedValueOnce(err);
+      const { POST } = await import('../items/[id]/reject/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ id: 'missing' }),
+      });
+      expect(res.status).toBe(404);
+      const json = await res.json();
+      expect(json.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  describe('POST /api/account/library/gather', () => {
+    it('returns 401 without a session', async () => {
+      getSession.mockResolvedValue(null);
+      const { POST } = await import('../gather/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.status).toBe(401);
+      expect(client.runLibraryGather).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 without account_admin', async () => {
+      hasRole.mockReturnValue(false);
+      const { POST } = await import('../gather/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.status).toBe(403);
+      expect(client.runLibraryGather).not.toHaveBeenCalled();
+    });
+
+    it('forwards the JSON body and passes haiCore 202 through', async () => {
+      client.runLibraryGather.mockResolvedValueOnce({ status: 'started' });
+      const { POST } = await import('../gather/route');
+      const body = { terms_url: 'https://example.com/terms' };
+      const res = await POST(
+        new NextRequest('http://localhost/x', {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: { 'content-type': 'application/json' },
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(client.runLibraryGather).toHaveBeenCalledWith(body);
+      expect(res.status).toBe(202);
+      const json = await res.json();
+      expect(json.status).toBe('started');
+    });
+
+    it('forwards {} when the request has no/invalid JSON body', async () => {
+      client.runLibraryGather.mockResolvedValueOnce({ status: 'started' });
+      const { POST } = await import('../gather/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({}),
+      });
+      expect(client.runLibraryGather).toHaveBeenCalledWith({});
+      expect(res.status).toBe(202);
+    });
+
+    it('propagates a haiCore 422 NO_WEBSITE_URL verbatim', async () => {
+      const err = new Error('haiCore POST /library/gather: 422') as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = 422;
+      err.haiCoreBody = { error: { code: 'NO_WEBSITE_URL' } };
+      client.runLibraryGather.mockRejectedValueOnce(err);
+      const { POST } = await import('../gather/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(json.error.code).toBe('NO_WEBSITE_URL');
+    });
+
+    it('propagates a haiCore 503 verbatim', async () => {
+      const err = new Error('haiCore POST /library/gather: 503') as Error & {
+        status?: number;
+        haiCoreBody?: unknown;
+      };
+      err.status = 503;
+      err.haiCoreBody = { error: { code: 'GATHER_UNAVAILABLE' } };
+      client.runLibraryGather.mockRejectedValueOnce(err);
+      const { POST } = await import('../gather/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({}),
+      });
+      expect(res.status).toBe(503);
+      const json = await res.json();
+      expect(json.error.code).toBe('GATHER_UNAVAILABLE');
+    });
   });
 });

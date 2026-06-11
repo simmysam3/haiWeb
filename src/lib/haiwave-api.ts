@@ -391,6 +391,10 @@ export interface HaiwaveClient {
    * so the BFF can stream it through with the upstream content headers. */
   getLibraryArtifactFile(id: string): Promise<Response>;
   affirmLibraryItem(id: string): Promise<unknown>;
+  /** Rejects (hard-deletes) a draft library item. haiCore returns 404 for non-draft/unknown ids. */
+  rejectLibraryItem(id: string): Promise<unknown>;
+  /** Kicks off a library gather run. haiCore replies 202 {status:'started'} | 422 NO_WEBSITE_URL | 400 | 503. */
+  runLibraryGather(body: { terms_url?: string }): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Admin
   getAdminOverview(): Promise<Record<string, unknown>>;
@@ -911,6 +915,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     affirmLibraryItem(id) {
       return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/affirm`);
+    },
+    rejectLibraryItem(id) {
+      return request<unknown>("POST", `/library/items/${encodeURIComponent(id)}/reject`);
+    },
+    runLibraryGather(body) {
+      return request<unknown>("POST", "/library/gather", body);
     },
 
     getAgentStatus(agentId) {
