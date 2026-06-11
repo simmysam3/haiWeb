@@ -13,19 +13,22 @@ interface DraftReviewBannerProps {
  */
 export function DraftReviewBanner({ draftIds, onChanged }: DraftReviewBannerProps) {
   const [busy, setBusy] = useState(false);
+  const [failedCount, setFailedCount] = useState(0);
   if (draftIds.length === 0) return null;
 
   async function acceptAll() {
     if (busy) return;
     setBusy(true);
+    setFailedCount(0);
     try {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         draftIds.map((id) =>
           fetch(`/api/account/library/items/${encodeURIComponent(id)}/affirm`, {
             method: 'POST',
           }),
         ),
       );
+      setFailedCount(results.filter((r) => r.status === 'rejected' || !r.value.ok).length);
       onChanged();
     } finally {
       setBusy(false);
@@ -49,6 +52,13 @@ export function DraftReviewBanner({ draftIds, onChanged }: DraftReviewBannerProp
           {busy ? 'Accepting…' : 'Accept all'}
         </button>
       </div>
+      {failedCount > 0 && (
+        <p role="alert" className="mt-2 text-sm text-problem">
+          {failedCount === 1
+            ? "1 item couldn't be accepted."
+            : `${failedCount} items couldn't be accepted.`}
+        </p>
+      )}
     </div>
   );
 }

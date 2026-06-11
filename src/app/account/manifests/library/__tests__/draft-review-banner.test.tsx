@@ -41,6 +41,29 @@ describe('DraftReviewBanner', () => {
     expect(screen.queryByText(/items awaiting review/i)).toBeNull();
   });
 
+  it('surfaces a partial accept-all failure while still revalidating', async () => {
+    const fetchMock = vi.fn((url: unknown) =>
+      Promise.resolve({ ok: !String(url).includes('/d2/') } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const onChanged = vi.fn();
+    render(<DraftReviewBanner draftIds={['d1', 'd2', 'd3']} onChanged={onChanged} />);
+    fireEvent.click(screen.getByRole('button', { name: /accept all/i }));
+    expect(await screen.findByText("1 item couldn't be accepted.")).toBeInTheDocument();
+    // Revalidation still happens so the successfully accepted drafts clear.
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('pluralizes the partial-failure message when several items fail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false } as Response)),
+    );
+    render(<DraftReviewBanner draftIds={['d1', 'd2']} onChanged={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /accept all/i }));
+    expect(await screen.findByText("2 items couldn't be accepted.")).toBeInTheDocument();
+  });
+
   it('disables the button and shows the busy label while accepting', async () => {
     vi.stubGlobal(
       'fetch',

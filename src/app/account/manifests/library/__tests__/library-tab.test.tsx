@@ -260,4 +260,23 @@ describe('LibraryTab', () => {
     });
     vi.unstubAllGlobals();
   });
+
+  it('revalidates and shows already-reviewed copy when a draft action returns 404', async () => {
+    mockedUseSWR.mockReturnValueOnce({
+      data: DRAFT_VIEW,
+      error: undefined,
+      isLoading: false,
+      mutate,
+    } as never);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 404 } as Response)),
+    );
+    render(<LibraryTab context="share" />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    expect(await screen.findByText('That item was already reviewed.')).toBeInTheDocument();
+    // The view must snap back to truth — revalidate on failure too.
+    expect(mutate).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });

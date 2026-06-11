@@ -34,8 +34,17 @@ export function LibraryTab({ context }: { context: PolicyContext }) {
         `/api/account/library/items/${encodeURIComponent(itemId)}/${action}`,
         { method: 'POST' },
       );
-      if (!res.ok) throw new Error('draft action failed');
-      setActionError(null);
+      if (res.ok) {
+        setActionError(null);
+      } else if (res.status === 404) {
+        setActionError('That item was already reviewed.');
+      } else {
+        setActionError(
+          `Couldn't ${action === 'affirm' ? 'accept' : 'reject'} that item — try again.`,
+        );
+      }
+      // Revalidate on failure too, so a stale draft row snaps back to truth
+      // (e.g. a 404 because the item was already reviewed elsewhere).
       mutate();
     } catch {
       setActionError(
