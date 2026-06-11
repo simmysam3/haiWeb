@@ -285,6 +285,16 @@ describe('/api/account/entity-approvals', () => {
       });
       expect(res.status).toBe(404);
     });
+
+    it('returns 401 without a session and never reaches haiCore (no cross-participant leak)', async () => {
+      getSession.mockResolvedValue(null);
+      const { GET } = await import('../evidence/[ownerId]/[artifactId]/file/route');
+      const res = await GET(new NextRequest('http://localhost/x', { method: 'GET' }), {
+        params: Promise.resolve({ ownerId: 'o1', artifactId: 'a1' }),
+      });
+      expect(res.status).toBe(401);
+      expect(client.counterpartyEvidenceFile).not.toHaveBeenCalled();
+    });
   });
 });
 

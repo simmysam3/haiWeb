@@ -151,9 +151,13 @@ export function ReviewWizard({ row, onClose, onDecided, proactive = false }: Pro
     }
     const body: Record<string, unknown> = { tier };
     if (reason.trim()) body.reason = reason.trim();
-    const url = row.request_id
-      ? `/api/account/entity-approvals/${row.request_id}/approve`
-      : `/api/account/entity-approvals/counterparty/${row.counterparty.id}/approve`;
+    // The request route asserts a PENDING request server-side. A non-pending row
+    // (e.g. a revoked one reopened from the All filter) carries a resolved
+    // request_id, so re-approval must go through the counterparty route.
+    const url =
+      row.request_id && row.status === "pending"
+        ? `/api/account/entity-approvals/${row.request_id}/approve`
+        : `/api/account/entity-approvals/counterparty/${row.counterparty.id}/approve`;
     return { url, body };
   }
 
@@ -339,7 +343,7 @@ export function ReviewWizard({ row, onClose, onDecided, proactive = false }: Pro
 
               {serverError && <FormError message={serverError} sessionExpired={sessionExpired} />}
 
-              <Button onClick={submit} disabled={saving}>
+              <Button onClick={submit} disabled={saving || loading}>
                 {saving ? "Saving…" : mode === "approve" ? "Submit approval" : "Submit revocation"}
               </Button>
             </div>

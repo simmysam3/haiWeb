@@ -235,6 +235,33 @@ describe('ReviewWizard — decision + confirm steps', () => {
     expect(preview).toHaveTextContent('Acme Brass');
     expect(preview).toHaveTextContent(/Connection/);
   });
+
+  it('re-approving a non-pending row (resolved request_id) POSTs to the counterparty route', async () => {
+    mockScorecard(NO_GAP_SCORECARD);
+    // A revoked row reopened from the All filter still carries its old (now
+    // resolved) request_id; haiCore's /:requestId/approve asserts pending, so
+    // the client must use the counterparty route for any non-pending row.
+    const revokedWithRequest: EntityApprovalQueueRow = {
+      ...ROW,
+      request_id: 'req-1',
+      status: 'revoked',
+      last_decision: { decision: 'revoked', tier: null, decided_by: 'jerry@apex.test', decided_at: '2026-05-22T09:00:00Z' },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<ReviewWizard row={revokedWithRequest} onClose={vi.fn()} onDecided={vi.fn()} />);
+    // Ensure approve mode (revoked rows are not approved → canRevoke is false anyway).
+    fireEvent.click(screen.getByRole('button', { name: /^submit/i }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/account/entity-approvals/counterparty/cp-1/approve');
+    vi.unstubAllGlobals();
+  });
+
+  it('disables submit while the scorecard is loading (stale gap-count guard)', () => {
+    mockScorecard(null, { loading: true });
+    render(<ReviewWizard row={ROW} onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /^submit/i })).toBeDisabled();
+  });
 });
 
 const PROACTIVE_ROW: EntityApprovalQueueRow = {
