@@ -63,21 +63,21 @@ describe('ManifestsPage tabs', () => {
     expect(screen.getByRole('button', { name: 'Library — Sharing' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Library — Requirements' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Baseline Pricing' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sharing Policy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Audit Permissions' })).toBeInTheDocument();
   });
 
   it('switching to Library — Requirements renders the require-context legend', () => {
     mockLibraryLoaded();
     render(<ManifestsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Library — Requirements' }));
-    expect(screen.getByText(/require that element/i)).toBeInTheDocument();
+    expect(screen.getByText(/what you require of counterparties/i)).toBeInTheDocument();
   });
 
   it('switching to Library — Sharing renders the share-context legend', () => {
     mockLibraryLoaded();
     render(<ManifestsPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Library — Sharing' }));
-    expect(screen.getByText(/share that element/i)).toBeInTheDocument();
+    expect(screen.getByText(/reconcile counterparty requirements/i)).toBeInTheDocument();
   });
 
   it('counterparty manifest tab no longer renders the retired mock sections', () => {

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { EvidenceChip } from '../evidence-chip';
 import { GapBadge } from '../gap-badge';
 import { Pill } from '@/components/pill';
@@ -54,6 +54,66 @@ describe('EvidenceChip', () => {
     const link = screen.getByRole('link', { name: /ISO 9001:2015/ });
     expect(link.getAttribute('href')).toBe('/api/account/library/artifacts/a1/file');
     expect(screen.getByText(/valid until/i)).toBeInTheDocument();
+  });
+
+  it('renders a yellow Artifact Missing pill for an active claim with no evidence document (PO 2026-06-11)', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'iso_9001_certified',
+      label: 'ISO 9001 Certified',
+      kind: 'attribute_with_evidence',
+      value_type: 'boolean',
+      gap: false,
+      attribute: {
+        id: 'at1', elementKey: 'iso_9001_certified', valueJson: true, status: 'active',
+        sourceTier: 'self_declared', evidenceArtifactId: null, validUntil: null, affirmedBy: null,
+      },
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} />);
+    expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText(/artifact missing/i)).toBeInTheDocument();
+
+    // With an evidence document attached, the pill disappears.
+    const withDoc: LibraryElement = {
+      ...el,
+      artifacts: [
+        {
+          id: 'a8', elementKey: 'iso_9001_certified', title: 'ISO 9001 Cert', status: 'active',
+          origin: 'upload', sourceTier: 'document_backed', sourceUrl: null,
+          mimeType: 'application/pdf', validFrom: null, validUntil: null,
+          affirmedBy: null, affirmedAt: null,
+        },
+      ],
+    };
+    render(<EvidenceChip element={withDoc} onAdd={() => {}} />);
+    expect(screen.queryAllByText(/artifact missing/i)).toHaveLength(1); // only the first render's
+  });
+
+  it('shows "no expiration" for an explicitly never-expiring artifact (PO 2026-06-11)', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'terms_of_sale',
+      gap: false,
+      artifacts: [
+        {
+          id: 'a9',
+          elementKey: 'terms_of_sale',
+          title: 'Evergreen Terms',
+          status: 'active',
+          origin: 'url',
+          sourceTier: 'document_backed',
+          sourceUrl: 'https://example.com/terms',
+          mimeType: null,
+          validFrom: null,
+          validUntil: null,
+          noExpiry: true,
+          affirmedBy: null,
+          affirmedAt: null,
+        },
+      ],
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} />);
+    expect(screen.getByText(/no expiration/i)).toBeInTheDocument();
   });
 
   it('renders a url-origin document linking to its source', () => {
@@ -157,6 +217,77 @@ describe('EvidenceChip', () => {
     expect(document.getElementById(describedby as string)).toHaveTextContent(
       /no document or value on file/i,
     );
+  });
+});
+
+describe('EvidenceChip draft actions', () => {
+  const draftArtifactEl: LibraryElement = {
+    ...baseEl,
+    gap: false,
+    artifacts: [
+      {
+        id: 'dr1',
+        elementKey: 'iso_9001_cert',
+        title: 'ISO 9001 (gathered)',
+        status: 'draft',
+        origin: 'auto_gathered',
+        sourceTier: 'auto_gathered',
+        sourceUrl: 'https://example.com/cert',
+        mimeType: null,
+        validFrom: null,
+        validUntil: null,
+        affirmedBy: null,
+        affirmedAt: null,
+      },
+    ],
+  };
+
+  it('renders Accept/Reject for a draft artifact and fires the callback with (id, action)', () => {
+    const onDraftAction = vi.fn();
+    render(<EvidenceChip element={draftArtifactEl} onAdd={() => {}} onDraftAction={onDraftAction} />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('dr1', 'affirm');
+    fireEvent.click(screen.getByRole('button', { name: /^reject$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('dr1', 'reject');
+  });
+
+  it('renders Accept/Reject for a draft attribute using the attribute id', () => {
+    const el: LibraryElement = {
+      ...baseEl,
+      key: 'liability_cap_present',
+      kind: 'attribute',
+      gap: false,
+      attribute: {
+        id: 'at-draft',
+        elementKey: 'liability_cap_present',
+        valueJson: true,
+        status: 'draft',
+        sourceTier: 'auto_gathered',
+        evidenceArtifactId: null,
+        validUntil: null,
+        affirmedBy: null,
+      },
+    };
+    const onDraftAction = vi.fn();
+    render(<EvidenceChip element={el} onAdd={() => {}} onDraftAction={onDraftAction} />);
+    fireEvent.click(screen.getByRole('button', { name: /^accept$/i }));
+    expect(onDraftAction).toHaveBeenCalledWith('at-draft', 'affirm');
+  });
+
+  it('omits the buttons when the displayed item is not a draft', () => {
+    const el: LibraryElement = {
+      ...draftArtifactEl,
+      artifacts: [{ ...draftArtifactEl.artifacts[0], status: 'active' }],
+    };
+    render(<EvidenceChip element={el} onAdd={() => {}} onDraftAction={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
+  });
+
+  it('omits the buttons when onDraftAction is not provided', () => {
+    render(<EvidenceChip element={draftArtifactEl} onAdd={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).toBeNull();
   });
 });
 

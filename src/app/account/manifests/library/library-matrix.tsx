@@ -15,9 +15,17 @@ interface LibraryMatrixProps {
   readOnly: boolean;
   onChanged: () => void;
   onAddEvidence: (el: LibraryElement) => void;
+  onDraftAction?: (itemId: string, action: 'affirm' | 'reject') => void;
 }
 
-export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidence }: LibraryMatrixProps) {
+export function LibraryMatrix({
+  view,
+  context,
+  readOnly,
+  onChanged,
+  onAddEvidence,
+  onDraftAction,
+}: LibraryMatrixProps) {
   const [gapsOnly, setGapsOnly] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(view.sections.map((s) => s.section)),
@@ -132,7 +140,11 @@ export function LibraryMatrix({ view, context, readOnly, onChanged, onAddEvidenc
                           {el.gap && <GapBadge />}
                         </div>
                         <div className="mt-1">
-                          <EvidenceChip element={el} onAdd={() => onAddEvidence(el)} />
+                          <EvidenceChip
+                            element={el}
+                            onAdd={() => onAddEvidence(el)}
+                            onDraftAction={onDraftAction}
+                          />
                         </div>
                       </td>
                       {LIBRARY_TIERS.map((tier) => {

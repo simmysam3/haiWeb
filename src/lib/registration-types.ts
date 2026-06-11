@@ -26,6 +26,7 @@ export interface RegistrationDetail extends RegistrationListItem {
   contact_email: string | null;
   role_title: string | null;
   corporate_website: string | null;
+  terms_url: string | null;
   tax_id: string | null;
   duns: string | null;
   hq_street: string | null;
