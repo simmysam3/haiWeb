@@ -65,8 +65,10 @@ describe('HaiwaveClient library document-reuse methods', () => {
   });
 
   it('createArtifactFromExisting surfaces a haiCore 404 with status + parsed body on the thrown error', async () => {
+    // haiCore wire code for a missing/foreign/draft source is the generic
+    // NOT_FOUND (like every library route).
     mockFetchOnce(
-      { error: { code: 'LIBRARY_SOURCE_ARTIFACT_NOT_FOUND', message: 'Source artifact not found' } },
+      { error: { code: 'NOT_FOUND', message: 'Source artifact not found' } },
       404,
     );
     const err = (await client
@@ -74,8 +76,6 @@ describe('HaiwaveClient library document-reuse methods', () => {
       .catch((e: unknown) => e)) as Error & { status?: number; haiCoreBody?: unknown };
     expect(err).toBeInstanceOf(Error);
     expect(err.status).toBe(404);
-    expect((err.haiCoreBody as { error: { code: string } }).error.code).toBe(
-      'LIBRARY_SOURCE_ARTIFACT_NOT_FOUND',
-    );
+    expect((err.haiCoreBody as { error: { code: string } }).error.code).toBe('NOT_FOUND');
   });
 });

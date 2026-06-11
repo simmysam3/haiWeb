@@ -30,7 +30,7 @@ interface LibraryDocument {
   artifact_id: string;
   title: string;
   origin: string;
-  created_at: string;
+  created_at: string | null;
 }
 
 const ORIGIN_LABELS: Record<string, string> = {
@@ -41,7 +41,9 @@ const ORIGIN_LABELS: Record<string, string> = {
 
 function describeDocument(doc: LibraryDocument): string {
   const origin = ORIGIN_LABELS[doc.origin] ?? doc.origin;
-  return `${doc.title} — ${origin} ${doc.created_at.slice(0, 10)}`;
+  // Defensive: omit the date when haiCore nulls/omits the timestamp.
+  const date = typeof doc.created_at === 'string' ? ` ${doc.created_at.slice(0, 10)}` : '';
+  return `${doc.title} — ${origin}${date}`;
 }
 
 /**
@@ -84,6 +86,10 @@ function AddEvidenceForm({
   const [docs, setDocs] = useState<LibraryDocument[] | null>(null);
   const [docsState, setDocsState] = useState<'idle' | 'loading' | 'error' | 'loaded'>('idle');
   const [selectedDocId, setSelectedDocId] = useState('');
+  // Last title we auto-prefilled from a document selection. Re-selection only
+  // re-prefills while the title is empty or still equal to this value — a
+  // user-edited title is never clobbered.
+  const [prefilledTitle, setPrefilledTitle] = useState<string | null>(null);
   const [attrValue, setAttrValue] = useState(''); // string / structured raw text
   const [boolValue, setBoolValue] = useState('false');
   const [error, setError] = useState<string | null>(null);
@@ -297,7 +303,8 @@ function AddEvidenceForm({
                 </p>
               ) : docsState === 'loaded' && docs !== null && docs.length === 0 ? (
                 <p className="text-sm text-slate">
-                  No documents in your library yet — upload or link one first.
+                  {/* Drafts are excluded from reuse (haiCore filters them out). */}
+                  No reusable documents yet — accept or add one first.
                 </p>
               ) : docsState === 'loaded' && docs !== null ? (
                 <Field label="Document">
@@ -308,7 +315,10 @@ function AddEvidenceForm({
                       const id = e.target.value;
                       setSelectedDocId(id);
                       const doc = docs.find((d) => d.artifact_id === id);
-                      if (doc) setTitle(doc.title);
+                      if (doc && (title === '' || title === prefilledTitle)) {
+                        setTitle(doc.title);
+                        setPrefilledTitle(doc.title);
+                      }
                     }}
                   >
                     <option value="">Select a document…</option>

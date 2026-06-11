@@ -397,7 +397,8 @@ export interface HaiwaveClient {
    * passes through whatever haiCore returns. */
   listLibraryDocuments(): Promise<unknown>;
   /** Reuses an existing document artifact as evidence for another element.
-   * haiCore: 404 LIBRARY_SOURCE_ARTIFACT_NOT_FOUND, 400 unknown element. */
+   * haiCore: 404 (generic wire code NOT_FOUND) for a missing/foreign/draft
+   * source, 400 unknown element. */
   createArtifactFromExisting(body: Record<string, unknown>): Promise<unknown>;
   affirmLibraryItem(id: string): Promise<unknown>;
   /** Rejects (hard-deletes) a draft library item. haiCore returns 404 for non-draft/unknown ids. */

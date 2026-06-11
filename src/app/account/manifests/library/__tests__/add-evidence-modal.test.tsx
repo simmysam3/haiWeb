@@ -249,6 +249,17 @@ const DOCUMENTS = {
       has_file: false,
       created_at: '2026-05-01T00:00:00Z',
     },
+    {
+      artifact_id: 'a3',
+      title: 'Legacy Drawing',
+      element_key: 'tech_drawing',
+      origin: 'auto_gathered',
+      mime_type: 'application/pdf',
+      file_size_bytes: 5678,
+      source_url: null,
+      has_file: true,
+      created_at: null, // defensive: haiCore may omit/null the timestamp
+    },
   ],
 };
 
@@ -278,19 +289,45 @@ it('selecting Existing document fetches the library documents and populates the 
   expect(
     screen.getByRole('option', { name: 'Insurance Certificate — linked 2026-05-01' }),
   ).toBeInTheDocument();
+  // Null created_at: the date is simply omitted from the label.
+  expect(
+    screen.getByRole('option', { name: 'Legacy Drawing — gathered' }),
+  ).toBeInTheDocument();
 
   fireEvent.change(select, { target: { value: 'a1' } });
   expect((screen.getByLabelText(/^title$/i) as HTMLInputElement).value).toBe('Quality Manual');
 });
 
-it('shows a friendly empty state when the library has no documents', async () => {
+it('re-selecting a document re-prefills an untouched title but never clobbers a user-edited one', async () => {
+  vi.stubGlobal('fetch', documentsFetch());
+  render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
+  const select = (await screen.findByLabelText(/^document$/i)) as HTMLSelectElement;
+  const title = screen.getByLabelText(/^title$/i) as HTMLInputElement;
+
+  // Untouched title follows the selection.
+  fireEvent.change(select, { target: { value: 'a1' } });
+  expect(title.value).toBe('Quality Manual');
+  fireEvent.change(select, { target: { value: 'a2' } });
+  expect(title.value).toBe('Insurance Certificate');
+
+  // A user edit sticks across re-selection.
+  fireEvent.change(title, { target: { value: 'My Custom Title' } });
+  fireEvent.change(select, { target: { value: 'a1' } });
+  expect(title.value).toBe('My Custom Title');
+});
+
+it('shows a friendly empty state when the library has no reusable documents', async () => {
+  // PO 2026-06-11: drafts are excluded from reuse (haiCore filters them out),
+  // so the empty state nudges toward accepting/adding rather than uploading.
   vi.stubGlobal('fetch', documentsFetch({ documents: [] }));
   render(<AddEvidenceModal element={artifactEl} onClose={vi.fn()} onSaved={vi.fn()} />);
 
   fireEvent.click(screen.getByRole('radio', { name: /existing document/i }));
 
   expect(
-    await screen.findByText(/no documents in your library yet — upload or link one first\./i),
+    await screen.findByText(/no reusable documents yet — accept or add one first\./i),
   ).toBeInTheDocument();
   expect(screen.queryByLabelText(/^document$/i)).toBeNull();
 });
@@ -362,7 +399,9 @@ it('existing-document mode surfaces a haiCore 404 message and stays open', async
       status: 404,
       json: () =>
         Promise.resolve({
-          error: { code: 'LIBRARY_SOURCE_ARTIFACT_NOT_FOUND', message: 'Source document no longer exists' },
+          // haiCore wire code for a missing/foreign/draft source is the
+          // generic NOT_FOUND (like every library route).
+          error: { code: 'NOT_FOUND', message: 'Source document no longer exists' },
         }),
     });
   });

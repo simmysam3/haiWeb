@@ -368,19 +368,21 @@ describe('/api/account/library', () => {
       expect(json.artifact.id).toBe('a2');
     });
 
-    it('propagates a haiCore 404 LIBRARY_SOURCE_ARTIFACT_NOT_FOUND verbatim', async () => {
+    it('propagates a haiCore 404 missing-source verbatim (generic NOT_FOUND wire code)', async () => {
       const err = new Error('haiCore POST /library/artifacts/from-existing: 404') as Error & {
         status?: number;
         haiCoreBody?: unknown;
       };
       err.status = 404;
-      err.haiCoreBody = { error: { code: 'LIBRARY_SOURCE_ARTIFACT_NOT_FOUND', message: 'gone' } };
+      // haiCore maps SourceArtifactNotFoundError to the generic NOT_FOUND wire
+      // code (like every library route) — not a from-existing-specific code.
+      err.haiCoreBody = { error: { code: 'NOT_FOUND', message: 'gone' } };
       client.createArtifactFromExisting.mockRejectedValueOnce(err);
       const { POST } = await import('../artifacts/from-existing/route');
       const res = await POST(makeReq(), { params: Promise.resolve({}) });
       expect(res.status).toBe(404);
       const json = await res.json();
-      expect(json.error.code).toBe('LIBRARY_SOURCE_ARTIFACT_NOT_FOUND');
+      expect(json.error.code).toBe('NOT_FOUND');
     });
 
     it('propagates a haiCore 400 unknown-element verbatim', async () => {
