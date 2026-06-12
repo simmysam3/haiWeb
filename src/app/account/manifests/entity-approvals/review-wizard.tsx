@@ -54,10 +54,13 @@ export function ReviewWizard({ row, onClose, onDecided, proactive = false }: Pro
   const [sessionExpired, setSessionExpired] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { data: scorecard, loading, error } = useApi<Scorecard | null>({
+  // haiCore (passed through the BFF verbatim) wraps the payload:
+  // `{ scorecard: {...} }` — never the bare scorecard object.
+  const { data: scorecardData, loading, error } = useApi<{ scorecard?: Scorecard | null }>({
     url: scorecardUrl(row, tier),
-    fallback: null,
+    fallback: {},
   });
+  const scorecard = scorecardData.scorecard ?? null;
 
   const gapCount = scorecard?.gap_count ?? row.gap_count;
   const gapRows: ScorecardRow[] = useMemo(

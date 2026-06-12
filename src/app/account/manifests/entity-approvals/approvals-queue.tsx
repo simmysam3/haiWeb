@@ -54,10 +54,13 @@ export function ApprovalsQueue({ onReview, onProactive }: Props) {
 
   const params = new URLSearchParams({ status, sort });
   if (search) params.set("search", search);
-  const { data: rows, loading, error } = useApi<EntityApprovalQueueRow[]>({
+  // haiCore (passed through the BFF verbatim) wraps the list:
+  // `{ rows: [...] }` — never a bare array.
+  const { data, loading, error } = useApi<{ rows?: EntityApprovalQueueRow[] }>({
     url: `/api/account/entity-approvals?${params.toString()}`,
-    fallback: [],
+    fallback: {},
   });
+  const rows = Array.isArray(data.rows) ? data.rows : [];
 
   return (
     <div className="space-y-4">

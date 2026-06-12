@@ -65,10 +65,13 @@ function NotificationBody({ n }: { n: NotificationRow }) {
 }
 
 export function NotificationsPanel() {
-  const { data, loading, error } = useApi<NotificationRow[]>({
+  // haiCore (passed through the BFF verbatim) wraps the list:
+  // `{ notifications: [...] }` — never a bare array.
+  const { data, loading, error } = useApi<{ notifications?: NotificationRow[] }>({
     url: "/api/account/notifications",
-    fallback: [],
+    fallback: {},
   });
+  const rows = Array.isArray(data.notifications) ? data.notifications : [];
 
   // Locally-tracked read ids so a click de-emphasizes optimistically without
   // waiting for a refetch; reverted if the POST fails.
@@ -90,7 +93,7 @@ export function NotificationsPanel() {
     }
   }
 
-  const visible = data.slice(0, MAX_VISIBLE);
+  const visible = rows.slice(0, MAX_VISIBLE);
 
   return (
     <Card title="Notifications">
@@ -98,7 +101,7 @@ export function NotificationsPanel() {
         <p className="text-sm text-slate py-4">Loading…</p>
       ) : error ? (
         <p className="text-sm text-problem py-4">Couldn&apos;t load your notifications.</p>
-      ) : data.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="text-sm text-slate py-4">No notifications.</p>
       ) : (
         <div className="space-y-1">
@@ -127,8 +130,8 @@ export function NotificationsPanel() {
               </button>
             );
           })}
-          {data.length > MAX_VISIBLE && (
-            <p className="pt-2 text-xs text-slate">Showing latest 20 of {data.length}.</p>
+          {rows.length > MAX_VISIBLE && (
+            <p className="pt-2 text-xs text-slate">Showing latest 20 of {rows.length}.</p>
           )}
         </div>
       )}

@@ -31,9 +31,11 @@ const APPROVED: EntityApprovalQueueRow = {
   },
 };
 
+// Mirrors the real BFF passthrough of haiCore GET /entity-approvals:
+// `{ rows: [...] }`, NOT a bare array.
 function mockQueue(rows: EntityApprovalQueueRow[], extra: Partial<{ loading: boolean; error: string | null }> = {}) {
   useApi.mockReturnValue({
-    data: rows,
+    data: { rows },
     loading: extra.loading ?? false,
     error: extra.error ?? null,
     refetch: vi.fn(),

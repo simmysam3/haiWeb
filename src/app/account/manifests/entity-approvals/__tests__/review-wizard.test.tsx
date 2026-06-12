@@ -34,9 +34,11 @@ const SCORECARD: Scorecard = {
   ],
 };
 
-function mockScorecard(data: Scorecard | null, extra: Partial<{ loading: boolean; error: string | null }> = {}) {
+// Mirrors the real BFF passthrough of haiCore's scorecard endpoints:
+// `{ scorecard: {...} }`, NOT the bare scorecard object.
+function mockScorecard(scorecard: Scorecard | null, extra: Partial<{ loading: boolean; error: string | null }> = {}) {
   useApi.mockReturnValue({
-    data,
+    data: scorecard === null ? {} : { scorecard },
     loading: extra.loading ?? false,
     error: extra.error ?? null,
     refetch: vi.fn(),

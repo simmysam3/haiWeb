@@ -39,9 +39,11 @@ const REVOKED = notif({
   read_at: '2026-06-10T13:00:00Z',
 });
 
+// Mirrors the real BFF passthrough of haiCore GET /notifications:
+// `{ notifications: [...] }`, NOT a bare array.
 function mockNotifs(rows: NotificationRow[], extra: Partial<{ loading: boolean; error: string | null }> = {}) {
   useApi.mockReturnValue({
-    data: rows,
+    data: { notifications: rows },
     loading: extra.loading ?? false,
     error: extra.error ?? null,
     refetch: vi.fn(),
@@ -109,6 +111,12 @@ describe('NotificationsPanel', () => {
 
   it('renders the empty state', () => {
     mockNotifs([]);
+    render(<NotificationsPanel />);
+    expect(screen.getByText(/no notifications/i)).toBeInTheDocument();
+  });
+
+  it('renders the empty state when the response has no notifications field', () => {
+    useApi.mockReturnValue({ data: {}, loading: false, error: null, refetch: vi.fn() });
     render(<NotificationsPanel />);
     expect(screen.getByText(/no notifications/i)).toBeInTheDocument();
   });
