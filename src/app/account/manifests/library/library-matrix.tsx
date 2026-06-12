@@ -212,21 +212,30 @@ export function LibraryMatrix({
                             </label>
                           )}
                       </td>
-                      {LIBRARY_TIERS.map((tier) => {
-                        const k = `${el.key}|${tier}`;
-                        const effective = overrides[k] ?? el.policies[context][tier];
-                        return (
-                          <td key={tier} className="py-2">
-                            <MatrixCell
-                              enabled={effective}
-                              context={context}
-                              label={`${el.label} — ${TIER_LABELS[tier]}`}
-                              disabled={readOnly || pending.has(k)}
-                              onToggle={() => toggleCell(el, tier)}
-                            />
-                          </td>
-                        );
-                      })}
+                      {context === 'require' && el.requirable === false ? (
+                        // Informational attribute (PO 2026-06-11): shared and
+                        // listed, but it never backs an approval rule — no
+                        // require switches to offer.
+                        <td colSpan={LIBRARY_TIERS.length} className="py-2 text-xs text-slate">
+                          Informational — shared with counterparties, never a requirement.
+                        </td>
+                      ) : (
+                        LIBRARY_TIERS.map((tier) => {
+                          const k = `${el.key}|${tier}`;
+                          const effective = overrides[k] ?? el.policies[context][tier];
+                          return (
+                            <td key={tier} className="py-2">
+                              <MatrixCell
+                                enabled={effective}
+                                context={context}
+                                label={`${el.label} — ${TIER_LABELS[tier]}`}
+                                disabled={readOnly || pending.has(k)}
+                                onToggle={() => toggleCell(el, tier)}
+                              />
+                            </td>
+                          );
+                        })
+                      )}
                     </tr>
                   ))}
                 </tbody>

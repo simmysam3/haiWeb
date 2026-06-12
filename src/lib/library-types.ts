@@ -30,6 +30,8 @@ export interface LibraryElement {
   policies: { share: Record<LibraryTier, boolean>; require: Record<LibraryTier, boolean> };
   /** Per-element required minimum (Entity Approvals 2026-06-11); meaningful for require context on 'amount' elements. */
   required_value?: { min_amount_usd: number } | null;
+  /** PO 2026-06-11: false = informational attribute — shareable, never requirable. Absent (older haiCore) = requirable. */
+  requirable?: boolean;
   gap: boolean;
 }
 export interface LibraryView {

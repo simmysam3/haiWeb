@@ -210,6 +210,39 @@ describe('LibraryMatrix', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
+  describe('informational attributes (requirable=false, PO 2026-06-11)', () => {
+    const infoEl = makeElement({
+      key: 'warranty_period',
+      label: 'Warranty Period',
+      kind: 'attribute',
+      value_type: 'string',
+      requirable: false,
+      attribute: {
+        id: 'a1', elementKey: 'warranty_period', valueJson: 'One year limited warranty',
+        status: 'active', validFrom: null, validUntil: null, affirmedBy: null, affirmedAt: null,
+      } as never,
+    });
+    const infoView: LibraryView = { sections: [{ section: 'legal_commercial', elements: [infoEl, fullEl] }] };
+
+    it('require context: listed with its value but NO require switches', () => {
+      renderMatrix({ view: infoView, context: 'require' });
+      expect(screen.getByText('Warranty Period')).toBeInTheDocument();
+      // No switch cells for the informational attribute…
+      for (const tier of ['Premier', 'Trading Pair', 'Connection', 'Qualified']) {
+        expect(screen.queryByRole('switch', { name: `Warranty Period — ${tier}` })).toBeNull();
+      }
+      // …but the requirable artifact in the same section keeps its 4.
+      expect(screen.getAllByRole('switch')).toHaveLength(4);
+      expect(screen.getByText(/informational/i)).toBeInTheDocument();
+    });
+
+    it('share context: informational attributes keep their share switches', () => {
+      renderMatrix({ view: infoView, context: 'share' });
+      expect(screen.getByRole('switch', { name: 'Warranty Period — Premier' })).toBeInTheDocument();
+      expect(screen.getAllByRole('switch')).toHaveLength(8);
+    });
+  });
+
   describe('Coverage required (amount elements, require context)', () => {
     const amountEl = makeElement({
       key: 'general_liability_limits',
