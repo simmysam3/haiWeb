@@ -39,8 +39,20 @@ interface Props {
   proactive?: boolean;
 }
 
+/**
+ * An approved row opens at its currently-approved tier so a re-review (e.g. a
+ * tier upgrade) starts from reality instead of silently resetting to the
+ * default — which read as "my change didn't save" in the 6/11 walkthrough.
+ */
+function initialTier(row: EntityApprovalQueueRow): LibraryTier {
+  const current = row.last_decision?.tier;
+  return row.status === "approved" && (LIBRARY_TIERS as string[]).includes(current ?? "")
+    ? (current as LibraryTier)
+    : DEFAULT_TIER;
+}
+
 export function ReviewWizard({ row, onClose, onDecided, proactive = false }: Props) {
-  const [tier, setTier] = useState<LibraryTier>(DEFAULT_TIER);
+  const [tier, setTier] = useState<LibraryTier>(() => initialTier(row));
   const [active, setActive] = useState("requirements");
   // Revoke is only meaningful for an already-approved relationship, and never in
   // proactive mode (there is nothing yet to revoke).

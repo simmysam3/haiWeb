@@ -6,6 +6,7 @@ import { Button } from "@/components/button";
 import { Pill } from "@/components/pill";
 import { DetailChevron } from "@/components/sonar/observations/detail-chevron";
 import { useApi } from "@/lib/use-api";
+import { TIER_LABELS, type LibraryTier } from "@/lib/library-types";
 
 /** A reviewer's Entity Approvals queue row (mirrors the haiCore QueueRow contract). */
 export interface EntityApprovalQueueRow {
@@ -134,9 +135,11 @@ export function ApprovalsQueue({ onReview, onProactive }: Props) {
                   <p className="text-xs text-slate mt-0.5">
                     {`Submitted ${formatDate(row.submitted_at)}`}
                     {row.last_decision &&
-                      ` · ${row.last_decision.decision === "approved" ? "Approved" : "Revoked"} by ${
-                        row.last_decision.decided_by
-                      } on ${formatDate(row.last_decision.decided_at)}`}
+                      ` · ${row.last_decision.decision === "approved" ? "Approved" : "Revoked"}${
+                        row.last_decision.tier && row.last_decision.tier in TIER_LABELS
+                          ? ` to ${TIER_LABELS[row.last_decision.tier as LibraryTier]}`
+                          : ""
+                      } by ${row.last_decision.decided_by} on ${formatDate(row.last_decision.decided_at)}`}
                   </p>
                 </div>
 

@@ -107,6 +107,41 @@ const APPROVED_ROW: EntityApprovalQueueRow = {
   last_decision: { decision: 'approved', tier: 'connection', decided_by: 'jerry@apex.test', decided_at: '2026-05-22T09:00:00Z' },
 };
 
+describe('ReviewWizard — initial tier for an approved row', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockScorecard(SCORECARD);
+  });
+
+  it('opens at the currently-approved tier, not the default (tier-upgrade walkthrough bug)', () => {
+    const upgraded: EntityApprovalQueueRow = {
+      ...ROW,
+      request_id: null,
+      status: 'approved',
+      last_decision: { decision: 'approved', tier: 'trading_pair', decided_by: 'jerry@apex.test', decided_at: '2026-05-22T09:00:00Z' },
+    };
+    render(<ReviewWizard row={upgraded} onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect((useApi.mock.calls[0][0] as { url: string }).url).toContain('tier=trading_pair');
+    expect(screen.getByRole('radio', { name: 'Trading Pair' })).toBeChecked();
+  });
+
+  it('falls back to the default tier when last_decision carries an unknown tier', () => {
+    const odd: EntityApprovalQueueRow = {
+      ...ROW,
+      request_id: null,
+      status: 'approved',
+      last_decision: { decision: 'approved', tier: 'bogus_tier', decided_by: 'jerry@apex.test', decided_at: '2026-05-22T09:00:00Z' },
+    };
+    render(<ReviewWizard row={odd} onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect((useApi.mock.calls[0][0] as { url: string }).url).toContain('tier=connection');
+  });
+
+  it('still opens pending rows at the default tier', () => {
+    render(<ReviewWizard row={ROW} onClose={vi.fn()} onDecided={vi.fn()} />);
+    expect((useApi.mock.calls[0][0] as { url: string }).url).toContain('tier=connection');
+  });
+});
+
 describe('ReviewWizard — decision + confirm steps', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -63,12 +63,20 @@ describe('ApprovalsQueue', () => {
     expect(screen.getByText('No gaps')).toBeInTheDocument();
   });
 
-  it('shows approver + decided date when last_decision is present', () => {
+  it('shows the approved tier + approver + decided date when last_decision is present', () => {
     mockQueue([APPROVED]);
     render(<ApprovalsQueue onReview={vi.fn()} onProactive={vi.fn()} />);
-    expect(screen.getByText(/Approved by jerry@apex.test/)).toBeInTheDocument();
+    // The tier is the substance of the decision — without it a tier upgrade is
+    // invisible in the queue (6/11 walkthrough: "it reverted").
+    expect(screen.getByText(/Approved to Trading Pair by jerry@apex.test/)).toBeInTheDocument();
     // status pill reflects the approved state
     expect(screen.getByTestId('pill')).toHaveTextContent('Approved');
+  });
+
+  it('omits the tier phrase when last_decision has no recognizable tier', () => {
+    mockQueue([{ ...APPROVED, last_decision: { ...APPROVED.last_decision!, tier: null } }]);
+    render(<ApprovalsQueue onReview={vi.fn()} onProactive={vi.fn()} />);
+    expect(screen.getByText(/Approved by jerry@apex.test/)).toBeInTheDocument();
   });
 
   it('defaults to the pending filter and requests status=pending sort=date_desc', () => {
