@@ -79,6 +79,18 @@ beforeEach(() => {
 });
 
 describe('LibraryTab', () => {
+  it('offers Gather from website on the sharing (sell-side) tab', () => {
+    render(<LibraryTab context="share" />);
+    expect(screen.getByRole('button', { name: /gather from website/i })).toBeInTheDocument();
+  });
+
+  it('does NOT offer Gather from website on the requirements (buy-side) tab', () => {
+    // Requirements describe what suppliers must hold — gathering OUR website's
+    // policy docs has no place there (Sam, 6/11 walkthrough).
+    render(<LibraryTab context="require" />);
+    expect(screen.queryByRole('button', { name: /gather from website/i })).toBeNull();
+  });
+
   it('shows a loading note while the library is still fetching', () => {
     mockedUseSWR.mockReturnValueOnce({
       data: undefined,
