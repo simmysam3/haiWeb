@@ -37,13 +37,15 @@ RUN npm ci --no-audit --no-fund
 COPY haiWeb/ ./
 # Placeholders so the production env validation that runs during `next build`
 # (NODE_ENV=production) passes; the real values are injected at runtime by Cloud
-# Run (--update-secrets / --update-env-vars) and override these. The confidential
-# portal client secret + admin client secret guards were added with the OIDC
-# Authorization-Code cutover (dec3681) and need the same treatment as SESSION_SECRET.
-ENV SESSION_SECRET=build-time-placeholder-not-used-at-runtime \
+# Run (--update-secrets / --update-env-vars). The confidential portal client
+# secret + admin client secret guards were added with the OIDC Authorization-
+# Code cutover (dec3681) and need the same treatment as SESSION_SECRET.
+# Command-scoped (not ENV) so the placeholders exist only for this build step
+# and BuildKit's SecretsUsedInArgOrEnv check stays quiet.
+RUN SESSION_SECRET=build-time-placeholder-not-used-at-runtime \
     KEYCLOAK_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime \
-    KEYCLOAK_ADMIN_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime
-RUN npm run build
+    KEYCLOAK_ADMIN_CLIENT_SECRET=build-time-placeholder-not-used-at-runtime \
+    npm run build
 
 # ---- Stage 3: runtime (UBI9 nodejs-22 + OpenSSL-3 FIPS provider) ----
 FROM ${UBI} AS runtime
