@@ -78,17 +78,21 @@ export function LibraryTab({ context }: { context: PolicyContext }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate">
           {context === 'share'
-            ? 'Maintain your company documents and business terms in this one place — agents reconcile counterparty requirements against your library automatically. Each item is wrapped in a permission level: click a cell to set which class of counterparty (Qualified through Premier) must be in place before that item is shared.'
-            : 'Declare what you require of counterparties at each trust tier — agents evaluate their library against these requirements when reconciling between parties. Click a cell to toggle a requirement.'}
+            ? 'Sell side — the documents and business terms your company holds, kept in this one place for the parties who buy from you. Agents reconcile buyers’ requirements against this library automatically. Each item is wrapped in a permission level: click a cell to set which class of counterparty (Qualified through Premier) must be in place before that item is shared.'
+            : 'Buy side — what you require of the parties you buy from, at each trust tier. Each supplier satisfies these from their own library, so the evidence differs supplier to supplier; your documents play no part here. Click a cell to toggle a requirement.'}
         </p>
-        <button
-          type="button"
-          onClick={startGather}
-          disabled={gatherStarted}
-          className="text-xs text-teal underline hover:text-navy disabled:text-slate disabled:no-underline"
-        >
-          {gatherStarted ? 'Gather started — drafts will appear shortly' : 'Gather from website'}
-        </button>
+        {/* Gather pulls OUR website's policy docs — only meaningful for the
+            sell-side library, never for buy-side requirements on suppliers. */}
+        {context === 'share' && (
+          <button
+            type="button"
+            onClick={startGather}
+            disabled={gatherStarted}
+            className="text-xs text-teal underline hover:text-navy disabled:text-slate disabled:no-underline"
+          >
+            {gatherStarted ? 'Gather started — drafts will appear shortly' : 'Gather from website'}
+          </button>
+        )}
       </div>
       {actionError && (
         <p role="alert" className="text-sm text-problem">
