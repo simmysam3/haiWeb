@@ -405,6 +405,26 @@ export interface HaiwaveClient {
   rejectLibraryItem(id: string): Promise<unknown>;
   /** Kicks off a library gather run. haiCore replies 202 {status:'started'} | 422 NO_WEBSITE_URL | 400 | 503. */
   runLibraryGather(body: { terms_url?: string }): Promise<unknown>;
+  // Entity Approvals (spec 2026-06-11)
+  /** Lists the reviewer's entity-approval queue. Unset query keys are omitted so haiCore applies its defaults. */
+  entityApprovalsQueue(query: { status?: string; search?: string; sort?: string }): Promise<unknown>;
+  /** Live scorecard for an inbound connection request, recomputed at `tier` when provided. */
+  entityApprovalScorecard(requestId: string, tier?: string): Promise<unknown>;
+  /** Live scorecard for a counterparty with no inbound request (proactive review). */
+  counterpartyScorecard(participantId: string, tier?: string): Promise<unknown>;
+  /** Approves an inbound request to a tier. haiCore: 201 on success, 400 REASON_REQUIRED, 404 foreign/unknown request. */
+  approveEntity(requestId: string, body: Record<string, unknown>): Promise<unknown>;
+  /** Proactively approves a counterparty (resolves an inbound request if one exists, else initiates pairing). 201 on success. */
+  approveCounterparty(participantId: string, body: Record<string, unknown>): Promise<unknown>;
+  /** Revokes a counterparty's tier + blocks the connection. Reason mandatory upstream. */
+  revokeCounterparty(participantId: string, body: Record<string, unknown>): Promise<unknown>;
+  /** Returns the raw upstream Response for a counterparty evidence file (unconsumed body)
+   * so the BFF can stream it through. Disclosure + ownership are enforced core-side (D-49). */
+  counterpartyEvidenceFile(ownerId: string, artifactId: string): Promise<Response>;
+  /** Lists in-app notifications for the participant; `unread` true restricts to unread. */
+  listNotifications(unread?: boolean): Promise<unknown>;
+  /** Marks a notification read. haiCore returns 404 for an unknown/foreign id. */
+  markNotificationRead(id: string): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Admin
   getAdminOverview(): Promise<Record<string, unknown>>;
@@ -937,6 +957,57 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     runLibraryGather(body) {
       return request<unknown>("POST", "/library/gather", body);
+    },
+
+    entityApprovalsQueue(query) {
+      const params = new URLSearchParams();
+      if (query.status !== undefined) params.set("status", query.status);
+      if (query.search !== undefined) params.set("search", query.search);
+      if (query.sort !== undefined) params.set("sort", query.sort);
+      const qs = params.toString();
+      return request<unknown>("GET", `/entity-approvals${qs ? `?${qs}` : ""}`);
+    },
+    entityApprovalScorecard(requestId, tier) {
+      const qs = tier !== undefined ? `?tier=${encodeURIComponent(tier)}` : "";
+      return request<unknown>("GET", `/entity-approvals/${encodeURIComponent(requestId)}/scorecard${qs}`);
+    },
+    counterpartyScorecard(participantId, tier) {
+      const qs = tier !== undefined ? `?tier=${encodeURIComponent(tier)}` : "";
+      return request<unknown>(
+        "GET",
+        `/entity-approvals/counterparty/${encodeURIComponent(participantId)}/scorecard${qs}`,
+      );
+    },
+    approveEntity(requestId, body) {
+      return request<unknown>("POST", `/entity-approvals/${encodeURIComponent(requestId)}/approve`, body);
+    },
+    approveCounterparty(participantId, body) {
+      return request<unknown>(
+        "POST",
+        `/entity-approvals/counterparty/${encodeURIComponent(participantId)}/approve`,
+        body,
+      );
+    },
+    revokeCounterparty(participantId, body) {
+      return request<unknown>(
+        "POST",
+        `/entity-approvals/counterparty/${encodeURIComponent(participantId)}/revoke`,
+        body,
+      );
+    },
+    counterpartyEvidenceFile(ownerId, artifactId) {
+      // Return the raw Response unconsumed — the caller streams the body.
+      return fetch(
+        `${haiwaveApiUrl}/library/counterparty/${encodeURIComponent(ownerId)}/artifacts/${encodeURIComponent(artifactId)}/file`,
+        { headers: { ...baseHeaders } },
+      );
+    },
+    listNotifications(unread) {
+      const qs = unread !== undefined ? `?unread=${unread ? "true" : "false"}` : "";
+      return request<unknown>("GET", `/notifications${qs}`);
+    },
+    markNotificationRead(id) {
+      return request<unknown>("POST", `/notifications/${encodeURIComponent(id)}/read`);
     },
 
     getAgentStatus(agentId) {

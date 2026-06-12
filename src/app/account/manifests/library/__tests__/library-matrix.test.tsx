@@ -209,4 +209,107 @@ describe('LibraryMatrix', () => {
     await waitFor(() => expect(cell).not.toBeDisabled());
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
+
+  describe('informational attributes (requirable=false, PO 2026-06-11)', () => {
+    const infoEl = makeElement({
+      key: 'warranty_period',
+      label: 'Warranty Period',
+      kind: 'attribute',
+      value_type: 'string',
+      requirable: false,
+      attribute: {
+        id: 'a1', elementKey: 'warranty_period', valueJson: 'One year limited warranty',
+        status: 'active', validFrom: null, validUntil: null, affirmedBy: null, affirmedAt: null,
+      } as never,
+    });
+    const infoView: LibraryView = { sections: [{ section: 'legal_commercial', elements: [infoEl, fullEl] }] };
+
+    it('require context: listed with its value but NO require switches', () => {
+      renderMatrix({ view: infoView, context: 'require' });
+      expect(screen.getByText('Warranty Period')).toBeInTheDocument();
+      // No switch cells for the informational attribute…
+      for (const tier of ['Premier', 'Trading Pair', 'Connection', 'Qualified']) {
+        expect(screen.queryByRole('switch', { name: `Warranty Period — ${tier}` })).toBeNull();
+      }
+      // …but the requirable artifact in the same section keeps its 4.
+      expect(screen.getAllByRole('switch')).toHaveLength(4);
+      expect(screen.getByText(/informational/i)).toBeInTheDocument();
+    });
+
+    it('share context: informational attributes keep their share switches', () => {
+      renderMatrix({ view: infoView, context: 'share' });
+      expect(screen.getByRole('switch', { name: 'Warranty Period — Premier' })).toBeInTheDocument();
+      expect(screen.getAllByRole('switch')).toHaveLength(8);
+    });
+  });
+
+  describe('Coverage required (amount elements, require context)', () => {
+    const amountEl = makeElement({
+      key: 'general_liability_limits',
+      label: 'General Liability Limits',
+      kind: 'attribute',
+      value_type: 'amount',
+      policies: {
+        share: { premier: false, trading_pair: false, connection: false, qualified: false },
+        require: { premier: false, trading_pair: true, connection: false, qualified: false },
+      },
+    });
+    const amountView: LibraryView = { sections: [{ section: 'insurance', elements: [amountEl] }] };
+
+    function renderRequire(el: LibraryElement = amountEl) {
+      const onChanged = vi.fn();
+      render(
+        <LibraryMatrix
+          view={{ sections: [{ section: 'insurance', elements: [el] }] }}
+          context="require"
+          readOnly={false}
+          onChanged={onChanged}
+          onAddEvidence={vi.fn()}
+        />,
+      );
+      return { onChanged };
+    }
+
+    it('shows a Coverage required input when a require cell is enabled', () => {
+      renderRequire();
+      expect(screen.getByLabelText(/coverage required/i)).toBeInTheDocument();
+    });
+
+    it('does not show the input when no require cell is enabled', () => {
+      const off = { ...amountEl, policies: { ...amountEl.policies, require: { premier: false, trading_pair: false, connection: false, qualified: false } } };
+      renderRequire(off);
+      expect(screen.queryByLabelText(/coverage required/i)).toBeNull();
+    });
+
+    it('PUTs policies with required_value when an amount is entered', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+      renderRequire();
+      const input = screen.getByLabelText(/coverage required/i);
+      fireEvent.change(input, { target: { value: '5000000' } });
+      fireEvent.blur(input);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body).toMatchObject({ element_key: 'general_liability_limits', context: 'require', required_value: { min_amount_usd: 5000000 } });
+    });
+
+    it('PUTs an explicit null required_value when the amount is cleared', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal('fetch', fetchMock);
+      const preset = { ...amountEl, required_value: { min_amount_usd: 5000000 } };
+      renderRequire(preset);
+      const input = screen.getByLabelText(/coverage required/i) as HTMLInputElement;
+      expect(input.value).toBe('5000000');
+      fireEvent.change(input, { target: { value: '' } });
+      fireEvent.blur(input);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.required_value).toBeNull();
+    });
+
+    it('displays the compact "≥ $5M" badge when required_value is set', () => {
+      renderRequire({ ...amountEl, required_value: { min_amount_usd: 5000000 } });
+      expect(screen.getByText(/≥ \$5M/)).toBeInTheDocument();
+    });
+  });
 });

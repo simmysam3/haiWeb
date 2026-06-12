@@ -166,6 +166,35 @@ describe('EvidenceChip', () => {
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
 
+  function amountEl(valueJson: unknown): LibraryElement {
+    return {
+      ...baseEl,
+      key: 'general_liability_limits',
+      kind: 'attribute',
+      value_type: 'amount',
+      gap: false,
+      attribute: {
+        id: 'at-amt', elementKey: 'general_liability_limits', valueJson, status: 'active',
+        sourceTier: 'self_declared', evidenceArtifactId: null, validUntil: null, affirmedBy: null,
+      },
+    };
+  }
+
+  it('renders an amount value as USD with no cents', () => {
+    render(<EvidenceChip element={amountEl({ amount_usd: 3000000 })} onAdd={() => {}} />);
+    expect(screen.getByText('$3,000,000')).toBeInTheDocument();
+  });
+
+  it('appends the detail to an amount value when present', () => {
+    render(<EvidenceChip element={amountEl({ amount_usd: 5000000, detail: 'per occurrence' })} onAdd={() => {}} />);
+    expect(screen.getByText(/\$5,000,000 — per occurrence/)).toBeInTheDocument();
+  });
+
+  it('falls back to the generic formatter for a non-conforming amount value', () => {
+    render(<EvidenceChip element={amountEl('three million')} onAdd={() => {}} />);
+    expect(screen.getByText('three million')).toBeInTheDocument();
+  });
+
   it('skips a superseded artifact and links the active one', () => {
     const el: LibraryElement = {
       ...baseEl,

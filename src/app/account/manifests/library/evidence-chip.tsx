@@ -1,4 +1,5 @@
 import type { LibraryElement, LibraryArtifactRow } from '@/lib/library-types';
+import { asAmountValue, formatUsd } from '@/lib/library-types';
 import { Pill } from '@/components/pill';
 
 interface EvidenceChipProps {
@@ -37,6 +38,12 @@ function ArtifactLink({ artifact }: { artifact: LibraryArtifactRow }) {
 
 function formatValue(value: unknown): string {
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  // Amount values (insurance limits) render as USD + optional detail; a
+  // non-conforming value falls through to the generic object/string handling.
+  const amount = asAmountValue(value);
+  if (amount) {
+    return amount.detail ? `${formatUsd(amount.amount_usd)} — ${amount.detail}` : formatUsd(amount.amount_usd);
+  }
   if (value !== null && typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>)
       .slice(0, 2)
