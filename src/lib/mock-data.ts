@@ -141,7 +141,6 @@ export const MOCK_SCORES: MockScore[] = [
   { label: "Response Time", key: "response_time", value: 88, trend: -1 },
   { label: "Price Adherence", key: "price_adherence", value: 96, trend: 0 },
   { label: "Agent Uptime", key: "agent_uptime", value: 91, trend: 3 },
-  { label: "Exception Rate", key: "exception_rate", value: 85, trend: -2 },
 ];
 
 export const MOCK_SCORE_COMPOSITE = 91;
