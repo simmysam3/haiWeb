@@ -35,7 +35,8 @@ SDK download.
    authoring contract at the top of that template), **not** markdown:
    - **Author the body:** a Claude pass translates the source guide
      (`haiCore/docs/client-implementation-guidelines.md`) into the design-system
-     markup per the contract, staged as `private/design-intake/body.html`.
+     markup per the contract, committed as `design/configuration-guide/body.html`
+     (a first pass is in place).
    - **Assemble + render:** `npm run build:guide-pdf` injects title/date/body into
      the template and prints to `configuration-guide.pdf` via Playwright.
    ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT make the platform
@@ -86,15 +87,15 @@ release, regenerate both** (steps 1–3) so the download reflects v1.50.0.
   logo + watermark + page-numbering script; `{{title}}`/`{{date}}`/`{{body}}`
   slots). `build:guide-pdf` reworked to inject + render (no markdown step; the
   `marked` dependency is gone). A contract test fills the real template cleanly.
-- **Guide PDF: NOT regenerated.** Two inputs still missing: (a) the generated
-  `private/design-intake/body.html` (the design-system body — a Claude authoring
-  pass over the guide), and (b) Playwright Chromium (offline-blocked). The
-  existing branded-but-stale PDF was left untouched (the script fails before
-  writing).
+- **Guide body authored:** `design/configuration-guide/body.html` — a 17-page
+  (cover + TOC + 15 sections) design-system first pass generated from the v2.1
+  guide; a contract test asserts it assembles into the template with no leftover
+  tokens. **Guide PDF still NOT rendered:** Playwright Chromium is offline-blocked
+  here. The existing branded-but-stale PDF was left untouched.
 - **Production: NOT updated.** These artifacts are gitignored and baked into the
   image at build time, so prod keeps serving the old files until the haiWeb prod
   image is rebuilt + redeployed — and because they're gitignored, the regen must
   run in the same environment that builds the image (steps 1–3 above).
-- **To finish:** author `body.html` (Claude pass per the template's contract),
-  `npx playwright install chromium`, `npm run build:guide-pdf`, then rebuild +
-  redeploy the haiWeb prod image from that working tree.
+- **To finish:** `npx playwright install chromium`, `npm run build:guide-pdf`
+  (verify each `.page` ≤ 1056px on first render; split/trim any overflow in
+  `body.html`), then rebuild + redeploy the haiWeb prod image from that working tree.

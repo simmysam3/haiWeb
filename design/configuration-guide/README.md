@@ -21,7 +21,8 @@ converter, so the pipeline does no markdown step.
 The body is produced by a **Claude authoring pass** from the source guide
 (`haiCore/docs/client-implementation-guidelines.md`): translate the guide's
 content into the design-system markup per the contract, then stage it as
-`private/design-intake/body.html`. Re-run that pass whenever the guide changes.
+`body.html` (committed alongside this template). A first pass is in place; re-run
+the authoring pass to refresh it whenever the guide changes.
 
 ## How it's consumed
 
@@ -32,7 +33,7 @@ template (`injectTemplate`, unit-tested — including a contract test that fills
 than the supported three.
 
 ```
-npm run build:guide-pdf            # reads private/design-intake/body.html → private/agent-downloads/configuration-guide.pdf
+npm run build:guide-pdf            # reads design/configuration-guide/body.html → private/agent-downloads/configuration-guide.pdf
 ```
 
 ## Requirements to actually render

@@ -64,4 +64,19 @@ describe('design/configuration-guide/template.html ↔ pipeline contract', () =>
     expect(html).toContain('CONTRACT-BODY'); // body slot
     expect(html).not.toMatch(/\{\{\s*(title|date|body)\s*\}\}/); // all live tokens consumed
   });
+
+  it('assembles the committed body.html into the template with no leftover tokens', () => {
+    const body = readFileSync(
+      join(process.cwd(), 'design/configuration-guide/body.html'),
+      'utf8',
+    );
+    const html = injectTemplate(template, {
+      title: 'Free Agent SCM — Client Implementation Guidelines',
+      date: 'June 2026',
+      bodyHtml: body,
+    });
+    expect(html).toContain('Tier Model'); // §1 opener flows into the body slot
+    expect(html).toContain('Conformance kit'); // §10 content flows in
+    expect(html).not.toMatch(/\{\{\s*(title|date|body)\s*\}\}/); // body carries no stray tokens
+  });
 });

@@ -1,5 +1,5 @@
 import { readFile, mkdir } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 /**
  * Generate `configuration-guide.pdf` by injecting a generated body into the
@@ -112,12 +112,11 @@ export async function buildGuidePdf(opts) {
 }
 
 // CLI entrypoint: `node scripts/build-guide-pdf.mjs [body.html]`
-// Defaults read the generated design-system body staged in private/design-intake/
+// Defaults read the committed generated body (design/configuration-guide/body.html)
 // and write the PDF into private/agent-downloads/ (baked into the prod image by
 // Dockerfile.prod). Adopter-facing → configuration guide ONLY.
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
-  const intake = resolve('private/design-intake');
-  const bodyHtmlPath = process.argv[2] ?? join(intake, 'body.html');
+  const bodyHtmlPath = process.argv[2] ?? resolve('design/configuration-guide/body.html');
   const templatePath = resolve('design/configuration-guide/template.html');
   const outPath = resolve('private/agent-downloads/configuration-guide.pdf');
   const date = new Date().toISOString().slice(0, 10);
