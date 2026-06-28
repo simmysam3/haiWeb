@@ -28,14 +28,15 @@ SDK download.
 1. **Agent zip:** `npm run build:agent-zip` → writes `haiwave-agent-v<version>.zip`
    + `manifest.json` (version comes from `../haiClient/package.json`). Run this
    against the haiClient commit you are releasing.
-2. **Configuration guide PDF:** stage the dated source markdown in
-   `private/design-intake/` and run `npm run build:guide-pdf`:
-   - `private/design-intake/configuration-guide.md` — the current guide
-     (`haiCore/docs/client-implementation-guidelines.md`), date appended.
-   - `private/design-intake/as-built.md` — the latest dated as-built
-     (`haiCore/docs/<M-DD>_as_built.md`).
-   The script renders markdown → the committed design template
-   (`design/configuration-guide/template.html`) → `configuration-guide.pdf`.
+2. **Configuration guide PDF:** stage the dated guide markdown in
+   `private/design-intake/configuration-guide.md` (from
+   `haiCore/docs/client-implementation-guidelines.md`, date appended) and run
+   `npm run build:guide-pdf`. The script renders markdown → the committed design
+   template (`design/configuration-guide/template.html`) → `configuration-guide.pdf`.
+   ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT bundle the platform
+   As-Built spec (`haiCore/docs/<date>_as_built.md`): it is HAIWAVE-internal (DB
+   schema, central services, prod deploy revisions, the security register) and
+   would leak internal architecture to external adopters.
 3. **Publish:** rebuild + redeploy the haiWeb prod image. The new
    `private/agent-downloads/` contents are baked in and served.
 
@@ -51,8 +52,8 @@ is missing — it never emits a stale/empty PDF silently.
 
 Until the Claude Design template export is pasted into
 `design/configuration-guide/template.html` (see that dir's README), you can keep
-the manual path: hand the dated `configuration-guide.md` + `as-built.md` to Claude
-Design, and drop the returned PDF in as `private/agent-downloads/configuration-guide.pdf`.
+the manual path: hand the dated `configuration-guide.md` to Claude Design, and
+drop the returned PDF in as `private/agent-downloads/configuration-guide.pdf`.
 The automated path above replaces this once the template is in place.
 
 ## ⚠ Current state — artifacts are stale
@@ -76,8 +77,9 @@ release, regenerate both** (steps 1–3) so the download reflects v1.50.0.
   current workspace (top-level `README.md`, `packages/client-sdk` + `reference-agent`,
   the conformance kit) and excludes `node_modules`/`.env`/`*.duckdb`.
 - **Design-intake staged** (gitignored): `configuration-guide.md` (from
-  `haiCore/docs/client-implementation-guidelines.md`, v2.1) and `as-built.md`
-  (from `haiCore/docs/6-11_as_built.md`, the latest on disk).
+  `haiCore/docs/client-implementation-guidelines.md`, v2.1). *(An as-built was
+  briefly staged then removed: the platform as-built is HAIWAVE-internal and the
+  adopter PDF is now guide-only — `buildGuidePdf` no longer bundles it.)*
 - **Guide PDF: NOT regenerated.** `npm run build:guide-pdf` is blocked — `marked`
   is not installed (and Chromium isn't either), and `design/configuration-guide/template.html`
   is still the Claude Design stub. The existing branded-but-stale PDF was left

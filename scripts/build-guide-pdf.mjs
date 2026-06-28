@@ -6,8 +6,10 @@ import { dirname, join, resolve } from 'node:path';
  * Claude Design template, so the published guide no longer drifts from the source
  * on a manual export.
  *
- * Pipeline:  markdown (guide + dated as-built)  →  HTML (marked)
+ * Pipeline:  configuration-guide markdown  →  HTML (marked)
  *            →  inject into design template  →  PDF (Playwright/Chromium).
+ *  Adopter-facing: the configuration guide ONLY — the internal platform as-built
+ *  is NOT bundled (see buildGuidePdf note below).
  *
  * The only piece with no external dependency is `injectTemplate`, which is the
  * contract with the template (and is unit-tested). `markdownToHtml` needs the
@@ -104,37 +106,39 @@ export async function renderPdf(html, outPath) {
 }
 
 /**
- * Full build: read the dated guide + as-built markdown, render through the
+ * Full build: read the dated configuration-guide markdown, render it through the
  * template, write the PDF into the agent-downloads dir the console serves.
  *
- * @param {{ guideMdPath: string, asBuiltMdPath?: string, templatePath: string,
+ * ⚠ ADOPTER-FACING: this PDF ships to external implementers via the console.
+ * It is the configuration guide ONLY. The platform As-Built spec
+ * (`haiCore/docs/<date>_as_built.md`) is HAIWAVE-INTERNAL (DB schema, central
+ * services, prod deploy revisions, the security register) and MUST NOT be
+ * bundled here — doing so would leak internal architecture to adopters.
+ *
+ * @param {{ guideMdPath: string, templatePath: string,
  *           outPath: string, title: string, date: string }} opts
  */
 export async function buildGuidePdf(opts) {
-  const { guideMdPath, asBuiltMdPath, templatePath, outPath, title, date } = opts;
+  const { guideMdPath, templatePath, outPath, title, date } = opts;
   const guideMd = await readFile(guideMdPath, 'utf8');
-  const asBuiltMd = asBuiltMdPath ? await readFile(asBuiltMdPath, 'utf8') : '';
-  const combinedMd = asBuiltMd
-    ? `${guideMd}\n\n<div class="page-break"></div>\n\n# As-Built (${date})\n\n${asBuiltMd}`
-    : guideMd;
-  const bodyHtml = await markdownToHtml(combinedMd);
+  const bodyHtml = await markdownToHtml(guideMd);
   const template = await readFile(templatePath, 'utf8');
   const html = injectTemplate(template, { title, date, bodyHtml });
   await renderPdf(html, outPath);
   return { outPath, bytes: html.length };
 }
 
-// CLI entrypoint: `node scripts/build-guide-pdf.mjs <guide.md> [as-built.md]`
-// Defaults read the dated sources staged in private/design-intake/ and write the
-// PDF into private/agent-downloads/ (baked into the prod image by Dockerfile.prod).
+// CLI entrypoint: `node scripts/build-guide-pdf.mjs [guide.md]`
+// Defaults read the dated configuration guide staged in private/design-intake/ and
+// write the PDF into private/agent-downloads/ (baked into the prod image by
+// Dockerfile.prod). Adopter-facing → configuration guide ONLY (no internal as-built).
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const intake = resolve('private/design-intake');
   const guideMdPath = process.argv[2] ?? join(intake, 'configuration-guide.md');
-  const asBuiltMdPath = process.argv[3] ?? join(intake, 'as-built.md');
   const templatePath = resolve('design/configuration-guide/template.html');
   const outPath = resolve('private/agent-downloads/configuration-guide.pdf');
   const date = new Date().toISOString().slice(0, 10);
-  buildGuidePdf({ guideMdPath, asBuiltMdPath, templatePath, outPath, title: 'HAIWAVE Free Agent — Configuration Guide', date })
+  buildGuidePdf({ guideMdPath, templatePath, outPath, title: 'HAIWAVE Free Agent — Configuration Guide', date })
     .then((r) => console.log(`Built ${r.outPath}`))
     .catch((err) => {
       console.error(String(err instanceof Error ? err.message : err));
