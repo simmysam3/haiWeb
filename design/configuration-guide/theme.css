@@ -1,0 +1,20 @@
+/*
+ * STUB THEME — replace with the Claude Design export's CSS (or let the exported
+ * HTML carry its own inline <style>). Minimal print-friendly defaults so the
+ * stub template renders legibly before the branded design lands.
+ *
+ * HAIWAVE brand tokens (from haiWeb): Navy #1A1F36, Orange #F58220, Teal #29B0C3;
+ * Space Grotesk (headlines), DM Sans (body).
+ */
+@page { size: A4; margin: 20mm; }
+body { font-family: "DM Sans", system-ui, sans-serif; color: #1a1f36; line-height: 1.5; }
+h1, h2, h3 { font-family: "Space Grotesk", system-ui, sans-serif; color: #1a1f36; }
+h2 { border-bottom: 2px solid #f58220; padding-bottom: 0.2em; }
+a { color: #29b0c3; }
+code, pre { font-family: ui-monospace, monospace; background: #f4f5f7; }
+pre { padding: 0.8em; border-radius: 6px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #d7dae0; padding: 6px 8px; text-align: left; }
+.cover { text-align: center; padding: 30mm 0; border-bottom: 3px solid #f58220; }
+.cover .date { color: #5b6172; }
+.page-break { break-after: page; }

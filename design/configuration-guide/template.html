@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  STUB TEMPLATE — REPLACE WITH THE CLAUDE DESIGN EXPORT.                    │
+  │                                                                           │
+  │  This is a placeholder so `scripts/build-guide-pdf.mjs` runs end-to-end   │
+  │  today. To get the branded PDF, ask Claude Design (one time) to export    │
+  │  the configuration guide's design as a self-contained HTML document and   │
+  │  paste it here, KEEPING these three placeholders verbatim:                │
+  │     {{title}}   the document title                                        │
+  │     {{date}}    the release date (YYYY-MM-DD)                             │
+  │     {{body}}    where the rendered guide HTML is injected                 │
+  │  The generator fails loudly if any other {{placeholder}} survives, so the │
+  │  exported template must use only those three. See ./README.md.            │
+  └─────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{title}}</title>
+    <link rel="stylesheet" href="./theme.css" />
+  </head>
+  <body>
+    <header class="cover">
+      <h1>{{title}}</h1>
+      <p class="date">{{date}}</p>
+    </header>
+    <main>{{body}}</main>
+  </body>
+</html>

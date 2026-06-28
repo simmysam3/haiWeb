@@ -1,0 +1,5 @@
+# Staging inbox for the dated source markdown fed to the configuration-guide PDF
+# build (configuration-guide.md, as-built.md). Assembled per-release; never committed.
+*
+!.gitkeep
+!.gitignore
