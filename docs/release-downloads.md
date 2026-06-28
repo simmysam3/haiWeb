@@ -61,3 +61,31 @@ As of this writing the published artifacts are **`v0.1.0` / 2026-06-09**, while
 haiClient is **v1.50.0** and the guide is **v2.1** — i.e. the page advertises
 "latest" but serves a pre-refactor agent and a pre-v2.0 guide. **Before the next
 release, regenerate both** (steps 1–3) so the download reflects v1.50.0.
+
+## Regeneration log
+
+> Point-in-time record of download regenerations. The artifacts themselves
+> (`private/agent-downloads/*`, `private/design-intake/*`) are gitignored — this
+> log is the tracked record of what was produced.
+
+### 2026-06-28 — agent zip refreshed to v1.50.0 (PDF + prod redeploy still pending)
+
+- **Agent zip:** `npm run build:agent-zip` → `haiwave-agent-v1.50.0.zip`. Manifest:
+  `{ "version": "1.50.0", "zipFile": "haiwave-agent-v1.50.0.zip", "zipBytes": 2183167, "builtAt": "2026-06-28T18:48:23Z" }`.
+  Stale `haiwave-agent-v0.1.0.zip` removed. Verified the archive contains the
+  current workspace (top-level `README.md`, `packages/client-sdk` + `reference-agent`,
+  the conformance kit) and excludes `node_modules`/`.env`/`*.duckdb`.
+- **Design-intake staged** (gitignored): `configuration-guide.md` (from
+  `haiCore/docs/client-implementation-guidelines.md`, v2.1) and `as-built.md`
+  (from `haiCore/docs/6-11_as_built.md`, the latest on disk).
+- **Guide PDF: NOT regenerated.** `npm run build:guide-pdf` is blocked — `marked`
+  is not installed (and Chromium isn't either), and `design/configuration-guide/template.html`
+  is still the Claude Design stub. The existing branded-but-stale PDF was left
+  untouched (the script fails before writing).
+- **Production: NOT updated.** These artifacts are gitignored and baked into the
+  image at build time, so prod keeps serving the old files until the haiWeb prod
+  image is rebuilt + redeployed — and because they're gitignored, the regen must
+  run in the same environment that builds the image (steps 1–3 above).
+- **To finish:** `npm i -D marked` + `npx playwright install chromium`, paste the
+  Claude Design export into the template, `npm run build:guide-pdf`, then rebuild +
+  redeploy the haiWeb prod image from that working tree.
