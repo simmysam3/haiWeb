@@ -1,6 +1,6 @@
-# Staging inbox for the dated configuration-guide markdown fed to the PDF build
-# (configuration-guide.md). Assembled per-release; never committed. The internal
-# platform as-built is NOT staged here — it must not ship in the adopter PDF.
+# Staging inbox for the generated design-system body (body.html) fed to the
+# configuration-guide PDF build. Assembled per-release; never committed. The
+# internal platform as-built is NOT staged here — it must not ship in the adopter PDF.
 *
 !.gitkeep
 !.gitignore

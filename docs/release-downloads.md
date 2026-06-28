@@ -28,32 +28,37 @@ SDK download.
 1. **Agent zip:** `npm run build:agent-zip` → writes `haiwave-agent-v<version>.zip`
    + `manifest.json` (version comes from `../haiClient/package.json`). Run this
    against the haiClient commit you are releasing.
-2. **Configuration guide PDF:** stage the dated guide markdown in
-   `private/design-intake/configuration-guide.md` (from
-   `haiCore/docs/client-implementation-guidelines.md`, date appended) and run
-   `npm run build:guide-pdf`. The script renders markdown → the committed design
-   template (`design/configuration-guide/template.html`) → `configuration-guide.pdf`.
-   ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT bundle the platform
-   As-Built spec (`haiCore/docs/<date>_as_built.md`): it is HAIWAVE-internal (DB
-   schema, central services, prod deploy revisions, the security register) and
-   would leak internal architecture to external adopters.
+2. **Configuration guide PDF:** the committed design template
+   (`design/configuration-guide/template.html`, from Claude Design) has the fixed
+   chrome + `{{title}}`/`{{date}}`/`{{body}}` slots. `{{body}}` is **generated
+   design-system HTML** (a sequence of `<section class="page">` blocks per the
+   authoring contract at the top of that template), **not** markdown:
+   - **Author the body:** a Claude pass translates the source guide
+     (`haiCore/docs/client-implementation-guidelines.md`) into the design-system
+     markup per the contract, staged as `private/design-intake/body.html`.
+   - **Assemble + render:** `npm run build:guide-pdf` injects title/date/body into
+     the template and prints to `configuration-guide.pdf` via Playwright.
+   ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT make the platform
+   As-Built spec (`haiCore/docs/<date>_as_built.md`) the `{{body}}`: it is
+   HAIWAVE-internal (DB schema, central services, prod deploy revisions, the
+   security register) and would leak internal architecture to external adopters.
 3. **Publish:** rebuild + redeploy the haiWeb prod image. The new
    `private/agent-downloads/` contents are baked in and served.
 
 ### Dependencies for step 2
 
-- `marked` (`npm i -D marked`) — markdown → HTML.
-- Playwright Chromium (`npx playwright install chromium`) — HTML → PDF.
+- Playwright Chromium (`npx playwright install chromium`) — HTML → PDF. (No
+  markdown converter: the body is generated design-system HTML, not markdown.)
 
-Both require network. `build:guide-pdf` fails with an actionable message if either
+Requires network. `build:guide-pdf` fails with an actionable message if Chromium
 is missing — it never emits a stale/empty PDF silently.
 
-### Fallback: manual Claude Design export
+### Authoring the body
 
-Until the Claude Design template export is pasted into
-`design/configuration-guide/template.html` (see that dir's README), you can keep
-the manual path: hand the dated `configuration-guide.md` to Claude Design, and
-drop the returned PDF in as `private/agent-downloads/configuration-guide.pdf`.
+The template's header comment is the binding authoring contract for `{{body}}`
+(page box, one-topic-per-page openers, the component class reference, the PIN
+macro). Re-run the Claude authoring pass to refresh `body.html` whenever the guide
+content changes, then re-run `build:guide-pdf`.
 The automated path above replaces this once the template is in place.
 
 ## ⚠ Current state — artifacts are stale
@@ -76,18 +81,20 @@ release, regenerate both** (steps 1–3) so the download reflects v1.50.0.
   Stale `haiwave-agent-v0.1.0.zip` removed. Verified the archive contains the
   current workspace (top-level `README.md`, `packages/client-sdk` + `reference-agent`,
   the conformance kit) and excludes `node_modules`/`.env`/`*.duckdb`.
-- **Design-intake staged** (gitignored): `configuration-guide.md` (from
-  `haiCore/docs/client-implementation-guidelines.md`, v2.1). *(An as-built was
-  briefly staged then removed: the platform as-built is HAIWAVE-internal and the
-  adopter PDF is now guide-only — `buildGuidePdf` no longer bundles it.)*
-- **Guide PDF: NOT regenerated.** `npm run build:guide-pdf` is blocked — `marked`
-  is not installed (and Chromium isn't either), and `design/configuration-guide/template.html`
-  is still the Claude Design stub. The existing branded-but-stale PDF was left
-  untouched (the script fails before writing).
+- **Design template wired:** the real Claude Design export is installed at
+  `design/configuration-guide/template.html` (self-contained — inlined tokens +
+  logo + watermark + page-numbering script; `{{title}}`/`{{date}}`/`{{body}}`
+  slots). `build:guide-pdf` reworked to inject + render (no markdown step; the
+  `marked` dependency is gone). A contract test fills the real template cleanly.
+- **Guide PDF: NOT regenerated.** Two inputs still missing: (a) the generated
+  `private/design-intake/body.html` (the design-system body — a Claude authoring
+  pass over the guide), and (b) Playwright Chromium (offline-blocked). The
+  existing branded-but-stale PDF was left untouched (the script fails before
+  writing).
 - **Production: NOT updated.** These artifacts are gitignored and baked into the
   image at build time, so prod keeps serving the old files until the haiWeb prod
   image is rebuilt + redeployed — and because they're gitignored, the regen must
   run in the same environment that builds the image (steps 1–3 above).
-- **To finish:** `npm i -D marked` + `npx playwright install chromium`, paste the
-  Claude Design export into the template, `npm run build:guide-pdf`, then rebuild +
+- **To finish:** author `body.html` (Claude pass per the template's contract),
+  `npx playwright install chromium`, `npm run build:guide-pdf`, then rebuild +
   redeploy the haiWeb prod image from that working tree.

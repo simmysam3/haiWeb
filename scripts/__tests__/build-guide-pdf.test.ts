@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { injectTemplate } from '../build-guide-pdf.mjs';
 
 // injectTemplate is the contract between the Claude Design template and the
@@ -39,5 +41,27 @@ describe('injectTemplate', () => {
     expect(() =>
       injectTemplate(TEMPLATE, { title: 'X', date: 'Y', bodyHtml: 'Z' }),
     ).not.toThrow();
+  });
+});
+
+// Contract test against the REAL committed Claude Design template: it must fill
+// cleanly through the pipeline's injector (only {{title}}/{{date}}/{{body}}, no
+// stray tokens — the spec comment's `{{ + title + }}` notation must not trip it).
+describe('design/configuration-guide/template.html ↔ pipeline contract', () => {
+  const template = readFileSync(
+    join(process.cwd(), 'design/configuration-guide/template.html'),
+    'utf8',
+  );
+
+  it('fills the cover (title/date) and body slot with no leftover tokens', () => {
+    const html = injectTemplate(template, {
+      title: 'Free Agent SCM — Client Implementation Guidelines',
+      date: '2026-06-28',
+      bodyHtml: '<section class="page"><div class="page__inner">CONTRACT-BODY</div></section>',
+    });
+    expect(html).toContain('Free Agent SCM — Client Implementation Guidelines'); // banner + <title>
+    expect(html).toContain('Edition: 2026-06-28'); // cover date slot
+    expect(html).toContain('CONTRACT-BODY'); // body slot
+    expect(html).not.toMatch(/\{\{\s*(title|date|body)\s*\}\}/); // all live tokens consumed
   });
 });
