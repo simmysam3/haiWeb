@@ -87,11 +87,15 @@ release, regenerate both** (steps 1–3) so the download reflects v1.50.0.
   logo + watermark + page-numbering script; `{{title}}`/`{{date}}`/`{{body}}`
   slots). `build:guide-pdf` reworked to inject + render (no markdown step; the
   `marked` dependency is gone). A contract test fills the real template cleanly.
-- **Guide body authored:** `design/configuration-guide/body.html` — a 17-page
-  (cover + TOC + 15 sections) design-system first pass generated from the v2.1
-  guide; a contract test asserts it assembles into the template with no leftover
-  tokens. **Guide PDF still NOT rendered:** Playwright Chromium is offline-blocked
-  here. The existing branded-but-stale PDF was left untouched.
+- **Guide body authored:** `design/configuration-guide/body.html` — a design-system
+  first pass generated from the v2.1 guide (cover + TOC + 11 sections); a contract
+  test asserts it assembles into the template with no leftover tokens.
+- **Guide PDF RENDERED (2026-06-29):** installed Playwright Chromium (`npx playwright
+  install chromium`) and ran `build:guide-pdf` → a **16-page, ~5.9 MB branded PDF**
+  at `private/agent-downloads/configuration-guide.pdf`, replacing the stale Jun-9
+  one. Verified visually: cover banner, auto-resolved TOC page refs, section
+  openers, syntax-colored code, notes/cfg/planned callouts, the wave watermark +
+  footer logo. (Long code lines were wrapped to avoid right-edge clipping.)
 - **Production: NOT updated.** These artifacts are gitignored and baked into the
   image at build time, so prod keeps serving the old files until the haiWeb prod
   image is rebuilt + redeployed — and because they're gitignored, the regen must

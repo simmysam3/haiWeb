@@ -73,15 +73,20 @@
       </ul>
       <div class="h3"><span class="n">2.1</span>Tier 0 — minimal wiring</div>
       <p class="p">Two halves: the outbound client to HAIWAVE Central, and the inbound MCP server haiCore calls into.</p>
-      <pre class="code"><span class="k">import</span> { TokenManager, HaiWaveClient, createMcpServer } <span class="k">from</span> <span class="s">'@haiwave/client-sdk'</span>;
+      <pre class="code"><span class="k">import</span> { TokenManager, HaiWaveClient, createMcpServer }
+  <span class="k">from</span> <span class="s">'@haiwave/client-sdk'</span>;
 
-<span class="cm">// Outbound: client-credentials token + the authenticated Central client.</span>
-<span class="k">const</span> tokenManager = <span class="k">new</span> TokenManager({ tokenEndpoint, clientId, clientSecret, scopes });
-<span class="k">const</span> central = <span class="k">new</span> HaiWaveClient({ baseUrl, participantId, agentId, forwardOnBehalfOf: <span class="b">false</span> }, tokenManager);
+<span class="cm">// Outbound: client-credentials token + Central client.</span>
+<span class="k">const</span> tokenManager = <span class="k">new</span> TokenManager({
+  tokenEndpoint, clientId, clientSecret, scopes });
+<span class="k">const</span> central = <span class="k">new</span> HaiWaveClient({
+  baseUrl, participantId, agentId, forwardOnBehalfOf: <span class="b">false</span>
+}, tokenManager);
 
 <span class="cm">// Inbound: the MCP server; register the tools you expose (§10.2).</span>
-<span class="k">const</span> { mcpServer, sessionState } = createMcpServer({ serverInfo, capabilities, registrations });
-<span class="cm">// Mount mcpServer on Streamable HTTP at POST /mcp — see src/mcp/server.ts.</span></pre>
+<span class="k">const</span> { mcpServer, sessionState } = createMcpServer({
+  serverInfo, capabilities, registrations });
+<span class="cm">// Mount on Streamable HTTP at POST /mcp — see src/mcp/server.ts.</span></pre>
       <div class="h3"><span class="n">2.2</span>Tier 1 — chat baseline</div>
       <ul class="ul">
         <li><b>Pipeline.</b> Run each turn through <code class="ic">runMessageTurn</code> (the eight prescribed phases, §10.6).</li>
@@ -323,8 +328,9 @@
         </tbody>
       </table>
       <div class="h3"><span class="n">10.2</span>OAuth2 / Keycloak</div>
-      <pre class="code"><span class="cm">// client_credentials bearer on every haiCore call (TokenManager caches + refreshes)</span>
-POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>  grant_type=client_credentials &amp; client_id &amp; client_secret
+      <pre class="code"><span class="cm">// client_credentials bearer on every haiCore call (cached + refreshed)</span>
+POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
+  grant_type=client_credentials &amp; client_id &amp; client_secret
 <span class="op">→</span> Authorization: Bearer <span class="s">{access_token}</span></pre>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
