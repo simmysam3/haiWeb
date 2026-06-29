@@ -436,6 +436,37 @@
   </div>
 </section>
 
+<!-- ============================ 06d · SECURITY (approval gateway) ============================ -->
+<section class="page" data-screen-label="6d">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">6.8</span>Approval Gateway</div>
+      <p class="p"><b>Optional, disabled by default.</b> The approval gateway pauses a high-stakes action until an explicit decision comes back, instead of letting the agent act on its own. It gates three action types — <code class="ic">trading_pair_connection</code>, <code class="ic">invoice_approval</code>, and <code class="ic">order_release</code> (the last only when the order value exceeds <code class="ic">APPROVAL_GATEWAY__ORDER_RELEASE_THRESHOLD</code>). With the gateway off (<code class="ic">APPROVAL_GATEWAY__ENABLED=false</code>, the default), these actions proceed without gating.</p>
+      <ul class="ul">
+        <li><b>Native.</b> The agent holds the pending approval in-process — pair it with a local approval UI or a simple hold-and-resume. This is the mode when no MCP endpoint is set.</li>
+        <li><b>MCP.</b> The agent delegates the decision to an external gateway at <code class="ic">APPROVAL_GATEWAY__MCP_ENDPOINT</code>. The decision returns asynchronously to <code class="ic">POST /approvals/callback</code>, whose body is verified with an HMAC (Hash-based Message Authentication Code) over the raw request bytes using <code class="ic">APPROVAL_GATEWAY__CALLBACK_SECRET</code> — the PROTO-3 guard the SDK exposes as <code class="ic">verifyCallbackSignature</code>.</li>
+      </ul>
+      <p class="p">While a request is pending the originating action is staged and resumes on the decision. A pending approval not decided within <code class="ic">APPROVAL_GATEWAY__EXPIRY_MINUTES</code> (default 1440 — 24 hours) is swept (every <code class="ic">__EXPIRY_CHECK_INTERVAL_MINUTES</code>, default 5) and resumed as <b>rejected</b>; the gateway polls decision status every <code class="ic">__POLL_INTERVAL_SECONDS</code> (default 180).</p>
+      <p class="p">The contract is Tier 1: <code class="ic">IApprovalGateway</code> (submit/poll), <code class="ic">IApprovalRepository</code>, and one <code class="ic">IApprovalResumeHandler</code> per approval type — all in <code class="ic">@haiwave/client-sdk</code>. The reference agent supplies the concretes (<code class="ic">NativeApprovalGateway</code> / <code class="ic">McpApprovalGateway</code>, <code class="ic">ApprovalRepository</code>, and the trading-pair / invoice / order-release resume handlers); swap any behind those interfaces.</p>
+      <table class="tbl">
+        <thead><tr><th>Variable (<code class="ic">APPROVAL_GATEWAY__</code>…)</th><th>Default</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">ENABLED</code></td><td class="s-no center">false</td><td>Master switch.</td></tr>
+          <tr><td class="lbl"><code class="ic">ORDER_RELEASE_THRESHOLD</code></td><td class="mono center">0</td><td>Order value above which a release needs approval.</td></tr>
+          <tr><td class="lbl"><code class="ic">MCP_ENDPOINT</code></td><td class="mono center">—</td><td>External gateway endpoint; set it for MCP mode (empty = Native).</td></tr>
+          <tr><td class="lbl"><code class="ic">CALLBACK_SECRET</code></td><td class="mono center">—</td><td>HMAC secret for the <code class="ic">/approvals/callback</code> callback.</td></tr>
+          <tr><td class="lbl"><code class="ic">EXPIRY_MINUTES</code></td><td class="mono center">1440</td><td>Pending lifetime before auto-rejection.</td></tr>
+          <tr><td class="lbl"><code class="ic">EXPIRY_CHECK_INTERVAL_MINUTES</code></td><td class="mono center">5</td><td>Expiry-sweep cadence.</td></tr>
+          <tr><td class="lbl"><code class="ic">POLL_INTERVAL_SECONDS</code></td><td class="mono center">180</td><td>Decision-poll cadence.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
 <!-- ============================ 07 · MANIFEST (pricing + recommendations) ============================ -->
 <section class="page" data-screen-label="7">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
