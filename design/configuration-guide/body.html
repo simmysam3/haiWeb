@@ -1,8 +1,8 @@
 <!--
   HAIWAVE Configuration Guide — design-system content pages (the body slot).
-  First pass generated from haiCore/docs/client-implementation-guidelines.md (v2.1)
-  per the authoring contract in template.html. One <section class="page"> per page;
-  .pagenum + toc__pg are auto-filled by the template script. ⚠ Pages were authored
+  Full content brought forward from haiCore/docs/client-implementation-guidelines.md (v2.1)
+  per the authoring contract in template.html. One page section per printed page;
+  .pagenum + toc__pg are auto-filled by the template script. Pages were authored
   without a render; verify each .page <= 1056px on first real render and split/trim
   any overflow (do not shrink the base type).
 -->
@@ -14,7 +14,7 @@
     <div class="page-top"><span class="lbl">Contents</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="h3"><span class="n">—</span>Contents</div>
-      <p class="p"><b>Audience.</b> Technical teams that build, extend, or deploy a HAIWAVE Free Agent SCM. One guide, three reader journeys: <b>A</b> build a conformant agent from scratch · <b>B</b> fork and extend the reference agent · <b>C</b> deploy the reference agent as-is. Read only the path that matches yours.</p>
+      <p class="p"><b>Audience.</b> Technical teams that build, extend, or deploy a HAIWAVE Free Agent SCM (supply-chain management). One guide, three reader journeys: <b>A</b> build a conformant agent from scratch · <b>B</b> fork and extend the reference agent · <b>C</b> deploy the reference agent as-is. Read only the path that matches yours. The scope is what a deploying or implementing company needs to know; it does not cover HAIWAVE Central internals or network operations.</p>
       <div class="toc">
         <div class="toc__group">
           <div class="toc__row"><span class="toc__num">01</span><span class="toc__t">Tier Model</span><span class="toc__pg" data-ref="s1"></span></div>
@@ -30,7 +30,34 @@
           <div class="toc__row"><span class="toc__num">11</span><span class="toc__t">Reference Links</span><span class="toc__pg" data-ref="s11"></span></div>
         </div>
       </div>
-      <div class="note teal"><p class="p"><span class="k">Conventions.</span> Configuration on <b>the deployed agent</b> appears as an environment variable (<code class="ic">MONOSPACE</code>) or an operations-manifest JSON block. Configuration in the <b>web console</b> appears as a breadcrumb (<span class="bc"><b>Account Management › Trading Partners</b></span>). Items tagged <span class="tag">Planned</span> are specified but not yet implemented in the current reference agent. The shipped, runnable schema source-of-truth is the in-package <code class="ic">@haiwave/protocol</code>.</p></div>
+      <div class="note teal"><p class="p"><span class="k">Conventions.</span> Configuration on <b>the deployed agent</b> appears as an environment variable (<code class="ic">MONOSPACE</code>) or an operations-manifest JSON block. Configuration in the <b>web console</b> appears as a breadcrumb (<span class="bc"><b>Account Management › Trading Partners</b></span>). Items tagged <span class="tag">Planned</span> are specified but not yet implemented in the current reference agent — called out so their absence is no surprise. The shipped, runnable schema source of truth is the in-package <code class="ic">@haiwave/protocol</code>; the master prose spec it mirrors is HAIWAVE-internal.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ FRONT · HOW TO USE + CHANGE LOG ============================ -->
+<section class="page" data-screen-label="Guide">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">Using This Guide</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">§0</span>How To Use This Guide</div>
+      <p class="p">This guide serves three journeys. Read the path that matches yours. Throughout, <b>Tier</b> refers to the conformance tier defined in §1, and <span class="tag">Planned</span> marks specified-but-unshipped behavior.</p>
+      <ul class="ul">
+        <li><b>Journey A — Build from scratch.</b> You are writing your own agent in your own stack and need only to conform to the HAIWAVE protocol. You consume <code class="ic">@haiwave/client-sdk</code> for the contracts (or reimplement them) and ignore the reference scaffold. Read: §1 → §2 → §3 → §6.7 → §10 → §11.</li>
+        <li><b>Journey B — Baseline and extend.</b> You fork the reference agent and override specific Tier 2 pieces — a different LLM, a Snowflake transaction store, custom recommendations. Read: all sections, in order.</li>
+        <li><b>Journey C — Deploy as-is.</b> You run the reference Docker image and change only configuration, environment, and branding. Read: §3 → §4 → §5.1 → §5.2 → §6 → §7 → §8 → §9 → §11.</li>
+      </ul>
+      <div class="h3"><span class="n">—</span>Change Log</div>
+      <table class="tbl">
+        <thead><tr><th>Version</th><th>Date</th><th>Summary</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">v1.0–v1.7</td><td class="mono">Feb–Jun 2026</td><td>Original single-audience guide (UI customization through custom-agent development), reconciled against the shipped agent at v1.7.</td></tr>
+          <tr><td class="lbl">v2.0</td><td class="mono">Jun 2026</td><td>Structural reskeleton (audit backlog BL-19). Reorganized into three reader journeys around the three-tier package boundary <code class="ic">@haiwave/protocol → @haiwave/client-sdk → @haiwave/reference-agent</code>. Added the Tier model (§1), SDK quick-start (§2), the swappable-interface surface (§5.3), the build-from-scratch SDK path (§10), and a conformance checklist (§10.7). All env-var, interface, and class names reconciled against the shipped SDK and reference agent.</td></tr>
+          <tr><td class="lbl">v2.1</td><td class="mono">Jun 2026</td><td>Currency and self-evidence pass against the v1.50 agent: the Tier-2 local-data chains are now registered chains in <code class="ic">@haiwave/reference-agent</code> (§5.4); the conformance kit pins Tier 0 and Tier 1 behaviorally — §10.7 maps every shipped test and adds the run command plus the SDK's <code class="ic">verifyCallbackSignature</code> PROTO-3 helper. Added a minimal wiring example (§2), a post-deploy smoke test (§4.3), named the console download page as the source for the SDK, agent, and guide (§4.1, §11), and documented <code class="ic">.env.example</code> as the CI-pinned config reference (§4.4).</td></tr>
+        </tbody>
+      </table>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -42,57 +69,87 @@
   <div class="page__inner">
     <div class="page-top"><span class="lbl">1 · Tier Model</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
-      <div class="sec-open" id="s1"><div class="sec-open__num">01</div><div><span class="sec-open__kicker">Foundations</span><div class="sec-open__title">Tier Model</div></div></div>
-      <p class="p">HAIWAVE ships as three layered packages. The dependency arrow points only left; an adopter consumes the surface appropriate to their journey.</p>
-      <pre class="code"><span class="cm">// dependency direction — strictly acyclic (enforced by tsc -b project references)</span>
+      <div class="sec-open" id="s1"><div class="sec-open__num">01</div><div><span class="sec-open__kicker">Foundations · Journeys A · B</span><div class="sec-open__title">Tier Model</div></div></div>
+      <p class="p">HAIWAVE ships as three layered packages. Each layer builds only on the ones to its left, so you can take a lower layer without the ones above it — the SDK does not pull in the reference agent. Use the layer that fits your work. This section only defines the vocabulary; the capabilities are enumerated in §5 (for B and C) and §10 (for A).</p>
+      <pre class="code"><span class="cm">// build order — strictly acyclic (enforced by tsc -b project references)</span>
 @haiwave/protocol  <span class="op">→</span>  @haiwave/client-sdk  <span class="op">→</span>  @haiwave/reference-agent  <span class="op">→</span>  root app
    (wire types)        (prescribed surface)      (reference scaffold)         (composition)</pre>
-      <div class="h3"><span class="n">1.1</span>The three tiers</div>
-      <p class="p"><b>Tier 0 — Wire &amp; transport.</b> The protocol message schemas (<code class="ic">@haiwave/protocol</code>) plus transport and auth (<code class="ic">HaiWaveClient</code>, <code class="ic">TokenManager</code>, the MCP server, JWT validation, the PROTO-3 callback HMAC). You cannot change Tier 0 without leaving the network.</p>
-      <p class="p"><b>Tier 1 — Prescribed conformance.</b> The interfaces and invariants every agent must honor: the chat pipeline phases, the intent taxonomy, the role floor, the write-confirmation gate, the transaction-touching chains, the data-disclosure contracts. Extend at the declared extension points; never remove or bypass them.</p>
-      <p class="p"><b>Tier 2 — Reference scaffold.</b> Everything in <code class="ic">@haiwave/reference-agent</code>: the DuckDB data layer, the Claude/Gemini adapters, the local embedding model, the reference pricing/lead-time/recommendation logic, the UI. Freely replaceable behind the Tier 1 interfaces.</p>
-      <div class="note"><p class="p"><span class="k">Heavy-dep firewall.</span> The root app and <code class="ic">@haiwave/client-sdk</code> are free of the six heavy native deps (DuckDB, embeddings, the LLM vendor SDKs, doc parsers) — those live only in <code class="ic">@haiwave/reference-agent</code>. Guard tests pin this.</p></div>
+      <div class="h3"><span class="n">1.1</span>The Three Tiers</div>
+      <p class="p"><b>Tier 0 — Wire And Transport.</b> The protocol message schemas (<code class="ic">@haiwave/protocol</code>) plus transport and auth: the outbound client (<code class="ic">HaiWaveClient</code>, <code class="ic">TokenManager</code>), the MCP (Model Context Protocol) server, JWT (JSON Web Token) validation, and the PROTO-3 callback HMAC (Hash-based Message Authentication Code). You cannot change Tier 0 without leaving the network.</p>
+      <p class="p"><b>Tier 1 — Prescribed Conformance.</b> The interfaces and invariants every agent must honor: the chat pipeline phases, the intent taxonomy, the role floor, the write-confirmation gate, the transaction-touching chains, the data-disclosure contracts. Extend at the declared extension points; never remove or bypass them.</p>
+      <p class="p"><b>Tier 2 — Reference Scaffold.</b> Everything in <code class="ic">@haiwave/reference-agent</code>: the reference data layer (a single-file DuckDB by default), the Claude and Gemini adapters, the local embedding model, the reference pricing, lead-time, and recommendation logic, and the UI. Each piece is freely replaceable behind the Tier 1 interfaces.</p>
+      <div class="note"><p class="p"><span class="k">Data store is your choice.</span> DuckDB is only the quick-start default — single-file and in-process, so the reference agent runs with no external database. Production deployments point the <code class="ic">DataStore</code> interface at the data platform they already run (Snowflake or any other) and reuse that investment; the agent is not tied to DuckDB. The heavy native dependencies (DuckDB, embeddings, the LLM vendor SDKs, document parsers) live only in <code class="ic">@haiwave/reference-agent</code> — the root app and <code class="ic">@haiwave/client-sdk</code> stay free of them, and guard tests pin that boundary.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 02 · SDK QUICK-START ============================ -->
+<!-- ============================ 02 · SDK QUICK-START (A) ============================ -->
 <section class="page" data-screen-label="2">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">2 · SDK Quick-Start</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s2"><div class="sec-open__num">02</div><div><span class="sec-open__kicker">Journeys A · B</span><div class="sec-open__title">SDK Quick-Start</div></div></div>
-      <div class="h4"><span class="t">Prerequisites —</span> what to have before wiring.</div>
+      <p class="p">The minimum to get a Tier 0 + Tier 1 conformant agent running from <code class="ic">@haiwave/client-sdk</code>.</p>
+      <div class="h3"><span class="n">2.1</span>Prerequisites</div>
       <ul class="ul">
         <li><b>Node.js 22+.</b></li>
-        <li><b>A reasoning key.</b> <code class="ic">ANTHROPIC_API_KEY</code> or <code class="ic">GEMINI_API_KEY</code>.</li>
+        <li><b>A reasoning key.</b> An Anthropic key (<code class="ic">ANTHROPIC_API_KEY</code>) or a Gemini key (<code class="ic">GEMINI_API_KEY</code>).</li>
         <li><b>Network credentials</b> from §3: <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_SECRET</code>.</li>
-        <li><b><code class="ic">@haiwave/client-sdk</code></b> — obtained inside the Free Agent source from the console download page (a workspace package, not a public registry install). It declares <code class="ic">@haiwave/protocol</code> as a peer dependency satisfied by the in-source copy.</li>
+        <li><b><code class="ic">@haiwave/client-sdk</code>.</b> Obtained inside the Free Agent source downloaded from the HAIWAVE console (a workspace package consumed from that source, not a public npm install). It declares <code class="ic">@haiwave/protocol</code> as a peer dependency, satisfied by the protocol copy that ships hoisted in the same source package (§11).</li>
       </ul>
-      <div class="h3"><span class="n">2.1</span>Tier 0 — minimal wiring</div>
-      <p class="p">Two halves: the outbound client to HAIWAVE Central, and the inbound MCP server haiCore calls into.</p>
+      <div class="h3"><span class="n">2.2</span>Tier 0 — Transport And Auth</div>
+      <p class="p">The SDK provides the transport primitives. Wire them in this order:</p>
+      <ol class="ol">
+        <li><b>Token management.</b> Instantiate <code class="ic">TokenManager</code> with your Keycloak client credentials and <code class="ic">KEYCLOAK_TOKEN_ENDPOINT</code>. It handles client-credentials token acquisition, caching, and refresh.</li>
+        <li><b>Central client.</b> Instantiate <code class="ic">HaiWaveClient</code> (typed by the <code class="ic">IHaiWaveClient</code> contract) with the <code class="ic">TokenManager</code> and <code class="ic">HAICORE_BASE_URL</code>. This is your outbound channel to HAIWAVE Central; it attaches the bearer token to every call.</li>
+        <li><b>MCP server.</b> Build your inbound MCP server with <code class="ic">createMcpServer</code>; per-request session state comes from <code class="ic">createSessionState</code>.</li>
+        <li><b>Inbound auth.</b> Gate the <code class="ic">/mcp</code> route with <code class="ic">validateJwt</code> (configured by <code class="ic">McpAuthConfig</code>). Enforcement is controlled by <code class="ic">MCP_AUTH_REQUIRED</code>; supply <code class="ic">KEYCLOAK_JWKS_URI</code> / <code class="ic">KEYCLOAK_ISSUER</code> for RS256 in production.</li>
+        <li><b>Origin assertion.</b> Call <code class="ic">assertHaiCoreOrigin</code> on inbound requests so only HAIWAVE Central can route to your agent (§6.7).</li>
+        <li><b>Register tools and resources</b> on the MCP server (the protocol tool surface is in §10.2).</li>
+      </ol>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 02b · SDK QUICK-START (wiring + chat) ============================ -->
+<section class="page" data-screen-label="2b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">2 · SDK Quick-Start</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">Minimal wiring —</span> the two halves: outbound to Central, inbound MCP server.</div>
       <pre class="code"><span class="k">import</span> { TokenManager, HaiWaveClient, createMcpServer }
   <span class="k">from</span> <span class="s">'@haiwave/client-sdk'</span>;
 
-<span class="cm">// Outbound: client-credentials token + Central client.</span>
+<span class="cm">// Outbound: client-credentials token manager + the authenticated Central client.</span>
 <span class="k">const</span> tokenManager = <span class="k">new</span> TokenManager({
-  tokenEndpoint, clientId, clientSecret, scopes });
+  tokenEndpoint, clientId, clientSecret,
+  scopes: [<span class="s">'gofish:query'</span>, <span class="s">'gofish:respond'</span>, <span class="s">'catalog:query'</span> <span class="cm">/* full set in .env.example */</span>],
+});
 <span class="k">const</span> central = <span class="k">new</span> HaiWaveClient({
-  baseUrl, participantId, agentId, forwardOnBehalfOf: <span class="b">false</span>
+  baseUrl, participantId, agentId, forwardOnBehalfOf: <span class="b">false</span>,
 }, tokenManager);
+<span class="cm">// `central` now attaches a fresh bearer token to every haiCore call.</span>
 
-<span class="cm">// Inbound: the MCP server; register the tools you expose (§10.2).</span>
+<span class="cm">// Inbound: the MCP server haiCore calls into. Register the tools you expose (§10.2).</span>
 <span class="k">const</span> { mcpServer, sessionState } = createMcpServer({
-  serverInfo, capabilities, registrations });
-<span class="cm">// Mount on Streamable HTTP at POST /mcp — see src/mcp/server.ts.</span></pre>
-      <div class="h3"><span class="n">2.2</span>Tier 1 — chat baseline</div>
-      <ul class="ul">
-        <li><b>Pipeline.</b> Run each turn through <code class="ic">runMessageTurn</code> (the eight prescribed phases, §10.6).</li>
-        <li><b>Routing.</b> Route against <code class="ic">VALID_INTENTS</code> with <code class="ic">QueryRouter</code>; register the 11 prescribed chains in <code class="ic">PromptChainRegistry</code>.</li>
-        <li><b>Gates.</b> Enforce the <code class="ic">quote_accept → trader</code> role floor and the pending-confirmation write gate.</li>
-      </ul>
+  serverInfo, capabilities, registrations,
+});
+<span class="cm">// Mount mcpServer on a Streamable HTTP transport at POST /mcp — see src/mcp/server.ts.</span></pre>
+      <div class="h3"><span class="n">2.3</span>Tier 1 — Chat Baseline</div>
+      <p class="p">If your agent exposes the conversational surface, wire the prescribed chat baseline from <code class="ic">@haiwave/client-sdk</code>:</p>
+      <ol class="ol">
+        <li><b>Pipeline.</b> Run each turn through <code class="ic">runMessageTurn</code>, which executes the eight prescribed phases in order (§10.6).</li>
+        <li><b>Sessions.</b> Manage conversational state with <code class="ic">SessionManager</code> / <code class="ic">ChatSession</code>.</li>
+        <li><b>Routing.</b> Route against the <code class="ic">VALID_INTENTS</code> taxonomy using <code class="ic">QueryRouter</code> (with an <code class="ic">IQueryFastPath</code> for the regex fast path).</li>
+        <li><b>Role floor.</b> Enforce role gating via <code class="ic">hasMinimumRole</code>; the <code class="ic">quote_accept</code> intent has a hard <code class="ic">trader</code> floor.</li>
+        <li><b>Chains.</b> Register the 11 prescribed transaction-touching chains in the <code class="ic">PromptChainRegistry</code>.</li>
+        <li><b>Write gate.</b> Preserve the pending-confirmation state machine (<code class="ic">handlePendingConfirmation</code> plus the arming in <code class="ic">finalizeTurn</code>) so no write executes without explicit acknowledgment.</li>
+      </ol>
+      <div class="note teal"><p class="p"><span class="k">2.4 Deploy-as-is shortcut (C).</span> If you are not modifying code, skip §2 and go to §4. The SDK quick-start is for Journeys B and A; chain extension points belong to §5.4 (B) and §10 (A).</p></div>
       <div class="cfg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007585" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span class="lab">Verify with</span><b>npx vitest run packages/client-sdk/src/__tests__/conformance/</b></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
@@ -106,137 +163,232 @@
     <div class="page-top"><span class="lbl">3 · Network Registration</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s3"><div class="sec-open__num">03</div><div><span class="sec-open__kicker">Journeys A · B · C</span><div class="sec-open__title">Network Registration</div></div></div>
-      <p class="p">Joining the HAIWAVE network is a gated, human-reviewed process — not self-service. Every participant is screened and explicitly admitted before credentials are issued.</p>
+      <p class="p">Joining the HAIWAVE network is a gated, human-reviewed process, not a self-service signup. Every participant is screened and explicitly admitted by a HAIWAVE gatekeeper before any credentials are issued. Credentials — and therefore the ability to download the agent and operate in network mode — arrive only on approval. The flow has three stages.</p>
       <ol class="ol">
-        <li><b>Public application.</b> A prospective supplier completes the form at <code class="ic">/join</code>. This creates an inert holding-pen record (<code class="ic">status = pending_approval</code>); no participant, Keycloak user, or session is created yet, and the response is a uniform acknowledgement. Collects contact, legal entity + website, HQ country (ISO 3166-1 alpha-2, the screening key), HQ address, and at least one business identifier (Tax ID or DUNS).</li>
-        <li><b>Automated jurisdiction screening.</b> Central assigns a risk tier from the HQ country alone — <code class="ic">blocked</code> / <code class="ic">elevated</code> / <code class="ic">standard</code>. Screening is a signal for the human gatekeeper, not an automatic gate.</li>
-        <li><b>Gatekeeper adjudication.</b> A gatekeeper reviews pending applications at <span class="bc"><b>Admin › Registration requests</b></span> and approves or rejects (both audited). Approving a <code class="ic">blocked</code>-tier application requires an explicit, audited override.</li>
+        <li><b>Public application.</b> A prospective supplier completes the form on the marketing site (<code class="ic">/join</code>). This creates an inert holding-pen record (<code class="ic">status = pending_approval</code>); no participant, Keycloak user, or session is created yet, and the response is a uniform acknowledgement that leaks no screening outcome. It collects contact, legal entity name and website, headquarters country (an ISO 3166-1 alpha-2 code — the screening key), headquarters address, and at least one business identifier (Tax ID or DUNS, the Data Universal Numbering System ID).</li>
+        <li><b>Automated jurisdiction screening.</b> HAIWAVE Central assigns a risk tier from the headquarters country alone — <code class="ic">blocked</code> (sanctioned jurisdiction), <code class="ic">elevated</code> (outside the gatekeeper's domestic jurisdiction), or <code class="ic">standard</code> (domestic). Screening is a signal for the human gatekeeper, not an automatic gate.</li>
+        <li><b>Gatekeeper adjudication.</b> A gatekeeper reviews pending applications at <span class="bc"><b>Admin › Registration requests</b></span> (<code class="ic">/account/admin/registrations</code>) and approves or rejects (both audited). Rejection requires a reason and tombstones the record (PII partly redacted) for later re-invitation. Approving a <code class="ic">blocked</code>-tier application requires an explicit, audited override.</li>
       </ol>
-      <div class="note teal"><p class="p"><span class="k">On approval.</span> An idempotent provisioning step creates your participant record (<code class="ic">participant_id</code> / <code class="ic">agent_id</code>), creates a console user (one-time password reset + TOTP), and emails a single-use activation link. From there you can sign in, download the agent, and retrieve your agent's Keycloak client credentials.</p></div>
+      <div class="note teal"><p class="p"><span class="k">On approval.</span> An idempotent provisioning step creates your participant record (<code class="ic">participant_id</code> / <code class="ic">agent_id</code>), creates a Keycloak user for console access (a one-time setup requiring password reset plus TOTP, a Time-based One-Time Password, enrollment), and emails a single-use activation link. From there you can sign in to the console, download the agent source or Docker image, retrieve your agent's Keycloak client credentials, and proceed with the network-mode deployment in §4. The six trust tiers assigned to your counterparties are covered in §6.2.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 04 · DEPLOY ============================ -->
+<!-- ============================ 04 · DEPLOY (source + modes) ============================ -->
 <section class="page" data-screen-label="4">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s4"><div class="sec-open__num">04</div><div><span class="sec-open__kicker">Journeys B · C</span><div class="sec-open__title">Deploy the Reference Agent</div></div></div>
-      <p class="p">After approval, download the Free Agent source or the pre-built Docker image from the console (<span class="bc"><b>Account › Agent Software</b></span> — the definitive source for the SDK, the agent, and this guide). The container ships config as a seed template and mounts the runtime config on a volume (<code class="ic">VOLUME /data/config</code>); set <code class="ic">CONFIG_DIR=/data/config</code>.</p>
-      <div class="h3"><span class="n">4.1</span>Standalone vs. network mode</div>
-      <p class="p"><b>Standalone</b> — a local AI assistant; no credentials, no network participation. <b>Network</b> — adds Keycloak auth, registration, heartbeats, Go Fish, manifest exchange, and order flow; requires the identity + Keycloak credentials. <span class="tag">Planned</span> automatic mode selection from credential presence is not yet wired — treat the agent as network-oriented.</p>
-      <div class="h3"><span class="n">4.2</span>Deployment steps</div>
-      <ol class="ol">
-        <li><b>Keys.</b> Set <code class="ic">ANTHROPIC_API_KEY</code> (or <code class="ic">GEMINI_API_KEY</code>) and, for network mode, the identity + Keycloak credentials + <code class="ic">HAICORE_BASE_URL</code>.</li>
-        <li><b>Data.</b> Set <code class="ic">DUCKDB_PATH</code> (omit for in-memory) and load your catalog.</li>
-        <li><b>Config.</b> Set manifest posture, pricing defaults, and business documents; restart.</li>
-        <li><b>Register.</b> The agent authenticates, bootstraps network config, and becomes discoverable; the product scanner classifies the catalog.</li>
-      </ol>
-      <div class="cfg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007585" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span class="lab">Verify</span><b>curl /health · token-exchange log line · conformance kit green</b></div>
+      <div class="h3"><span class="n">4.1</span>Source And Image</div>
+      <p class="p">After §3 approval, download the reference agent from the HAIWAVE console <b>download page</b> (<span class="bc"><b>Account › Agent Software</b></span>) — the definitive source for the Free Agent client source package, the <code class="ic">@haiwave/client-sdk</code>, and this configuration guide. The reference image is a standard <code class="ic">node:22</code> build. The container ships its config as a <b>seed template</b> and mounts the runtime config on a volume (<code class="ic">VOLUME /data/config</code>). On first boot the entrypoint copies the seed into the mounted volume and never overwrites existing files, so an image upgrade cannot clobber your runtime customizations. Set <code class="ic">CONFIG_DIR=/data/config</code> to point the agent at the mounted volume.</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>FIPS-hardened agent image.</b> A FIPS-hardened agent image is on the roadmap. The FIPS-validated images that exist today are for HAIWAVE Central, not the partner-deployed agent.</p></div>
+      <div class="h3"><span class="n">4.2</span>Standalone vs. Network Mode</div>
+      <ul class="ul">
+        <li><b>Standalone.</b> A local AI assistant for your team. No HAIWAVE credentials, no network participation, no Go Fish, no manifest exchange.</li>
+        <li><b>Network.</b> Everything standalone does, plus Keycloak authentication, network registration, heartbeats, Go Fish discovery, manifest exchange, and order flow. Requires <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, and Keycloak client credentials.</li>
+      </ul>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Automatic mode selection.</b> The intended design selects the mode from the presence of network credentials. Today the switch is not wired: the chat surfaces assume network mode, and <code class="ic">PARTICIPANT_ID</code> / <code class="ic">AGENT_ID</code> carry placeholder defaults when unset. Treat the reference agent as network-oriented; coordinate with your HAIWAVE contact for a pure standalone deployment.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 04b · ENV VARS ============================ -->
+<!-- ============================ 04b · DEPLOY (steps + verify) ============================ -->
 <section class="page" data-screen-label="4b">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
-      <div class="h3"><span class="n">4.3</span>Environment variable reference</div>
-      <p class="p">The authoritative, CI-pinned, exhaustive reference is the agent's <code class="ic">.env.example</code> (a test fails the build if it drifts from the loader). Common variables:</p>
+      <div class="h3"><span class="n">4.3</span>Deployment Steps</div>
+      <div class="h4"><span class="t">Standalone —</span> a local assistant for your team.</div>
       <table class="tbl">
-        <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+        <thead><tr><th class="center">#</th><th>Step</th></tr></thead>
         <tbody>
-          <tr><td class="lbl"><code class="ic">PORT</code></td><td class="mono">3001</td><td>Agent HTTP port.</td></tr>
-          <tr><td class="lbl"><code class="ic">PARTICIPANT_ID</code> / <code class="ic">AGENT_ID</code></td><td class="mono">participant-001 / agent-001</td><td>Network identity.</td></tr>
-          <tr><td class="lbl"><code class="ic">HAICORE_BASE_URL</code></td><td class="mono">localhost:3000</td><td>HAIWAVE Central base URL.</td></tr>
-          <tr><td class="lbl"><code class="ic">LLM_PROVIDER</code></td><td class="mono">claude</td><td><code class="ic">claude</code> or <code class="ic">gemini</code>.</td></tr>
-          <tr><td class="lbl"><code class="ic">EMBEDDING_PROVIDER</code></td><td class="mono">local</td><td>In-process ONNX or <code class="ic">gemini</code>.</td></tr>
-          <tr><td class="lbl"><code class="ic">KEYCLOAK_CLIENT_ID</code> / <code class="ic">_SECRET</code></td><td class="mono">—</td><td>Agent client credentials.</td></tr>
-          <tr><td class="lbl"><code class="ic">KEYCLOAK_JWKS_URI</code></td><td class="mono">—</td><td>Realm certs endpoint (production).</td></tr>
-          <tr><td class="lbl"><code class="ic">MCP_AUTH_REQUIRED</code></td><td class="s-no">false</td><td>Enforce JWT on <code class="ic">/mcp</code>.</td></tr>
-          <tr><td class="lbl"><code class="ic">DUCKDB_PATH</code></td><td class="mono">in-memory</td><td>DuckDB file path.</td></tr>
-          <tr><td class="lbl"><code class="ic">AGENT_QUERY_MODE</code></td><td class="mono">haiwave_only</td><td>Supply-chain-only vs. general.</td></tr>
-          <tr><td class="lbl"><code class="ic">ADMIN_API_KEY</code></td><td class="mono">—</td><td>Guards <code class="ic">/admin/*</code> (403 if unset).</td></tr>
-          <tr><td class="lbl"><code class="ic">CONFIG_DIR</code></td><td class="mono">./config</td><td>Runtime config dir; <code class="ic">/data/config</code> in containers.</td></tr>
+          <tr><td class="mono center">1</td><td>Download the source package or Docker image.</td></tr>
+          <tr><td class="mono center">2</td><td>Obtain an Anthropic key (<code class="ic">console.anthropic.com</code>) and set <code class="ic">ANTHROPIC_API_KEY</code>.</td></tr>
+          <tr><td class="mono center">3</td><td>Set <code class="ic">DUCKDB_PATH</code> (omit for an in-memory DB) and load your product data via the seed scripts.</td></tr>
+          <tr><td class="mono center">4</td><td>Start the container.</td></tr>
+          <tr><td class="mono center">5</td><td>The agent is serving your team.</td></tr>
         </tbody>
       </table>
-      <div class="note"><p class="p"><span class="k">No <code class="ic">DATABASE_TYPE</code> switch.</span> DuckDB is the only wired engine; swap the <code class="ic">DataStore</code> interface to retarget it.</p></div>
-    </div>
-    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
-  </div>
-</section>
-
-<!-- ============================ 05 · EXTEND & CUSTOMIZE ============================ -->
-<section class="page" data-screen-label="5">
-  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
-  <div class="page__inner">
-    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
-    <div class="body" style="padding-top:14px;">
-      <div class="sec-open" id="s5"><div class="sec-open__num">05</div><div><span class="sec-open__kicker">Journey B</span><div class="sec-open__title">Reference Agent: Extend &amp; Customize</div></div></div>
-      <p class="p">What you can change without leaving the reference agent. For C: configuration and environment only. For B: also code-level Tier 2 swaps — implement the interface and inject your implementation at the composition root (<code class="ic">src/app.ts</code>).</p>
-      <div class="h3"><span class="n">5.1</span>Swappable interfaces (Tier 2 overrides)</div>
+      <div class="h4"><span class="t">Network mode —</span> adds to the above.</div>
       <table class="tbl">
-        <thead><tr><th>Interface</th><th>Reference concrete</th></tr></thead>
+        <thead><tr><th class="center">#</th><th>Step</th></tr></thead>
         <tbody>
-          <tr><td class="lbl"><code class="ic">ILLMProvider</code></td><td>ClaudeAdapter / GeminiAdapter</td></tr>
-          <tr><td class="lbl"><code class="ic">IEmbeddingProvider</code></td><td>LocalEmbeddingProvider / GeminiEmbeddingProvider</td></tr>
-          <tr><td class="lbl"><code class="ic">DataStore</code> · <code class="ic">ITransactionDatabase</code></td><td>DuckDBDataStore / DuckDB stores <span class="tag">Planned</span> Snowflake</td></tr>
-          <tr><td class="lbl"><code class="ic">IPricingEngine</code> · <code class="ic">ILeadTimeService</code></td><td>PricingEngine / LeadTimeService (the <code class="ic">price_basis</code> label is Tier 1)</td></tr>
-          <tr><td class="lbl"><code class="ic">IApprovalGateway</code> · <code class="ic">IApprovalRepository</code></td><td>Native/MCP gateways · ApprovalRepository</td></tr>
-          <tr><td class="lbl">Narrowing strategy (ranker/selector/pre-seeder)</td><td>InformationGainRanker · …</td></tr>
+          <tr><td class="mono center">6</td><td>Complete §3 registration; on approval, collect <code class="ic">participant_id</code>, <code class="ic">agent_id</code>, Keycloak client credentials, console access.</td></tr>
+          <tr><td class="mono center">7</td><td>Set <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_SECRET</code>, <code class="ic">KEYCLOAK_TOKEN_ENDPOINT</code>, <code class="ic">HAICORE_BASE_URL</code>.</td></tr>
+          <tr><td class="mono center">8</td><td>Configure manifest posture, pricing defaults, and business documents.</td></tr>
+          <tr><td class="mono center">9</td><td>Restart. The agent authenticates with Keycloak, bootstraps its network config, and registers.</td></tr>
+          <tr><td class="mono center">10</td><td>The product scanner classifies your catalog; the agent answers heartbeats and becomes discoverable.</td></tr>
         </tbody>
       </table>
-      <div class="h3"><span class="n">5.2</span>UI, branding &amp; cost</div>
+      <div class="h4"><span class="t">Verify it is working —</span> after start-up.</div>
       <ul class="ul">
-        <li><b>Branding.</b> Theme via CSS variables; set <code class="ic">COMPANY_NAME</code>. <b>Required:</b> keep the HAIWAVE footer attribution + link visible (a license condition).</li>
-        <li><b>Cost.</b> You pay the LLM provider directly. A two-tier router uses a regex fast-path before a light LLM classification; session/daily token caps are hard ceilings.</li>
+        <li><b>Process up.</b> <code class="ic">curl -s http://&lt;host&gt;:&lt;port&gt;/health | jq .version</code> returns the running version.</li>
+        <li><b>Reached Central.</b> In network mode the logs show a successful Keycloak token exchange against <code class="ic">HAICORE_BASE_URL</code> (not the localhost fallback) and a registration / heartbeat acknowledgement. A token-exchange failure or the localhost fallback means the Keycloak credentials or <code class="ic">HAICORE_BASE_URL</code> are wrong.</li>
+        <li><b>Behaviors intact.</b> Run the conformance kit against the source: <code class="ic">npx vitest run packages/client-sdk/src/__tests__/conformance/</code> (§10.7).</li>
       </ul>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 06 · SECURITY POSTURE ============================ -->
+<!-- ============================ 04c · ENV VARS ============================ -->
+<section class="page" data-screen-label="4c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">4.4</span>Environment Variable Reference</div>
+      <p class="p">The authoritative, exhaustive reference is the agent's <code class="ic">.env.example</code> — it lists every variable the code reads, with exact names and built-in defaults, and a CI test (<code class="ic">src/__tests__/env-example.test.ts</code>) fails the build if it drifts from the loader. Copy it to <code class="ic">.env</code> and fill in your values. The table below is a curated subset of the most common variables.</p>
+      <table class="tbl">
+        <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">PORT</code></td><td class="mono">3001</td><td>Agent HTTP port.</td></tr>
+          <tr><td class="lbl"><code class="ic">PARTICIPANT_ID</code> / <code class="ic">AGENT_ID</code></td><td class="mono">participant-001 / agent-001</td><td>Network identity (network mode).</td></tr>
+          <tr><td class="lbl"><code class="ic">HAICORE_BASE_URL</code></td><td class="mono">localhost:3000</td><td>HAIWAVE Central base URL.</td></tr>
+          <tr><td class="lbl"><code class="ic">LLM_PROVIDER</code></td><td class="mono">claude</td><td><code class="ic">claude</code> or <code class="ic">gemini</code> (also a <code class="ic">--provider</code> CLI flag).</td></tr>
+          <tr><td class="lbl"><code class="ic">ANTHROPIC_API_KEY</code> / <code class="ic">GEMINI_API_KEY</code></td><td class="mono">—</td><td>Reasoning provider key.</td></tr>
+          <tr><td class="lbl"><code class="ic">EMBEDDING_PROVIDER</code></td><td class="mono">local</td><td><code class="ic">local</code> (in-process ONNX, the Open Neural Network Exchange) or <code class="ic">gemini</code>.</td></tr>
+          <tr><td class="lbl"><code class="ic">KEYCLOAK_TOKEN_ENDPOINT</code></td><td class="mono">local realm URL</td><td>Keycloak token endpoint.</td></tr>
+          <tr><td class="lbl"><code class="ic">KEYCLOAK_CLIENT_ID</code> / <code class="ic">_SECRET</code></td><td class="mono">haiwave-agent / dev-secret</td><td>Agent client credentials.</td></tr>
+          <tr><td class="lbl"><code class="ic">KEYCLOAK_JWKS_URI</code> / <code class="ic">_ISSUER</code></td><td class="mono">—</td><td>RS256 JWKS + <code class="ic">iss</code> enforcement (production).</td></tr>
+          <tr><td class="lbl"><code class="ic">MCP_AUTH_REQUIRED</code></td><td class="s-no">false</td><td>Enforce JWT on the <code class="ic">/mcp</code> route.</td></tr>
+          <tr><td class="lbl"><code class="ic">DUCKDB_PATH</code></td><td class="mono">in-memory</td><td>DuckDB file path (quick-start default store).</td></tr>
+          <tr><td class="lbl"><code class="ic">AGENT_QUERY_MODE</code></td><td class="mono">haiwave_only</td><td><code class="ic">haiwave_only</code> (supply-chain only) or <code class="ic">haiwave_and_general</code>.</td></tr>
+          <tr><td class="lbl"><code class="ic">AGENT_INTERACTION_MODE</code></td><td class="mono">agent_only</td><td><code class="ic">agent_only</code> or <code class="ic">agent_and_human</code>.</td></tr>
+          <tr><td class="lbl"><code class="ic">AGENT_CHAT_SESSION_TOKEN_LIMIT</code></td><td class="mono">500000</td><td>Per-session token cap.</td></tr>
+          <tr><td class="lbl"><code class="ic">AGENT_CHAT_DAILY_TOKEN_LIMIT</code></td><td class="mono">5000000</td><td>Per-day token cap.</td></tr>
+          <tr><td class="lbl"><code class="ic">COMPANY_NAME</code></td><td class="mono">HAIWAVE Participant</td><td>Displayed in the header.</td></tr>
+          <tr><td class="lbl"><code class="ic">ADMIN_API_KEY</code></td><td class="mono">—</td><td>Guards <code class="ic">/admin/*</code> via <code class="ic">X-Admin-Key</code>; admin routes 403 if unset.</td></tr>
+          <tr><td class="lbl"><code class="ic">CONFIG_DIR</code></td><td class="mono">./config</td><td>Runtime config directory; <code class="ic">/data/config</code> in containers.</td></tr>
+          <tr><td class="lbl"><code class="ic">APPROVAL_GATEWAY__*</code></td><td class="mono">disabled</td><td>Approval gateway (disabled by default).</td></tr>
+          <tr><td class="lbl"><code class="ic">MES_ENABLED</code> / <code class="ic">MES_CONFIG</code> / <code class="ic">SKU_PICKER_SCOPE</code></td><td class="mono">false / — / published_only</td><td>Phantom-demand MES (Manufacturing Execution System) bridge (§8.1).</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><p class="p"><span class="k">No <code class="ic">DATABASE_TYPE</code> switch.</span> The reference build ships a single-file, in-process DuckDB as its quick-start default, so there is nothing to provision to run it. Production deployments point the <code class="ic">DataStore</code> interface (§5.3) at the data platform they already run — Snowflake or any other — and reuse that investment; the agent is not tied to DuckDB.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 05 · EXTEND (UI/branding) ============================ -->
+<section class="page" data-screen-label="5">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="sec-open" id="s5"><div class="sec-open__num">05</div><div><span class="sec-open__kicker">Journeys B · C</span><div class="sec-open__title">Reference Agent: Extend &amp; Customize</div></div></div>
+      <p class="p">What you can change without leaving the reference agent. For C: configuration and environment only. For B: also code-level Tier 2 swaps (§5.3–§5.4).</p>
+      <div class="h3"><span class="n">5.1</span>UI And Branding</div>
+      <p class="p">The agent ships a clean, unbranded shadcn/ui interface (zinc/slate, no color opinion). There are three levels of customization; most deployments need only Level 1.</p>
+      <table class="tbl">
+        <thead><tr><th>Level</th><th>What changes</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">1 — Theme</td><td>Color system, radius, typography, spacing</td><td>CSS variables in <code class="ic">src/styles/globals.css</code> (the shadcn theme generator); Tailwind config for fonts/spacing</td></tr>
+          <tr><td class="lbl">2 — Components</td><td>Component structure, variants, behavior</td><td>Component source in <code class="ic">src/components/ui/</code>, <code class="ic">shell/</code>, <code class="ic">chat/</code> — copied into your project, fully yours to edit</td></tr>
+          <tr><td class="lbl">3 — Structural</td><td>Layout (single-pane, sidebar, embedded widget), shell</td><td>Fork the frontend; the backend API surface (WebSocket streaming, auth, routing) is unchanged</td></tr>
+        </tbody>
+      </table>
+      <p class="p"><b>Company quickstart:</b> set brand colors in <code class="ic">globals.css</code>, replace the logo and update <code class="ic">Header.tsx</code>, set <code class="ic">COMPANY_NAME</code>, add your typeface to the Tailwind config. <b>Required:</b> the HAIWAVE footer attribution and link to <code class="ic">www.haiwave.ai</code> must remain visible (a license condition).</p>
+      <div class="note"><p class="p"><span class="k">Customer-facing deployments.</span> A public website chat carries extra considerations: integrate your own customer auth; enforce per-session and per-day token caps (<code class="ic">AGENT_CHAT_SESSION_TOKEN_LIMIT</code>, <code class="ic">AGENT_CHAT_DAILY_TOKEN_LIMIT</code>) plus connection rate limiting; and keep <code class="ic">AGENT_QUERY_MODE=haiwave_only</code> so the agent stays a supply-chain assistant rather than a general-purpose chatbot on your token budget.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 05b · EXTEND (LLM + cost) ============================ -->
+<section class="page" data-screen-label="5b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">5.2</span>LLM Provider And Cost</div>
+      <p class="p">The agent uses a hosted LLM for all reasoning; you pay the provider directly (HAIWAVE neither provides keys nor proxies calls). Select the reasoning provider with <code class="ic">LLM_PROVIDER</code> (<code class="ic">claude</code> default, or <code class="ic">gemini</code>) and the embedding provider with <code class="ic">EMBEDDING_PROVIDER</code> (<code class="ic">local</code> default — in-process and key-free — or <code class="ic">gemini</code>). Default models are <code class="ic">claude-sonnet-4-6</code> and <code class="ic">gemini-2.5-flash</code>. Both adapters are supported configurations.</p>
+      <p class="p">Cost is driven by query volume and catalog size. The agent uses a <b>two-tier query router</b>: a tight regex fast-path classifies a narrow set of unambiguous, high-frequency requests (order lookups, ERP status, confirmations) without a model call; everything else falls through to a lightweight LLM classification step. The fast-path is deliberately narrow, so savings are real but bounded. The session and daily token caps are hard cost ceilings.</p>
+      <div class="note teal"><p class="p"><span class="k">Support scope.</span> The reference Claude / Gemini configuration is covered by HAIWAVE support. Modifications beyond provider selection — different models, additional providers, custom prompt structures — fall outside that scope.</p></div>
+      <div class="h3"><span class="n">5.4</span>Tier 2 Extension Chains</div>
+      <p class="p">The reference agent registers the 11 prescribed transaction-touching chains (§10.6) <b>plus</b> its Tier-2 local-data chains — <code class="ic">inventory_check</code>, <code class="ic">pricing_lookup</code>, <code class="ic">product_specs</code>, <code class="ic">product_compatibility</code>, <code class="ic">cross_reference</code>, <code class="ic">standards_lookup</code>, <code class="ic">document_search</code>, <code class="ic">company_policy</code>, <code class="ic">erp_status</code>, <code class="ic">general</code>, <code class="ic">classification_status</code> — into the <code class="ic">PromptChainRegistry</code>, all wired by <code class="ic">registerAllChains</code> in <code class="ic">@haiwave/reference-agent</code> (<code class="ic">src/chat/chains/</code>). A Journey-B reader can replace any chain by registering a different <code class="ic">PromptChain</code> for the same intent, provided it preserves the chain's prescribed payloads and write-confirmation behavior. The Tier-2 chains are reference-only and freely replaceable.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 05c · EXTEND (swappable interfaces) ============================ -->
+<section class="page" data-screen-label="5c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">5.3</span>Swappable Interfaces (Tier 2 Overrides)</div>
+      <p class="p">This is the Journey-B code-level extension surface. Each reference concrete sits behind an interface. To override: implement the interface and inject your implementation into the DI container at startup (the composition root is <code class="ic">src/app.ts</code>). Prescribed interfaces are imported from <code class="ic">@haiwave/client-sdk</code>; a few reference-only interfaces are declared in <code class="ic">@haiwave/reference-agent</code>.</p>
+      <table class="tbl">
+        <thead><tr><th>Interface</th><th>Reference concrete</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">ILLMProvider</code></td><td>ClaudeAdapter / GeminiAdapter</td><td><code class="ic">LLM_PROVIDER</code> selects it.</td></tr>
+          <tr><td class="lbl"><code class="ic">IEmbeddingProvider</code></td><td>LocalEmbeddingProvider (ONNX) / GeminiEmbeddingProvider</td><td><code class="ic">EMBEDDING_PROVIDER</code> selects it.</td></tr>
+          <tr><td class="lbl"><code class="ic">IVectorStore</code></td><td>DuckDBVectorStore</td><td>Used by the document-search chain.</td></tr>
+          <tr><td class="lbl"><code class="ic">IClassificationDatabase</code></td><td>DuckDBClassificationDatabase</td><td>Public-equivalent classification fields.</td></tr>
+          <tr><td class="lbl"><code class="ic">ITransactionDatabase</code></td><td>DuckDBTransactionDatabase</td><td>Pricing/inventory/lead-time. <span class="tag">Planned</span> Snowflake impl.</td></tr>
+          <tr><td class="lbl"><code class="ic">DataStore</code></td><td>DuckDBDataStore</td><td>The <code class="ic">query</code>/<code class="ic">exec</code>/<code class="ic">close</code> seam under the concretes; swap this to retarget the engine.</td></tr>
+          <tr><td class="lbl"><code class="ic">IPricingEngine</code></td><td>PricingEngine</td><td><code class="ic">price_basis</code> is Tier 1; the arithmetic is swappable.</td></tr>
+          <tr><td class="lbl"><code class="ic">ILeadTimeService</code></td><td>LeadTimeService</td><td>The <code class="ic">FulfillmentClass</code> structure is prescribed.</td></tr>
+          <tr><td class="lbl"><code class="ic">IInventoryProvider</code> <span class="bc">ref-only</span></td><td>DuckDBInventoryProvider</td><td>Net-availability reads.</td></tr>
+          <tr><td class="lbl"><code class="ic">IRecommendationEngine</code> <span class="bc">ref-only</span></td><td>RecommendationEngine</td><td>N-best recommendation logic (§7.2).</td></tr>
+          <tr><td class="lbl"><code class="ic">IApprovalGateway</code></td><td>NativeApprovalGateway / McpApprovalGateway</td><td>Native or MCP approval modes.</td></tr>
+          <tr><td class="lbl"><code class="ic">IApprovalRepository</code></td><td>ApprovalRepository</td><td>Approval persistence.</td></tr>
+          <tr><td class="lbl"><code class="ic">IApprovalResumeHandler</code></td><td>TradingPair / Invoice / OrderRelease handlers</td><td>One per <code class="ic">ApprovalType</code>; the decision branch is prescribed.</td></tr>
+          <tr><td class="lbl">Narrowing strategy</td><td>InformationGainRanker, ConventionPriorityQuestionSelector, DefaultPreSeedingProvider, NarrowingPromptBuilder, NarrowingService</td><td><code class="ic">IAttributeRanker</code>, <code class="ic">IQuestionSelector</code>, <code class="ic">IPreSeedingProvider</code>, <code class="ic">INarrowingPromptBuilder</code>, <code class="ic">INarrowingOrchestrator</code>.</td></tr>
+        </tbody>
+      </table>
+      <p class="p">For exact method signatures, read the interface source in <code class="ic">@haiwave/client-sdk</code> (or <code class="ic">@haiwave/reference-agent</code> for the reference-only interfaces); §10.5 gives the build-from-scratch view.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 06 · SECURITY (model + tiers + profile) ============================ -->
 <section class="page" data-screen-label="6">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s6"><div class="sec-open__num">06</div><div><span class="sec-open__kicker">Journeys A · B · C</span><div class="sec-open__title">Security &amp; Access Posture</div></div></div>
-      <p class="p">In network mode your agent participates in the Managed Access Security Model: haiCore handles authentication, threat detection, and intent classification <b>before</b> a request reaches you; your agent handles tier-appropriate response construction and field visibility from the trust-tier label on each routed request.</p>
-      <div class="h3"><span class="n">6.1</span>Trust tiers</div>
+      <div class="h3"><span class="n">6.1</span>Managed Access Model Overview</div>
+      <p class="p">In network mode your agent participates in the HAIWAVE Managed Access Security Model. haiCore handles authentication, threat detection, and intent classification <b>before</b> a request reaches your agent; your agent handles tier-appropriate response construction and field visibility from the trust-tier label carried on each routed request.</p>
+      <div class="h3"><span class="n">6.2</span>Trust Tier Configuration</div>
+      <p class="p">Each counterparty relationship has a trust tier that bounds maximum disclosure.</p>
       <table class="tbl">
-        <thead><tr><th>Tier</th><th>Name</th><th>Assignment</th></tr></thead>
+        <thead><tr><th class="center">Tier</th><th>Name</th><th>Assignment</th></tr></thead>
         <tbody>
-          <tr><td class="mono center">0</td><td class="lbl">Internal</td><td class="s-yes">Automatic — your own users/agents</td></tr>
-          <tr><td class="mono center">1</td><td class="lbl">Premier</td><td class="s-cfg">You explicitly designate</td></tr>
-          <tr><td class="mono center">2</td><td class="lbl">Trading Pair</td><td>Automatic on trading pair</td></tr>
-          <tr><td class="mono center">3</td><td class="lbl">Connection</td><td>Automatic on bilateral connection</td></tr>
-          <tr><td class="mono center">4</td><td class="lbl">Qualified</td><td>Automatic for verified participants</td></tr>
+          <tr><td class="mono center">0</td><td class="lbl">Internal</td><td class="s-yes">Your own users/agents · automatic</td></tr>
+          <tr><td class="mono center">1</td><td class="lbl">Premier</td><td class="s-cfg">You explicitly designate a counterparty</td></tr>
+          <tr><td class="mono center">2</td><td class="lbl">Trading Pair</td><td>Automatic when a trading pair is established</td></tr>
+          <tr><td class="mono center">3</td><td class="lbl">Connection</td><td>Automatic when a bilateral connection is acknowledged</td></tr>
+          <tr><td class="mono center">4</td><td class="lbl">Qualified</td><td>Automatic for network-verified participants</td></tr>
           <tr><td class="mono center">5</td><td class="lbl">Public</td><td class="s-no">Non-verified · no access</td></tr>
         </tbody>
       </table>
-      <p class="p">Only Premier requires explicit action (<span class="bc"><b>Account Management › Trading Partners</b></span>). A per-tier permission profile in your manifest controls intent screening, response type (<code class="ic">direct_data</code>/<code class="ic">clean_room</code>/<code class="ic">configurable_blend</code>), document sharing, and which of the 11 managed-access intent classes are permitted.</p>
-      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Inbound IP allowlist + service credential.</b> <code class="ic">HAIWAVE_ALLOWED_IPS</code> and <code class="ic">HAIWAVE_SERVICE_CREDENTIAL</code> are specified but not yet read by the reference agent. A custom agent (§10) must implement equivalent origin + service-credential validation; the SDK provides <code class="ic">assertHaiCoreOrigin</code> and <code class="ic">verifyCallbackSignature</code> today.</p></div>
+      <p class="p">Only Premier requires explicit action. Assign per counterparty via <code class="ic">PUT /api/v1/relationships/{owner_id}/counterparties/{counterparty_id}/tier</code>; the same endpoint with <code class="ic">{ "action": "remove_override" }</code> reverts to the system-assigned tier. <b>Console:</b> <span class="bc"><b>Account Management › Trading Partners</b></span> (<code class="ic">/account/partners</code>); cross-modality behavior under <span class="bc"><b>Settings › Trust Posture</b></span>.</p>
+      <div class="h3"><span class="n">6.3</span>Tier Permission Profile</div>
+      <p class="p">Part of your Company Operations Manifest; controls four dimensions: <b>intent screening</b> (on/off per tier), <b>response type</b> (<code class="ic">direct_data</code> / <code class="ic">clean_room</code> / <code class="ic">configurable_blend</code>), <b>document sharing</b> (<code class="ic">direct</code> / <code class="ic">public_url_only</code> / <code class="ic">withheld</code>), and <b>intent-class permissions</b> per tier. Defaults ship with the platform; override in your manifest or at runtime via <code class="ic">GET</code>/<code class="ic">PUT /api/v1/participants/{participant_id}/tier-config</code>.</p>
+      <p class="p">The 11 managed-access <b>intent classes</b> are: Product Discovery, Pricing &amp; Commercial Terms, Inventory &amp; Availability, Order Management, Shipping &amp; Logistics, Returns &amp; Disputes, Compliance &amp; Documentation, Account &amp; Relationship, Technical Support, Vendor Qualification, Strategic Partnership. For each class at each tier the value is Permitted (your agent responds) or Screened (haiCore returns a standard message; your agent never sees the request). Tiers 0–2 permit all 11 by default; higher tiers screen progressively more. <b>Unknown intents</b> are dispositioned per tier via <code class="ic">unknown_disposition</code>: <code class="ic">screen</code> (reject + log; default for Connection/Qualified) or <code class="ic">accept</code> (forward best-effort + log; default for Internal/Premier/Trading Pair). All unknowns are logged. These access-control intent classes are distinct from the chat router's <code class="ic">VALID_INTENTS</code> taxonomy (§10.6).</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 06b · FIELD VISIBILITY ============================ -->
+<!-- ============================ 06b · SECURITY (field visibility) ============================ -->
 <section class="page" data-screen-label="6b">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
-      <div class="h3"><span class="n">6.2</span>Product-table field visibility</div>
-      <p class="p">The product table reflects the requester's tier; screened fields are <b>omitted</b> (not blanked), and your prose must stay consistent with the table. Default visibility (condensed):</p>
+      <div class="h3"><span class="n">6.4</span>Product-Table Field Visibility</div>
+      <p class="p">The right-pane product table reflects the requester's tier; screened fields are <b>omitted</b> (not blanked), and your agent's prose must stay consistent with the table. Default visibility (condensed):</p>
       <table class="tbl">
         <thead><tr><th>Field</th><th class="center">Internal</th><th class="center">Premier</th><th class="center">Trading Pair</th><th class="center">Connection</th><th class="center">Qualified</th></tr></thead>
         <tbody>
@@ -244,50 +396,113 @@
           <tr><td class="lbl">List price</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-no center">—</td></tr>
           <tr><td class="lbl">Customer-specific price</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-cfg center">cfg</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
           <tr><td class="lbl">Exact qty on hand</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-cfg center">cfg</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
+          <tr><td class="lbl">In-stock indicator</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-no center">—</td></tr>
           <tr><td class="lbl">Lead time (specific)</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
           <tr><td class="lbl">Lead time (range)</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td></tr>
+          <tr><td class="lbl">Warehouse location</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-cfg center">cfg</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
           <tr><td class="lbl">Spec sheets</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-teal center">URL</td><td class="s-teal center">URL</td></tr>
           <tr><td class="lbl">Internal docs</td><td class="s-yes center">✓</td><td class="s-cfg center">cfg</td><td class="s-no center">—</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
+          <tr><td class="lbl">Volume tier breaks</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-yes center">✓</td><td class="s-no center">—</td><td class="s-no center">—</td></tr>
         </tbody>
       </table>
-      <div class="legend"><span><i style="background:rgba(5,150,105,0.5); border:1px solid var(--hw-success);"></i> Permitted</span><span><i style="background:rgba(255,166,0,0.13); border:1px solid var(--hw-warning);"></i> Configurable</span><span><i style="background:rgba(41,176,195,0.15); border:1px solid var(--hw-teal);"></i> Public URL</span></div>
-      <p class="p">Unknown/flagged requests surface under <span class="bc"><b>Account Management › Data Cleansing</b></span>. Network-level anomaly monitoring escalates ALERT → THROTTLE → SUSPEND <span class="badge-lvl" style="color:#B7791F; background:rgba(255,166,0,0.13);">ALERT</span> at platform-set thresholds.</p>
+      <div class="legend"><span><i style="background:rgba(5,150,105,0.5); border:1px solid var(--hw-success);"></i> Permitted</span><span><i style="background:rgba(255,166,0,0.13); border:1px solid var(--hw-warning);"></i> Configurable</span><span><i style="background:rgba(41,176,195,0.15); border:1px solid var(--hw-teal);"></i> Public URL</span><span><i style="background:#fff; border:1px solid var(--hw-divider);"></i> Screened (omitted)</span></div>
+      <p class="p">The config also defines <code class="ic">description</code>, a separate <code class="ic">sku</code> key, and <code class="ic">minimum_order_quantity</code>, each with per-tier defaults. <b>Configuration location:</b> agent-side config / manifest, not a console page.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 07 · MANIFEST CONFIGURATION ============================ -->
+<!-- ============================ 06c · SECURITY (review, audit, inbound) ============================ -->
+<section class="page" data-screen-label="6c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">6.5</span>Review Queue</div>
+      <p class="p">Unknown and flagged requests surface under <span class="bc"><b>Account Management › Data Cleansing</b></span> (<code class="ic">/account/data-cleansing</code>). Review them, and submit promising unknowns to HAIWAVE for evaluation as new known intents (also via <code class="ic">GET /api/v1/.../review-queue</code> + <code class="ic">submit</code> / <code class="ic">dismiss</code>). Recognized submissions are added to the known library network-wide.</p>
+      <div class="h3"><span class="n">6.6</span>Audit Log And Anomaly Monitoring</div>
+      <p class="p">The managed-access <b>audit log</b> records every classified request (timestamp, sender, tier, zone, intent, permitted/screened, unknown disposition) and is available at <code class="ic">GET /api/v1/participants/{participant_id}/access-log</code> (threat entries are summary-only). HAIWAVE also runs network-level <b>anomaly monitoring</b> (about 15 categories) with three escalation levels:</p>
+      <ul class="ul">
+        <li><b><span class="badge-lvl" style="color:#B7791F; background:rgba(255,166,0,0.13);">ALERT</span></b> about 3× baseline — logged.</li>
+        <li><b><span class="badge-lvl" style="color:#B7791F; background:rgba(255,166,0,0.18);">THROTTLE</span></b> about 5× baseline or 100+ products/hr — a full one-hour block, auto-resolving.</li>
+        <li><b><span class="badge-lvl" style="color:var(--hw-error); background:rgba(220,38,38,0.10);">SUSPEND</span></b> about 10× baseline or repeated threats — blocked pending review.</li>
+      </ul>
+      <p class="p">Thresholds are platform-level, not company-configurable; pull your own events via <code class="ic">GET /api/v1/.../anomaly-events</code>.</p>
+      <div class="h3"><span class="n">6.7</span>Inbound Request Validation (Agent-Side)</div>
+      <p class="p">Your agent must accept inbound requests only from haiCore — this is the structural guarantee that every request has passed authentication, threat detection, and intent classification first. The SDK provides <code class="ic">assertHaiCoreOrigin</code> for the origin check. The IP allowlist and service-credential schemas are in the Protocol Specification (mirrored by <code class="ic">@haiwave/protocol</code>).</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Inbound IP allowlist + service credential.</b> The intended design adds two mechanisms on the inbound path: an IP allowlist (<code class="ic">HAIWAVE_ALLOWED_IPS</code>, accept only Central's published ranges) and a service credential (<code class="ic">HAIWAVE_SERVICE_CREDENTIAL</code>, validated on every routed request). Neither is read by the current reference agent. Today the only inbound auth is the admin API key (<code class="ic">ADMIN_API_KEY</code> via <code class="ic">X-Admin-Key</code>) guarding <code class="ic">/admin/*</code>, plus optional JWT on <code class="ic">/mcp</code> (<code class="ic">MCP_AUTH_REQUIRED</code>). Do not assume the network-facing inbound path is authenticated at the agent until this ships; a custom agent (§10) should implement equivalent validation per the Protocol Specification regardless.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 07 · MANIFEST (pricing + recommendations) ============================ -->
 <section class="page" data-screen-label="7">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s7"><div class="sec-open__num">07</div><div><span class="sec-open__kicker">Journeys B · C</span><div class="sec-open__title">Manifest Configuration</div></div></div>
-      <div class="h3"><span class="n">7.1</span>Pricing disclosure</div>
-      <p class="p">Configured under <code class="ic">pricing_disclosure</code>; layered on top of Managed Access (which decides whether a pricing intent reaches you; this decides how much detail appears). Levels: <code class="ic">full</code> · <code class="ic">range</code> · <code class="ic">rank_only</code> · <code class="ic">hidden</code>. A network trust floor applies first; the <b>more restrictive of (floor, your config) wins</b> — you can tighten but never loosen. The <code class="ic">price_basis</code> label is Tier 1 (verified by the confirmation handler); only the arithmetic is swappable. <span class="bc"><b>Account Management › Manifests</b></span>.</p>
-      <div class="h3"><span class="n">7.2</span>N-best recommendations</div>
-      <p class="p">Opt-in under <code class="ic">narrowing_and_recommendations</code> (<code class="ic">enable_recommendations</code>, <code class="ic">max_recommendations_per_response</code> default 3, types upgrade/alternative/accessory/bundle). Swappable via <code class="ic">IRecommendationEngine</code>; the buyer agent caps displayed recommendations at 5 total per query.</p>
-      <div class="h3"><span class="n">7.3</span>Brand preferences &amp; posture</div>
-      <p class="p">Buyer-side under <code class="ic">brand_preferences</code> (<code class="ic">preferred_brands</code>, <code class="ic">weight_boost</code> 0–0.30, <code class="ic">allow_override</code>). Manifest-exchange posture knobs are Tier 2; the envelope shape and posture vocabulary are Tier 1 (<code class="ic">POSTURE_CONFIG_PATH</code>). <span class="tag">Planned</span> behavioral brand-preference suggestions are not yet implemented.</p>
+      <div class="h3"><span class="n">7.1</span>Pricing Disclosure</div>
+      <p class="p">Configured under <code class="ic">pricing_disclosure</code> in your vendor manifest; layered on top of Managed Access (§6.3 decides whether a pricing intent reaches you; this decides how much detail appears). Disclosure levels: <code class="ic">full</code>, <code class="ic">range</code> (a <code class="ic">price_range {min,max,currency}</code> band), <code class="ic">rank_only</code> (ranked, no price), <code class="ic">hidden</code>.</p>
+      <p class="p">A <b>network trust floor</b> applies first over a three-level grouping (<code class="ic">low</code> → <code class="ic">hidden</code>; <code class="ic">medium</code> / <code class="ic">premier</code> → no restriction); the <b>more restrictive of (floor, your config) wins</b> — you can tighten but never loosen. The shape is a company-level <code class="ic">default</code>, an optional per-trust-grouping override map, and optional per-product-line overrides. The <code class="ic">price_basis</code> label is Tier 1 (verified by the confirmation handler); only the arithmetic is swappable (§5.3). <b>Console:</b> <span class="bc"><b>Account Management › Manifests</b></span> (<code class="ic">/account/manifests</code>).</p>
+      <div class="h3"><span class="n">7.2</span>N-Best Recommendations</div>
+      <p class="p">Opt-in, configured under <code class="ic">narrowing_and_recommendations</code> (<code class="ic">enable_recommendations</code>, <code class="ic">max_recommendations_per_response</code> default 3, <code class="ic">recommendation_types</code> from <code class="ic">upgrade</code> / <code class="ic">alternative</code> / <code class="ic">accessory</code> / <code class="ic">bundle</code>). The reference engine is swappable via <code class="ic">IRecommendationEngine</code> (§5.3). The buyer agent caps displayed recommendations at <b>5 total</b> across all vendors per query (fixed). The <code class="ic">recommendations</code> field schema is in <code class="ic">@haiwave/protocol</code>.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 08 · MONITORING ============================ -->
+<!-- ============================ 07b · MANIFEST (brand prefs + posture) ============================ -->
+<section class="page" data-screen-label="7b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.3</span>Brand Preferences</div>
+      <p class="p">Buyer-side, per product class under <code class="ic">brand_preferences</code> (<code class="ic">preferred_brands</code>, <code class="ic">weight_boost</code> 0.0–0.30, <code class="ic">allow_override</code>). With <code class="ic">allow_override: true</code> the preference is a soft ranking boost (non-preferred brands stay visible at reduced rank); with <code class="ic">false</code> it hard-filters Go Fish results to preferred brands only. Config-only; no code contract.</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Behavioral brand-preference suggestions.</b> Behavioral suggestions driven by brand preference are not yet implemented; the ranking boost and hard-filter behavior above are live.</p></div>
+      <div class="h3"><span class="n">7.4</span>Counterparty Manifest Posture</div>
+      <p class="p">Manifest-exchange posture knobs — which documents to require or request — are Tier 2 (freely configurable); the envelope shape and exchange-posture vocabulary are Tier 1. Configure posture in your manifest / posture config (<code class="ic">POSTURE_CONFIG_PATH</code>).</p>
+      <div class="note teal"><p class="p"><span class="k">Where the line sits.</span> Across §7, the shapes, labels, and floors are Tier 1 contracts you honor; the values you put inside them are yours to set. You can always tighten disclosure beyond the platform floor, never loosen below it.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 08 · MONITORING (phantom demand) ============================ -->
 <section class="page" data-screen-label="8">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">8 · Monitoring Configuration</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s8"><div class="sec-open__num">08</div><div><span class="sec-open__kicker">Journeys B · C</span><div class="sec-open__title">Monitoring Configuration</div></div></div>
-      <div class="h3"><span class="n">8.1</span>Phantom demand</div>
-      <p class="p">A one-time, on-demand feasibility spot check: a buyer-side BOM is exploded and each in-scope vendor agent probed. Serve BOM via <code class="ic">get_bom_for_sku</code> (from <code class="ic">boms</code>/<code class="ic">bom_lines</code>); lead-time history derives from <code class="ic">transaction_events</code>; internal capacity via <code class="ic">get_internal_capacity</code> through an optional MES bridge (<code class="ic">MES_ENABLED</code>, <code class="ic">MES_CONFIG</code>, <code class="ic">SKU_PICKER_SCOPE</code>). <span class="tag">Planned</span> the reference agent ships a mock MES driver; a production adapter is a per-customer integration. <span class="bc"><b>Sonar Observe › Phantom Demand</b></span>.</p>
-      <div class="h3"><span class="n">8.2</span>Continuous monitoring (Watchers)</div>
-      <p class="p">A Watcher is a standing monitor against a counterparty's supply-chain signals; Central polls each in-scope vendor agent and records lead-time/capacity/delivery signals, emitting drift into your compliance feed. <b>Responder requirement:</b> if watched, answer <code class="ic">get_watcher_signals</code> (read-only; Central authorizes first). <span class="bc"><b>Sonar Observe › Watcher Management</b></span>.</p>
-      <div class="h3"><span class="n">8.3</span>Compliance data capture</div>
-      <p class="p">Each audit run produces a Compliance Snapshot diffed into typed Change Events; two attribute kinds are sampled today (<code class="ic">lead_time_days</code>, <code class="ic">certification_status</code>). As a responder, answer <code class="ic">get_compliance_attributes</code> (wired automatically). <span class="bc"><b>Sonar Audit › Audit Management</b></span>.</p>
+      <div class="h3"><span class="n">8.1</span>Phantom Demand Data Source</div>
+      <p class="p">Phantom Demand is a one-time, on-demand, non-binding feasibility spot check: a buyer-side product's BOM (Bill of Materials) is exploded and each in-scope vendor agent is probed. Wire it from local data:</p>
+      <ul class="ul">
+        <li><b>BOM.</b> Lives in the <code class="ic">boms</code> / <code class="ic">bom_lines</code> DuckDB tables; your agent serves one level via the <code class="ic">get_bom_for_sku</code> MCP tool while Central drives the multi-tier walk. Seed from your ERP (<code class="ic">scripts/seed-phantom-demand-bom.ts</code>).</li>
+        <li><b>Lead-time history.</b> The p50/p75/p90 figures derive from the local <code class="ic">transaction_events</code> table (<code class="ic">scripts/seed-lead-time-history.ts</code>) — there is no separate order-history source.</li>
+        <li><b>Internal capacity.</b> Served via the <code class="ic">get_internal_capacity</code> MCP tool through an optional MES bridge: <code class="ic">MES_ENABLED</code> (default <code class="ic">false</code>), <code class="ic">MES_CONFIG</code> (<code class="ic">{endpoint_url, auth_scheme, credential_ref, work_center_mapping}</code>), and <code class="ic">SKU_PICKER_SCOPE</code> (<code class="ic">published_only</code> / <code class="ic">full_catalog</code>). These can also be set centrally via <code class="ic">PATCH /api/v1/agents/{agent_id}/config</code> (<span class="bc"><b>Admin › Agent Config</b></span>), falling back to the env vars if Central is unreachable.</li>
+      </ul>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Real MES driver.</b> The reference agent ships a mock MES driver returning stubbed capacity so the integration can be exercised end-to-end. A production MES adapter (SAP, Oracle, custom) is a per-customer integration, not included.</p></div>
+      <p class="p">When you answer a phantom-demand probe as a <i>seller</i>, on-hand disclosure is gated by the requester's manifest tier: <code class="ic">premier</code> → <code class="ic">exact</code>, <code class="ic">standard</code> → <code class="ic">sufficient</code> / <code class="ic">insufficient</code>, <code class="ic">basic</code> → <code class="ic">not_disclosed</code>. <b>Console:</b> <span class="bc"><b>Sonar Observe › Phantom Demand</b></span> (<code class="ic">/account/sonar/observations</code>).</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 08b · MONITORING (watchers + compliance) ============================ -->
+<section class="page" data-screen-label="8b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">8 · Monitoring Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">8.2</span>Continuous Monitoring (Watchers)</div>
+      <p class="p">A Watcher is a standing, recurring monitor against a counterparty's supply-chain signals. On each run Central polls each in-scope vendor agent and records lead-time, capacity, and delivery signals, emitting drift events into your compliance change feed. A watcher scope sets <code class="ic">counterparties</code>, <code class="ic">signal_types</code>, <code class="ic">skus</code> (empty <code class="ic">[]</code> = company-wide watch), <code class="ic">depth_limit</code> (1–8), and optional <code class="ic">drift_thresholds</code>; cadence is <code class="ic">manual_only</code> / <code class="ic">daily</code> / <code class="ic">weekly</code> / <code class="ic">monthly</code> / <code class="ic">event_triggered</code>. The five signal types are <code class="ic">lead_time_distribution</code>, <code class="ic">published_lead_time</code>, <code class="ic">quoted_lead_time</code>, <code class="ic">capacity_utilization_band</code>, <code class="ic">delivery_event</code>. <b>Console:</b> <span class="bc"><b>Sonar Observe › Watcher Management</b></span> (<code class="ic">/account/sonar/watchers</code>).</p>
+      <p class="p"><b>Responder requirement:</b> if you are <i>watched</i>, answer the <code class="ic">get_watcher_signals</code> MCP tool (read-only; Central authorizes before the call reaches you).</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Demo-data signals.</b> <code class="ic">published_lead_time</code> / <code class="ic">quoted_lead_time</code> are synthetic and <code class="ic">capacity_utilization_band</code> falls back to a fixed value when its seed table is absent; the drift-to-change-feed pipeline itself is live.</p></div>
+      <div class="h3"><span class="n">8.3</span>Compliance Data Capture</div>
+      <p class="p">Each completed audit run produces a Compliance Snapshot (the traversal plus per-(vendor, product) attribute samples), diffed across runs into typed Change Events. Two attribute kinds are sampled today: <code class="ic">lead_time_days</code> (from your local lead-time intelligence) and <code class="ic">certification_status</code> (<code class="ic">valid</code> / <code class="ic">not_held</code>, read from the product's <code class="ic">certifications</code> array). As a responder, answer the <code class="ic">get_compliance_attributes</code> MCP call (wired automatically; no console setting). Cadence follows your audit-run template (<span class="bc"><b>Sonar Audit › Audit Management</b></span>, <code class="ic">/account/sonar/audit</code>); daily for high-change supply chains, weekly for stable ones.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -300,87 +515,214 @@
     <div class="page-top"><span class="lbl">9 · Provenance &amp; Key Management</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s9"><div class="sec-open__num">09</div><div><span class="sec-open__kicker">Journeys B · C</span><div class="sec-open__title">Provenance &amp; Key Management</div></div></div>
-      <p class="p"><b>Product provenance</b> (<span class="bc"><b>Sonar Audit › Product Provenance</b></span>) is a read-only composition browser assembled from declared origin manifests; audits verify what it shows. No partner action beyond browsing.</p>
-      <p class="p"><b>Provenance keys</b> (<span class="bc"><b>Sonar Audit › Key Management</b></span>) are scoped credentials that control which sensitive origin/permission fields flow during traversal. A key declares <code class="ic">required_fields[]</code> / <code class="ic">requested_fields[]</code> (+ friendly name, purpose, expiry, enabled/revoked). A <b>generator</b> issues a key (raw value revealed once; re-reveal audited); an <b>installer</b> previews and accepts it. Narrowing a key's required fields opens a 14-day grace window.</p>
-      <div class="note"><p class="p"><span class="k">Independent mechanisms.</span> Provenance keys and the compliance <code class="ic">certification_status</code> attribute merely share the Sonar Audit console area — no code path ties a key installation to a certification response. Your only agent-side dependency is having <code class="ic">products.certifications</code> populated and origin manifests declared.</p></div>
+      <p class="p"><b>Product provenance</b> (<span class="bc"><b>Sonar Audit › Product Provenance</b></span>, <code class="ic">/account/provenance</code>) is a read-only, product-led composition browser assembled from declared origin manifests. It shows declared composition while audits (§8.3) verify it. There is no partner action beyond browsing — the data comes from the origin manifests you and your counterparties declare.</p>
+      <p class="p"><b>Provenance keys</b> (<span class="bc"><b>Sonar Audit › Key Management</b></span>, <code class="ic">/account/provenance-keys</code>) are scoped access credentials that control which sensitive origin and permission fields flow during provenance traversal (not product certifications). A key declares <code class="ic">required_fields[]</code> / <code class="ic">requested_fields[]</code>, plus <code class="ic">friendly_name</code>, <code class="ic">purpose</code>, <code class="ic">expires_at</code>, <code class="ic">enabled</code>, and <code class="ic">revoked</code>. There are two roles: a <b>generator</b> issues a key (the raw value is revealed once; any re-reveal is audited), and an <b>installer</b> previews and accepts it, committing to share those fields. Narrowing a key's required fields starts a 14-day grace window — installations move to non-compliant rather than dropping.</p>
+      <div class="note"><p class="p"><span class="k">Independent mechanisms.</span> Provenance keys and the compliance <code class="ic">certification_status</code> attribute (§8.3) merely share the Sonar Audit console area — there is no code path tying a key installation to the certification-status response. Agent-side, your only dependency is having <code class="ic">products.certifications</code> populated and origin manifests declared so an installed key has data to release; keys and installations are stored centrally.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 10 · BUILD FROM SCRATCH ============================ -->
+<!-- ============================ 10 · BUILD FROM SCRATCH (obligations + MCP tools) ============================ -->
 <section class="page" data-screen-label="10">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">10 · Build From Scratch (SDK Path)</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s10"><div class="sec-open__num">10</div><div><span class="sec-open__kicker">Journey A</span><div class="sec-open__title">Build From Scratch (SDK Path)</div></div></div>
-      <p class="p">Your language, framework, hosting, and UI are unconstrained. Three obligations: expose the MCP tool surface haiCore calls into; call the haiCore REST endpoints over Keycloak-authenticated requests; and, if you offer chat, honor the conformance invariants. Schemas: the in-package <code class="ic">@haiwave/protocol</code> (the master prose spec is HAIWAVE-internal).</p>
-      <div class="h3"><span class="n">10.1</span>MCP tools (haiCore → your agent), core set</div>
+      <p class="p">Your language, framework, hosting, and UI are unconstrained. You implement the published protocol interfaces, enforce inbound validation (§6.7), and pass the conformance checklist (§10.7). The complete interface contracts and message schemas live in the in-package <code class="ic">@haiwave/protocol</code> (the master prose spec it mirrors is HAIWAVE-internal).</p>
+      <div class="h3"><span class="n">10.1</span>What Network Participation Requires</div>
+      <ol class="ol">
+        <li><b>Expose the MCP tool surface</b> haiCore calls into (§10.2).</li>
+        <li><b>Call the haiCore REST endpoints</b> correctly (§10.3) over Keycloak-authenticated requests (§10.4).</li>
+        <li><b>Honor the chat conformance invariants</b> (§10.6) if you offer the conversational surface.</li>
+      </ol>
+      <p class="p">Everything else — which LLM, which data backend, UI, internal architecture — is your decision.</p>
+      <div class="h3"><span class="n">10.2</span>MCP Tool Surface (haiCore → Your Agent)</div>
+      <p class="p">haiCore acts as the MCP <b>client</b>, calling tools your agent exposes over Streamable HTTP at <code class="ic">/mcp</code>. The reference agent registers about 31 tools; the minimum core for network participation is below. The full, authoritative list and every input/output schema are in <code class="ic">@haiwave/protocol</code>.</p>
       <table class="tbl">
-        <thead><tr><th>Tool</th><th>Purpose</th></tr></thead>
+        <thead><tr><th>Tool</th><th>Purpose</th><th>Feature</th></tr></thead>
         <tbody>
-          <tr><td class="lbl"><code class="ic">get_product_profile</code> · <code class="ic">get_product_list</code></td><td>Product detail + catalog</td></tr>
-          <tr><td class="lbl"><code class="ic">receive_gofish_query</code></td><td>Go Fish discovery</td></tr>
-          <tr><td class="lbl"><code class="ic">receive_order</code> · <code class="ic">receive_quote_request</code></td><td>Orders + quoting</td></tr>
-          <tr><td class="lbl"><code class="ic">heartbeat_hello</code></td><td>Liveness</td></tr>
-          <tr><td class="lbl"><code class="ic">get_watcher_signals</code> · <code class="ic">get_compliance_attributes</code></td><td>Monitoring + compliance</td></tr>
+          <tr><td class="lbl"><code class="ic">get_product_profile</code></td><td>Full product detail for a <code class="ic">product_id</code></td><td>Core</td></tr>
+          <tr><td class="lbl"><code class="ic">get_product_list</code></td><td>The agent's current product catalog</td><td>Core</td></tr>
+          <tr><td class="lbl"><code class="ic">heartbeat_hello</code></td><td>Respond to liveness pings</td><td>Core</td></tr>
+          <tr><td class="lbl"><code class="ic">receive_gofish_query</code></td><td>Accept and respond to a Go Fish discovery query</td><td>Discovery</td></tr>
+          <tr><td class="lbl"><code class="ic">receive_order</code></td><td>Accept an incoming order</td><td>Orders</td></tr>
+          <tr><td class="lbl"><code class="ic">receive_quote_request</code> / <code class="ic">receive_resolution_request</code> / <code class="ic">receive_catalog_query</code></td><td>Quoting, product resolution, catalog search</td><td>Commerce</td></tr>
+          <tr><td class="lbl"><code class="ic">receive_manifest_request</code> / <code class="ic">receive_manifest_evaluation</code></td><td>Manifest exchange</td><td>Manifests</td></tr>
+          <tr><td class="lbl"><code class="ic">get_bom_for_sku</code> / <code class="ic">get_internal_capacity</code> / <code class="ic">respond_phantom_demand</code></td><td>Phantom-demand feasibility</td><td>Monitoring</td></tr>
+          <tr><td class="lbl"><code class="ic">get_watcher_signals</code></td><td>Watcher signal data</td><td>Monitoring</td></tr>
+          <tr><td class="lbl"><code class="ic">get_compliance_attributes</code></td><td>Audit attribute samples</td><td>Compliance</td></tr>
+          <tr><td class="lbl"><code class="ic">get_origin_manifest</code> / <code class="ic">submit_origin_validation</code> / <code class="ic">receive_provenance_requirements</code></td><td>Provenance</td><td>Provenance</td></tr>
         </tbody>
       </table>
-      <div class="h3"><span class="n">10.2</span>OAuth2 / Keycloak</div>
-      <pre class="code"><span class="cm">// client_credentials bearer on every haiCore call (cached + refreshed)</span>
-POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
-  grant_type=client_credentials &amp; client_id &amp; client_secret
-<span class="op">→</span> Authorization: Bearer <span class="s">{access_token}</span></pre>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 10b · CONFORMANCE ============================ -->
+<!-- ============================ 10b · BUILD (REST + OAuth + interfaces) ============================ -->
 <section class="page" data-screen-label="10b">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">10 · Build From Scratch (SDK Path)</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
-      <div class="h3"><span class="n">10.3</span>Chat conformance invariants</div>
-      <ol class="ol">
-        <li><b>Full intent taxonomy.</b> Route against the complete <code class="ic">VALID_INTENTS</code> (22) — no narrowing; unknown intents fall back to <code class="ic">general</code>.</li>
-        <li><b>Write-confirmation gate.</b> No write executes without explicit acknowledgment.</li>
-        <li><b>Role floor.</b> <code class="ic">quote_accept → trader</code>; hierarchy <code class="ic">operator &lt; trader &lt; admin</code>.</li>
-        <li><b>The 11 transaction-touching chains</b> at prescribed payloads/sequence.</li>
-        <li><b>Eight pipeline phases in order</b>, gates unconditional.</li>
-        <li><b>WebSocket frame</b> <code class="ic">{ type, content_panel, intent }</code>.</li>
-      </ol>
-      <div class="h3"><span class="n">10.4</span>Conformance kit</div>
-      <p class="p">The executable companion: the kit shipped in <code class="ic">@haiwave/client-sdk</code> pins these Tier-0 + Tier-1 invariants behaviorally. Self-verify before requesting participation.</p>
-      <div class="cfg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007585" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span class="lab">Run</span><b>npx vitest run packages/client-sdk/src/__tests__/conformance/</b></div>
-      <div class="note teal"><p class="p"><span class="k">Inbound validation.</span> Implement origin + service-credential validation per the protocol spec regardless of the reference agent's current <span class="tag">Planned</span> gap. The SDK provides <code class="ic">assertHaiCoreOrigin</code> and <code class="ic">verifyCallbackSignature</code> (PROTO-3 HMAC).</p></div>
+      <div class="h3"><span class="n">10.3</span>REST Endpoints Your Agent Calls Into haiCore</div>
+      <table class="tbl">
+        <thead><tr><th>Endpoint</th><th class="center">Method</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">/api/v1/classify/batch</code></td><td class="mono center">POST</td><td>Submit a product batch for classification</td></tr>
+          <tr><td class="lbl"><code class="ic">/api/v1/gofish/query</code></td><td class="mono center">POST</td><td>Initiate a Go Fish discovery query</td></tr>
+          <tr><td class="lbl"><code class="ic">/api/v1/manifests/sync</code></td><td class="mono center">POST</td><td>Push a counterparty or pricing manifest</td></tr>
+          <tr><td class="lbl"><code class="ic">/api/v1/orders/{id}/staging</code></td><td class="mono center">PUT</td><td>Write an order to staging</td></tr>
+          <tr><td class="lbl"><code class="ic">/api/v1/approvals/callback</code></td><td class="mono center">POST</td><td>HMAC-validated approval-decision callback</td></tr>
+        </tbody>
+      </table>
+      <div class="h3"><span class="n">10.4</span>OAuth2 / Keycloak Authentication</div>
+      <p class="p">All haiCore calls use a Keycloak <code class="ic">client_credentials</code> bearer token. Use <code class="ic">TokenManager</code> from <code class="ic">@haiwave/client-sdk</code> — it caches and refreshes for you. The reference implementation is <code class="ic">network/token-manager.ts</code>.</p>
+      <pre class="code"><span class="cm">// client_credentials bearer on every haiCore call (cached + refreshed)</span>
+POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
+  grant_type=client_credentials <span class="op">&amp;</span> client_id <span class="op">&amp;</span> client_secret
+<span class="op">→</span> Authorization: Bearer <span class="s">{access_token}</span></pre>
+      <div class="h3"><span class="n">10.5</span>Interface Signatures To Implement</div>
+      <p class="p">The prescribed interfaces are the published surface of <code class="ic">@haiwave/client-sdk</code> — import them and implement against the exact TypeScript signatures (or mirror them in your language). The principal contracts:</p>
+      <ul class="ul">
+        <li><b>Tier 0.</b> <code class="ic">IHaiWaveClient</code> — your outbound Central calls.</li>
+        <li><b>Chat.</b> <code class="ic">IChainServices</code>, <code class="ic">PromptChain</code>, <code class="ic">IQueryRouter</code>, <code class="ic">IQueryFastPath</code>.</li>
+        <li><b>Data.</b> <code class="ic">DataStore</code>, <code class="ic">IClassificationDatabase</code>, <code class="ic">ITransactionDatabase</code>, <code class="ic">IVectorStore</code>.</li>
+        <li><b>Providers.</b> <code class="ic">ILLMProvider</code>, <code class="ic">IEmbeddingProvider</code>.</li>
+        <li><b>Commerce.</b> <code class="ic">IPricingEngine</code>, <code class="ic">ILeadTimeService</code>.</li>
+        <li><b>Approval.</b> <code class="ic">IApprovalGateway</code>, <code class="ic">IApprovalRepository</code>, <code class="ic">IApprovalResumeHandler</code>.</li>
+        <li><b>Narrowing.</b> <code class="ic">IAttributeRanker</code>, <code class="ic">IQuestionSelector</code>, <code class="ic">IPreSeedingProvider</code>, <code class="ic">INarrowingPromptBuilder</code>, <code class="ic">INarrowingOrchestrator</code>.</li>
+        <li><b>Reference-only</b> (in <code class="ic">@haiwave/reference-agent</code>). <code class="ic">IRecommendationEngine</code>, <code class="ic">IInventoryProvider</code>.</li>
+      </ul>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
 
-<!-- ============================ 11 · REFERENCE LINKS ============================ -->
+<!-- ============================ 10c · BUILD (chat invariants) ============================ -->
+<section class="page" data-screen-label="10c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">10 · Build From Scratch (SDK Path)</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">10.6</span>Chat Conformance Invariants</div>
+      <p class="p">If your agent offers the conversational surface, it must preserve these six invariants (enforced behaviorally by the conformance kit in §10.7):</p>
+      <ol class="ol">
+        <li><b>Full intent taxonomy.</b> Route against the complete <code class="ic">VALID_INTENTS</code> set (22 intents: order, quote, catalog, gofish, inventory, pricing, specs, resolution, audit, and so on) — no narrowing of the taxonomy; unknown intents fall back to <code class="ic">general</code>.</li>
+        <li><b>Write-confirmation gate.</b> No write executes without explicit user acknowledgment (the pending-confirmation state machine).</li>
+        <li><b>Role ACL with a <code class="ic">quote_accept → trader</code> floor.</b> No lowering; the hierarchy is <code class="ic">operator &lt; trader &lt; admin</code>.</li>
+        <li><b>The 11 transaction-touching chains</b> at their prescribed payloads and call sequences: <code class="ic">orderConfirmChain</code>, <code class="ic">quoteRequestChain</code>, <code class="ic">quoteAcceptChain</code>, <code class="ic">quoteStatusChain</code>, <code class="ic">quoteCompareChain</code>, <code class="ic">orderLookupChain</code>, <code class="ic">gofishQueryChain</code>, <code class="ic">catalogSearchChain</code>, <code class="ic">productResolutionChain</code>, <code class="ic">sourceAuditChain</code>, <code class="ic">manifestStatusChain</code>.</li>
+        <li><b>Eight pipeline phases in order:</b> <code class="ic">guardTurn</code> → <code class="ic">handlePendingConfirmation</code> → <code class="ic">detectContextFilter</code> → <code class="ic">prepareRouterInput</code> → <code class="ic">routeAndRemapIntents</code> → <code class="ic">executeSubIntents</code> → <code class="ic">saveSearchContext</code> → <code class="ic">finalizeTurn</code> — with the scope, <code class="ic">haiwave_only</code>, and write-confirmation gates unconditional.</li>
+        <li><b>WebSocket message shape</b> <code class="ic">{ type, content_panel, intent }</code>.</li>
+      </ol>
+      <p class="p">Everything else — which LLM, which local-data backend, UI, auth provider — is unconstrained. The executable companion to these invariants is the conformance kit (§10.7), which pins both Tier 0 and Tier 1 behaviorally.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 10d · BUILD (conformance checklist) ============================ -->
+<section class="page" data-screen-label="10d">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">10 · Build From Scratch (SDK Path)</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">10.7</span>Conformance Checklist</div>
+      <p class="p">Self-verify before requesting network participation. Each <code class="ic">kit:</code> annotation names the test file that pins the item; items with no annotation are protocol-surface obligations verified against your live agent, not in the kit.</p>
+      <div class="cfg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007585" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span class="lab">Run</span><b>npx vitest run packages/client-sdk/src/__tests__/conformance/</b></div>
+      <div class="h4"><span class="t">Tier 0 —</span> transport &amp; auth</div>
+      <ul class="ul">
+        <li>☐ Obtain and attach a Keycloak <code class="ic">client_credentials</code> bearer on every haiCore call; refresh and cache on expiry. <span class="bc">kit: token-manager</span></li>
+        <li>☐ Reject outbound endpoints that are not same-origin with haiCore (<code class="ic">assertHaiCoreOrigin</code>). <span class="bc">kit: origin-guard</span></li>
+        <li>☐ Validate inbound JWT fail-closed when enforcement is on (<code class="ic">validateJwt</code>). <span class="bc">kit: jwt-auth</span></li>
+        <li>☐ Verify the PROTO-3 approval-callback HMAC over the raw bytes — <code class="ic">verifyCallbackSignature(body, signature, secret)</code>. <span class="bc">kit: callback-hmac</span></li>
+        <li>☐ Publish a ServerCard with the static protocol capabilities (transport <code class="ic">/mcp</code>, protocol version, discovery). <span class="bc">kit: server-card</span></li>
+        <li>☐ Expose <code class="ic">/mcp</code> over Streamable HTTP; respond to <code class="ic">heartbeat_hello</code>.</li>
+      </ul>
+      <div class="h4"><span class="t">Tier 1 —</span> protocol surface</div>
+      <ul class="ul">
+        <li>☐ Expose the core MCP tools (§10.2) with the <code class="ic">@haiwave/protocol</code> input/output schemas.</li>
+        <li>☐ Call the haiCore REST endpoints (§10.3) with the prescribed payloads.</li>
+        <li>☐ Enforce trust-tier field visibility (§6.4) — screened fields omitted, prose consistent with the table.</li>
+        <li>☐ Emit the prescribed <code class="ic">price_basis</code> label on pricing output (<code class="ic">derivePriceBasis</code>). <span class="bc">kit: pricing-basis</span></li>
+      </ul>
+      <div class="h4"><span class="t">Tier 1 —</span> chat (if you offer the conversational surface)</div>
+      <ul class="ul">
+        <li>☐ Full <code class="ic">VALID_INTENTS</code> taxonomy; unknown intents fall back to <code class="ic">general</code>. <span class="bc">kit: intents</span></li>
+        <li>☐ Write-confirmation gate before any write. <span class="bc">kit: write-gate</span></li>
+        <li>☐ <code class="ic">quote_accept → trader</code> role floor; <code class="ic">operator &lt; trader &lt; admin</code>. <span class="bc">kit: role-floor</span></li>
+        <li>☐ The 11 chains at prescribed payloads and sequences.</li>
+        <li>☐ The eight pipeline phases in order, gates unconditional. <span class="bc">kit: turn-order</span></li>
+        <li>☐ Session idle expiry clears pending state (30-min floor). <span class="bc">kit: session-expiry</span></li>
+        <li>☐ Approval-poll expiry resumes the registered handler as rejected/Expired. <span class="bc">kit: approval-expiry</span></li>
+        <li>☐ WebSocket frame <code class="ic">{ type, content_panel, intent }</code>.</li>
+      </ul>
+      <div class="h4"><span class="t">Prescribed interface surface &amp; inbound</span></div>
+      <ul class="ul">
+        <li>☐ Swappable implementations satisfy the SDK interface method-sets (<code class="ic">IOrderHandler</code>, <code class="ic">IConfirmationHandler</code>, <code class="ic">IPricingEngine</code>, <code class="ic">IApprovalGateway</code>, <code class="ic">IApprovalResumeHandler</code>). <span class="bc">kit: interface-surface, prescribed-interfaces</span></li>
+        <li>☐ Implement origin + service-credential validation per the protocol spec (§6.7), regardless of the reference agent's current <span class="tag">Planned</span> gap.</li>
+      </ul>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 11 · REFERENCE LINKS (protocol + SDK) ============================ -->
 <section class="page" data-screen-label="11">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
   <div class="page__inner">
     <div class="page-top"><span class="lbl">11 · Reference Links</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="sec-open" id="s11"><div class="sec-open__num">11</div><div><span class="sec-open__kicker">Journeys A · B · C</span><div class="sec-open__title">Reference Links</div></div></div>
+      <div class="h3"><span class="n">11.1</span>HAIWAVE Protocol And SDK</div>
       <table class="tbl">
         <thead><tr><th>Resource</th><th>Path / package</th></tr></thead>
         <tbody>
-          <tr><td class="lbl">Download page (definitive source)</td><td class="mono">Console › Account › Agent Software</td></tr>
-          <tr><td class="lbl">Protocol schemas (shipped)</td><td class="mono">@haiwave/protocol</td></tr>
-          <tr><td class="lbl">Client SDK (prescribed surface)</td><td class="mono">@haiwave/client-sdk</td></tr>
-          <tr><td class="lbl">Reference scaffold (Tier 2)</td><td class="mono">@haiwave/reference-agent</td></tr>
-          <tr><td class="lbl">Conformance kit</td><td class="mono">client-sdk/src/__tests__/conformance/</td></tr>
-          <tr><td class="lbl">HAIWAVE website</td><td class="mono">www.haiwave.ai</td></tr>
+          <tr><td class="lbl">Download page</td><td>HAIWAVE console → <span class="bc"><b>Account › Agent Software</b></span> — the definitive source for the SDK, the Free Agent client, and this guide</td></tr>
+          <tr><td class="lbl">Protocol schemas (shipped)</td><td><code class="ic">@haiwave/protocol</code> — the Zod schemas + inferred types in the Free Agent source; the runnable, type-checked schema surface. Import and validate against it directly.</td></tr>
+          <tr><td class="lbl">Protocol Specification</td><td><code class="ic">doc4-protocol-spec.md</code> — master prose spec, HAIWAVE-internal. Where you need a schema and lack the doc, the <code class="ic">@haiwave/protocol</code> package above is the shipped equivalent.</td></tr>
+          <tr><td class="lbl">Reference Agent spec</td><td><code class="ic">doc3-reference-agent.md</code> (HAIWAVE-internal)</td></tr>
+          <tr><td class="lbl">Client SDK (prescribed surface)</td><td><code class="ic">@haiwave/client-sdk</code> (in the Free Agent source; not a public npm package)</td></tr>
+          <tr><td class="lbl">Reference scaffold (Tier 2 concretes)</td><td><code class="ic">@haiwave/reference-agent</code></td></tr>
+          <tr><td class="lbl">Conformance kit</td><td><code class="ic">@haiwave/client-sdk → src/__tests__/conformance/</code> — run <code class="ic">npx vitest run packages/client-sdk/src/__tests__/conformance/</code></td></tr>
+          <tr><td class="lbl">HAIWAVE website</td><td><code class="ic">https://www.haiwave.ai</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 11b · REFERENCE LINKS (UI + LLM) ============================ -->
+<section class="page" data-screen-label="11b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">11 · Reference Links</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">11.2</span>UI Components (Reference Agent Only)</div>
+      <table class="tbl">
+        <thead><tr><th>Resource</th><th>URL</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">shadcn/ui documentation</td><td><code class="ic">https://ui.shadcn.com/docs</code></td></tr>
+          <tr><td class="lbl">shadcn theme generator</td><td><code class="ic">https://ui.shadcn.com/themes</code></td></tr>
+          <tr><td class="lbl">Radix UI primitives</td><td><code class="ic">https://www.radix-ui.com/primitives/docs/overview/introduction</code></td></tr>
+          <tr><td class="lbl">Tailwind CSS documentation</td><td><code class="ic">https://tailwindcss.com/docs</code></td></tr>
+        </tbody>
+      </table>
+      <div class="h3"><span class="n">11.3</span>LLM Providers</div>
+      <table class="tbl">
+        <thead><tr><th>Resource</th><th>URL</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">Anthropic Claude API</td><td><code class="ic">https://docs.anthropic.com/en/api</code></td></tr>
+          <tr><td class="lbl">Anthropic API console</td><td><code class="ic">https://console.anthropic.com</code></td></tr>
+          <tr><td class="lbl">Google Gemini API</td><td><code class="ic">https://ai.google.dev/gemini-api/docs</code></td></tr>
+          <tr><td class="lbl">Gemini API key management</td><td><code class="ic">https://aistudio.google.com/apikey</code></td></tr>
         </tbody>
       </table>
       <div class="divider"></div>
-      <p class="sub">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines. Generated from the application source; regenerated as the system evolves.</p>
+      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v2.1). Generated from the application source; regenerated as the system evolves.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
