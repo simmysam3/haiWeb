@@ -238,6 +238,17 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     wall: 'At least one line is blocked (no bilateral access, depth cap, or declined).',
     infeasible: 'Lead time exceeds the target date even on the best path.',
   },
+  // P5 Vomero — per-component-line readiness outcome (spec §6.2).
+  // Tones: available → success; quantity_short / shade_risk / length_gap /
+  // lead_time_shift → warn; hard_gap → problem. No orange (nav-only).
+  readiness: {
+    available: 'This component line is fully available at the required quantity and lead time.',
+    quantity_short: 'Holding suppliers cannot cover the full run quantity for this component.',
+    shade_risk: 'A dye-lot or shade deviation has been flagged for this component.',
+    length_gap: 'Required length is not available from current holding suppliers.',
+    lead_time_shift: 'Lead time has shifted beyond the acceptable threshold for this component.',
+    hard_gap: 'No holding supplier exists for this component — sourcing action required.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -334,6 +345,13 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'on-time') return 'success';
     if (v === 'marginal') return 'warn';
     if (v === 'wall' || v === 'infeasible') return 'problem';
+  }
+  // P5 readiness outcome tones (spec §6.2): available = green, four risk
+  // outcomes = amber, hard_gap = red. No orange (nav-only per brand rules).
+  if (category === 'readiness') {
+    if (v === 'available') return 'success';
+    if (['quantity_short', 'shade_risk', 'length_gap', 'lead_time_shift'].includes(v)) return 'warn';
+    if (v === 'hard_gap') return 'problem';
   }
   return 'neutral';
 }
