@@ -1,7 +1,8 @@
 import { fetchBffJson } from '@/lib/server-fetch';
 import { PageHeader } from '@/components';
 import { ColorwayReadiness } from './_components/colorway-readiness';
-import type { SkuReadiness, RolledUpReadinessState } from '@haiwave/protocol';
+import { BacklogList } from './_components/backlog-list';
+import type { SkuReadiness, RolledUpReadinessState, BacklogItem } from '@haiwave/protocol';
 
 type RollupPayload = {
   colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }>;
@@ -30,6 +31,15 @@ export default async function ReadinessPage({ searchParams }: ReadinessPageProps
       `/api/account/readiness/${encodeURIComponent(selectedSkuRef)}`,
     );
     readiness = readinessResult.kind === 'ok' ? readinessResult.data : null;
+  }
+
+  // Fetch backlog items for the selected colorway.
+  let backlogItems: BacklogItem[] = [];
+  if (selectedSkuRef) {
+    const backlogResult = await fetchBffJson<{ items: BacklogItem[] }>(
+      `/api/account/readiness/backlog?sku_ref=${encodeURIComponent(selectedSkuRef)}`,
+    );
+    backlogItems = backlogResult.kind === 'ok' ? backlogResult.data.items : [];
   }
 
   return (
@@ -64,6 +74,13 @@ export default async function ReadinessPage({ searchParams }: ReadinessPageProps
         initialReadiness={readiness}
         initialSkuRef={selectedSkuRef}
       />
+
+      {backlogItems.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-navy">Backlog</h2>
+          <BacklogList items={backlogItems} />
+        </section>
+      )}
     </div>
   );
 }
