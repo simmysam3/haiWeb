@@ -207,6 +207,11 @@ const navSections: NavSection[] = [
         label: "Readiness",
         tooltip: "Review colorway component lines, flag outcomes, and manage the SKU-resolution backlog.",
       },
+      {
+        href: "/account/readiness/rollup",
+        label: "Roll-up",
+        tooltip: "Rolled-up colorway readiness by state — coordinator and brand view.",
+      },
     ],
   },
   {

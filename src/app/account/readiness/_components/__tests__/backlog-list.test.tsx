@@ -37,6 +37,9 @@ it('shows observed vs needed and posts a transition', async () => {
   await userEvent.click(screen.getByRole('button', { name: /acknowledge/i }));
   expect(fetchSpy).toHaveBeenCalledWith(
     expect.stringContaining('/api/account/readiness/backlog/b1/transition'),
-    expect.objectContaining({ method: 'POST' }),
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ to_state: 'acknowledged' }),
+    }),
   );
 });

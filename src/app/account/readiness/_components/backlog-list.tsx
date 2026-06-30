@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { Pill } from '@/components/pill';
 import type { BacklogItem, BacklogItemState } from '@haiwave/protocol';
 import { BACKLOG_ITEM_TRANSITIONS } from '@haiwave/protocol';
+import { GoFishPanel } from './go-fish-panel';
+
+/** Imperative labels for lifecycle transition buttons (keyed by destination state). */
+const TRANSITION_LABELS: Record<BacklogItemState, string> = {
+  open: 'Reopen',
+  acknowledged: 'Acknowledge',
+  resolved: 'Resolve',
+  dismissed: 'Dismiss',
+};
 
 type BacklogListProps = {
   items: BacklogItem[];
@@ -107,10 +116,14 @@ export function BacklogList({ items }: BacklogListProps) {
                     onClick={() => handleTransition(item.backlog_item_id, toState)}
                     className="rounded px-3 py-1 text-xs font-medium bg-navy/10 text-navy hover:bg-navy/20 disabled:opacity-50 capitalize transition-colors"
                   >
-                    {toState.replace('_', ' ')}
+                    {TRANSITION_LABELS[toState]}
                   </button>
                 ))}
               </div>
+            )}
+
+            {(item.state === 'open' || item.state === 'acknowledged') && (
+              <GoFishPanel item={item} onResolved={() => router.refresh()} />
             )}
 
             {err && (

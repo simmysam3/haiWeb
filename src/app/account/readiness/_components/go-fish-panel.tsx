@@ -63,6 +63,19 @@ export function GoFishPanel({ item, onResolved }: GoFishPanelProps) {
 
   async function handleInitiate(result: GoFishResultItem) {
     try {
+      // The state machine forbids open → resolved directly.
+      // Drive through the legal path: open → acknowledged → resolved.
+      if (item.state === 'open') {
+        const ackRes = await fetch(
+          `/api/account/readiness/backlog/${item.backlog_item_id}/transition`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_state: 'acknowledged' }),
+          },
+        );
+        if (!ackRes.ok) throw new Error(`Acknowledge failed: HTTP ${ackRes.status}`);
+      }
       const res = await fetch(
         `/api/account/readiness/backlog/${item.backlog_item_id}/transition`,
         {
@@ -71,7 +84,7 @@ export function GoFishPanel({ item, onResolved }: GoFishPanelProps) {
           body: JSON.stringify({ to_state: 'resolved' }),
         },
       );
-      if (!res.ok) throw new Error(`Transition failed: HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Resolve failed: HTTP ${res.status}`);
       onResolved?.();
     } catch (err) {
       setState({
