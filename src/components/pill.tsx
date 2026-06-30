@@ -249,6 +249,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     lead_time_shift: 'Lead time has shifted beyond the acceptable threshold for this component.',
     hard_gap: 'No holding supplier exists for this component — sourcing action required.',
   },
+  // P5 Vomero — colorway-level rolled-up readiness state (spec §6.3).
+  // State-only: no supplier, quantity, lead-time, or price detail disclosed at this level.
+  // Tones: ready → success; at_risk → warn; blocked → problem. No orange (nav-only).
+  readiness_rollup: {
+    ready: 'All component lines are available at the required quantity and lead time.',
+    at_risk: 'One or more component lines have quantity, shade, or lead-time concerns.',
+    blocked: 'One or more component lines have no available supplier — sourcing action required.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -352,6 +360,13 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'available') return 'success';
     if (['quantity_short', 'shade_risk', 'length_gap', 'lead_time_shift'].includes(v)) return 'warn';
     if (v === 'hard_gap') return 'problem';
+  }
+  // P5 Vomero rolled-up colorway readiness (spec §6.3): ready = green,
+  // at_risk = amber, blocked = red. No orange (nav-only per brand rules).
+  if (category === 'readiness_rollup') {
+    if (v === 'ready') return 'success';
+    if (v === 'at_risk') return 'warn';
+    if (v === 'blocked') return 'problem';
   }
   return 'neutral';
 }

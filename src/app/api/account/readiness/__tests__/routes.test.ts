@@ -6,12 +6,18 @@ const {
   transitionReadinessBacklog,
   goFishQuery,
   getGoFishResult,
+  getColorwayReadiness,
+  listReadinessBacklog,
+  rollupReadiness,
   getSession,
   getToken,
 } = vi.hoisted(() => ({
   transitionReadinessBacklog: vi.fn(),
   goFishQuery: vi.fn(),
   getGoFishResult: vi.fn(),
+  getColorwayReadiness: vi.fn(),
+  listReadinessBacklog: vi.fn(),
+  rollupReadiness: vi.fn(),
   getSession: vi.fn(),
   getToken: vi.fn(),
 }));
@@ -27,6 +33,9 @@ vi.mock('@/lib/haiwave-api', () => ({
     transitionReadinessBacklog,
     goFishQuery,
     getGoFishResult,
+    getColorwayReadiness,
+    listReadinessBacklog,
+    rollupReadiness,
   }),
 }));
 
@@ -34,6 +43,9 @@ vi.mock('@/lib/haiwave-api', () => ({
 import { POST as transitionPOST } from '../backlog/[id]/transition/route';
 import { POST as goFishPOST } from '../gofish/route';
 import { GET as goFishGET } from '../gofish/[query_id]/route';
+import { GET as skuRefGET } from '../[sku_ref]/route';
+import { GET as backlogGET } from '../backlog/route';
+import { GET as rollupGET } from '../rollup/route';
 
 describe('readiness BFF routes', () => {
   beforeEach(() => {
@@ -145,6 +157,65 @@ describe('readiness BFF routes', () => {
 
       expect(res.status).toBe(200);
       expect(getGoFishResult).toHaveBeenCalledWith('q-abc');
+      expect(await res.json()).toEqual(stub);
+    });
+  });
+  describe('GET /api/account/readiness/[sku_ref]', () => {
+    it('calls getColorwayReadiness with the correct sku_ref', async () => {
+      const stub = {
+        sku_ref: 'VOMERO-IRONSTONE',
+        colorway_name: 'Ironstone Fade',
+        run_qty: 10000,
+        rolled_up_state: 'at_risk',
+        lines: [],
+      };
+      getColorwayReadiness.mockResolvedValue(stub);
+
+      const res = await skuRefGET(
+        new NextRequest('http://localhost/api/account/readiness/VOMERO-IRONSTONE'),
+        { params: Promise.resolve({ sku_ref: 'VOMERO-IRONSTONE' }) },
+      );
+
+      expect(res.status).toBe(200);
+      expect(getColorwayReadiness).toHaveBeenCalledWith('VOMERO-IRONSTONE', expect.any(Object));
+      expect(await res.json()).toEqual(stub);
+    });
+  });
+
+  describe('GET /api/account/readiness/backlog', () => {
+    it('calls listReadinessBacklog with sku_ref from query params', async () => {
+      const stub = { items: [] };
+      listReadinessBacklog.mockResolvedValue(stub);
+
+      const res = await backlogGET(
+        new NextRequest('http://localhost/api/account/readiness/backlog?sku_ref=VOMERO-IRONSTONE'),
+        { params: Promise.resolve({}) },
+      );
+
+      expect(res.status).toBe(200);
+      expect(listReadinessBacklog).toHaveBeenCalledWith(
+        expect.objectContaining({ skuRef: 'VOMERO-IRONSTONE' }),
+      );
+      expect(await res.json()).toEqual(stub);
+    });
+  });
+
+  describe('GET /api/account/readiness/rollup', () => {
+    it('calls rollupReadiness and returns colorways', async () => {
+      const stub = {
+        colorways: [
+          { sku_ref: 'VOMERO-IRONSTONE', colorway_name: 'Ironstone Fade', rolled_up_state: 'at_risk' },
+        ],
+      };
+      rollupReadiness.mockResolvedValue(stub);
+
+      const res = await rollupGET(
+        new NextRequest('http://localhost/api/account/readiness/rollup'),
+        { params: Promise.resolve({}) },
+      );
+
+      expect(res.status).toBe(200);
+      expect(rollupReadiness).toHaveBeenCalled();
       expect(await res.json()).toEqual(stub);
     });
   });

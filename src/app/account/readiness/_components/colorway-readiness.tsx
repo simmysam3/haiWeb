@@ -70,9 +70,7 @@ export function ColorwayReadiness({
                 Run qty: {readiness.run_qty.toLocaleString()} — {readiness.lines.length} component lines
               </p>
             </div>
-            <Pill category="readiness" value={readiness.rolled_up_state === 'ready' ? 'available' : readiness.rolled_up_state === 'at_risk' ? 'lead_time_shift' : 'hard_gap'}>
-              {readiness.rolled_up_state.replace('_', ' ')}
-            </Pill>
+            <Pill category="readiness_rollup" value={readiness.rolled_up_state} />
           </div>
           <div>
             {readiness.lines.map((line) => (
