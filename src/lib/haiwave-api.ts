@@ -98,6 +98,12 @@ import type {
   GroupedManifestsResponse,
   ManifestsByClassResponse,
   ManifestSearchResponse,
+  SkuReadiness,
+  BacklogItem,
+  BacklogItemState,
+  RolledUpReadinessState,
+  GoFishQueryRequest,
+  GoFishAggregatedResponse,
 } from '@haiwave/protocol';
 
 import type {
@@ -759,6 +765,13 @@ export interface HaiwaveClient {
   getEvidenceResponse(responseId: string): Promise<EvidenceResponseWire>;
   // document regeneration streams binary/text — handled in the BFF via fetchRaw,
   // not here (request<T>() is JSON-only).
+  // ─── Readiness (P5 Vomero) ───────────────────────────────────────────────
+  getColorwayReadiness(skuRef: string, opts?: { runQty?: number; demoRunId?: string }): Promise<SkuReadiness>;
+  listReadinessBacklog(filter?: { skuRef?: string; state?: BacklogItemState; demoRunId?: string }): Promise<{ items: BacklogItem[] }>;
+  transitionReadinessBacklog(id: string, body: { to_state: BacklogItemState; resolution_note?: string }): Promise<BacklogItem>;
+  rollupReadiness(opts?: { demoRunId?: string }): Promise<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }> }>;
+  goFishQuery(body: GoFishQueryRequest): Promise<{ query_id: string }>;
+  getGoFishResult(queryId: string): Promise<GoFishAggregatedResponse>;
 }
 
 export function createHaiwaveClient(token: string, participantId: string): HaiwaveClient {
@@ -2018,6 +2031,72 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<EvidenceResponseWire>(
         'GET', `/sonar/compliance/evidence/responses/${encodeURIComponent(responseId)}`,
       ).then((d) => { if (d == null) throw new Error('getEvidenceResponse: haiCore returned no/non-JSON body'); return d; });
+    },
+
+    // ─── Readiness (P5 Vomero) ───────────────────────────────────────────────
+    getColorwayReadiness(skuRef, opts = {}) {
+      const p = new URLSearchParams();
+      if (opts.runQty !== undefined) p.set('run_qty', String(opts.runQty));
+      if (opts.demoRunId) p.set('demo_run_id', opts.demoRunId);
+      const qs = p.toString();
+      return request<SkuReadiness>(
+        'GET',
+        `/readiness/${encodeURIComponent(skuRef)}${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('getColorwayReadiness: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    listReadinessBacklog(filter = {}) {
+      const p = new URLSearchParams();
+      if (filter.skuRef) p.set('sku_ref', filter.skuRef);
+      if (filter.state) p.set('state', filter.state);
+      if (filter.demoRunId) p.set('demo_run_id', filter.demoRunId);
+      const qs = p.toString();
+      return request<{ items: BacklogItem[] }>(
+        'GET',
+        `/readiness/backlog${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('listReadinessBacklog: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    transitionReadinessBacklog(id, body) {
+      return request<BacklogItem>(
+        'POST',
+        `/readiness/backlog/${encodeURIComponent(id)}/transition`,
+        body,
+      ).then((d) => {
+        if (d == null) throw new Error('transitionReadinessBacklog: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    rollupReadiness(opts = {}) {
+      const p = new URLSearchParams();
+      if (opts.demoRunId) p.set('demo_run_id', opts.demoRunId);
+      const qs = p.toString();
+      return request<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }> }>(
+        'GET',
+        `/readiness/rollup${qs ? `?${qs}` : ''}`,
+      ).then((d) => {
+        if (d == null) throw new Error('rollupReadiness: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    goFishQuery(body) {
+      return request<{ query_id: string }>('POST', '/gofish/query', body).then((d) => {
+        if (d == null) throw new Error('goFishQuery: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+    getGoFishResult(queryId) {
+      return request<GoFishAggregatedResponse>(
+        'GET',
+        `/gofish/query/${encodeURIComponent(queryId)}`,
+      ).then((d) => {
+        if (d == null) throw new Error('getGoFishResult: haiCore returned no/non-JSON body');
+        return d;
+      });
     },
 
     // INVARIANT: returns the raw Response and does NOT throw on non-OK

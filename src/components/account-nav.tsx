@@ -198,6 +198,23 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    // P5 Vomero — SKU-resolution backlog and colorway readiness surface.
+    label: "Readiness",
+    subhead: "SKU-Resolution Backlog",
+    items: [
+      {
+        href: "/account/readiness",
+        label: "Readiness",
+        tooltip: "Review colorway component lines, flag outcomes, and manage the SKU-resolution backlog.",
+      },
+      {
+        href: "/account/readiness/rollup",
+        label: "Roll-up",
+        tooltip: "Rolled-up colorway readiness by state — coordinator and brand view.",
+      },
+    ],
+  },
+  {
     label: "Agent Software",
     items: [
       {
