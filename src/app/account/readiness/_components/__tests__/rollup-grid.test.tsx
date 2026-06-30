@@ -14,5 +14,5 @@ it('renders state only — no supplier, qty, lead, or price', () => {
   );
   expect(screen.getByText('Ironstone Fade')).toBeInTheDocument();
   expect(screen.getByText(/at risk/i)).toBeInTheDocument();
-  expect(screen.queryByText(/sq ?ft|sq_ft|days|León|Mekong|Arno|\$/i)).toBeNull();
+  expect(screen.queryByText(/sq ?ft|sq_ft|days|León|Mekong|Arno|\$|price/i)).toBeNull();
 });

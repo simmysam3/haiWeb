@@ -1,13 +1,10 @@
 import { withHaiCore } from '@/lib/with-hai-core';
+import { BacklogItemStateSchema } from '@haiwave/protocol';
 import type { BacklogItemState } from '@haiwave/protocol';
 
-const BACKLOG_ITEM_STATES: ReadonlySet<string> = new Set<BacklogItemState>([
-  'open', 'acknowledged', 'resolved', 'dismissed',
-]);
-
 function asBacklogItemState(v: string | null): BacklogItemState | undefined {
-  if (v !== null && BACKLOG_ITEM_STATES.has(v)) return v as BacklogItemState;
-  return undefined;
+  if (v === null) return undefined;
+  return BacklogItemStateSchema.safeParse(v).data;
 }
 
 export const GET = withHaiCore(({ client, request }) => {
