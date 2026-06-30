@@ -154,6 +154,36 @@ describe('Pill', () => {
     });
   });
 
+  // P5 Vomero — readiness category moq_not_cleared (I2 fix).
+  // moq_not_cleared is a ReadinessEventType used on backlog items; it must resolve
+  // a definition and derive the warn tone (same tier as quantity_short / shade_risk).
+  describe('readiness category — moq_not_cleared', () => {
+    it('resolves a definition (no missing-definition warn)', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      render(<Pill category="readiness" value="moq_not_cleared" />);
+      expect(warn).not.toHaveBeenCalled();
+      const pill = screen.getByTestId('pill');
+      const tip = document.getElementById(pill.getAttribute('aria-describedby') as string);
+      expect(tip?.textContent).toBeTruthy();
+    });
+
+    it('derives the warn tone (bg-warning/10), never neutral or orange', () => {
+      const { container } = render(<Pill category="readiness" value="moq_not_cleared" />);
+      const pill = container.querySelector('[data-testid="pill"]') as HTMLElement;
+      expect(pill.className).toContain('bg-warning/10');
+      expect(pill.className).toContain('text-warning');
+      expect(pill.className).not.toContain('bg-slate/10');
+      expect(pill.className).not.toMatch(/orange/i);
+    });
+
+    it('tooltip mentions minimum order quantity', () => {
+      render(<Pill category="readiness" value="moq_not_cleared" />);
+      const pill = screen.getByTestId('pill');
+      const tip = document.getElementById(pill.getAttribute('aria-describedby') as string);
+      expect(tip?.textContent).toMatch(/minimum order quantity/i);
+    });
+  });
+
   // Entity Approvals — approval_status pill category (pending warn / approved success / revoked problem).
   describe('approval_status category', () => {
     it.each([

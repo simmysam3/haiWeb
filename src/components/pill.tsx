@@ -240,13 +240,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   },
   // P5 Vomero — per-component-line readiness outcome (spec §6.2).
   // Tones: available → success; quantity_short / shade_risk / length_gap /
-  // lead_time_shift → warn; hard_gap → problem. No orange (nav-only).
+  // lead_time_shift / moq_not_cleared → warn; hard_gap → problem. No orange (nav-only).
   readiness: {
     available: 'This component line is fully available at the required quantity and lead time.',
     quantity_short: 'Holding suppliers cannot cover the full run quantity for this component.',
     shade_risk: 'A dye-lot or shade deviation has been flagged for this component.',
     length_gap: 'Required length is not available from current holding suppliers.',
     lead_time_shift: 'Lead time has shifted beyond the acceptable threshold for this component.',
+    moq_not_cleared: "A vendor's available batch is below its minimum order quantity — the line can't be ordered as-is.",
     hard_gap: 'No holding supplier exists for this component — sourcing action required.',
   },
   // P5 Vomero — colorway-level rolled-up readiness state (spec §6.3).
@@ -358,7 +359,7 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
   // outcomes = amber, hard_gap = red. No orange (nav-only per brand rules).
   if (category === 'readiness') {
     if (v === 'available') return 'success';
-    if (['quantity_short', 'shade_risk', 'length_gap', 'lead_time_shift'].includes(v)) return 'warn';
+    if (['quantity_short', 'shade_risk', 'length_gap', 'lead_time_shift', 'moq_not_cleared'].includes(v)) return 'warn';
     if (v === 'hard_gap') return 'problem';
   }
   // P5 Vomero rolled-up colorway readiness (spec §6.3): ready = green,
