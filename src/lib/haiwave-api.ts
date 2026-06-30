@@ -101,6 +101,7 @@ import type {
   SkuReadiness,
   BacklogItem,
   BacklogItemState,
+  RolledUpReadinessState,
   GoFishQueryRequest,
   GoFishAggregatedResponse,
 } from '@haiwave/protocol';
@@ -766,9 +767,9 @@ export interface HaiwaveClient {
   // not here (request<T>() is JSON-only).
   // ─── Readiness (P5 Vomero) ───────────────────────────────────────────────
   getColorwayReadiness(skuRef: string, opts?: { runQty?: number; demoRunId?: string }): Promise<SkuReadiness>;
-  listReadinessBacklog(filter?: { skuRef?: string; state?: string; demoRunId?: string }): Promise<{ items: BacklogItem[] }>;
+  listReadinessBacklog(filter?: { skuRef?: string; state?: BacklogItemState; demoRunId?: string }): Promise<{ items: BacklogItem[] }>;
   transitionReadinessBacklog(id: string, body: { to_state: BacklogItemState; resolution_note?: string }): Promise<BacklogItem>;
-  rollupReadiness(opts?: { demoRunId?: string }): Promise<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: string }> }>;
+  rollupReadiness(opts?: { demoRunId?: string }): Promise<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }> }>;
   goFishQuery(body: GoFishQueryRequest): Promise<{ query_id: string }>;
   getGoFishResult(queryId: string): Promise<GoFishAggregatedResponse>;
 }
@@ -2074,7 +2075,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       const p = new URLSearchParams();
       if (opts.demoRunId) p.set('demo_run_id', opts.demoRunId);
       const qs = p.toString();
-      return request<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: string }> }>(
+      return request<{ colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }> }>(
         'GET',
         `/readiness/rollup${qs ? `?${qs}` : ''}`,
       ).then((d) => {

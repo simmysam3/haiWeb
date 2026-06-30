@@ -1,15 +1,15 @@
 import { fetchBffJson } from '@/lib/server-fetch';
 import { PageHeader } from '@/components';
 import { ColorwayReadiness } from './_components/colorway-readiness';
-import type { SkuReadiness } from '@haiwave/protocol';
+import type { SkuReadiness, RolledUpReadinessState } from '@haiwave/protocol';
 
-interface RollupPayload {
-  colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: string }>;
-}
+type RollupPayload = {
+  colorways: Array<{ sku_ref: string; colorway_name: string; rolled_up_state: RolledUpReadinessState }>;
+};
 
-interface ReadinessPageProps {
+type ReadinessPageProps = {
   searchParams: Promise<{ sku?: string }>;
-}
+};
 
 export default async function ReadinessPage({ searchParams }: ReadinessPageProps) {
   const { sku: skuParam } = await searchParams;

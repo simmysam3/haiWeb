@@ -4,19 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pill } from '@/components/pill';
 import { ComponentLineRow } from './component-line-row';
-import type { SkuReadiness } from '@haiwave/protocol';
+import type { SkuReadiness, RolledUpReadinessState } from '@haiwave/protocol';
 
-interface ColorwayOption {
+type ColorwayOption = {
   sku_ref: string;
   colorway_name: string;
-  rolled_up_state: string;
-}
+  rolled_up_state: RolledUpReadinessState;
+};
 
-interface ColorwayReadinessProps {
+type ColorwayReadinessProps = {
   colorways: ColorwayOption[];
   initialReadiness: SkuReadiness | null;
   initialSkuRef: string | null;
-}
+};
 
 /**
  * Client component: colorway selector + four component lines.
