@@ -247,6 +247,7 @@ export interface PhantomDemandRun {
   triggered_by_user_id: string | null;
   created_at: string;
   updated_at: string;
+  readiness_verdict: 'ready' | 'at_risk' | 'not_ready' | 'not_evaluated' | null;
 }
 
 // v1.44 refined-PD — run detail now returns a BOM tree (null while queued/running).

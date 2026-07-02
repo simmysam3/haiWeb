@@ -169,3 +169,18 @@ describe('Pill', () => {
     });
   });
 });
+
+describe('readiness pill', () => {
+  it('renders a readiness verdict with a definition tooltip', () => {
+    render(<Pill category="readiness" value="not_ready" />);
+    expect(screen.getByText(/not ready/i)).toBeInTheDocument();
+  });
+  it('tones ready=success, at_risk=warn, not_ready=problem', () => {
+    const { rerender } = render(<Pill category="readiness" value="ready" />);
+    expect(document.querySelector('.text-success')).toBeTruthy();
+    rerender(<Pill category="readiness" value="at_risk" />);
+    expect(document.querySelector('.text-warning')).toBeTruthy();
+    rerender(<Pill category="readiness" value="not_ready" />);
+    expect(document.querySelector('.text-problem')).toBeTruthy();
+  });
+});

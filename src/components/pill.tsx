@@ -238,6 +238,17 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     wall: 'At least one line is blocked (no bilateral access, depth cap, or declined).',
     infeasible: 'Lead time exceeds the target date even on the best path.',
   },
+  // v1.55 Spec 3 — component/run readiness verdict, derived from the
+  // interchangeable-vendor fan-out. ready = a single interchangeable vendor
+  // covers the required qty by the target date; at_risk = coverable only by
+  // splitting the order or with a marginal shortfall; not_ready = no
+  // interchangeable trading pair, or every candidate is unavailable.
+  readiness: {
+    ready: 'An interchangeable vendor can supply the full required quantity by the target date.',
+    at_risk: 'Coverable only by splitting across vendors, or a single quote is short on quantity or late.',
+    not_ready: 'No interchangeable trading pair matched, or every interchangeable vendor is unavailable.',
+    not_evaluated: 'Readiness was not evaluated for this component (not a fan-out target).',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -334,6 +345,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'on-time') return 'success';
     if (v === 'marginal') return 'warn';
     if (v === 'wall' || v === 'infeasible') return 'problem';
+  }
+  if (category === 'readiness') {
+    if (v === 'ready') return 'success';
+    if (v === 'at_risk') return 'warn';
+    if (v === 'not_ready') return 'problem';
+    // not_evaluated → neutral
   }
   return 'neutral';
 }
