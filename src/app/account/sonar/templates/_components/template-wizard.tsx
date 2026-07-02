@@ -35,6 +35,8 @@ function emptyScope(): RunTemplateScope {
     weeks_to_hold: 1,
     // v.1.45 — default to the initiator's own catalog (BOM-explosion run).
     catalog_source: { kind: 'own' },
+    // v1.55 — default to a full BOM run; the user opts into readiness.
+    run_mode: 'full',
   } as RunTemplateScope;
 }
 

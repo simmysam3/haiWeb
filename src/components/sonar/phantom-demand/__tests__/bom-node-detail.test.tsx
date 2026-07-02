@@ -34,23 +34,26 @@ const vendorNode: BomNode = {
   internal_block: null,
   wall_block: null,
   subcomponents: [],
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated',
 };
 
 describe('BomNodeDetail', () => {
   it('renders SKU + label + qty', () => {
-    render(<BomNodeDetail node={vendorNode} />);
+    render(<BomNodeDetail node={vendorNode} targetDate="2026-08-01" />);
     expect(screen.getByText('ABS-HSG-25')).toBeInTheDocument();
     expect(screen.getByText(/qty required: 30/i)).toBeInTheDocument();
   });
   it('renders vendor identity + PLT + QLT + historical', () => {
-    render(<BomNodeDetail node={vendorNode} />);
+    render(<BomNodeDetail node={vendorNode} targetDate="2026-08-01" />);
     expect(screen.getByText('VEN-A-001')).toBeInTheDocument();
     expect(screen.getByText(/5 days/)).toBeInTheDocument();        // PLT
     expect(screen.getByText(/p50: 5d/)).toBeInTheDocument();        // historical
     expect(screen.getByText(/p90: 7d/)).toBeInTheDocument();
   });
   it('renders on_hand when disclosure=exact', () => {
-    render(<BomNodeDetail node={vendorNode} />);
+    render(<BomNodeDetail node={vendorNode} targetDate="2026-08-01" />);
     expect(screen.getByText(/400/)).toBeInTheDocument();
   });
   it('renders wall reason when wall_block present', () => {
@@ -60,7 +63,7 @@ describe('BomNodeDetail', () => {
       vendor_block: null,
       wall_block: { reason: 'no_bilateral', depth_when_hit: 1, intended_counterparty: null, detail: null },
     };
-    render(<BomNodeDetail node={wallNode} />);
+    render(<BomNodeDetail node={wallNode} targetDate="2026-08-01" />);
     expect(screen.getByText(/no bilateral access/i)).toBeInTheDocument();
   });
 });
@@ -87,17 +90,55 @@ describe('BomNodeDetail — exploded-component quantity breakdown', () => {
     internal_block: null,
     wall_block: null,
     subcomponents: [],
+    attributes: [],
+    alternates: [],
+    alternates_status: 'not_evaluated',
   };
 
   it('shows the rolled-up total AND the per-parent multiplier for an exploded component', () => {
-    render(<BomNodeDetail node={brassNode} />);
+    render(<BomNodeDetail node={brassNode} targetDate="2026-08-01" />);
     expect(screen.getByText(/qty required: 360/i)).toBeInTheDocument();
     expect(screen.getByText(/×3 per parent/i)).toBeInTheDocument();
   });
 
   it('omits the per-parent breakdown for a 1:1 component', () => {
-    render(<BomNodeDetail node={vendorNode} />);
+    render(<BomNodeDetail node={vendorNode} targetDate="2026-08-01" />);
     expect(screen.getByText(/qty required: 30/i)).toBeInTheDocument();
     expect(screen.queryByText(/per parent/i)).toBeNull();
+  });
+});
+
+const alternatesNode: BomNode = {
+  line_id: '00000000-0000-0000-0000-0000000000cc', component_sku: 'LACE-9', component_label: 'Lace',
+  qty_per_parent_unit: 1, qty_required_total: 30, source: 'vendor_stock', on_hand_qty: null,
+  vendor_block: { vendor_participant_id: '00000000-0000-0000-0000-0000000000d1', vendor_sku: 'INC', mto_reference: null, plt_days: null, qlt: null, inventory_disclosure: 'not_disclosed', on_hand_qty_at_vendor: null, historical_lt: null },
+  internal_block: null, wall_block: null, subcomponents: [], attributes: [],
+  alternates_status: 'has_alternates',
+  alternates: [
+    { vendor_participant_id: '00000000-0000-0000-0000-0000000000d1', vendor_sku: 'INC', relationship_state: 'trading_pair', availability: { quoted_quantity: 30, quoted_timeline: '2026-07-15T00:00:00Z', confidence: 'high', completeness: 'complete', on_hand_qty: 100, inventory_disclosure: 'sufficient' }, unavailable_reason: null },
+    { vendor_participant_id: '00000000-0000-0000-0000-0000000000d2', vendor_sku: 'ALT', relationship_state: 'trading_pair', availability: null, unavailable_reason: 'declined_by_seller' },
+  ],
+};
+
+describe('BomNodeDetail — interchangeable vendors', () => {
+  it('renders the verdict pill and the alternates list', () => {
+    render(<BomNodeDetail node={alternatesNode} targetDate="2026-08-01" />);
+    expect(screen.getByText(/interchangeable vendors/i)).toBeInTheDocument();
+    expect(screen.getByText('ALT')).toBeInTheDocument();               // an alternate sku
+    expect(screen.getByText(/declined by seller/i)).toBeInTheDocument(); // unavailable_reason surfaced
+  });
+
+  it('renders the human readiness reason next to the verdict for an at-risk node', () => {
+    // one complete, on-time quote short on quantity (10 < 30) -> at_risk / single_short_qty
+    const atRiskNode: BomNode = {
+      ...alternatesNode,
+      alternates: [
+        { vendor_participant_id: '00000000-0000-0000-0000-0000000000d1', vendor_sku: 'INC', relationship_state: 'trading_pair', availability: { quoted_quantity: 10, quoted_timeline: '2026-07-15T00:00:00Z', confidence: 'high', completeness: 'complete', on_hand_qty: 0, inventory_disclosure: 'sufficient' }, unavailable_reason: null },
+      ],
+    };
+    render(<BomNodeDetail node={atRiskNode} targetDate="2026-08-01" />);
+    // Assert on the dedicated reason element (not the Pill's definition tooltip,
+    // which also contains the word "quantity").
+    expect(screen.getByTestId('readiness-reason')).toHaveTextContent(/short on quantity/i);
   });
 });

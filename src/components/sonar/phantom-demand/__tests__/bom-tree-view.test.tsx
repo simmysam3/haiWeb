@@ -14,6 +14,9 @@ const tree: BomTree = {
   vendor_block: null,
   internal_block: { standard_lt_days: 5, historical_lt: null, live_capacity: null },
   wall_block: null,
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated',
   subcomponents: [
     {
       line_id: '00000000-0000-0000-0000-000000000002',
@@ -36,32 +39,43 @@ const tree: BomTree = {
       internal_block: null,
       wall_block: null,
       subcomponents: [],
+      attributes: [],
+      alternates: [],
+      alternates_status: 'not_evaluated',
     },
   ],
 };
 
 describe('BomTreeView', () => {
   it('renders the root SKU + label', () => {
-    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={vi.fn()} />);
+    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={vi.fn()} targetDate="2026-08-01" />);
     expect(screen.getByText('HC-9000')).toBeInTheDocument();
     expect(screen.getByText('Hydraulic Controller')).toBeInTheDocument();
   });
   it('renders subcomponents recursively', () => {
-    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={vi.fn()} />);
+    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={vi.fn()} targetDate="2026-08-01" />);
     expect(screen.getByText('ABS-HSG-25')).toBeInTheDocument();
   });
   it('calls onSelect with line_id when a node is clicked', () => {
     const onSelect = vi.fn();
-    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={onSelect} />);
+    render(<BomTreeView tree={tree} selectedLineId={null} onSelect={onSelect} targetDate="2026-08-01" />);
     fireEvent.click(screen.getByText('ABS-HSG-25'));
     expect(onSelect).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000002');
   });
   it('highlights the selected node', () => {
     const { container } = render(
-      <BomTreeView tree={tree} selectedLineId="00000000-0000-0000-0000-000000000002" onSelect={vi.fn()} />,
+      <BomTreeView tree={tree} selectedLineId="00000000-0000-0000-0000-000000000002" onSelect={vi.fn()} targetDate="2026-08-01" />,
     );
     const selected = container.querySelector('[aria-selected="true"]');
     expect(selected?.textContent).toContain('ABS-HSG-25');
+  });
+  it('renders a readiness badge on a fanned-out node', () => {
+    // reuse the file's tree fixture, but mark the root has_alternates with one covering candidate
+    const t = { ...tree, alternates_status: 'has_alternates' as const, alternates: [
+      { vendor_participant_id: '00000000-0000-0000-0000-0000000000e1', vendor_sku: 'X', relationship_state: 'trading_pair' as const, availability: { quoted_quantity: tree.qty_required_total, quoted_timeline: '2026-07-01T00:00:00Z', confidence: 'high' as const, completeness: 'complete' as const, on_hand_qty: 0, inventory_disclosure: 'sufficient' as const }, unavailable_reason: null },
+    ] };
+    render(<BomTreeView tree={t} selectedLineId={null} onSelect={() => {}} targetDate="2026-08-01" />);
+    expect(document.querySelector('.text-success')).toBeTruthy();
   });
 });
 
@@ -91,6 +105,9 @@ const brass: BomNode = {
   internal_block: null,
   wall_block: null,
   subcomponents: [],
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated',
 };
 
 const machining: BomNode = {
@@ -105,6 +122,9 @@ const machining: BomNode = {
   internal_block: { standard_lt_days: 10, historical_lt: null, live_capacity: null },
   wall_block: null,
   subcomponents: [],
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated',
 };
 
 const explodedTree: BomTree = {
@@ -119,18 +139,21 @@ const explodedTree: BomTree = {
   internal_block: { standard_lt_days: 0, historical_lt: null, live_capacity: null },
   wall_block: null,
   subcomponents: [machining, brass],
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated',
 };
 
 describe('BomTreeView — multiplier vs total disambiguation', () => {
   it('surfaces the per-parent multiplier and rolled-up total (×3 → 360), not a bare ×360', () => {
-    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} />);
+    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} targetDate="2026-08-01" />);
     const node = screen.getByRole('button', { name: /BRASS-STOCK/i });
     expect(node).toHaveTextContent('×3 → 360');
     expect(node).not.toHaveTextContent('×360');
   });
 
   it('shows 1:1 / run-qty nodes as a plain quantity, never a "×" multiplier', () => {
-    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} />);
+    render(<BomTreeView tree={explodedTree} selectedLineId={null} onSelect={vi.fn()} targetDate="2026-08-01" />);
     const root = screen.getByRole('button', { name: /Cartridge Valve Body Blank/i });
     expect(root).toHaveTextContent('120');
     expect(root).not.toHaveTextContent('×120');

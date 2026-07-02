@@ -1,4 +1,6 @@
 import type { BomNode } from '@haiwave/protocol';
+import { evaluateNodeReadiness } from '@haiwave/protocol';
+import { Pill } from '@/components/pill';
 import { SpotCheckTooltip } from './spot-check-tooltip';
 import { MesUnavailable } from './mes-unavailable';
 
@@ -9,6 +11,17 @@ const WALL_LABELS: Record<string, string> = {
   no_answer: 'No answer',
   depth_cap: 'Recursion depth cap',
   agent_error: 'Agent error',
+};
+
+// v1.55 Spec 3 — human phrasing for the ReadinessReason enum, shown beside the
+// verdict Pill so an at-risk / not-ready component says *why*, not just its state.
+const READINESS_REASON_LABELS: Record<string, string> = {
+  no_interchangeable_trading_pair: 'No interchangeable trading pair matched this class',
+  all_unavailable: 'Every interchangeable vendor is unavailable',
+  split_source_only: 'Coverable only by splitting the order across vendors',
+  single_short_qty: 'Best quote is short on quantity',
+  timeline_slip: 'Covered, but delivery lands after the target date',
+  partial_completeness: 'Only partial quotes are available',
 };
 
 /** Local shape for the qlt field (typed `unknown` in protocol; rendered defensively). */
@@ -36,10 +49,12 @@ function isQltDescriptor(v: unknown): v is QltDescriptor {
 
 interface BomNodeDetailProps {
   node: BomNode;
+  targetDate: string;
 }
 
-export function BomNodeDetail({ node }: BomNodeDetailProps) {
+export function BomNodeDetail({ node, targetDate }: BomNodeDetailProps) {
   const qlt = isQltDescriptor(node.vendor_block?.qlt) ? node.vendor_block?.qlt : null;
+  const readiness = evaluateNodeReadiness(node, targetDate);
 
   return (
     <div className="space-y-4 rounded border border-slate-200 bg-white p-4">
@@ -136,6 +151,39 @@ export function BomNodeDetail({ node }: BomNodeDetailProps) {
             <p>
               <span className="text-slate-500">Live capacity:</span> <MesUnavailable />
             </p>
+          )}
+        </section>
+      )}
+
+      {node.alternates_status !== 'not_evaluated' && (
+        <section className="space-y-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-medium text-slate-700">Interchangeable vendors</h4>
+            <Pill category="readiness" value={readiness.verdict} />
+            {readiness.reason && (
+              <span data-testid="readiness-reason" className="text-xs text-slate-500">
+                {READINESS_REASON_LABELS[readiness.reason] ?? readiness.reason.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+          {node.alternates.length === 0 ? (
+            <p className="text-slate-500">No interchangeable trading pair matched this component&apos;s class.</p>
+          ) : (
+            <ul className="space-y-1">
+              {node.alternates.map((a) => (
+                <li key={`${a.vendor_participant_id}:${a.vendor_sku}`} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono text-slate-900">{a.vendor_sku}</span>
+                  <span className="text-xs text-slate-400">{a.relationship_state}</span>
+                  {a.availability ? (
+                    <span className="text-slate-600">
+                      {a.availability.quoted_quantity ?? '—'} by {a.availability.quoted_timeline?.slice(0, 10) ?? 'unknown'} ({a.availability.completeness})
+                    </span>
+                  ) : (
+                    <span className="text-red-700">{(a.unavailable_reason ?? '').replace(/_/g, ' ')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}

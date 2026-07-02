@@ -85,6 +85,95 @@ describe('PhantomDemandQueue', () => {
     });
   });
 
+  it('Status column shows the readiness verdict (worst-component outcome), not the run lifecycle status', async () => {
+    const queue = {
+      configs: [
+        {
+          template_id: 't-own',
+          template_name: 'Vomero readiness — Pegasus',
+          sku: 'PEGASUS-TRAIL-CLAY',
+          source: 'own',
+          counterparty_id: null,
+          last_run: {
+            run_id: 'run-1',
+            status: 'completed',
+            readiness_verdict: 'not_ready',
+            created_at: new Date(Date.now() - 120_000).toISOString(),
+            completed_at: new Date().toISOString(),
+          },
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(queue)));
+    renderQueue();
+
+    await screen.findByText('Vomero readiness — Pegasus');
+    // The adopted status is the worst subcomponent flag → "Not ready".
+    expect(screen.getByText('Not ready')).toBeInTheDocument();
+    // The run lifecycle word must NOT be shown as the status.
+    expect(screen.queryByText('completed')).not.toBeInTheDocument();
+  });
+
+  it('shows a live "Running" indicator instead of an Output link while a run is in flight', async () => {
+    const queue = {
+      configs: [
+        {
+          template_id: 't-own',
+          template_name: 'Vomero readiness — Pegasus',
+          sku: 'PEGASUS-TRAIL-CLAY',
+          source: 'own',
+          counterparty_id: null,
+          last_run: {
+            run_id: 'run-live',
+            status: 'running',
+            readiness_verdict: null,
+            created_at: new Date(Date.now() - 10_000).toISOString(),
+            completed_at: null,
+          },
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(queue)));
+    renderQueue();
+
+    await screen.findByText('Vomero readiness — Pegasus');
+    // While running the output is not yet available → shown as a live status,
+    // not a link.
+    const running = screen.getByText(/running/i);
+    expect(running).toBeInTheDocument();
+    expect(running.closest('a')).toBeNull();
+    // No navigable Output link exists while the run is in flight.
+    expect(screen.queryByRole('link', { name: /output/i })).not.toBeInTheDocument();
+  });
+
+  it('surfaces a failed run in the Status column instead of hiding it', async () => {
+    const queue = {
+      configs: [
+        {
+          template_id: 't-own',
+          template_name: 'Vomero readiness — Pegasus',
+          sku: 'PEGASUS-TRAIL-CLAY',
+          source: 'own',
+          counterparty_id: null,
+          last_run: {
+            run_id: 'run-x',
+            status: 'failed',
+            readiness_verdict: null,
+            created_at: new Date(Date.now() - 30_000).toISOString(),
+            completed_at: new Date().toISOString(),
+          },
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(queue)));
+    renderQueue();
+
+    await screen.findByText('Vomero readiness — Pegasus');
+    // A failed run has no readiness outcome, but it must not be swallowed to a
+    // bare em-dash — the worst-case adopted status surfaces the failure.
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+  });
+
   it('clears a config’s runs via the trash action (only when it has runs)', async () => {
     const fetchMock = vi.fn(async () => jsonResponse(QUEUE));
     vi.stubGlobal('fetch', fetchMock);

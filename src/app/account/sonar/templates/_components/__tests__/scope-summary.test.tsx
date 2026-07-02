@@ -81,6 +81,36 @@ describe('ScopeSummary', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
+  it('phantom_demand_bom: shows the run type as Readiness when run_mode=alternates (v1.55)', () => {
+    const scope: RunTemplateScope = {
+      kind: 'phantom_demand_bom',
+      sku: 'HC-9000',
+      default_qty: 30,
+      default_target_date: '2026-06-15',
+      vendor_exclude: [],
+      weeks_to_hold: 2,
+      catalog_source: { kind: 'own' },
+      run_mode: 'alternates',
+    };
+    render(<ScopeSummary scope={scope} />);
+    expect(screen.getByText('Run type')).toBeInTheDocument();
+    expect(screen.getByText(/readiness/i)).toBeInTheDocument();
+  });
+
+  it('phantom_demand_bom: shows the run type as Full BOM when run_mode absent (pre-v1.55)', () => {
+    const scope: RunTemplateScope = {
+      kind: 'phantom_demand_bom',
+      sku: 'HC-9000',
+      default_qty: 30,
+      default_target_date: '2026-06-15',
+      vendor_exclude: [],
+      weeks_to_hold: 2,
+      catalog_source: { kind: 'own' },
+    } as RunTemplateScope;
+    render(<ScopeSummary scope={scope} />);
+    expect(screen.getByText(/full bom/i)).toBeInTheDocument();
+  });
+
   it('renders an explicit empty state for empty arrays', () => {
     // Cast needed: WatcherScope.signal_types is nonempty() in the protocol schema,
     // but this test intentionally exercises the empty-array UI branch.

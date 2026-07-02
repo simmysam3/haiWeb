@@ -105,6 +105,11 @@ export function ScopeSummary({ scope }: { scope: RunTemplateScope }) {
             'My own catalog'
           )}
         </Field>
+        <Field label="Run type">
+          {(scope.run_mode ?? 'full') === 'alternates'
+            ? 'Readiness (interchangeable vendors)'
+            : 'Full BOM'}
+        </Field>
         <Field label="SKU">
           <IdChip id={scope.sku} chars={24} />
         </Field>

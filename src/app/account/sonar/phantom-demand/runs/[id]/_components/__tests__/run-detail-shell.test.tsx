@@ -21,6 +21,11 @@ const makeTree = () => ({
   vendor_block: null,
   internal_block: { standard_lt_days: 5, historical_lt: null, live_capacity: null },
   wall_block: null,
+  // v1.55 Spec 1/3 fields — required on BomNode; the schema fills these via
+  // .default([]) / .default('not_evaluated'), so a real node always carries them.
+  attributes: [],
+  alternates: [],
+  alternates_status: 'not_evaluated' as const,
   subcomponents: [
     {
       line_id: '00000000-0000-0000-0000-000000000002',
@@ -42,6 +47,9 @@ const makeTree = () => ({
       },
       internal_block: null,
       wall_block: null,
+      attributes: [],
+      alternates: [],
+      alternates_status: 'not_evaluated' as const,
       subcomponents: [],
     },
   ],

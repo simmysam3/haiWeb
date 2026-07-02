@@ -90,7 +90,7 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
         const body = (await res.json()) as WizardOptions;
         if (!cancelled) setOptions(body);
       } catch {
-        if (!cancelled) setOptionsError("Couldn't load accepted audit scopes. Try again in a moment.");
+        if (!cancelled) setOptionsError("Couldn't load accepted counterparties. Try again in a moment.");
       } finally {
         if (!cancelled) setOptionsLoading(false);
       }
@@ -265,7 +265,7 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
   }
 
   if (optionsLoading) {
-    return <p className="text-sm text-slate italic">Loading accepted audit scopes…</p>;
+    return <p className="text-sm text-slate italic">Loading accepted counterparties…</p>;
   }
   if (optionsError) {
     return (
@@ -277,7 +277,7 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
   if (!options || options.counterparties.length === 0) {
     return (
       <div className="rounded border border-slate/20 bg-slate/5 px-3 py-3 text-sm text-charcoal">
-        No counterparties have accepted audit nominations yet. Send a nomination from{' '}
+        No counterparties have accepted a nomination yet. Send a nomination from{' '}
         <a className="text-teal underline" href="/account/sonar/requests/new-nomination">
           Requests → New nomination
         </a>{' '}
