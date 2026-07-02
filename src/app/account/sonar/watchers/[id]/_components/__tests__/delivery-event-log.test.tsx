@@ -3,38 +3,38 @@ import { describe, expect, it } from 'vitest';
 import { DeliveryEventLog } from '../delivery-event-log';
 
 describe('<DeliveryEventLog>', () => {
-  it('renders chronological events (most recent first) when direct', () => {
+  it('renders a single direct delivery event (protocol DeliveryEventSchema shape — no events[] wrapper)', () => {
     render(
       <DeliveryEventLog
         synthesisMode="direct"
         payload={{
-          events: [
-            { event_type: 'delivered', occurred_at: '2026-05-26T12:00:00Z', shipment_id: 'SHP-1', detail: null },
-            { event_type: 'in_transit', occurred_at: '2026-05-25T08:00:00Z', shipment_id: 'SHP-1', detail: null },
-          ],
+          kind: 'direct',
+          event_type: 'delivered',
+          occurred_at: '2026-05-26T12:00:00Z',
+          shipment_id: 'SHIP-ARNO-1000',
+          detail: 'vomero demo seed',
         }}
       />,
     );
-    const items = screen.getAllByRole('listitem');
-    expect(items[0]).toHaveTextContent('delivered');
-    expect(items[1]).toHaveTextContent('in_transit');
+    expect(screen.getByText('delivered')).toBeInTheDocument();
+    expect(screen.getByText('SHIP-ARNO-1000')).toBeInTheDocument();
+    expect(screen.getByText('vomero demo seed')).toBeInTheDocument();
   });
 
-  it('shows the "Show N more" expander when more than 3 events', () => {
+  it('renders the aggregated variant with its source handle', () => {
     render(
       <DeliveryEventLog
-        synthesisMode="direct"
+        synthesisMode="aggregated_derivative"
         payload={{
-          events: Array.from({ length: 5 }, (_, i) => ({
-            event_type: 'in_transit' as const,
-            occurred_at: `2026-05-2${i + 1}T08:00:00Z`,
-            shipment_id: `SHP-${i}`,
-            detail: null,
-          })),
+          kind: 'aggregated',
+          event_type: 'in_transit',
+          timestamp: '2026-05-25T08:00:00Z',
+          source_handle: 'tier-2/handle-7',
         }}
       />,
     );
-    expect(screen.getByRole('button', { name: /Show 2 more/i })).toBeInTheDocument();
+    expect(screen.getByText('in_transit')).toBeInTheDocument();
+    expect(screen.getByText(/tier-2\/handle-7/)).toBeInTheDocument();
   });
 
   it('renders absent treatment when redacted_gap', () => {
