@@ -127,4 +127,18 @@ describe('BomNodeDetail — interchangeable vendors', () => {
     expect(screen.getByText('ALT')).toBeInTheDocument();               // an alternate sku
     expect(screen.getByText(/declined by seller/i)).toBeInTheDocument(); // unavailable_reason surfaced
   });
+
+  it('renders the human readiness reason next to the verdict for an at-risk node', () => {
+    // one complete, on-time quote short on quantity (10 < 30) -> at_risk / single_short_qty
+    const atRiskNode: BomNode = {
+      ...alternatesNode,
+      alternates: [
+        { vendor_participant_id: '00000000-0000-0000-0000-0000000000d1', vendor_sku: 'INC', relationship_state: 'trading_pair', availability: { quoted_quantity: 10, quoted_timeline: '2026-07-15T00:00:00Z', confidence: 'high', completeness: 'complete', on_hand_qty: 0, inventory_disclosure: 'sufficient' }, unavailable_reason: null },
+      ],
+    };
+    render(<BomNodeDetail node={atRiskNode} targetDate="2026-08-01" />);
+    // Assert on the dedicated reason element (not the Pill's definition tooltip,
+    // which also contains the word "quantity").
+    expect(screen.getByTestId('readiness-reason')).toHaveTextContent(/short on quantity/i);
+  });
 });
