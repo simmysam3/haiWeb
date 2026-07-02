@@ -51,6 +51,7 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
 
   const detail = (refreshed ?? initialDetail) as PhantomDemandRunDetail;
   const tree = detail.tree;
+  const targetDate = (detail.run.scope_snapshot as { target_date?: string } | null)?.target_date ?? '';
 
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const selectedNode = tree && selectedLineId ? findNode(tree, selectedLineId) : null;
@@ -73,9 +74,9 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <BomTreeView tree={tree} selectedLineId={selectedLineId} onSelect={setSelectedLineId} />
+        <BomTreeView tree={tree} selectedLineId={selectedLineId} onSelect={setSelectedLineId} targetDate={targetDate} />
         {selectedNode ? (
-          <BomNodeDetail node={selectedNode} />
+          <BomNodeDetail node={selectedNode} targetDate={targetDate} />
         ) : (
           <div className="rounded border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
             Select a component to see details.

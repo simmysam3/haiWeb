@@ -1,4 +1,6 @@
 import type { BomNode } from '@haiwave/protocol';
+import { evaluateNodeReadiness } from '@haiwave/protocol';
+import { Pill } from '@/components/pill';
 import { SpotCheckTooltip } from './spot-check-tooltip';
 import { MesUnavailable } from './mes-unavailable';
 
@@ -36,9 +38,10 @@ function isQltDescriptor(v: unknown): v is QltDescriptor {
 
 interface BomNodeDetailProps {
   node: BomNode;
+  targetDate: string;
 }
 
-export function BomNodeDetail({ node }: BomNodeDetailProps) {
+export function BomNodeDetail({ node, targetDate }: BomNodeDetailProps) {
   const qlt = isQltDescriptor(node.vendor_block?.qlt) ? node.vendor_block?.qlt : null;
 
   return (
@@ -136,6 +139,34 @@ export function BomNodeDetail({ node }: BomNodeDetailProps) {
             <p>
               <span className="text-slate-500">Live capacity:</span> <MesUnavailable />
             </p>
+          )}
+        </section>
+      )}
+
+      {node.alternates_status !== 'not_evaluated' && (
+        <section className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium text-slate-700">Interchangeable vendors</h4>
+            <Pill category="readiness" value={evaluateNodeReadiness(node, targetDate).verdict} />
+          </div>
+          {node.alternates.length === 0 ? (
+            <p className="text-slate-500">No interchangeable trading pair matched this component&apos;s class.</p>
+          ) : (
+            <ul className="space-y-1">
+              {node.alternates.map((a) => (
+                <li key={`${a.vendor_participant_id}:${a.vendor_sku}`} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono text-slate-900">{a.vendor_sku}</span>
+                  <span className="text-xs text-slate-400">{a.relationship_state}</span>
+                  {a.availability ? (
+                    <span className="text-slate-600">
+                      {a.availability.quoted_quantity ?? '—'} by {a.availability.quoted_timeline?.slice(0, 10) ?? 'unknown'} ({a.availability.completeness})
+                    </span>
+                  ) : (
+                    <span className="text-red-700">{(a.unavailable_reason ?? '').replace(/_/g, ' ')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}

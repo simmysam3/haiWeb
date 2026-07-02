@@ -1,10 +1,13 @@
 'use client';
 import type { BomTree, BomNode } from '@haiwave/protocol';
+import { evaluateNodeReadiness } from '@haiwave/protocol';
+import { Pill } from '@/components/pill';
 
 interface BomTreeViewProps {
   tree: BomTree;
   selectedLineId: string | null;
   onSelect: (lineId: string) => void;
+  targetDate: string;
 }
 
 function sourceIcon(node: BomNode): { glyph: string; className: string } {
@@ -29,11 +32,13 @@ function TreeNode({
   depth,
   selectedLineId,
   onSelect,
+  targetDate,
 }: {
   node: BomNode;
   depth: number;
   selectedLineId: string | null;
   onSelect: (lineId: string) => void;
+  targetDate: string;
 }) {
   const isSelected = node.line_id === selectedLineId;
   const { glyph, className } = sourceIcon(node);
@@ -63,6 +68,11 @@ function TreeNode({
             ? node.qty_required_total
             : `×${node.qty_per_parent_unit} → ${node.qty_required_total}`}
         </span>
+        {node.alternates_status !== 'not_evaluated' && (
+          <span className="ml-2">
+            <Pill category="readiness" value={evaluateNodeReadiness(node, targetDate).verdict} />
+          </span>
+        )}
       </button>
       {node.subcomponents.length > 0 && (
         <ul>
@@ -73,6 +83,7 @@ function TreeNode({
               depth={depth + 1}
               selectedLineId={selectedLineId}
               onSelect={onSelect}
+              targetDate={targetDate}
             />
           ))}
         </ul>
@@ -81,10 +92,10 @@ function TreeNode({
   );
 }
 
-export function BomTreeView({ tree, selectedLineId, onSelect }: BomTreeViewProps) {
+export function BomTreeView({ tree, selectedLineId, onSelect, targetDate }: BomTreeViewProps) {
   return (
     <ul className="space-y-0.5 rounded border border-slate-200 bg-white p-2" role="tree">
-      <TreeNode node={tree} depth={0} selectedLineId={selectedLineId} onSelect={onSelect} />
+      <TreeNode node={tree} depth={0} selectedLineId={selectedLineId} onSelect={onSelect} targetDate={targetDate} />
     </ul>
   );
 }
