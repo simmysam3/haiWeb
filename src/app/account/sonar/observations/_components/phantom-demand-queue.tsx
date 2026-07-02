@@ -4,10 +4,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
+import { Pill } from '@/components/pill';
+
+type ReadinessVerdict = 'ready' | 'at_risk' | 'not_ready' | 'not_evaluated';
 
 interface QueueLastRun {
   run_id: string;
   status: string;
+  readiness_verdict: ReadinessVerdict | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -48,18 +52,14 @@ function TrashIcon() {
 
 const IN_FLIGHT = new Set(['running', 'in_progress', 'pending', 'queued', 'throttled']);
 const COMPLETED = new Set(['complete', 'completed', 'succeeded']);
+const FAILED = new Set(['failed', 'cancelled', 'canceled']);
 
 function isInFlight(status: string): boolean {
   return IN_FLIGHT.has(status);
 }
 
-function statusTone(status: string): string {
-  if (COMPLETED.has(status)) return 'bg-emerald-100 text-emerald-800';
-  if (IN_FLIGHT.has(status)) return 'bg-sky-100 text-sky-800';
-  if (status === 'partial') return 'bg-amber-100 text-amber-800';
-  if (status === 'failed' || status === 'cancelled' || status === 'canceled')
-    return 'bg-rose-100 text-rose-800';
-  return 'bg-slate-100 text-slate-800';
+function isFailure(status: string): boolean {
+  return FAILED.has(status);
 }
 
 function formatRelative(iso: string): string {
@@ -249,14 +249,25 @@ export function PhantomDemandQueue() {
                     {lr ? formatRelative(lr.created_at) : '—'}
                   </td>
                   <td className="px-4 py-2">
-                    {lr ? (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(lr.status)}`}
-                      >
-                        {lr.status}
-                      </span>
-                    ) : (
+                    {!lr ? (
                       <span className="text-xs italic text-slate">never run</span>
+                    ) : isFailure(lr.status) ? (
+                      <Pill
+                        tone="problem"
+                        definition="The run ended before producing a readiness outcome."
+                      >
+                        {lr.status === 'failed' ? 'Failed' : 'Cancelled'}
+                      </Pill>
+                    ) : lr.readiness_verdict &&
+                      lr.readiness_verdict !== 'not_evaluated' ? (
+                      <Pill category="readiness" value={lr.readiness_verdict} />
+                    ) : (
+                      <span
+                        className="text-xs text-slate"
+                        title="No readiness outcome yet"
+                      >
+                        —
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2">
@@ -279,7 +290,20 @@ export function PhantomDemandQueue() {
                       >
                         Config
                       </Link>
-                      {hasOutput ? (
+                      {live ? (
+                        <span
+                          role="status"
+                          aria-live="polite"
+                          className="inline-flex items-center gap-1.5 text-sky-800"
+                          title="Run in progress — output appears when it completes"
+                        >
+                          <span
+                            className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-sky-300 border-t-sky-600"
+                            aria-hidden
+                          />
+                          Running…
+                        </span>
+                      ) : hasOutput ? (
                         <Link
                           href={`/account/sonar/phantom-demand/runs/${lr.run_id}`}
                           className="text-teal hover:underline"

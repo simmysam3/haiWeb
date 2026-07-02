@@ -9,6 +9,9 @@ import { withHaiCore } from '@/lib/with-hai-core';
 interface QueueLastRun {
   run_id: string;
   status: string;
+  // Run-level readiness roll-up (worst component). Null on non-alternates or
+  // pre-Spec-3 runs. The queue surfaces this as the adopted SKU status.
+  readiness_verdict: PhantomDemandRun['readiness_verdict'];
   created_at: string;
   completed_at: string | null;
 }
@@ -68,6 +71,7 @@ export const GET = withHaiCore(async ({ client }) => {
         ? {
             run_id: lr.run_id,
             status: lr.status,
+            readiness_verdict: lr.readiness_verdict ?? null,
             created_at: lr.created_at,
             completed_at: lr.completed_at ?? null,
           }
