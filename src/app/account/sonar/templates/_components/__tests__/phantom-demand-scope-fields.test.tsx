@@ -59,6 +59,48 @@ describe('PhantomDemandScopeFields catalog source (v.1.45)', () => {
   });
 });
 
+describe('PhantomDemandScopeFields run type (v1.55 readiness)', () => {
+  it('defaults to the Full BOM run type and offers a Readiness alternative (own catalog)', () => {
+    render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);
+    expect(screen.getByRole('radio', { name: /full bom/i })).toBeChecked();
+    expect(
+      screen.getByRole('radio', { name: /readiness/i }),
+    ).not.toBeChecked();
+  });
+
+  it('emits run_mode=alternates when the Readiness run type is chosen', () => {
+    const onChange = vi.fn();
+    render(<PhantomDemandScopeFields value={BASE} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('radio', { name: /readiness/i }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ run_mode: 'alternates' }),
+    );
+  });
+
+  it('shows the Readiness run type as selected when run_mode=alternates', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, run_mode: 'alternates' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: /readiness/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /full bom/i })).not.toBeChecked();
+  });
+
+  it('hides the run-type control when a trading partner catalog is selected', () => {
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, catalog_source: { kind: 'counterparty', counterparty_id: '' } }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole('radio', { name: /readiness/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
   it('renders the SKU, Default Quantity, Default Target Date, hold-for-weeks and Exclude Vendors labels', () => {
     render(<PhantomDemandScopeFields value={BASE} onChange={vi.fn()} />);

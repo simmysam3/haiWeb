@@ -86,6 +86,9 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
 
   const skuFetcher = source.kind === 'counterparty' ? partnerFetcher : ownFetcher;
 
+  // v1.55 — absent on pre-v1.55 templates → 'full' (no fan-out).
+  const runMode = value.run_mode ?? 'full';
+
   return (
     <div className="space-y-4">
       <fieldset className="space-y-2">
@@ -135,6 +138,41 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
             }
           />
         </div>
+      )}
+
+      {/* v1.55 — run type. Only the own-catalog (buyer-side BOM) path fans out
+          to interchangeable vendors, so the readiness option is gated to
+          catalog_source=own; the counterparty direct-probe path is always a
+          full run and the run-service ignores run_mode there. */}
+      {source.kind === 'own' && (
+        <fieldset className="space-y-2">
+          <legend className="block mb-1 text-sm font-medium text-charcoal">
+            Run type
+          </legend>
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input
+              type="radio"
+              name="pd-run-mode"
+              checked={runMode !== 'alternates'}
+              onChange={() => onChange({ ...value, run_mode: 'full' })}
+            />
+            Full BOM
+          </label>
+          <label className="flex items-center gap-2 text-sm text-charcoal">
+            <input
+              type="radio"
+              name="pd-run-mode"
+              checked={runMode === 'alternates'}
+              onChange={() => onChange({ ...value, run_mode: 'alternates' })}
+            />
+            Readiness (interchangeable vendors)
+          </label>
+          <p className="text-xs italic text-slate">
+            Readiness walks the BOM structure and fans out to each component&apos;s
+            interchangeable vendors to gauge sourcing readiness, instead of a full
+            quantity-driven BOM explosion.
+          </p>
+        </fieldset>
       )}
 
       <div className="block text-sm text-charcoal">

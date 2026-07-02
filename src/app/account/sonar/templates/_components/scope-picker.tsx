@@ -30,6 +30,7 @@ export function ScopePicker({ value, onChange }: ScopePickerProps) {
           vendor_exclude: [],
           weeks_to_hold: 1,
           catalog_source: { kind: 'own' },
+          run_mode: 'full',
         };
   return <PhantomDemandScopeFields value={pdValue} onChange={onChange} />;
 }
