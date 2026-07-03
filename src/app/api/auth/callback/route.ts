@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loadEnv } from '@/config/env';
 import { exchangeCode, verifyIdTokenNonce } from '@/lib/oidc';
 import { isAdminFromAccessToken } from '@/lib/jwt-claims';
+import { safeNext } from '@/lib/safe-next';
 
 const TEMP_COOKIES = ['kc_verifier', 'kc_state', 'kc_nonce', 'kc_next', 'kc_retry'] as const;
 
@@ -22,7 +23,12 @@ export async function GET(request: NextRequest) {
   const cookieState = request.cookies.get('kc_state')?.value;
   const verifier = request.cookies.get('kc_verifier')?.value;
   const nonce = request.cookies.get('kc_nonce')?.value;
-  const next = request.cookies.get('kc_next')?.value ?? '/account';
+  // Re-validate at read time even though the login route already ran
+  // safeNext() when writing this cookie — the cookie is attacker-influenceable
+  // independently of that write (e.g. cookie tossing from a sibling
+  // subdomain), so a value that doesn't start with "/" must not reach the
+  // redirect composition below.
+  const next = safeNext(request.cookies.get('kc_next')?.value);
 
   // Separate a genuinely bad callback from the benign "CSRF cookies expired"
   // case. The kc_* cookies are short-lived; if the user sits on the Keycloak

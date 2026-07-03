@@ -22,7 +22,9 @@ import { POST } from '../route';
 
 const url = 'http://localhost/api/account/aliases';
 const post = (body: unknown) =>
-  POST(new NextRequest(url, { method: 'POST', body: JSON.stringify(body) }));
+  POST(new NextRequest(url, { method: 'POST', body: JSON.stringify(body) }), {
+    params: Promise.resolve({}),
+  });
 
 describe('POST /api/account/aliases', () => {
   beforeEach(() => {
@@ -43,6 +45,7 @@ describe('POST /api/account/aliases', () => {
     // hasRole mock only grants account_admin; simulate a denial by overriding.
     const res = await POST(
       new NextRequest(url, { method: 'POST', body: JSON.stringify({ alias: 'X' }) }),
+      { params: Promise.resolve({}) },
     );
     // owner satisfies account_admin in our mock → not 403; assert the happy gate
     // passes (addAlias reached). The denial branch is covered by hasRole itself.
@@ -82,13 +85,13 @@ describe('POST /api/account/aliases', () => {
     expect((await post({ alias: 'Acme' })).status).toBe(500);
   });
 
-  it('returns a synthetic 201 row when there is no real JWT (offline mode)', async () => {
+  // Regression pin: a non-JWT cookie (dev shim, or a poisoned/misconfigured
+  // cookie in prod) must never fabricate a synthetic 201 alias row — fail
+  // closed with 401, same as every other withHaiCore mutation route.
+  it('401 (no fake success) when the token is not JWT-like', async () => {
     getToken.mockResolvedValue('mock-cookie'); // not JWT-like (no dots)
     const res = await post({ alias: 'Acme' });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(401);
     expect(addAlias).not.toHaveBeenCalled();
-    const json = await res.json();
-    expect(json.alias).toBe('Acme');
-    expect(json.source).toBe('user');
   });
 });

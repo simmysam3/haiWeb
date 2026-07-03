@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole } from "@/lib/auth";
-import { updateUserRole, disableUser } from "@/lib/keycloak";
+import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
+import { updateUserRole, disableUser, getUser } from "@/lib/keycloak";
+
+// Confirm the target user belongs to the caller's participant before any
+// mutation. A missing/foreign participant is reported as 404 so the endpoint
+// does not disclose the existence of users in other tenants.
+async function assertSameTenant(
+  userId: string,
+  participantId: string,
+): Promise<boolean> {
+  try {
+    const target = await getUser(userId);
+    return target.attributes?.participant_id?.[0] === participantId;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * PATCH /api/account/users/:userId
@@ -28,6 +43,17 @@ export async function PATCH(
 
     if (!role) {
       return NextResponse.json({ error: "role is required" }, { status: 400 });
+    }
+
+    if (!isAssignableRole(role)) {
+      return NextResponse.json(
+        { error: "role is not assignable" },
+        { status: 400 },
+      );
+    }
+
+    if (!(await assertSameTenant(userId, session.participant.id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     await updateUserRole(userId, role);
@@ -66,6 +92,10 @@ export async function DELETE(
       { error: "Cannot disable your own account" },
       { status: 400 },
     );
+  }
+
+  if (!(await assertSameTenant(userId, session.participant.id))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   try {

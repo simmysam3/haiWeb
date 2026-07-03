@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole } from "@/lib/auth";
-import { listUsers, createUser } from "@/lib/keycloak";
+import { listUsers, createUser, sendExecuteActionsEmail } from "@/lib/keycloak";
 import { MOCK_USERS } from "@/lib/mock-data";
 
 /**
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { email, first_name, last_name, role, password } = body;
+    const { email, first_name, last_name, role } = body;
 
     if (!email || !first_name || !last_name) {
       return NextResponse.json(
@@ -58,12 +58,15 @@ export async function POST(request: NextRequest) {
       email,
       firstName: first_name,
       lastName: last_name,
-      password: password ?? crypto.randomUUID().slice(0, 16),
       attributes: {
         participant_id: [session.participant.id],
         role: [role ?? "account_viewer"],
       },
     });
+
+    // The invitee proves mailbox control and sets their own password via
+    // Keycloak's email flow; the portal never issues a usable credential.
+    await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"]);
 
     return NextResponse.json({ id: userId, email, first_name, last_name, role: role ?? "account_viewer" }, { status: 201 });
   } catch (err) {

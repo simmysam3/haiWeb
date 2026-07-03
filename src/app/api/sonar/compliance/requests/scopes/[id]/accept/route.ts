@@ -51,4 +51,4 @@ export const POST = withHaiCore<{ id: string }>(async ({ client, request, params
   let parsed: unknown;
   try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
   return NextResponse.json(parsed, { status: haiCoreRes.status });
-});
+}, { role: 'account_admin' });

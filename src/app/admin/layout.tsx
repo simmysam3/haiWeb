@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { isAdmin } from "@/lib/admin-guard";
 
 const adminNav = [
   { href: "/admin", label: "Overview" },
@@ -9,11 +11,16 @@ const adminNav = [
   { href: "/admin/audit", label: "Audit Log" },
 ];
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Session presence alone is enforced upstream; the admin console itself is
+  // restricted to admin identities. A non-admin participant is sent back to
+  // their own account rather than shown the console shell.
+  if (!(await isAdmin())) redirect("/account");
+
   return (
     <div className="min-h-screen flex">
       <aside className="w-64 bg-charcoal text-white flex flex-col shrink-0">
