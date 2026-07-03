@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
-import { AuditExceptionsDashboard } from "./audit-exceptions-dashboard";
+import { RunExceptionsPanel } from "./run-exceptions-panel";
 
 export default function AuditExceptionsPage() {
   return (
@@ -14,7 +14,7 @@ export default function AuditExceptionsPage() {
         Rows are the latest <strong>non-compliant</strong> outcome per (vendor, product) across
         your last 7 days of audit runs.
       </PageIntro>
-      <AuditExceptionsDashboard />
+      <RunExceptionsPanel />
     </div>
   );
 }

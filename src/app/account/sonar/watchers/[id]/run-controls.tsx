@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WatcherRun, WatcherRunStatus } from '@haiwave/protocol';
-import { useRunStatus } from './use-run-status';
+import { useRunStatus, TERMINAL } from './use-run-status';
 import { Pill } from '@/components/pill';
-
-const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
 
 interface RunControlsProps {
   run: WatcherRun;
@@ -106,18 +104,7 @@ function StatusPill({
       </span>
     );
   }
-  const label =
-    status === 'running' ? 'Running' :
-    status === 'throttled' ? 'Throttled' :
-    status === 'complete' ? 'Complete' :
-    status === 'partial' ? 'Partial' :
-    status === 'failed' ? 'Failed' :
-    'Cancelled';
-  return (
-    <Pill category="run_status" value={status}>
-      {label}
-    </Pill>
-  );
+  return <Pill category="run_status" value={status} />;
 }
 
 function AnimatedDots() {

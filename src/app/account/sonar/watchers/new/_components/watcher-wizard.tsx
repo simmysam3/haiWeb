@@ -11,6 +11,7 @@ import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
 import { WatcherScopePicker } from './watcher-scope-picker';
+import { buildWatcherRunBody } from '../../_lib/build-watcher-run-body';
 
 /**
  * Four-step wizard for creating a new Watcher (v.1.43 Plan 2, Task 17).
@@ -124,14 +125,7 @@ export function WatcherWizard() {
         const runRes = await fetch('/api/account/sonar/watcher/runs', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            signal_types: scope.signal_types,
-            counterparty_filter:
-              scope.counterparties.length > 0 ? scope.counterparties : null,
-            skus: scope.skus.length > 0 ? scope.skus : undefined,
-            depth_limit: scope.depth_limit,
-            template_id: templateId,
-          }),
+          body: JSON.stringify(buildWatcherRunBody(scope, templateId)),
         });
         if (!runRes.ok) {
           const info = await describeApiError(runRes);

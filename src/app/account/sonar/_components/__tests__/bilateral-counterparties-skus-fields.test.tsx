@@ -17,7 +17,7 @@ describe('BilateralCounterpartiesSkusFields empty state', () => {
     );
 
     const { container } = render(
-      <BilateralCounterpartiesSkusFields counterparties={[]} skus={[]} onChange={() => {}} />,
+      <BilateralCounterpartiesSkusFields skus={[]} onChange={() => {}} />,
     );
 
     // The empty-state still points users at the nomination flow…

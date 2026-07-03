@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 import { Pill } from '@/components/pill';
 import type { SignalType } from '@haiwave/protocol';
+import { SIGNAL_TYPE_ABBREVIATIONS } from '../_lib/signal-type-abbreviations';
 
 interface TriageAlert {
   id: string;
@@ -20,14 +21,6 @@ interface TriageAlert {
 interface AlertsResponse {
   alerts: TriageAlert[];
 }
-
-const SIGNAL_PILL: Record<SignalType, 'LT' | 'CAP' | 'DEL' | 'PLT' | 'QLT'> = {
-  lead_time_distribution: 'LT',
-  capacity_utilization_band: 'CAP',
-  delivery_event: 'DEL',
-  published_lead_time: 'PLT',
-  quoted_lead_time: 'QLT',
-};
 
 export function NeedsTriageStrip() {
   const { data } = useSWR<AlertsResponse>(
@@ -56,7 +49,7 @@ export function NeedsTriageStrip() {
             key={a.id}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm text-charcoal"
           >
-            <Pill category="signal_type" value={SIGNAL_PILL[a.signal_type]} />
+            <Pill category="signal_type" value={SIGNAL_TYPE_ABBREVIATIONS[a.signal_type]} />
             {a.watcher_template_id ? (
               <Link
                 href={`/account/sonar/watchers/definitions/${a.watcher_template_id}`}

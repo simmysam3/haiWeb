@@ -135,8 +135,6 @@ describe('loadAuditChartData', () => {
     expect(cn.depth_distribution).toEqual({ '1': 4, '2': 4 });
     const us = out.rollup.find((e) => e.country_of_origin === 'US')!;
     expect(us.component_count).toBe(1);
-    expect(out.gaps).toBe(7);
-    expect(out.latestAt).toBe('2026-05-10T12:00:00.000Z');
     expect(out.partnerCompliance).not.toBeNull();
   });
 
@@ -150,8 +148,6 @@ describe('loadAuditChartData', () => {
     expect(out).toEqual({
       rollup: [],
       classRollup: [],
-      gaps: null,
-      latestAt: null,
       partnerCompliance: null,
     });
   });
@@ -175,40 +171,7 @@ describe('loadAuditChartData', () => {
     expect(out).toEqual({
       rollup: [],
       classRollup: [],
-      gaps: null,
-      latestAt: null,
       partnerCompliance: null,
     });
-  });
-
-  it('coalesces null gap_count to 0 and reports triggered_at as latestAt', async () => {
-    stubFetch({
-      '/api/account/audit-runs?limit=25': {
-        ok: true,
-        body: {
-          runs: [
-            makeRun({
-              status: 'complete',
-              gap_count: null,
-              triggered_at: '2026-05-12T09:00:00.000Z',
-            }),
-          ],
-        },
-      },
-      [`/api/account/audit-runs/${RUN_ID}/results`]: {
-        ok: true,
-        body: { results: [makeResult()] },
-      },
-      [`/api/account/audit-runs/${RUN_ID}/class-rollup`]: {
-        ok: true,
-        body: { rollup: [] },
-      },
-    });
-
-    const out = await loadAuditChartData(BASE, COOKIE);
-
-    // gap_count null → coalesced to 0.
-    expect(out.gaps).toBe(0);
-    expect(out.latestAt).toBe('2026-05-12T09:00:00.000Z');
   });
 });

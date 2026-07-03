@@ -8,15 +8,6 @@ interface Props {
 }
 
 export function GapsTable({ entries }: Props) {
-  if (entries.length === 0) {
-    return (
-      <div className="p-12 text-center space-y-2">
-        <p className="text-base font-medium text-navy">No obligation gaps found.</p>
-        <p className="text-sm text-slate">When downstream gaps are detected against your accepted obligations, they will appear here.</p>
-      </div>
-    );
-  }
-
   const sorted = [...entries].sort((a, b) => {
     if (b.request_count !== a.request_count) return b.request_count - a.request_count;
     const order = { not_invited: 0, invited: 1, participant: 2 } as const;

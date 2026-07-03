@@ -1,10 +1,5 @@
 import Link from 'next/link';
-import type {
-  SearchCounterpartyHit,
-  SearchResponse,
-  SearchScopeHit,
-  SearchSkuHit,
-} from '@haiwave/protocol';
+import type { SearchResponse } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { PageHeader } from '@/components/page-header';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -99,26 +94,64 @@ export default async function GlobalSearchPage({
 
       {!isTooShort && data !== null && (
         <div className="space-y-8">
-          <CounterpartySection
+          <ResultsSection
             q={q}
+            label="Counterparties"
             hits={data.counterparties}
-            page={pageCp}
-            pageSku={pageSku}
-            pageSc={pageSc}
+            emptyMessage={`No counterparties match "${q}".`}
+            href={(c) => `/account/partners/${c.participant_id}`}
+            keyOf={(c) => c.participant_id}
+            pillValue={(c) => c.status}
+            row={(c) => (
+              <>
+                {c.legal_name}
+                {c.dba_name && (
+                  <span className="ml-2 text-xs text-slate">(dba {c.dba_name})</span>
+                )}
+              </>
+            )}
+            pageParamName="page_counterparties"
+            pages={{ page_counterparties: pageCp, page_skus: pageSku, page_scopes: pageSc }}
           />
-          <SkuSection
+          <ResultsSection
             q={q}
+            label="SKUs"
             hits={data.skus}
-            page={pageSku}
-            pageCp={pageCp}
-            pageSc={pageSc}
+            emptyMessage={`No SKUs match "${q}".`}
+            href={(s) => `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`}
+            keyOf={(s) => s.obligation_id}
+            pillValue={(s) => s.status}
+            row={(s) => (
+              <>
+                {s.sku_label}
+                <span className="ml-2 text-xs text-slate">
+                  {s.product_id}
+                  {s.responder_legal_name && ` · ${s.responder_legal_name}`}
+                </span>
+              </>
+            )}
+            pageParamName="page_skus"
+            pages={{ page_counterparties: pageCp, page_skus: pageSku, page_scopes: pageSc }}
           />
-          <ScopeSection
+          <ResultsSection
             q={q}
+            label="Scopes / Requests"
             hits={data.scopes}
-            page={pageSc}
-            pageCp={pageCp}
-            pageSku={pageSku}
+            emptyMessage={`No scopes match "${q}".`}
+            href={(s) => `/account/sonar/requests?scope_id=${encodeURIComponent(s.scope_id)}`}
+            keyOf={(s) => s.scope_id}
+            pillValue={(s) => s.acceptance_status}
+            row={(s) => (
+              <>
+                {s.subject}
+                <span className="ml-2 text-xs text-slate">
+                  {s.scope_type}
+                  {s.counterparty_legal_name && ` · ${s.counterparty_legal_name}`}
+                </span>
+              </>
+            )}
+            pageParamName="page_scopes"
+            pages={{ page_counterparties: pageCp, page_skus: pageSku, page_scopes: pageSc }}
           />
 
           {data.counterparties.length === 0 &&
@@ -143,175 +176,78 @@ function EmptyMessage({ children }: { children: React.ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Counterparties
-// ---------------------------------------------------------------------------
-
-function CounterpartySection({
-  q,
-  hits,
-  page,
-  pageSku,
-  pageSc,
-}: {
-  q: string;
-  hits: SearchCounterpartyHit[];
-  page: number;
-  pageSku: number;
-  pageSc: number;
-}) {
-  const slice = paginate(hits, page);
-  return (
-    <section>
-      <SectionHeader label="Counterparties" total={hits.length} />
-      {hits.length === 0 ? (
-        <EmptyMessage>No counterparties match {`"${q}"`}.</EmptyMessage>
-      ) : (
-        <ul className="rounded-md border border-slate/10 bg-white divide-y divide-slate/10">
-          {slice.map((c) => (
-            <li key={c.participant_id}>
-              <Link
-                href={`/account/partners/${c.participant_id}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-light-gray"
-              >
-                <span className="truncate text-navy">
-                  {c.legal_name}
-                  {c.dba_name && (
-                    <span className="ml-2 text-xs text-slate">
-                      (dba {c.dba_name})
-                    </span>
-                  )}
-                </span>
-                <Pill category="status" value={c.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <PaginationLinks
-        q={q}
-        total={hits.length}
-        page={page}
-        otherParams={{ page_skus: pageSku, page_scopes: pageSc }}
-        pageParamName="page_counterparties"
-      />
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SKUs
-// ---------------------------------------------------------------------------
-
-function SkuSection({
-  q,
-  hits,
-  page,
-  pageCp,
-  pageSc,
-}: {
-  q: string;
-  hits: SearchSkuHit[];
-  page: number;
-  pageCp: number;
-  pageSc: number;
-}) {
-  const slice = paginate(hits, page);
-  return (
-    <section>
-      <SectionHeader label="SKUs" total={hits.length} />
-      {hits.length === 0 ? (
-        <EmptyMessage>No SKUs match {`"${q}"`}.</EmptyMessage>
-      ) : (
-        <ul className="rounded-md border border-slate/10 bg-white divide-y divide-slate/10">
-          {slice.map((s) => (
-            <li key={s.obligation_id}>
-              <Link
-                href={`/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-light-gray"
-              >
-                <span className="truncate text-navy">
-                  {s.sku_label}
-                  <span className="ml-2 text-xs text-slate">
-                    {s.product_id}
-                    {s.responder_legal_name && ` · ${s.responder_legal_name}`}
-                  </span>
-                </span>
-                <Pill category="status" value={s.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <PaginationLinks
-        q={q}
-        total={hits.length}
-        page={page}
-        otherParams={{ page_counterparties: pageCp, page_scopes: pageSc }}
-        pageParamName="page_skus"
-      />
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Scopes
-// ---------------------------------------------------------------------------
-
-function ScopeSection({
-  q,
-  hits,
-  page,
-  pageCp,
-  pageSku,
-}: {
-  q: string;
-  hits: SearchScopeHit[];
-  page: number;
-  pageCp: number;
-  pageSku: number;
-}) {
-  const slice = paginate(hits, page);
-  return (
-    <section>
-      <SectionHeader label="Scopes / Requests" total={hits.length} />
-      {hits.length === 0 ? (
-        <EmptyMessage>No scopes match {`"${q}"`}.</EmptyMessage>
-      ) : (
-        <ul className="rounded-md border border-slate/10 bg-white divide-y divide-slate/10">
-          {slice.map((s) => (
-            <li key={s.scope_id}>
-              <Link
-                href={`/account/sonar/requests?scope_id=${encodeURIComponent(s.scope_id)}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-light-gray"
-              >
-                <span className="truncate text-navy">
-                  {s.subject}
-                  <span className="ml-2 text-xs text-slate">
-                    {s.scope_type}
-                    {s.counterparty_legal_name &&
-                      ` · ${s.counterparty_legal_name}`}
-                  </span>
-                </span>
-                <Pill category="status" value={s.acceptance_status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <PaginationLinks
-        q={q}
-        total={hits.length}
-        page={page}
-        otherParams={{ page_counterparties: pageCp, page_skus: pageSku }}
-        pageParamName="page_scopes"
-      />
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
+
+interface SearchPages {
+  page_counterparties: number;
+  page_skus: number;
+  page_scopes: number;
+}
+
+/**
+ * One generic renderer for the three categorized result lists
+ * (counterparties, SKUs, scopes) — they share markup, empty-state, and
+ * pagination, differing only in row content/href/key/pill-value per hit.
+ */
+function ResultsSection<T>({
+  q,
+  label,
+  hits,
+  emptyMessage,
+  href,
+  keyOf,
+  pillValue,
+  row,
+  pageParamName,
+  pages,
+}: {
+  q: string;
+  label: string;
+  hits: T[];
+  emptyMessage: string;
+  href: (hit: T) => string;
+  keyOf: (hit: T) => string;
+  pillValue: (hit: T) => string;
+  row: (hit: T) => React.ReactNode;
+  pageParamName: keyof SearchPages;
+  pages: SearchPages;
+}) {
+  const page = pages[pageParamName];
+  const slice = paginate(hits, page);
+  const otherParams = Object.fromEntries(
+    Object.entries(pages).filter(([k]) => k !== pageParamName),
+  );
+  return (
+    <section>
+      <SectionHeader label={label} total={hits.length} />
+      {hits.length === 0 ? (
+        <EmptyMessage>{emptyMessage}</EmptyMessage>
+      ) : (
+        <ul className="rounded-md border border-slate/10 bg-white divide-y divide-slate/10">
+          {slice.map((hit) => (
+            <li key={keyOf(hit)}>
+              <Link
+                href={href(hit)}
+                className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-light-gray"
+              >
+                <span className="truncate text-navy">{row(hit)}</span>
+                <Pill category="status" value={pillValue(hit)} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <PaginationLinks
+        q={q}
+        total={hits.length}
+        page={page}
+        otherParams={otherParams}
+        pageParamName={pageParamName}
+      />
+    </section>
+  );
+}
 
 function SectionHeader({ label, total }: { label: string; total: number }) {
   return (

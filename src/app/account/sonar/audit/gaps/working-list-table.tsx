@@ -65,6 +65,15 @@ function formatLastObserved(iso: string | null | undefined): string | null {
   return new Date(t).toLocaleDateString();
 }
 
+function EmptyWorkingList() {
+  return (
+    <div className="p-12 text-center space-y-2">
+      <p className="text-base font-medium text-navy">Nothing on your working list.</p>
+      <p className="text-sm text-slate">As gaps, changes, nominations, obligations, or expiries appear, they will surface here.</p>
+    </div>
+  );
+}
+
 interface Props { items: WorkingListItem[]; total?: number; }
 
 export function WorkingListTable({ items, total }: Props) {
@@ -175,12 +184,7 @@ export function WorkingListTable({ items, total }: Props) {
   const visibleItems = showSuppressed ? items : items.filter((it) => it.state !== 'dismissed');
   const suppressedCount = items.filter((it) => it.state === 'dismissed').length;
 
-  if (visibleItems.length === 0 && suppressedCount === 0) return (
-    <div className="p-12 text-center space-y-2">
-      <p className="text-base font-medium text-navy">Nothing on your working list.</p>
-      <p className="text-sm text-slate">As gaps, changes, nominations, obligations, or expiries appear, they will surface here.</p>
-    </div>
-  );
+  if (visibleItems.length === 0 && suppressedCount === 0) return <EmptyWorkingList />;
 
   return (
     <div>
@@ -208,10 +212,7 @@ export function WorkingListTable({ items, total }: Props) {
         )}
       </div>
       {visibleItems.length === 0 ? (
-        <div className="p-12 text-center space-y-2">
-          <p className="text-base font-medium text-navy">Nothing on your working list.</p>
-          <p className="text-sm text-slate">As gaps, changes, nominations, obligations, or expiries appear, they will surface here.</p>
-        </div>
+        <EmptyWorkingList />
       ) : (
         groupByPartner(visibleItems).map((g) => (
           <details key={g.partnerId ?? '__unassigned__'} open className="group">

@@ -4,19 +4,8 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import type { TrustClass, TrustBypassAffectedCounterparty } from '@haiwave/protocol';
 import { Panel } from '@/components';
-
-const TRUST_CLASS_LABEL: Record<TrustClass, string> = {
-  unknown: 'Unknown',
-  behavioral_only: 'Behavioral-only',
-  trading_pair: 'Trading pair',
-  premier_partner: 'Premier partner',
-};
-
-const fetcher = async (url: string): Promise<{ counterparties: TrustBypassAffectedCounterparty[] }> => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Failed (${r.status})`);
-  return r.json();
-};
+import { jsonFetcher } from '@/lib/swr-fetcher';
+import { TRUST_CLASS_LABEL } from './trust-class-label';
 
 /**
  * Spec §7.8: per active trust-bypass class, list the counterparties with at
@@ -25,9 +14,9 @@ const fetcher = async (url: string): Promise<{ counterparties: TrustBypassAffect
  * into the existing declines list filtered to that counterparty.
  */
 export function PreservedDeclinesPanel({ trustClass }: { trustClass: TrustClass }) {
-  const { data, isLoading, error } = useSWR(
+  const { data, isLoading, error } = useSWR<{ counterparties: TrustBypassAffectedCounterparty[] }>(
     `/api/account/sonar/audit/trust-bypass/affected-counterparties?trust_class=${encodeURIComponent(trustClass)}`,
-    fetcher,
+    jsonFetcher,
   );
 
   if (isLoading) return null;

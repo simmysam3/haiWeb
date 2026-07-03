@@ -10,6 +10,7 @@ import { RequestList } from './request-list';
 import { FilterBar } from './_components/filter-bar';
 import { EmptyFiltered } from './_components/empty-filtered';
 import { DeclinedList } from './_components/declined-list';
+import { buildRequestQueuePath, normalizeDirection, normalizeItemType } from './_lib/build-request-queue-path';
 
 /**
  * v.1.37 Request Management — client-side orchestrator.
@@ -36,43 +37,21 @@ interface Props {
   initialData: RequestManagementListResponse;
 }
 
-function mapItemTypeToLegacyParam(itemType: string | null): 'nomination' | 'obligation' | 'all' {
-  if (itemType === 'nomination' || itemType === 'obligation') return itemType;
-  return 'all';
-}
-
-function mapDirection(raw: string | null): 'me' | 'them' | 'all' | 'declined' {
-  if (raw === 'them' || raw === 'all' || raw === 'declined') return raw;
-  return 'me';
-}
-
 export function RequestManagementClient({ initialData }: Props) {
   const sp = useSearchParams();
   // Legacy aliases (`awaiting`, `type`) still arrive from the v1.35 301
   // redirects (middleware.ts) — accept either name, prefer the new one.
-  const direction = mapDirection(sp.get('direction') ?? sp.get('awaiting'));
-  const itemType = mapItemTypeToLegacyParam(sp.get('item_type') ?? sp.get('type'));
+  const direction = normalizeDirection(sp.get('direction'), sp.get('awaiting'));
+  const itemType = normalizeItemType(sp.get('item_type'), sp.get('type'));
   const counterparty = sp.get('counterparty');
   const state = sp.get('state');
   const ageBucket = sp.get('age_bucket');
   const isDeclined = direction === 'declined';
 
-  // Build the active-queue query string regardless of mode so memoization key
-  // stays stable. When `direction=declined` the SWR key below targets the
-  // declined endpoint instead and ignores this query string entirely.
-  const activeQs = useMemo(() => {
-    const out = new URLSearchParams();
-    out.set('awaiting', isDeclined ? 'all' : direction);
-    out.set('type', itemType);
-    if (counterparty) out.set('counterparty', counterparty);
-    if (state) out.set('state', state);
-    if (ageBucket) out.set('age_bucket', ageBucket);
-    return out.toString();
-  }, [direction, itemType, counterparty, state, ageBucket, isDeclined]);
-
-  const swrKey = isDeclined
-    ? '/api/sonar/compliance/requests/declined?days=30'
-    : `/api/sonar/compliance/requests?${activeQs}`;
+  const swrKey = useMemo(
+    () => buildRequestQueuePath(direction, itemType, { counterparty, state, ageBucket }),
+    [direction, itemType, counterparty, state, ageBucket],
+  );
 
   const { data, error, mutate } = useSWR<RequestManagementListResponse>(
     swrKey,

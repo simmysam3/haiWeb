@@ -3,6 +3,7 @@
 import type { RunTemplate } from '@haiwave/protocol';
 import { RunNowButton } from '../../../../_components/run-now-button';
 import { describeApiError } from '@/lib/api-error';
+import { buildWatcherRunBody } from '../../../_lib/build-watcher-run-body';
 
 type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
 
@@ -17,21 +18,13 @@ interface Props {
  * scheduled fire would do.
  */
 export function WatcherRunNowButton({ template }: Props) {
-  const scope = template.scope;
   return (
     <RunNowButton
       trigger={async () => {
         const res = await fetch('/api/account/sonar/watcher/runs', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            signal_types: scope.signal_types,
-            counterparty_filter:
-              scope.counterparties.length > 0 ? scope.counterparties : null,
-            skus: scope.skus.length > 0 ? scope.skus : undefined,
-            depth_limit: scope.depth_limit,
-            template_id: template.template_id,
-          }),
+          body: JSON.stringify(buildWatcherRunBody(template.scope, template.template_id)),
         });
         if (!res.ok) {
           const info = await describeApiError(res);

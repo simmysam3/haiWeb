@@ -1,4 +1,3 @@
-// src/app/account/sonar/templates/new/page.tsx
 import { redirect } from 'next/navigation';
 import { TemplateWizard } from '../_components/template-wizard';
 import { configNoun } from '../_lib/config-noun';

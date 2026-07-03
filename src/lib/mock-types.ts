@@ -3,20 +3,14 @@
 // the mock constants (which live in mock-data.ts and should stay server-side
 // or behind BFF routes).
 
+import type { UserRole } from "./auth";
+
 export interface MockUser {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
-  role:
-    | "account_owner"
-    | "procurement_read_only"
-    | "procurement_transact"
-    | "buyer_view_only"
-    | "buyer_request_quote"
-    | "buyer_full_transact"
-    | "inside_sales_read_only"
-    | "inside_sales_transact";
+  role: UserRole;
   job_title: string;
   phone: string;
   status: "active" | "disabled";

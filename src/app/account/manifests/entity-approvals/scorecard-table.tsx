@@ -1,20 +1,15 @@
 "use client";
 
 import { Pill } from "@/components/pill";
+import { formatUsd } from "@/lib/library-types";
 import type { Scorecard, ScorecardRow, ScorecardEvidence } from "@/lib/library-types";
-
-const USD = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
 
 /** "$3,000,000 held · $5,000,000 required" when either amount is present. */
 function amountsLine(row: ScorecardRow): string | null {
   if (row.held_amount_usd == null && row.required_min_amount_usd == null) return null;
   const parts: string[] = [];
-  if (row.held_amount_usd != null) parts.push(`${USD.format(row.held_amount_usd)} held`);
-  if (row.required_min_amount_usd != null) parts.push(`${USD.format(row.required_min_amount_usd)} required`);
+  if (row.held_amount_usd != null) parts.push(`${formatUsd(row.held_amount_usd)} held`);
+  if (row.required_min_amount_usd != null) parts.push(`${formatUsd(row.required_min_amount_usd)} required`);
   return parts.join(" · ");
 }
 

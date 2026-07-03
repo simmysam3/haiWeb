@@ -8,9 +8,9 @@ import type { PhantomDemandRunDetail } from '@/lib/haiwave-api';
 export default async function Page({
   params,
 }: {
-  params: { id: string } | Promise<{ id: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params instanceof Promise ? await params : params;
+  const { id } = await params;
 
   const client = await getServerHaiwaveClient();
   let detail: PhantomDemandRunDetail;

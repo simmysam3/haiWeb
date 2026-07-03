@@ -9,21 +9,6 @@ import { PricingTree, PricingNode } from "@/components/pricing-tree";
 import { PricingLevelEditor } from "@/components/pricing-level-editor";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
-import type { MockPricingNode } from "@/lib/mock-types";
-
-function convertMockNodes(nodes: MockPricingNode[]): PricingNode[] {
-  return nodes.map((n) => ({
-    id: n.id,
-    level: n.level,
-    label: n.label,
-    scope: n.scope,
-    customer_override: n.customer_override,
-    inherited_from: n.inherited_from,
-    pricing: n.pricing,
-    terms: n.terms,
-    children: n.children ? convertMockNodes(n.children) : [],
-  }));
-}
 
 function findNode(nodes: PricingNode[], id: string): PricingNode | null {
   for (const node of nodes) {
@@ -62,21 +47,16 @@ export default function PricingPage() {
   const [selectedId, setSelectedId] = useState("");
   const { toast, showToast } = useToast();
 
-  const pricingApi = useApi<MockPricingNode[]>({
+  const pricingApi = useApi<PricingNode[]>({
     url: "/api/account/pricing",
     fallback: [],
   });
 
   useEffect(() => {
     if (!pricingApi.loading) {
-      const converted = convertMockNodes(pricingApi.data);
-      setHierarchy(converted);
-      // Auto-select first node if nothing selected
-      if (!selectedId && converted.length > 0) {
-        setSelectedId(converted[0].id);
-      }
+      setHierarchy(pricingApi.data);
     }
-  }, [pricingApi.data, pricingApi.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pricingApi.data, pricingApi.loading]);
 
   // Auto-select first node on mount
   useEffect(() => {

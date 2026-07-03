@@ -47,7 +47,6 @@ import { TristateCheckbox } from '@/components/tristate-checkbox';
  */
 
 interface Props {
-  counterparties: string[];
   skus: string[];
   onChange: (next: { counterparties: string[]; skus: string[] }) => void;
 }
@@ -72,7 +71,7 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, skus, onChange }: Props) {
+export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
@@ -245,23 +244,22 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
     applySelection(next);
   }
 
-  // ── Counterparty-level selection summary ─────────────────────────────
-  function counterpartySelectionState(cp: CounterpartyOption): 'none' | 'partial' | 'all' {
-    if (cp.product_ids.length === 0) return 'none';
+  // ── Selection summary — shared by the counterparty and class rows ────
+  function selectionState(ids: string[]): 'none' | 'partial' | 'all' {
+    if (ids.length === 0) return 'none';
     let hits = 0;
-    for (const id of cp.product_ids) if (selectedSkus.has(id)) hits += 1;
+    for (const id of ids) if (selectedSkus.has(id)) hits += 1;
     if (hits === 0) return 'none';
-    if (hits === cp.product_ids.length) return 'all';
+    if (hits === ids.length) return 'all';
     return 'partial';
   }
 
-  function classSelectionState(productIds: string[]): 'none' | 'partial' | 'all' {
-    if (productIds.length === 0) return 'none';
-    let hits = 0;
-    for (const id of productIds) if (selectedSkus.has(id)) hits += 1;
-    if (hits === 0) return 'none';
-    if (hits === productIds.length) return 'all';
-    return 'partial';
+  function countFor(
+    ids: string[],
+    state: 'none' | 'partial' | 'all',
+  ): string | { filtered: number; total: number } {
+    if (state === 'none') return `${ids.length} SKU${ids.length === 1 ? '' : 's'}`;
+    return { filtered: ids.filter((id) => selectedSkus.has(id)).length, total: ids.length };
   }
 
   if (optionsLoading) {
@@ -300,15 +298,9 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
       <GroupedAccordion>
         {options.counterparties.map((cp) => {
           const cpExpanded = expandedCounterparties.has(cp.counterparty_id);
-          const cpState = counterpartySelectionState(cp);
+          const cpState = selectionState(cp.product_ids);
           const catalog = catalogs.get(cp.counterparty_id);
-          const cpCount =
-            cpState === 'none'
-              ? `${cp.product_ids.length} SKU${cp.product_ids.length === 1 ? '' : 's'}`
-              : {
-                  filtered: cp.product_ids.filter((id) => selectedSkus.has(id)).length,
-                  total: cp.product_ids.length,
-                };
+          const cpCount = countFor(cp.product_ids, cpState);
           return (
             <AccordionGroupRow
               key={cp.counterparty_id}
@@ -335,19 +327,10 @@ export function BilateralCounterpartiesSkusFields({ counterparties: _ignored, sk
                     {Array.from(catalog.byClass.entries()).map(([slug, products]) => {
                       const classKey = `${cp.counterparty_id}|${slug}`;
                       const classExpanded = expandedClasses.has(classKey);
-                      const classState = classSelectionState(
-                        products.map((p) => p.external_product_id),
-                      );
+                      const classProductIds = products.map((p) => p.external_product_id);
+                      const classState = selectionState(classProductIds);
                       const className = catalog.classNames.get(slug) ?? slug;
-                      const classCount =
-                        classState === 'none'
-                          ? `${products.length} SKU${products.length === 1 ? '' : 's'}`
-                          : {
-                              filtered: products.filter((p) =>
-                                selectedSkus.has(p.external_product_id),
-                              ).length,
-                              total: products.length,
-                            };
+                      const classCount = countFor(classProductIds, classState);
                       return (
                         <AccordionGroupRow
                           key={classKey}

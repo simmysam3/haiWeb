@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
+import { formatRelative } from '@/components/sonar/observations';
 import { configNoun } from '../../_lib/config-noun';
+import { runDetailHref } from '../../_lib/run-detail-href';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -52,17 +54,6 @@ function statusTone(status: string): string {
   }
 }
 
-function runDetailHref(klass: ObservationClass, runId: string): string {
-  switch (klass) {
-    case 'audit':
-      return `/account/sonar/watchers/${runId}`;
-    case 'phantom_demand':
-      return `/account/sonar/phantom-demand/runs/${runId}`;
-    case 'watcher':
-      return `/account/sonar/watcher/dashboard`;
-  }
-}
-
 function formatDuration(triggeredAt: string, completedAt: string | null): string {
   if (!completedAt) return '—';
   const start = new Date(triggeredAt).getTime();
@@ -77,19 +68,6 @@ function formatDuration(triggeredAt: string, completedAt: string | null): string
   }
   const h = Math.floor(m / 60);
   return `${h}h ${m - h * 60}m`;
-}
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return iso;
-  const diff = Date.now() - then;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
 }
 
 function originLabel(origin: string): string {

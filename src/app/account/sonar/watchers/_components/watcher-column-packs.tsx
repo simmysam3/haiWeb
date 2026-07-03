@@ -8,23 +8,12 @@ import {
 } from '@/components/sonar/observations';
 import type { ColumnPack } from '@/components/sonar/observations';
 import type { RunTemplate, SignalType, WatcherRun } from '@haiwave/protocol';
+import { SIGNAL_TYPE_ABBREVIATIONS } from '../_lib/signal-type-abbreviations';
 
 type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
 
 export type EnrichedWatcherRun = WatcherRun & {
   template_name?: string | null;
-};
-
-// v.1.43 Plan 3 Task E4 — signal_type → short chip label. Mirrors the
-// abbreviations registered in `pill.tsx` (PILL_DEFINITIONS.signal_type) and
-// the picker pills in <WatcherScopePicker>. Exhaustive over SignalType so
-// adding a new protocol enum value forces a label update at compile time.
-const SIGNAL_TYPE_CHIP_LABELS: Record<SignalType, string> = {
-  lead_time_distribution: 'LT',
-  capacity_utilization_band: 'CAP',
-  delivery_event: 'DEL',
-  published_lead_time: 'PLT',
-  quoted_lead_time: 'QLT',
 };
 
 // When a scope/run carries this many or more signal types, render a single
@@ -34,7 +23,7 @@ const SIGNAL_TYPE_CHIP_LABELS: Record<SignalType, string> = {
 const SIGNAL_CHIP_COLLAPSE_THRESHOLD = 4;
 
 function signalChipLabel(sig: SignalType): string {
-  return SIGNAL_TYPE_CHIP_LABELS[sig] ?? sig;
+  return SIGNAL_TYPE_ABBREVIATIONS[sig];
 }
 
 function formatWatcherScope(scope: WatcherTemplate['scope']): string {

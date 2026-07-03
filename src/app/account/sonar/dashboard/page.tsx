@@ -4,10 +4,10 @@ import { Panel, PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { HeaderStrip } from './_components/header-strip';
 import { ModalityLens } from './_components/modality-lens';
-import { CrossModalityTable } from './_components/cross-modality-table';
+import { CrossModalityTable, type CrossModalityPartner } from './_components/cross-modality-table';
 import { ActivityFeed } from './_components/activity-feed';
 import { DashboardTabs } from './_components/dashboard-tabs';
-import { CoverageStatsStrip, type CoverageSnapshot } from './_charts/coverage-stats-strip';
+import { CoverageStatsStrip } from './_charts/coverage-stats-strip';
 import { CoverageTrendChart } from './_charts/coverage-trend-chart';
 import { GeoChart } from './_charts/geo-chart';
 import { ClassChart } from './_charts/class-chart';
@@ -18,19 +18,10 @@ import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
 import { loadCoverage } from '../_lib/coverage';
 import type { FetchResult } from '@/lib/server-fetch';
-import type { CoverageCurrentResponse, CoverageTrend } from '@haiwave/protocol';
+import type { CoverageCurrent, CoverageCurrentResponse, CoverageTrend } from '@haiwave/protocol';
 
 interface CrossModalityResponse {
-  partners: Array<{
-    partner_id: string;
-    partner_name: string;
-    audit: { compliant: number; partial: number; non_compliant: number; total: number } | null;
-    phantom_demand: { response_rate: number; window_id: string } | null;
-    watcher: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
-    risk_score: number;
-    risk_color: 'green' | 'yellow' | 'red';
-    risk_label: 'normal' | 'elevated' | 'critical';
-  }>;
+  partners: CrossModalityPartner[];
   generated_at: string;
   partial: { audit: boolean; phantom_demand: boolean; watcher: boolean };
 }
@@ -173,10 +164,8 @@ export default async function UnifiedDashboardPage() {
   // NOT collapse into the genuine 0-snapshot onboarding state. (Mirrors the
   // pre-restructure logic from `posture/page.tsx`.)
   const coverageCurrent = data.coverageCurrent;
-  const snapshot: CoverageSnapshot | null =
-    coverageCurrent.kind === 'ok'
-      ? (coverageCurrent.data.snapshot ?? null) as CoverageSnapshot | null
-      : null;
+  const snapshot: CoverageCurrent | null =
+    coverageCurrent.kind === 'ok' ? (coverageCurrent.data.snapshot ?? null) : null;
 
   return (
     <div className="space-y-8">
@@ -276,7 +265,7 @@ export default async function UnifiedDashboardPage() {
                         </Panel>
                       </div>
                     ) : (
-                      <CoverageTrendChart points={data.coverageTrend.data.points as CoverageSnapshot[]} />
+                      <CoverageTrendChart points={data.coverageTrend.data.points} />
                     )}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <GeoChart data={data.charts.rollup} />

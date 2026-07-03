@@ -1,65 +1,21 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { useAgentConfigResource } from '../../_lib/use-agent-config-resource';
+
+type SkuPickerScope = 'published_only' | 'full_catalog';
+
+interface ScopeGetResponse {
+  sku_picker_scope: SkuPickerScope;
+}
 
 export function ScopeForm() {
-  const [agentId, setAgentId] = useState('');
-  const [scope, setScope] = useState<'published_only' | 'full_catalog'>('published_only');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [scope, setScope] = useState<SkuPickerScope>('published_only');
+  const { agentId, setAgentId, status, errorMsg, save } = useAgentConfigResource<ScopeGetResponse>(
+    '/api/account/admin/agent-config/sku-picker-scope',
+    (d) => setScope(d.sku_picker_scope),
+  );
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!agentId) {
-      setStatus('idle');
-      return;
-    }
-    let cancelled = false;
-    setStatus('loading');
-    setErrorMsg('');
-    fetch(`/api/account/admin/agent-config/sku-picker-scope?agent_id=${encodeURIComponent(agentId)}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d) => {
-        if (cancelled) return;
-        setScope(d.sku_picker_scope);
-        setStatus('idle');
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setErrorMsg(err.message);
-        setStatus('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [agentId]);
-
-  const save = async () => {
-    setStatus('saving');
-    setErrorMsg('');
-    try {
-      const res = await fetch('/api/account/admin/agent-config/sku-picker-scope', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agent_id: agentId, sku_picker_scope: scope }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setStatus('saved');
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setStatus('idle'), 2000);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-      setStatus('error');
-    }
-  };
+  const handleSave = () => save({ sku_picker_scope: scope });
 
   return (
     <div className="space-y-4 rounded border border-slate-200 bg-white p-4">
@@ -99,7 +55,7 @@ export function ScopeForm() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={save}
+          onClick={handleSave}
           disabled={!agentId || status === 'saving' || status === 'loading'}
           className="rounded bg-teal-600 px-4 py-2 text-sm text-white hover:bg-teal-700 disabled:opacity-50"
         >

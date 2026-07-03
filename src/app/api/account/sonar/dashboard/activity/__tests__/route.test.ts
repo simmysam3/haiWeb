@@ -1,17 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+type MockHandlerCtx = { client: unknown; request: NextRequest; params?: unknown; session: unknown };
+
+declare global {
+  var __mockClient: Record<string, ReturnType<typeof vi.fn>>;
+}
+
 vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore: (handler: any) => async (req: NextRequest) => {
-    const client = (globalThis as any).__mockClient;
+  withHaiCore: (handler: (ctx: MockHandlerCtx) => unknown) => async (req: NextRequest) => {
+    const client = globalThis.__mockClient;
     return await handler({ client, request: req, params: {}, session: {} });
   },
 }));
 
 import { GET } from '../route';
 
-function setMockClient(overrides: Record<string, any>) {
-  (globalThis as any).__mockClient = {
+function setMockClient(overrides: Record<string, ReturnType<typeof vi.fn>>) {
+  globalThis.__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
     // v1.30 §7.7: PD activity sourced from listPhantomDemandRuns (not fetchRaw windows)

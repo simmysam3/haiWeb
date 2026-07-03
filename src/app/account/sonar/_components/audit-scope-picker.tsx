@@ -113,7 +113,6 @@ export function AuditScopePicker({ value, onChange }: Props) {
 
       {authBasis === 'bilateral' && (
         <BilateralCounterpartiesSkusFields
-          counterparties={'counterparties' in value ? value.counterparties : []}
           skus={'skus' in value ? value.skus : []}
           onChange={({ counterparties, skus }) =>
             onChange({

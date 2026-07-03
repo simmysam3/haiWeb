@@ -99,9 +99,6 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     elevated: 'Risk score above normal; warrants attention.',
     critical: 'Risk score critically high; immediate attention warranted.',
   },
-  throttle: {
-    throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
-  },
   // Snake_case keys are the protocol-shaped values used by run-detail and
   // audit-log surfaces. LT / CAP / DEL are compact-chip codes added in v.1.43
   // Plan 2 for <CounterpartiesGrid>, <WatcherScopePicker> checkboxes, and the

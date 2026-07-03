@@ -4,17 +4,16 @@ import { NextRequest } from 'next/server';
 
 // These collaborators implemented the retired instant-provision bypass.
 // After D-19 the BFF must NOT touch any of them — provisioning lives in
-// haiCore behind the admin gatekeeper.
-const { createUser, deleteUser, createCustomer, registerParticipant } =
+// haiCore behind the admin gatekeeper. (The Stripe client the old flow also
+// called has since been removed entirely, so there is nothing left to mock.)
+const { createUser, deleteUser, registerParticipant } =
   vi.hoisted(() => ({
     createUser: vi.fn(),
     deleteUser: vi.fn(),
-    createCustomer: vi.fn(),
     registerParticipant: vi.fn(),
   }));
 
 vi.mock('@/lib/keycloak', () => ({ createUser, deleteUser }));
-vi.mock('@/lib/stripe', () => ({ createCustomer }));
 vi.mock('@/lib/haiwave-api', () => ({ registerParticipant }));
 
 import { POST } from '../route';
@@ -45,10 +44,9 @@ const validSignup = {
 describe('POST /api/auth/register (retired open self-signup)', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('does not provision a Keycloak user, Stripe customer, or participant', async () => {
+  it('does not provision a Keycloak user or participant', async () => {
     await post(validSignup);
     expect(createUser).not.toHaveBeenCalled();
-    expect(createCustomer).not.toHaveBeenCalled();
     expect(registerParticipant).not.toHaveBeenCalled();
   });
 

@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react';
 import type { SignalType, WatcherScope } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
+import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
 interface Props {
   value: WatcherScope;
   onChange: (next: WatcherScope) => void;
 }
 
-const SIGNAL_OPTIONS: { value: SignalType; pill: 'LT' | 'CAP' | 'DEL'; label: string }[] = [
-  { value: 'lead_time_distribution', pill: 'LT', label: 'Lead time' },
-  { value: 'capacity_utilization_band', pill: 'CAP', label: 'Capacity band' },
-  { value: 'delivery_event', pill: 'DEL', label: 'Delivery events' },
+const SIGNAL_OPTIONS: { value: SignalType; label: string }[] = [
+  { value: 'lead_time_distribution', label: 'Lead time' },
+  { value: 'capacity_utilization_band', label: 'Capacity band' },
+  { value: 'delivery_event', label: 'Delivery events' },
 ];
 
 export function WatcherScopePicker({ value, onChange }: Props) {
@@ -36,7 +37,6 @@ export function WatcherScopePicker({ value, onChange }: Props) {
   return (
     <div className="space-y-4">
       <BilateralCounterpartiesSkusFields
-        counterparties={value.counterparties}
         skus={value.skus}
         onChange={({ counterparties, skus }) =>
           onChange({ ...value, counterparties, skus })
@@ -53,11 +53,11 @@ export function WatcherScopePicker({ value, onChange }: Props) {
             >
               <input
                 type="checkbox"
-                aria-label={opt.pill}
+                aria-label={SIGNAL_TYPE_ABBREVIATIONS[opt.value]}
                 checked={value.signal_types.includes(opt.value)}
                 onChange={() => toggleSignal(opt.value)}
               />
-              <Pill category="signal_type" value={opt.pill} />
+              <Pill category="signal_type" value={SIGNAL_TYPE_ABBREVIATIONS[opt.value]} />
               <span>{opt.label}</span>
             </label>
           ))}

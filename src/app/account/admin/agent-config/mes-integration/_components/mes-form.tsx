@@ -1,11 +1,17 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { useAgentConfigResource } from '../../_lib/use-agent-config-resource';
 
 interface MesConfig {
   endpoint_url: string;
   auth_scheme: string;
   credential_ref: string;
   work_center_mapping: Record<string, string>;
+}
+
+interface MesGetResponse {
+  mes_enabled: boolean;
+  mes_config: MesConfig | null;
 }
 
 const EMPTY_CONFIG: MesConfig = {
@@ -16,70 +22,17 @@ const EMPTY_CONFIG: MesConfig = {
 };
 
 export function MesForm() {
-  const [agentId, setAgentId] = useState('');
   const [enabled, setEnabled] = useState(false);
   const [config, setConfig] = useState<MesConfig>(EMPTY_CONFIG);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { agentId, setAgentId, status, errorMsg, save } = useAgentConfigResource<MesGetResponse>(
+    '/api/account/admin/agent-config/mes-integration',
+    (d) => {
+      setEnabled(d.mes_enabled);
+      setConfig(d.mes_config ?? EMPTY_CONFIG);
+    },
+  );
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!agentId) {
-      setStatus('idle');
-      return;
-    }
-    let cancelled = false;
-    setStatus('loading');
-    setErrorMsg('');
-    fetch(`/api/account/admin/agent-config/mes-integration?agent_id=${encodeURIComponent(agentId)}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d) => {
-        if (cancelled) return;
-        setEnabled(d.mes_enabled);
-        setConfig(d.mes_config ?? EMPTY_CONFIG);
-        setStatus('idle');
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setErrorMsg(err.message);
-        setStatus('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [agentId]);
-
-  const save = async () => {
-    setStatus('saving');
-    setErrorMsg('');
-    try {
-      const res = await fetch('/api/account/admin/agent-config/mes-integration', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          agent_id: agentId,
-          mes_enabled: enabled,
-          mes_config: enabled ? config : null,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setStatus('saved');
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setStatus('idle'), 2000);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-      setStatus('error');
-    }
-  };
+  const handleSave = () => save({ mes_enabled: enabled, mes_config: enabled ? config : null });
 
   return (
     <div className="space-y-4 rounded border border-slate-200 bg-white p-4">
@@ -133,7 +86,7 @@ export function MesForm() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={save}
+          onClick={handleSave}
           disabled={!agentId || status === 'saving' || status === 'loading'}
           className="rounded bg-teal-600 px-4 py-2 text-sm text-white hover:bg-teal-700 disabled:opacity-50"
         >

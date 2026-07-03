@@ -80,36 +80,11 @@ export function compactUsd(amount: number): string {
   return `$${amount}`;
 }
 
-// Entity Approvals (spec 2026-06-11) — local mirror of the @haiwave/protocol
-// scorecard shape. Mirrored here (not value-imported) because client components
-// can't resolve the CJS protocol package through the file: symlink on Windows.
-export type EvalStatus =
-  | 'met' | 'insufficient' | 'expired' | 'claimed' | 'waived' | 'missing' | 'not_shared';
+// Entity Approvals (spec 2026-06-11) — re-exported from @haiwave/protocol so a
+// protocol change breaks the build here instead of silently diverging.
+export type { EvalStatus, ScorecardRow, Scorecard } from '@haiwave/protocol';
 
-export interface ScorecardEvidence {
-  artifact_id: string | null;
-  title: string;
-  source_url: string | null;
-  has_file: boolean;
-  valid_until: string | null;
-  no_expiry?: boolean;
-}
-
-export interface ScorecardRow {
-  element_key: string;
-  label: string;
-  kind: 'artifact' | 'attribute' | 'attribute_with_evidence';
-  status: EvalStatus;
-  required_min_amount_usd: number | null;
-  held_amount_usd: number | null;
-  held_value: unknown;
-  evidence: ScorecardEvidence[];
-  waiver_reason: string | null;
-}
-
-export interface Scorecard {
-  tier: LibraryTier;
-  rows: ScorecardRow[];
-  gap_count: number;
-  counts: Record<string, number>;
-}
+// Protocol has no standalone ScorecardEvidence export — it's inline on
+// ScorecardRow.evidence — so it's derived rather than re-exported directly.
+import type { ScorecardRow as ProtocolScorecardRow } from '@haiwave/protocol';
+export type ScorecardEvidence = ProtocolScorecardRow['evidence'][number];

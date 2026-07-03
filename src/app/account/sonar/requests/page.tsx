@@ -4,6 +4,7 @@ import { RequestManagementClient } from './request-management-client';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
+import { buildRequestQueuePath, normalizeDirection, normalizeItemType } from './_lib/build-request-queue-path';
 
 /**
  * v.1.37 IA: filter state is URL-driven (FilterBar + DirectionTabs use
@@ -29,35 +30,15 @@ interface SearchParams {
   age_bucket?: string;
 }
 
-function normalizeDirection(v: string | undefined): 'me' | 'them' | 'all' | 'declined' {
-  return v === 'them' || v === 'all' || v === 'declined' ? v : 'me';
-}
-
-function normalizeItemType(v: string | undefined): 'nomination' | 'obligation' | 'all' {
-  return v === 'nomination' || v === 'obligation' ? v : 'all';
-}
-
 async function fetchList(sp: SearchParams) {
-  const direction = normalizeDirection(sp.direction ?? sp.awaiting);
-  // Declined items come from a separate endpoint with its own query contract
-  // (days=30 default; the legacy ?all=true escape hatch is no longer surfaced
-  // in the unified UI but the BFF still accepts it).
-  if (direction === 'declined') {
-    return fetchBffJson<RequestManagementListResponse>(
-      '/api/sonar/compliance/requests/declined?days=30',
-    );
-  }
-  const qs = new URLSearchParams();
-  qs.set('awaiting', direction);
-  qs.set('type', normalizeItemType(sp.item_type ?? sp.type));
-  if (sp.counterparty) qs.set('counterparty', sp.counterparty);
-  if (sp.state) qs.set('state', sp.state);
-  if (sp.age_bucket) qs.set('age_bucket', sp.age_bucket);
-  // BFF path matches the Task 18 contract that the orchestrator + RequestRow
-  // already use (`/api/sonar/compliance/requests`, no `/account/` prefix).
-  return fetchBffJson<RequestManagementListResponse>(
-    `/api/sonar/compliance/requests?${qs.toString()}`,
-  );
+  const direction = normalizeDirection(sp.direction, sp.awaiting);
+  const itemType = normalizeItemType(sp.item_type, sp.type);
+  const path = buildRequestQueuePath(direction, itemType, {
+    counterparty: sp.counterparty,
+    state: sp.state,
+    ageBucket: sp.age_bucket,
+  });
+  return fetchBffJson<RequestManagementListResponse>(path);
 }
 
 interface PageProps {

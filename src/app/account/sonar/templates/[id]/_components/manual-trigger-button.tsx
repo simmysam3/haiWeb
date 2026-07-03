@@ -7,6 +7,7 @@ import { mutate } from 'swr';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../../_lib/config-noun';
+import { runDetailHref } from '../../_lib/run-detail-href';
 
 type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -19,18 +20,6 @@ interface ManualTriggerButtonProps {
 interface TriggerSuccess {
   runId: string;
   triggeredAt: string;
-}
-
-function runDetailHref(klass: ObservationClass, runId: string): string {
-  switch (klass) {
-    case 'audit':
-      return `/account/sonar/watchers/${runId}`;
-    case 'phantom_demand':
-      return `/account/sonar/phantom-demand/runs/${runId}`;
-    case 'watcher':
-      // Watcher doesn't have a per-run detail page; land on its dashboard.
-      return `/account/sonar/watcher/dashboard`;
-  }
 }
 
 export function ManualTriggerButton({

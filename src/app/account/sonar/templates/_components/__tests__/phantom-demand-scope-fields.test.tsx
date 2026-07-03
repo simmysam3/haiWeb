@@ -18,6 +18,7 @@ const BASE = {
   vendor_exclude: [] as string[],
   weeks_to_hold: 1,
   catalog_source: { kind: 'own' as const },
+  run_mode: 'full' as const,
 };
 
 describe('PhantomDemandScopeFields catalog source (v.1.45)', () => {

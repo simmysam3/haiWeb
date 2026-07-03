@@ -73,6 +73,7 @@ describe('ScopeSummary', () => {
       vendor_exclude: [],
       weeks_to_hold: 2,
       catalog_source: { kind: 'own' },
+      run_mode: 'full',
     };
     render(<ScopeSummary scope={scope} />);
     expect(screen.getByText('HC-9000')).toBeInTheDocument();
@@ -106,7 +107,8 @@ describe('ScopeSummary', () => {
       vendor_exclude: [],
       weeks_to_hold: 2,
       catalog_source: { kind: 'own' },
-    } as RunTemplateScope;
+      // Intentionally omits run_mode to exercise the pre-v1.55 fallback path.
+    } as unknown as RunTemplateScope;
     render(<ScopeSummary scope={scope} />);
     expect(screen.getByText(/full bom/i)).toBeInTheDocument();
   });

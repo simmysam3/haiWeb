@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import type { TrustClass, TrustBypassConfig } from '@haiwave/protocol';
 import { Button, PageHeader, PageIntro } from '@/components';
 import { useToast } from '@/lib/use-toast';
+import { jsonFetcher } from '@/lib/swr-fetcher';
 import { ActivationModal } from './_components/activation-modal';
 import { PreservedDeclinesPanel } from './_components/preserved-declines-panel';
 
@@ -27,16 +28,10 @@ const ACTIONABLE_TRUST_CLASSES: ReadonlyArray<{ value: TrustClass; label: string
   },
 ];
 
-const fetcher = async (url: string): Promise<{ configs: TrustBypassConfig[] }> => {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Failed (${r.status})`);
-  return r.json();
-};
-
 export default function TrustBypassPage() {
-  const { data, mutate, isLoading, error } = useSWR(
+  const { data, mutate, isLoading, error } = useSWR<{ configs: TrustBypassConfig[] }>(
     '/api/account/sonar/audit/trust-bypass/configs',
-    fetcher,
+    jsonFetcher,
   );
   const [openModalFor, setOpenModalFor] = useState<TrustClass | null>(null);
   const [busyClass, setBusyClass] = useState<TrustClass | null>(null);
