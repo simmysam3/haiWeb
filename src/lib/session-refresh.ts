@@ -1,7 +1,7 @@
 /**
  * Pure refresh-decision logic for the auth middleware.
  *
- * Kept separate from `middleware.ts` (which is hard to unit-test under
+ * Kept separate from `src/proxy.ts` (which is hard to unit-test under
  * vitest) so the "do we need to refresh this session?" rule is verifiable
  * in isolation. Signature verification is intentionally NOT done here —
  * the middleware only needs the `exp` to decide whether to proactively

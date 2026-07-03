@@ -45,6 +45,92 @@ function getFieldValue(node: PricingNode, key: string): unknown {
   return node.terms[key];
 }
 
+const INPUT_CLASS =
+  "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
+const DISABLED_INPUT_CLASS =
+  "w-full px-3 py-2 border border-slate/10 rounded-lg text-sm bg-light-gray text-slate cursor-not-allowed";
+
+interface FieldRowProps {
+  field: (typeof PRICING_FIELDS)[number];
+  override: FieldOverride | undefined;
+  isCompanyLevel: boolean;
+  inheritedFrom: string | undefined;
+  parentValue: unknown;
+  onOverrideToggle: (key: string, checked: boolean) => void;
+  onValueChange: (key: string, value: unknown) => void;
+}
+
+/** One override-checkbox/select-or-input/inherited-hint row, shared by the Pricing and Terms sections. */
+function FieldRow({
+  field,
+  override,
+  isCompanyLevel,
+  inheritedFrom,
+  parentValue,
+  onOverrideToggle,
+  onValueChange,
+}: FieldRowProps) {
+  const isOverridden = override?.overridden ?? false;
+  const inputClass = !isCompanyLevel && !isOverridden ? DISABLED_INPUT_CLASS : INPUT_CLASS;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-medium text-charcoal">{field.label}</label>
+        {!isCompanyLevel && (
+          <label className="flex items-center gap-1.5 text-xs text-slate cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isOverridden}
+              onChange={(e) => onOverrideToggle(field.key, e.target.checked)}
+              className="accent-teal"
+            />
+            Override
+          </label>
+        )}
+      </div>
+
+      {field.type === "select" ? (
+        <select
+          value={isOverridden ? String(override?.value ?? "") : ""}
+          onChange={(e) => onValueChange(field.key, e.target.value)}
+          disabled={!isCompanyLevel && !isOverridden}
+          className={inputClass}
+        >
+          <option value="">
+            {!isCompanyLevel && !isOverridden && parentValue
+              ? `${parentValue} (inherited)`
+              : "Select..."}
+          </option>
+          {field.options?.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={field.type}
+          value={isOverridden ? String(override?.value ?? "") : ""}
+          onChange={(e) => onValueChange(field.key, e.target.value)}
+          disabled={!isCompanyLevel && !isOverridden}
+          placeholder={
+            !isCompanyLevel && !isOverridden && parentValue !== undefined && parentValue !== null
+              ? `${parentValue} (inherited)`
+              : ""
+          }
+          className={inputClass}
+        />
+      )}
+
+      {!isCompanyLevel && inheritedFrom && parentValue !== undefined && parentValue !== null && (
+        <p className="text-xs text-slate">
+          Inherited: <span className="font-medium">{String(parentValue)}</span>
+          <span className="text-slate/60"> (from {inheritedFrom})</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditorProps) {
   const [overrides, setOverrides] = useState<Record<string, FieldOverride>>({});
   const [volumeTiers, setVolumeTiers] = useState<VolumeTier[]>([]);
@@ -147,11 +233,6 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
     setTimeout(() => setSaving(false), 500);
   }
 
-  const inputClass =
-    "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
-  const disabledInputClass =
-    "w-full px-3 py-2 border border-slate/10 rounded-lg text-sm bg-light-gray text-slate cursor-not-allowed";
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -196,7 +277,7 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
                 value={baseUnitPrice}
                 onChange={(e) => setBaseUnitPrice(e.target.value)}
                 placeholder="Required at SKU level"
-                className={inputClass}
+                className={INPUT_CLASS}
               />
             </div>
           ) : (
@@ -204,72 +285,18 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
               Base pricing is set at the SKU level. Configure discount policies and terms here.
             </p>
           )}
-          {PRICING_FIELDS.filter((f) => f.section === "pricing").map((field) => {
-            const override = overrides[field.key];
-            const isOverridden = override?.overridden ?? false;
-            const parentValue = node.inherited_from
-              ? getFieldValue(node, field.key)
-              : undefined;
-
-            return (
-              <div key={field.key} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-charcoal">
-                    {field.label}
-                  </label>
-                  {!isCompanyLevel && (
-                    <label className="flex items-center gap-1.5 text-xs text-slate cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isOverridden}
-                        onChange={(e) => handleOverrideToggle(field.key, e.target.checked)}
-                        className="accent-teal"
-                      />
-                      Override
-                    </label>
-                  )}
-                </div>
-
-                {field.type === "select" ? (
-                  <select
-                    value={isOverridden ? String(override?.value ?? "") : ""}
-                    onChange={(e) => handleValueChange(field.key, e.target.value)}
-                    disabled={!isCompanyLevel && !isOverridden}
-                    className={!isCompanyLevel && !isOverridden ? disabledInputClass : inputClass}
-                  >
-                    <option value="">
-                      {!isCompanyLevel && !isOverridden && parentValue
-                        ? `${parentValue} (inherited)`
-                        : "Select..."}
-                    </option>
-                    {field.options?.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type}
-                    value={isOverridden ? String(override?.value ?? "") : ""}
-                    onChange={(e) => handleValueChange(field.key, e.target.value)}
-                    disabled={!isCompanyLevel && !isOverridden}
-                    placeholder={
-                      !isCompanyLevel && !isOverridden && parentValue !== undefined && parentValue !== null
-                        ? `${parentValue} (inherited)`
-                        : ""
-                    }
-                    className={!isCompanyLevel && !isOverridden ? disabledInputClass : inputClass}
-                  />
-                )}
-
-                {!isCompanyLevel && node.inherited_from && parentValue !== undefined && parentValue !== null && (
-                  <p className="text-xs text-slate">
-                    Inherited: <span className="font-medium">{String(parentValue)}</span>
-                    <span className="text-slate/60"> (from {node.inherited_from})</span>
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          {PRICING_FIELDS.filter((f) => f.section === "pricing").map((field) => (
+            <FieldRow
+              key={field.key}
+              field={field}
+              override={overrides[field.key]}
+              isCompanyLevel={isCompanyLevel}
+              inheritedFrom={node.inherited_from}
+              parentValue={node.inherited_from ? getFieldValue(node, field.key) : undefined}
+              onOverrideToggle={handleOverrideToggle}
+              onValueChange={handleValueChange}
+            />
+          ))}
         </div>
       </div>
 
@@ -279,72 +306,18 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
           Terms
         </h4>
         <div className="space-y-4">
-          {PRICING_FIELDS.filter((f) => f.section === "terms").map((field) => {
-            const override = overrides[field.key];
-            const isOverridden = override?.overridden ?? false;
-            const parentValue = node.inherited_from
-              ? getFieldValue(node, field.key)
-              : undefined;
-
-            return (
-              <div key={field.key} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-charcoal">
-                    {field.label}
-                  </label>
-                  {!isCompanyLevel && (
-                    <label className="flex items-center gap-1.5 text-xs text-slate cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isOverridden}
-                        onChange={(e) => handleOverrideToggle(field.key, e.target.checked)}
-                        className="accent-teal"
-                      />
-                      Override
-                    </label>
-                  )}
-                </div>
-
-                {field.type === "select" ? (
-                  <select
-                    value={isOverridden ? String(override?.value ?? "") : ""}
-                    onChange={(e) => handleValueChange(field.key, e.target.value)}
-                    disabled={!isCompanyLevel && !isOverridden}
-                    className={!isCompanyLevel && !isOverridden ? disabledInputClass : inputClass}
-                  >
-                    <option value="">
-                      {!isCompanyLevel && !isOverridden && parentValue
-                        ? `${parentValue} (inherited)`
-                        : "Select..."}
-                    </option>
-                    {field.options?.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={field.type}
-                    value={isOverridden ? String(override?.value ?? "") : ""}
-                    onChange={(e) => handleValueChange(field.key, e.target.value)}
-                    disabled={!isCompanyLevel && !isOverridden}
-                    placeholder={
-                      !isCompanyLevel && !isOverridden && parentValue !== undefined && parentValue !== null
-                        ? `${parentValue} (inherited)`
-                        : ""
-                    }
-                    className={!isCompanyLevel && !isOverridden ? disabledInputClass : inputClass}
-                  />
-                )}
-
-                {!isCompanyLevel && node.inherited_from && parentValue !== undefined && parentValue !== null && (
-                  <p className="text-xs text-slate">
-                    Inherited: <span className="font-medium">{String(parentValue)}</span>
-                    <span className="text-slate/60"> (from {node.inherited_from})</span>
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          {PRICING_FIELDS.filter((f) => f.section === "terms").map((field) => (
+            <FieldRow
+              key={field.key}
+              field={field}
+              override={overrides[field.key]}
+              isCompanyLevel={isCompanyLevel}
+              inheritedFrom={node.inherited_from}
+              parentValue={node.inherited_from ? getFieldValue(node, field.key) : undefined}
+              onOverrideToggle={handleOverrideToggle}
+              onValueChange={handleValueChange}
+            />
+          ))}
         </div>
       </div>
 
@@ -385,7 +358,7 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
                       min="0"
                       value={tier.min_qty}
                       onChange={(e) => updateVolumeTier(index, "min_qty", parseInt(e.target.value) || 0)}
-                      className={inputClass}
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
@@ -396,7 +369,7 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
                       value={tier.max_qty ?? ""}
                       onChange={(e) => updateVolumeTier(index, "max_qty", e.target.value ? parseInt(e.target.value) : null)}
                       placeholder="No limit"
-                      className={inputClass}
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
@@ -407,7 +380,7 @@ export function PricingLevelEditor({ node, onSave, onReset }: PricingLevelEditor
                       max="100"
                       value={tier.discount_pct}
                       onChange={(e) => updateVolumeTier(index, "discount_pct", parseInt(e.target.value) || 0)}
-                      className={inputClass}
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>

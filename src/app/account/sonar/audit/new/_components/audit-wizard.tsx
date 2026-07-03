@@ -103,10 +103,6 @@ export function computeSubmitLabel({
 
 export function AuditWizard({ source }: { source: SourceRunSummary | null }) {
   const [name, setName] = useState(source?.template_name ?? '');
-  // Lazy initializer: the random default is computed once per wizard mount
-  // (and only when there's no source to inherit from). Without lazy init the
-  // random would be re-evaluated on every render and React would see "same
-  // initial value, no-op" anyway — but lazy makes the intent explicit.
   const [cadence, setCadence] = useState<Cadence>(
     () => source?.cadence ?? randomOvernightDefault(),
   );

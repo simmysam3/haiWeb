@@ -1,25 +1,14 @@
 import Link from 'next/link';
-import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { ScopeTable } from '../../../sonar/_components/scope-table';
 
 async function loadScopes(vendorId: string): Promise<AuditScope[]> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-  try {
-    const res = await fetch(
-      `${baseUrl}/api/account/audit-scopes?vendor_id=${encodeURIComponent(vendorId)}&active_only=false`,
-      { headers: { cookie: cookieHeader }, cache: 'no-store' },
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as { scopes?: AuditScope[] };
-    return data.scopes ?? [];
-  } catch {
-    return [];
-  }
+  const result = await fetchBffJson<{ scopes?: AuditScope[] }>(
+    `/api/account/audit-scopes?vendor_id=${encodeURIComponent(vendorId)}&active_only=false`,
+  );
+  if (result.kind === 'error') return [];
+  return result.data.scopes ?? [];
 }
 
 export default async function PartnerAuditPage({

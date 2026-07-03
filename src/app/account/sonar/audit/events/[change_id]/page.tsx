@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ComplianceChangeDetail } from '@haiwave/protocol';
 import { ChangeDetailCompare } from '@/app/account/sonar/_components/change-detail-compare';
+import { describeAuditServiceError } from '../_lib/describe-audit-service-error';
 import { OutcomeForm } from './outcome-form';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -42,15 +43,7 @@ export default async function ChangeDetailPage({ params }: PageProps) {
           className="mt-8 rounded-lg border border-slate/20 bg-white p-12 text-center"
         >
           <p className="text-red-900">
-            {result.status === 403
-              ? 'You do not have permission to view this change.'
-              : result.status === 401
-              ? 'Your session has expired. Please sign in again.'
-              : result.status >= 500
-              ? "Couldn't load this event. The audit service is temporarily unavailable."
-              : result.status === 0
-              ? `Couldn't reach the audit service${result.message ? `: ${result.message}` : '.'}`
-              : `Couldn't load this event (status ${result.status}).`}
+            {describeAuditServiceError(result, 'this event')}
           </p>
         </div>
       </div>

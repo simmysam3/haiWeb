@@ -10,6 +10,25 @@ export function isJwtLike(token: string | null | undefined): token is string {
   return !!token && token.includes(".");
 }
 
+/**
+ * Shared admin auth gate for the `/api/admin/*` BFF routes. These proxy
+ * cross-participant haiCore admin endpoints directly (not via the participant
+ * client, which would attach an `x-haiwave-participant-id` scoping header), so
+ * they authorize here and then issue their own raw fetch with the returned
+ * token. Returns the admin's JWT on success, or the error `NextResponse` to
+ * return verbatim (401 unauthenticated / 403 non-admin / 401 non-JWT token).
+ */
+export async function requireAdminToken(): Promise<{ token: string } | NextResponse> {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const token = await getToken();
+  if (!isJwtLike(token)) return NextResponse.json({ error: "No token" }, { status: 401 });
+
+  return { token };
+}
+
 interface HandlerCtx<P> {
   client: HaiwaveClient;
   session: Session;

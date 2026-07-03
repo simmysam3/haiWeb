@@ -15,8 +15,8 @@ interface Props {
  * for picker consumers that only care about the controlSlot's checkbox.
  *
  * `metaSlot` is right-aligned via ml-auto. Inside it, place small chips,
- * monospace identifiers, the row-detail chevron (`›` styled
- * `text-teal text-lg font-bold` per the row-detail style memory), etc.
+ * monospace identifiers, the row-detail affordance (`<DetailChevron />`
+ * from components/sonar/observations — never a bare `›`/`→` glyph), etc.
  */
 export function AccordionLeafRow({ controlSlot, label, metaSlot, onClick }: Props) {
   const labelText = typeof label === 'string' ? label : '';

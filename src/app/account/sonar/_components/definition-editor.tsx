@@ -94,6 +94,17 @@ function HistoryList({ events }: { events: RunTemplateEvent[] }) {
   );
 }
 
+// v.1.43 drift step — drift_thresholds lives on the watcher scope, typed as
+// an optional field until the template has been through the Drift step at
+// least once. Centralizes the extract-or-default read used at mount, on
+// template refresh, and when checking dirtiness against the saved baseline.
+function driftOf(template: RunTemplate): WatcherDriftThresholds {
+  return (
+    (template.scope as { drift_thresholds?: WatcherDriftThresholds }).drift_thresholds ??
+    DEFAULT_WATCHER_DRIFT_THRESHOLDS
+  );
+}
+
 export type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
 
 const NOUN_BY_CLASS: Record<ObservationClass, string> = {
@@ -143,12 +154,6 @@ interface Props {
    * Ignored when scopeLocked is true.
    */
   scopeValue?: RunTemplateScope;
-  /**
-   * Called when scope is saved. Only invoked when scopeLocked is false; the
-   * caller-owned scope state is included in the PATCH body during the dirty-
-   * form save flow. Ignored when scopeLocked is true.
-   */
-  onScopeChange?: (next: RunTemplateScope) => void;
 }
 
 export function DefinitionEditor({
@@ -175,10 +180,7 @@ export function DefinitionEditor({
   // WatcherScope.drift_thresholds in protocol 3.33). For non-watcher classes
   // this remains null and the Drift step + state never render.
   const initialDrift: WatcherDriftThresholds | null =
-    observationClass === 'watcher'
-      ? (((template.scope as { drift_thresholds?: WatcherDriftThresholds })
-          .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS)
-      : null;
+    observationClass === 'watcher' ? driftOf(template) : null;
   const [driftThresholds, setDriftThresholds] = useState<WatcherDriftThresholds | null>(
     initialDrift,
   );
@@ -193,10 +195,7 @@ export function DefinitionEditor({
 
   useEffect(() => {
     if (observationClass !== 'watcher') return;
-    const td =
-      ((template.scope as { drift_thresholds?: WatcherDriftThresholds })
-        .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS;
-    setDriftThresholds(td);
+    setDriftThresholds(driftOf(template));
   }, [template, observationClass]);
 
   const scopeDirty = !scopeLocked && scopeValue !== undefined
@@ -211,11 +210,7 @@ export function DefinitionEditor({
   const driftDirty =
     observationClass === 'watcher' &&
     driftThresholds !== null &&
-    JSON.stringify(driftThresholds) !==
-      JSON.stringify(
-        ((template.scope as { drift_thresholds?: WatcherDriftThresholds })
-          .drift_thresholds) ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS,
-      );
+    JSON.stringify(driftThresholds) !== JSON.stringify(driftOf(template));
 
   const dirty = useMemo(
     () =>
@@ -283,8 +278,8 @@ export function DefinitionEditor({
    * exists, retains run history, and is excluded from the composite
    * gap rollup (collectGaps filters to enabled=true active templates).
    */
-  async function toggleEnabled() {
-    const next = !enabled;
+  async function patchEnabled(next: boolean) {
+    if (next === enabled) return;
     setBusy(true);
     setError(null);
     setSessionExpired(false);
@@ -336,18 +331,6 @@ export function DefinitionEditor({
     }
   }
 
-  /**
-   * v.1.43 follow-up — Suspend/Reactivate moved into the Schedule step as a
-   * radio group (Active / Suspended). The top-of-page status pill + standalone
-   * toggle button were noisy when the template wasn't on a schedule; surfacing
-   * the control alongside cadence makes the relationship explicit. The setter
-   * still PATCHes immediately, independent of the dirty-form save bar.
-   */
-  async function setEnabledTo(next: boolean) {
-    if (next === enabled) return;
-    await toggleEnabled();
-  }
-
   const railSteps = buildSteps(observationClass);
 
   return (
@@ -382,7 +365,7 @@ export function DefinitionEditor({
                   value="active"
                   checked={enabled}
                   disabled={busy}
-                  onChange={() => setEnabledTo(true)}
+                  onChange={() => patchEnabled(true)}
                   className="text-teal focus:ring-teal"
                 />
                 Active
@@ -394,7 +377,7 @@ export function DefinitionEditor({
                   value="suspended"
                   checked={!enabled}
                   disabled={busy}
-                  onChange={() => setEnabledTo(false)}
+                  onChange={() => patchEnabled(false)}
                   className="text-teal focus:ring-teal"
                 />
                 Suspended

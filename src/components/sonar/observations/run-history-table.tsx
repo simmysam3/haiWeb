@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 import type { ColumnPack } from './column-pack';
+import { ConfigurationsTable } from './configurations-table';
 
 interface Props<TRun> {
   initialRows: TRun[];
@@ -56,55 +57,7 @@ export function RunHistoryTable<TRun>({
 
   const rows = (data?.[envelopeKey] ?? []) as TRun[];
 
-  if (rows.length === 0) {
-    return <p className="text-sm text-slate italic">{emptyMessage}</p>;
-  }
-
-  const hasWidths = columns.columns.some((c) => c.width);
-
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
-        {hasWidths && (
-          <colgroup>
-            {columns.columns.map((c) => (
-              <col key={c.key} style={c.width ? { width: c.width } : undefined} />
-            ))}
-          </colgroup>
-        )}
-        <thead>
-          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wider text-slate">
-            {columns.columns.map((c) => (
-              <th
-                key={c.key}
-                className="py-2 pr-3"
-                style={{ textAlign: c.align ?? 'left' }}
-                title={c.headerTitle}
-              >
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={keyFn(row)}
-              className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
-            >
-              {columns.columns.map((c) => (
-                <td
-                  key={c.key}
-                  className="py-2 pr-3"
-                  style={{ textAlign: c.align ?? 'left' }}
-                >
-                  {c.render(row)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ConfigurationsTable rows={rows} columns={columns} keyFn={keyFn} emptyMessage={emptyMessage} />
   );
 }

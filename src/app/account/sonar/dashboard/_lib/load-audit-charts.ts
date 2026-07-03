@@ -6,21 +6,18 @@ import { buildPartnerCompliance, type PartnerComplianceData } from './partner-co
  * Partners). Sourced from the latest completed audit run via existing BFF
  * endpoints (P6-D5). Extracted from the Audit Dashboard loader —
  * behaviorally equivalent (early-returns consolidated into EMPTY, log prefix
- * renamed), now shared by the Dashboard and Coverage pages (P6-D5).
+ * renamed). Coverage was folded into the Sonar Dashboard in v1.37 R2, so the
+ * Sonar Dashboard page is now the sole consumer (P6-D5).
  */
 export interface AuditChartData {
   rollup: GeoRollupEntry[];
   classRollup: ClassRollupEntry[];
-  gaps: number | null;
-  latestAt: string | null;
   partnerCompliance: PartnerComplianceData | null;
 }
 
 const EMPTY: AuditChartData = {
   rollup: [],
   classRollup: [],
-  gaps: null,
-  latestAt: null,
   partnerCompliance: null,
 };
 
@@ -78,8 +75,6 @@ export async function loadAuditChartData(
   return {
     rollup: [...merged.values()].sort((a, b) => b.component_count - a.component_count),
     classRollup: classRes?.rollup ?? [],
-    gaps: latest.gap_count ?? 0,
-    latestAt: latest.triggered_at,
     partnerCompliance: resultsRes ? buildPartnerCompliance(latest, resultsRes.results) : null,
   };
 }

@@ -3,6 +3,7 @@ import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
+import { describeAuditServiceError } from './_lib/describe-audit-service-error';
 import { BacklogTabs } from '../_components/backlog-tabs';
 import { hasAuditScopes } from '../_lib/has-audit-scopes';
 import { RefreshButton } from '@/components/refresh-button';
@@ -109,15 +110,7 @@ export default async function ChangesPage({ searchParams }: PageProps) {
         {result.kind === 'error' ? (
           <div role="alert" className="p-12 text-center">
             <p className="text-red-900">
-              {result.status === 403
-                ? "You do not have permission to view events."
-                : result.status === 401
-                ? "Your session has expired. Please sign in again."
-                : result.status >= 500
-                ? "Couldn’t load events. The audit service is temporarily unavailable."
-                : result.status === 0
-                ? `Couldn’t reach the audit service${result.message ? `: ${result.message}` : "."}`
-                : `Couldn’t load events (status ${result.status}).`}
+              {describeAuditServiceError(result, 'events')}
             </p>
           </div>
         ) : (

@@ -53,13 +53,6 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
       : `/api/sonar/compliance/requests/scopes/${item.scope_id}`;
   const acceptEndpoint = `${basePath}/accept`;
   const declineEndpoint = `${basePath}/decline`;
-  const withdrawEndpoint =
-    item.item_type === 'inbound_obligation'
-      ? // Render gating below ensures Withdraw is never invoked for obligations,
-        // but TypeScript still needs a fallback path on the discriminated branch.
-        // We point at the obligation path defensively — the button won't fire.
-        basePath
-      : `/api/sonar/compliance/requests/scopes/${item.scope_id}/withdraw`;
 
   async function postAction(endpoint: string) {
     setBusy(true);
@@ -120,7 +113,7 @@ export function RequestRow({ item, onMutate }: RequestRowProps) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => postAction(withdrawEndpoint)}
+                onClick={() => postAction(`${basePath}/withdraw`)}
                 className="rounded-md border border-slate/30 px-3 py-1.5 text-xs text-slate hover:border-teal hover:text-navy disabled:opacity-50"
               >
                 Withdraw

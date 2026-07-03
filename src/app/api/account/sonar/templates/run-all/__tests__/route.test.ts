@@ -6,8 +6,10 @@ const mockClient = {
   triggerRunTemplate: vi.fn(),
 };
 
+type MockHandlerCtx = { client: unknown; request: NextRequest; params?: unknown; session: unknown };
+
 vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore: (handler: any) => async (req: NextRequest) => {
+  withHaiCore: (handler: (ctx: MockHandlerCtx) => unknown) => async (req: NextRequest) => {
     return await handler({ client: mockClient, request: req, params: {}, session: {} });
   },
 }));

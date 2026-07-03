@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+type MockHandlerCtx = { client: unknown; request: NextRequest; params?: unknown; session: unknown };
+
+declare global {
+  var __mockClient: Record<string, ReturnType<typeof vi.fn>>;
+}
+
 vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore: (handler: any) => async (req: NextRequest) => {
-    const client = (globalThis as any).__mockClient;
+  withHaiCore: (handler: (ctx: MockHandlerCtx) => unknown) => async (req: NextRequest) => {
+    const client = globalThis.__mockClient;
     return await handler({ client, request: req, params: {}, session: {} });
   },
 }));
@@ -13,8 +19,8 @@ import { GET } from '../route';
 const VENDOR_A = '00000000-0000-0000-0000-00000000000a';
 const VENDOR_B = '00000000-0000-0000-0000-00000000000b';
 
-function setMockClient(overrides: Record<string, any>) {
-  (globalThis as any).__mockClient = {
+function setMockClient(overrides: Record<string, ReturnType<typeof vi.fn>>) {
+  globalThis.__mockClient = {
     listAuditRuns: vi.fn().mockResolvedValue({ runs: [] }),
     getAuditRunResults: vi.fn().mockResolvedValue({ results: [] }),
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
@@ -110,7 +116,7 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
 
     // Audit results must come from the canonical typed method (which hits
     // /source-audit/runs/:id/results), NOT a hand-rolled non-existent path.
-    const client = (globalThis as any).__mockClient;
+    const client = globalThis.__mockClient;
     expect(client.getAuditRunResults).toHaveBeenCalledWith('r1');
 
     const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);

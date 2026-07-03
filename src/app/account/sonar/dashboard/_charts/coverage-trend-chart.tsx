@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { Panel } from '@/components';
-import type { CoverageSnapshot } from './coverage-stats-strip';
+import type { CoverageCurrent } from '@haiwave/protocol';
 
 /**
  * v1.34 P6 — coverage trend (§10.2, §15-Q5 / P6-D1).
@@ -52,7 +52,7 @@ export function NearestDotTooltip({
   );
 }
 
-export function CoverageTrendChart({ points }: { points: CoverageSnapshot[] }) {
+export function CoverageTrendChart({ points }: { points: CoverageCurrent[] }) {
   if (points.length < 2) {
     return (
       <Panel className="p-4">

@@ -1,11 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { PROTOCOL_VERSION } from "@haiwave/protocol";
-import { getSession, getToken, hasRole } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_SESSION } from "@/lib/mock-data";
-import { loadEnv } from "@/config/env";
-
-const API_URL = loadEnv().HAIWAVE_API_URL;
 
 /**
  * GET /api/account/profile
@@ -20,37 +15,22 @@ export const GET = withHaiCore(
 /**
  * PUT /api/account/profile
  *
- * Updates company profile via haiCore. Requires account_admin or higher.
- * NOTE: This handler bypasses createHaiwaveClient to hit the v1 company profile
- * endpoint directly because the client does not currently expose it.
+ * Updates company profile via haiCore. Requires account_admin or higher. No
+ * fallback: a non-JWT token (dev shim, or a poisoned/misconfigured cookie in
+ * prod) must 401 rather than echo the request body back as a fake success.
+ * Uses `client.fetchRaw` (raw passthrough) instead of a typed method because
+ * the client does not currently expose this v1 endpoint.
  */
-export async function PUT(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
+export const PUT = withHaiCore(
+  async ({ client, session, request }) => {
     const body = await request.json();
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json({ success: true, ...body });
-    }
-
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${token}`,
-      "x-participant-id": session.participant.id,
-      "X-HaiWave-Protocol-Version": PROTOCOL_VERSION,
-      "Content-Type": "application/json",
-    };
-
-    const res = await fetch(
-      `${API_URL}/api/v1/company/${session.participant.id}/profile`,
-      { method: "PUT", headers, body: JSON.stringify(body) },
+    const res = await client.fetchRaw(
+      `/company/${encodeURIComponent(session.participant.id)}/profile`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
     );
 
     if (!res.ok) {
@@ -58,12 +38,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: text }, { status: res.status });
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update profile" },
-      { status: 500 },
-    );
-  }
-}
+    return NextResponse.json(await res.json());
+  },
+  { role: "account_admin" },
+);

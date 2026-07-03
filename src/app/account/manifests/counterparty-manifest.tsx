@@ -7,35 +7,11 @@ import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
 import type { LeadTimeTrendSharingPosture } from "@/lib/mock-types";
 
-interface PricingDefaults {
-  default_currency: string;
-  default_payment_terms: string;
-  default_freight_terms: string;
-  minimum_order_value: number;
-  quote_validity_days: number;
-  volume_discount_tiers: { min_qty: number; max_qty: number | null; discount_pct: number }[];
-  aged_inventory_discount_enabled: boolean;
-  aged_inventory_threshold_days: number;
-  aged_inventory_discount_pct: number;
-}
-
 interface ManifestData {
-  pricing_defaults: PricingDefaults;
   lead_time_trend_sharing: LeadTimeTrendSharingPosture;
 }
 
 const EMPTY_MANIFEST: ManifestData = {
-  pricing_defaults: {
-    default_currency: "USD",
-    default_payment_terms: "",
-    default_freight_terms: "",
-    minimum_order_value: 0,
-    quote_validity_days: 0,
-    volume_discount_tiers: [],
-    aged_inventory_discount_enabled: false,
-    aged_inventory_threshold_days: 0,
-    aged_inventory_discount_pct: 0,
-  },
   lead_time_trend_sharing: "not_required",
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import type { WatcherRun, WatcherRunStatus } from '@haiwave/protocol';
 
 interface RunHistoryProps {
@@ -50,6 +50,54 @@ function formatTime(value: string | null): string {
 }
 
 /**
+ * Shared cancel/delete row-action machinery: mark the row in-flight, clear
+ * any stale error for it, fire the request, and either report success or
+ * roll the row back out of the in-flight set with an inline error. Cancel
+ * and delete differ only in the request itself and which state pair they
+ * update.
+ */
+async function runRowAction(
+  runId: string,
+  request: () => Promise<Response>,
+  setInFlightIds: Dispatch<SetStateAction<Set<string>>>,
+  setErrors: Dispatch<SetStateAction<Record<string, string>>>,
+  onSuccess: () => void,
+  verb: 'Cancel' | 'Delete',
+) {
+  setInFlightIds((prev) => {
+    const next = new Set(prev);
+    next.add(runId);
+    return next;
+  });
+  setErrors((prev) => {
+    if (!(runId in prev)) return prev;
+    const next = { ...prev };
+    delete next[runId];
+    return next;
+  });
+  try {
+    const res = await request();
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `${verb} failed: ${res.status}`);
+    }
+    onSuccess();
+  } catch (err) {
+    console.error(`[RunHistory] ${verb.toLowerCase()} failed`, { runId, err });
+    setInFlightIds((prev) => {
+      if (!prev.has(runId)) return prev;
+      const next = new Set(prev);
+      next.delete(runId);
+      return next;
+    });
+    setErrors((prev) => ({
+      ...prev,
+      [runId]: err instanceof Error ? err.message : `${verb} failed`,
+    }));
+  }
+}
+
+/**
  * Run history table — rows for each Watcher run with status pill, signal
  * types, counterparty filter (or "all"), trigger time, completion time,
  * and an inline cancel button while running.
@@ -90,73 +138,26 @@ export function RunHistory({ runs, onCancel, onDelete }: RunHistoryProps) {
   }, [runs, cancellingRunIds]);
 
   async function handleCancel(runId: string) {
-    setCancellingRunIds((prev) => {
-      const next = new Set(prev);
-      next.add(runId);
-      return next;
-    });
-    setCancelErrors((prev) => {
-      if (!(runId in prev)) return prev;
-      const next = { ...prev };
-      delete next[runId];
-      return next;
-    });
-    try {
-      const res = await fetch(
-        `/api/account/sonar/watcher/runs/${runId}/cancel`,
-        { method: 'POST' },
-      );
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(text || `Cancel failed: ${res.status}`);
-      }
-      onCancel();
-    } catch (err) {
-      console.error('[RunHistory] cancel failed', { runId, err });
-      setCancellingRunIds((prev) => {
-        if (!prev.has(runId)) return prev;
-        const next = new Set(prev);
-        next.delete(runId);
-        return next;
-      });
-      setCancelErrors((prev) => ({
-        ...prev,
-        [runId]: err instanceof Error ? err.message : 'Cancel failed',
-      }));
-    }
+    await runRowAction(
+      runId,
+      () => fetch(`/api/account/sonar/watcher/runs/${runId}/cancel`, { method: 'POST' }),
+      setCancellingRunIds,
+      setCancelErrors,
+      onCancel,
+      'Cancel',
+    );
   }
 
   async function handleDelete(runId: string) {
     setConfirmDeleteId(null);
-    setDeletingRunIds((prev) => new Set(prev).add(runId));
-    setDeleteErrors((prev) => {
-      if (!(runId in prev)) return prev;
-      const next = { ...prev };
-      delete next[runId];
-      return next;
-    });
-    try {
-      const res = await fetch(`/api/account/sonar/watcher/runs/${runId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(text || `Delete failed: ${res.status}`);
-      }
-      onDelete();
-    } catch (err) {
-      console.error('[RunHistory] delete failed', { runId, err });
-      setDeletingRunIds((prev) => {
-        if (!prev.has(runId)) return prev;
-        const next = new Set(prev);
-        next.delete(runId);
-        return next;
-      });
-      setDeleteErrors((prev) => ({
-        ...prev,
-        [runId]: err instanceof Error ? err.message : 'Delete failed',
-      }));
-    }
+    await runRowAction(
+      runId,
+      () => fetch(`/api/account/sonar/watcher/runs/${runId}`, { method: 'DELETE' }),
+      setDeletingRunIds,
+      setDeleteErrors,
+      onDelete,
+      'Delete',
+    );
   }
 
   if (runs.length === 0) {

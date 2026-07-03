@@ -95,16 +95,6 @@ function StatCell({
 }
 
 /**
- * Per-run tiered gap-scoring panel for the audit run-detail page (restored from
- * the v.1.39-deleted `products-grid.tsx`). Buckets every gap in each result
- * tree by supply-chain tier, weights it into a follow-up priority score
- * (T1×5/T2×3/T3×2/T4+×1), and groups SKUs under their tier-1 vendor.
- *
- * Also owns the unified run status bar (vendors / SKUs / depth / hops / gaps +
- * the weighted priority rollup) — folded in from the former SummaryStrip so the
- * page shows ONE status treatment instead of two stacked stat rows.
- */
-/**
  * One SKU row + its collapsed evidence tree. The tree is the SKU's own result
  * subtree — surfaced inline (accordion) so the page lists each SKU exactly
  * once instead of repeating the full set in a separate evidence section.
@@ -162,6 +152,16 @@ function SkuEvidenceRow({
   );
 }
 
+/**
+ * Per-run tiered gap-scoring panel for the audit run-detail page (restored from
+ * the v.1.39-deleted `products-grid.tsx`). Buckets every gap in each result
+ * tree by supply-chain tier, weights it into a follow-up priority score
+ * (T1×5/T2×3/T3×2/T4+×1), and groups SKUs under their tier-1 vendor.
+ *
+ * Also owns the unified run status bar (vendors / SKUs / depth / hops / gaps +
+ * the weighted priority rollup) — folded in from the former SummaryStrip so the
+ * page shows ONE status treatment instead of two stacked stat rows.
+ */
 export function TierGapGrid({
   run,
   results,

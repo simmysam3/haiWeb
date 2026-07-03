@@ -59,10 +59,14 @@ interface CreateUserParams {
   email: string;
   firstName: string;
   lastName: string;
-  password: string;
   attributes?: Record<string, string[]>;
 }
 
+// Create an invited user WITHOUT a credential and unverified. Identity assurance
+// (IA-5) is completed by the invitee via `sendExecuteActionsEmail`
+// (VERIFY_EMAIL + UPDATE_PASSWORD): the account cannot be used until they prove
+// mailbox control and set a password only they know — the inviter never holds a
+// working credential and email is not auto-trusted.
 export async function createUser(params: CreateUserParams): Promise<string> {
   const token = await getAdminToken();
 
@@ -78,10 +82,7 @@ export async function createUser(params: CreateUserParams): Promise<string> {
       firstName: params.firstName,
       lastName: params.lastName,
       enabled: true,
-      emailVerified: true,
-      credentials: [
-        { type: "password", value: params.password, temporary: false },
-      ],
+      emailVerified: false,
       attributes: params.attributes ?? {},
     }),
   });
@@ -95,6 +96,40 @@ export async function createUser(params: CreateUserParams): Promise<string> {
   const location = res.headers.get("Location") ?? "";
   const userId = location.split("/").pop() ?? "";
   return userId;
+}
+
+/**
+ * Trigger Keycloak's execute-actions email so the user completes required
+ * actions (e.g. VERIFY_EMAIL, UPDATE_PASSWORD) via a one-time link. Requires the
+ * realm SMTP relay to be configured (D-41).
+ */
+export async function sendExecuteActionsEmail(
+  userId: string,
+  actions: string[],
+  opts?: { clientId?: string; redirectUri?: string },
+): Promise<void> {
+  const token = await getAdminToken();
+
+  const query = new URLSearchParams();
+  if (opts?.clientId) query.set("client_id", opts.clientId);
+  if (opts?.redirectUri) query.set("redirect_uri", opts.redirectUri);
+  const qs = query.toString();
+
+  const res = await fetch(
+    `${keycloakAdminUrl}/users/${encodeURIComponent(userId)}/execute-actions-email${qs ? `?${qs}` : ""}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(actions),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Keycloak execute-actions-email failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 // ─── Token Exchange (Login) ─────────────────────────────────
@@ -156,22 +191,39 @@ export async function listUsers(participantId: string): Promise<unknown[]> {
   return res.json();
 }
 
+export interface KeycloakUser {
+  id: string;
+  attributes?: Record<string, string[]>;
+}
+
+export async function getUser(userId: string): Promise<KeycloakUser> {
+  const token = await getAdminToken();
+
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Keycloak get user failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
 export async function updateUserRole(
   userId: string,
   roleName: string,
 ): Promise<void> {
   const token = await getAdminToken();
 
-  // Get role by name
   const rolesRes = await fetch(
     `${keycloakAdminUrl}/roles/${roleName}`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (!rolesRes.ok) return;
+  if (!rolesRes.ok) {
+    throw new Error(`Keycloak role lookup failed: ${rolesRes.status} ${await rolesRes.text()}`);
+  }
   const role = await rolesRes.json();
 
-  // Assign role
-  await fetch(
+  const res = await fetch(
     `${keycloakAdminUrl}/users/${userId}/role-mappings/realm`,
     {
       method: "POST",
@@ -182,12 +234,15 @@ export async function updateUserRole(
       body: JSON.stringify([role]),
     },
   );
+  if (!res.ok) {
+    throw new Error(`Keycloak role assignment failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 export async function disableUser(userId: string): Promise<void> {
   const token = await getAdminToken();
 
-  await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -195,6 +250,9 @@ export async function disableUser(userId: string): Promise<void> {
     },
     body: JSON.stringify({ enabled: false }),
   });
+  if (!res.ok) {
+    throw new Error(`Keycloak disable user failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 export async function deleteUser(userId: string): Promise<void> {

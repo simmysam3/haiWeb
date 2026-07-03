@@ -1,4 +1,3 @@
-// src/app/account/sonar/templates/[id]/page.tsx
 import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';

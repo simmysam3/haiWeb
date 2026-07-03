@@ -3,7 +3,7 @@ import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
-import { CounterpartiesGrid } from './_components/counterparties-grid';
+import { CounterpartiesGrid, type EnrichedWatcherResult } from './_components/counterparties-grid';
 import { RunControls } from './run-controls';
 import { RunFailureBanner } from './run-failure-banner';
 import type { RunTemplate, WatcherRun, WatcherResult } from '@haiwave/protocol';
@@ -90,12 +90,12 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
     }
   }
 
-  const enrichedResults: WatcherResult[] = results.map((r) => ({
+  const enrichedResults: EnrichedWatcherResult[] = results.map((r) => ({
     ...r,
     counterparty_name: r.counterparty_participant_id
       ? partnerNameById.get(r.counterparty_participant_id) ?? null
       : null,
-  })) as WatcherResult[];
+  }));
 
   // Title is the watcher's configured name (every run originates from a named
   // template). Orphan runs without a resolvable template fall back to a

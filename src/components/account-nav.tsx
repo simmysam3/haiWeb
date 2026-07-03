@@ -38,72 +38,58 @@ interface BacklogEventsCount {
   oldest_age_days: number | null;
 }
 
-function RequestManagementNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
-  const { data, error } = useSWR<RequestManagementCounts>(
-    "/api/sonar/compliance/requests/counts",
-    jsonFetcher,
-    { refreshInterval: 15_000 },
-  );
-  useEffect(() => {
-    if (error) {
-      console.warn("[RequestManagementNavItem] count poll failed", error);
-    }
-  }, [error]);
-  return (
-    <Link
-      href={item.href}
-      className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
-        item.indent ? "pl-10 pr-6" : "px-6"
-      } ${
-        isActive
-          ? "text-white bg-white/10 border-r-2 border-teal"
-          : "text-light-slate hover:text-white hover:bg-white/5"
-      }`}
-    >
-      {item.label}
-      <NavBadge
-        count={data?.awaiting_me_count ?? 0}
-        oldestAgeDays={data?.oldest_awaiting_me_age_days ?? null}
-      />
-    </Link>
-  );
+function navLinkClassName(item: NavItem, isActive: boolean): string {
+  return `flex items-center gap-3 py-2.5 text-sm transition-colors ${
+    item.indent ? "pl-10 pr-6" : "px-6"
+  } ${
+    isActive
+      ? "text-white bg-white/10 border-r-2 border-teal"
+      : "text-light-slate hover:text-white hover:bg-white/5"
+  }`;
+}
+
+interface NavBadgeConfig<T> {
+  endpoint: string;
+  refreshInterval?: number;
+  getCount: (data: T) => number;
+  getAge: (data: T) => number | null;
+  /** Full console.warn message (with its own [Component] prefix) on poll failure. */
+  warnMessage: string;
 }
 
 /**
- * Backlog sidebar entry — events-only count badge.
- *
- * Per v.1.41 Backlog IA spec Decision 11: no polling interval. Change
- * events surface at most nightly, so live polling would add request
- * volume for no signal. SWR's default revalidation (on mount / focus /
- * reconnect) is sufficient; users who want a fresh count can refresh
- * the page.
+ * A sidebar nav <Link>, optionally with a polled count badge (per
+ * v.1.41 Backlog IA Decision 11: only Request Management polls on an
+ * interval — other badges rely on SWR's default revalidation).
  */
-function BacklogNavItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
-  const { data, error } = useSWR<BacklogEventsCount>(
-    "/api/account/sonar/backlog/events-count",
+function NavItemLink<T>({
+  item,
+  isActive,
+  badge,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  badge?: NavBadgeConfig<T>;
+}) {
+  const { data, error } = useSWR<T>(
+    badge ? badge.endpoint : null,
     jsonFetcher,
+    badge?.refreshInterval != null ? { refreshInterval: badge.refreshInterval } : undefined,
   );
   useEffect(() => {
-    if (error) {
-      console.warn("[BacklogNavItem] events count fetch failed", error);
+    if (badge && error) {
+      console.warn(badge.warnMessage, error);
     }
-  }, [error]);
+  }, [badge, error]);
   return (
-    <Link
-      href={item.href}
-      className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
-        item.indent ? "pl-10 pr-6" : "px-6"
-      } ${
-        isActive
-          ? "text-white bg-white/10 border-r-2 border-teal"
-          : "text-light-slate hover:text-white hover:bg-white/5"
-      }`}
-    >
+    <Link href={item.href} className={navLinkClassName(item, isActive)}>
       {item.label}
-      <NavBadge
-        count={data?.events_count ?? 0}
-        oldestAgeDays={data?.oldest_age_days ?? null}
-      />
+      {badge && (
+        <NavBadge
+          count={data ? badge.getCount(data) : 0}
+          oldestAgeDays={data ? badge.getAge(data) : null}
+        />
+      )}
     </Link>
   );
 }
@@ -256,24 +242,34 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
               const isActive = isItemActive(item);
               let entry: React.ReactNode;
               if (item.href === REQUESTS_HREF) {
-                entry = <RequestManagementNavItem item={item} isActive={isActive} />;
-              } else if (item.href === BACKLOG_HREF) {
-                entry = <BacklogNavItem item={item} isActive={isActive} />;
-              } else {
                 entry = (
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 py-2.5 text-sm transition-colors ${
-                      item.indent ? "pl-10 pr-6" : "px-6"
-                    } ${
-                      isActive
-                        ? "text-white bg-white/10 border-r-2 border-teal"
-                        : "text-light-slate hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
+                  <NavItemLink<RequestManagementCounts>
+                    item={item}
+                    isActive={isActive}
+                    badge={{
+                      endpoint: "/api/sonar/compliance/requests/counts",
+                      refreshInterval: 15_000,
+                      getCount: (d) => d.awaiting_me_count,
+                      getAge: (d) => d.oldest_awaiting_me_age_days,
+                      warnMessage: "[RequestManagementNavItem] count poll failed",
+                    }}
+                  />
                 );
+              } else if (item.href === BACKLOG_HREF) {
+                entry = (
+                  <NavItemLink<BacklogEventsCount>
+                    item={item}
+                    isActive={isActive}
+                    badge={{
+                      endpoint: "/api/account/sonar/backlog/events-count",
+                      getCount: (d) => d.events_count,
+                      getAge: (d) => d.oldest_age_days,
+                      warnMessage: "[BacklogNavItem] events count fetch failed",
+                    }}
+                  />
+                );
+              } else {
+                entry = <NavItemLink item={item} isActive={isActive} />;
               }
               return item.tooltip ? (
                 <NavTooltip key={item.href} text={item.tooltip}>

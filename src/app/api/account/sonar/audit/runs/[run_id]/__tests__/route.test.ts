@@ -14,9 +14,16 @@ import { NextRequest } from 'next/server';
 
 const MOCK_PARTICIPANT_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
+type MockHandlerCtx = { client: unknown; request: NextRequest; params?: unknown; session: unknown };
+type MockRouteCtx = { params?: Record<string, string> | Promise<Record<string, string>> };
+
+declare global {
+  var __mockClient: Record<string, ReturnType<typeof vi.fn>>;
+}
+
 vi.mock('@/lib/with-hai-core', () => ({
-  withHaiCore: (handler: any) => async (req: NextRequest, ctx?: any) => {
-    const client = (globalThis as any).__mockClient;
+  withHaiCore: (handler: (ctx: MockHandlerCtx) => unknown) => async (req: NextRequest, ctx?: MockRouteCtx) => {
+    const client = globalThis.__mockClient;
     const params = ctx?.params instanceof Promise ? await ctx.params : (ctx?.params ?? {});
     return await handler({
       client,
@@ -50,7 +57,7 @@ const MOCK_RESPONSE_ITEM = {
 describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
   beforeEach(() => {
     vi.resetModules();
-    (globalThis as any).__mockClient = {
+    globalThis.__mockClient = {
       getAuditRun: vi.fn(),
       getRunTemplate: vi.fn(),
       getCompanyProfile: vi.fn(),
@@ -59,10 +66,10 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
   });
 
   it('returns { run, dispatched_responses: [] } — list items carry no run-linking field in v.1.39', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
     // Even if responses exist, none can be linked to this run (no linking field),
     // so the route no longer fetches them at all — it returns [] directly (forward seam).
-    (globalThis as any).__mockClient.listEvidenceResponses.mockResolvedValue({
+    globalThis.__mockClient.listEvidenceResponses.mockResolvedValue({
       responses: [MOCK_RESPONSE_ITEM],
     });
 
@@ -77,15 +84,15 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
     expect(body.run).toEqual(MOCK_RUN);
     // No run-linking field → always [] in v.1.39
     expect(body.dispatched_responses).toEqual([]);
-    expect((globalThis as any).__mockClient.getAuditRun).toHaveBeenCalledWith(RUN_ID);
+    expect(globalThis.__mockClient.getAuditRun).toHaveBeenCalledWith(RUN_ID);
     // Forward seam: the route returns [] WITHOUT fetching responses (the wasted
     // listEvidenceResponses call was removed — re-add once a run-link field exists).
-    expect((globalThis as any).__mockClient.listEvidenceResponses).not.toHaveBeenCalled();
+    expect(globalThis.__mockClient.listEvidenceResponses).not.toHaveBeenCalled();
   });
 
   it('returns dispatched_responses: [] when response list is empty', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    (globalThis as any).__mockClient.listEvidenceResponses.mockResolvedValue({
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.listEvidenceResponses.mockResolvedValue({
       responses: [],
     });
 
@@ -102,11 +109,11 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
   it('enriches run with template_name from the linked template', async () => {
     const TEMPLATE_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue({
+    globalThis.__mockClient.getAuditRun.mockResolvedValue({
       ...MOCK_RUN,
       template_id: TEMPLATE_ID,
     });
-    (globalThis as any).__mockClient.getRunTemplate.mockResolvedValue({
+    globalThis.__mockClient.getRunTemplate.mockResolvedValue({
       template: { template_id: TEMPLATE_ID, template_name: 'Q1 Coffee Supplier Sweep' },
     });
 
@@ -119,16 +126,16 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
     expect(res.status).toBe(200);
     expect(body.run.template_name).toBe('Q1 Coffee Supplier Sweep');
-    expect((globalThis as any).__mockClient.getRunTemplate).toHaveBeenCalledWith(TEMPLATE_ID);
+    expect(globalThis.__mockClient.getRunTemplate).toHaveBeenCalledWith(TEMPLATE_ID);
   });
 
   it('returns run without template_name when template fetch rejects (best-effort)', async () => {
     const TEMPLATE_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue({
+    globalThis.__mockClient.getAuditRun.mockResolvedValue({
       ...MOCK_RUN,
       template_id: TEMPLATE_ID,
     });
-    (globalThis as any).__mockClient.getRunTemplate.mockRejectedValue(
+    globalThis.__mockClient.getRunTemplate.mockRejectedValue(
       new Error('template not found'),
     );
 
@@ -144,8 +151,8 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
   });
 
   it('returns auditor_country uppercased from the auditor profile locality', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.getCompanyProfile.mockResolvedValue({
       id: MOCK_PARTICIPANT_ID,
       company_name: 'Apex',
       locality: { city: 'Austin', state: 'TX', country: 'us' },
@@ -160,12 +167,12 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
     expect(res.status).toBe(200);
     expect(body.auditor_country).toBe('US');
-    expect((globalThis as any).__mockClient.getCompanyProfile).toHaveBeenCalledWith(MOCK_PARTICIPANT_ID);
+    expect(globalThis.__mockClient.getCompanyProfile).toHaveBeenCalledWith(MOCK_PARTICIPANT_ID);
   });
 
   it('returns undefined auditor_country when the profile has no locality (best-effort)', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    (globalThis as any).__mockClient.getCompanyProfile.mockResolvedValue({
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.getCompanyProfile.mockResolvedValue({
       id: MOCK_PARTICIPANT_ID,
       company_name: 'Apex',
     });
@@ -182,8 +189,8 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
   });
 
   it('returns undefined auditor_country when getCompanyProfile rejects (best-effort)', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    (globalThis as any).__mockClient.getCompanyProfile.mockRejectedValue(
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.getCompanyProfile.mockRejectedValue(
       new Error('profile fetch failed'),
     );
 
@@ -199,7 +206,7 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
   });
 
   it('does not fetch template when run has no template_id', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
 
     const { GET } = await import('../route');
     const req = new NextRequest(
@@ -210,12 +217,12 @@ describe('GET /api/account/sonar/audit/runs/[run_id]', () => {
 
     expect(res.status).toBe(200);
     expect(body.run.template_name).toBeUndefined();
-    expect((globalThis as any).__mockClient.getRunTemplate).not.toHaveBeenCalled();
+    expect(globalThis.__mockClient.getRunTemplate).not.toHaveBeenCalled();
   });
 
   it('returns run with dispatched_responses: [] when listEvidenceResponses rejects (best-effort resilience)', async () => {
-    (globalThis as any).__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
-    (globalThis as any).__mockClient.listEvidenceResponses.mockRejectedValue(
+    globalThis.__mockClient.getAuditRun.mockResolvedValue(MOCK_RUN);
+    globalThis.__mockClient.listEvidenceResponses.mockRejectedValue(
       new Error('service unavailable'),
     );
 

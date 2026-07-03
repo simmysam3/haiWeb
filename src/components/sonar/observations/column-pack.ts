@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export interface ColumnDef<T> {
+interface ColumnDef<T> {
   /**
    * Stable key — used as React key on the header cell and as the column id
    * in tests. Must be unique within a column pack.

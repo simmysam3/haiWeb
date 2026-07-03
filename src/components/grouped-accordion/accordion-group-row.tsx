@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-export type CountValue = number | { filtered: number; total: number } | string;
+type CountValue = number | { filtered: number; total: number } | string;
 
 interface Props {
   groupKey: string;

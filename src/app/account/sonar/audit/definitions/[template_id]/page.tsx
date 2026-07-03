@@ -1,4 +1,3 @@
-// src/app/account/sonar/audit/definitions/[template_id]/page.tsx
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { RunTemplate } from '@haiwave/protocol';

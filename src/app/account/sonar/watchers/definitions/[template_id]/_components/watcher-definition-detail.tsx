@@ -39,7 +39,6 @@ export function WatcherDefinitionDetail({ template, events = [] }: Props) {
       scopePicker={<WatcherScopePicker value={scope} onChange={setScope} />}
       scopeLocked={false}
       scopeValue={scope}
-      onScopeChange={(next) => setScope(next as WatcherScope)}
       endpointBase="/api/account/sonar/watcher/definitions"
       listRoute="/account/sonar/watchers"
     />

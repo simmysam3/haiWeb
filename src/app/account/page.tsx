@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
 import { NotificationsPanel } from "./_components/notifications-panel";
-import { fetchFromApi } from "@/lib/fetch-api";
+import { fetchFromApi } from "@/lib/server-haiwave-client";
 import { getSession } from "@/lib/auth";
 import {
   MOCK_AGENTS,

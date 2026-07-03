@@ -24,9 +24,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files — match any .env variant (including backups like .env.foo.bak)
+# so a stray secret-bearing file can never be committed by a bulk `git add`.
+# The committed template is the one deliberate exception.
 .env
-.env*.local
+.env.*
+*.bak
+!.env.example
 
 # vercel
 .vercel

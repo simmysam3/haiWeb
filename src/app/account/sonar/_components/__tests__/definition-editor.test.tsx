@@ -235,11 +235,9 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
   function renderWatcherEditor(opts: {
     template?: RunTemplate;
     scopeValue?: RunTemplate['scope'];
-    onScopeChange?: (next: RunTemplate['scope']) => void;
   } = {}) {
     const tpl = opts.template ?? template;
     const scope = opts.scopeValue ?? tpl.scope;
-    const onScopeChange = opts.onScopeChange ?? vi.fn();
     return render(
       <DefinitionEditor
         template={tpl}
@@ -247,7 +245,6 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
         scopePicker={<div data-testid="watcher-scope-picker">watcher-scope-content</div>}
         scopeLocked={false}
         scopeValue={scope}
-        onScopeChange={onScopeChange}
         endpointBase="/api/account/sonar/watcher/definitions"
         listRoute="/account/sonar/watchers"
       />,
@@ -330,7 +327,6 @@ describe('DefinitionEditor (drift step — watcher only)', () => {
         scopePicker={<div data-testid="watcher-scope-picker">watcher-scope</div>}
         scopeLocked={false}
         scopeValue={tpl.scope}
-        onScopeChange={vi.fn()}
         endpointBase="/api/account/sonar/watchers/definitions"
         listRoute="/account/sonar/watchers"
       />,

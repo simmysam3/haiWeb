@@ -445,9 +445,18 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // Authenticated page surfaces + the account BFF (so XHR/mutations slide the
-  // session too — the original symptom was POST /api/account/sonar/templates
-  // 401ing on an expired token). /api/admin/* and /api/auth/* are excluded:
-  // they do their own auth and must not be cookie-rotated mid-flight.
-  matcher: ['/account/:path*', '/admin/:path*', '/api/account/:path*'],
+  // Authenticated page surfaces + every mutating BFF surface, so an idle user's
+  // XHR/mutations slide the session instead of 401ing on a lapsed access token.
+  // Covers /api/account/* (e.g. POST templates), /api/sonar/* (Request
+  // Management accept/decline) and /api/search (top-nav). /api/admin/* and
+  // /api/auth/* are excluded: they do their own auth and must not be
+  // cookie-rotated mid-flight. API routes only ever get refreshed here, never
+  // redirected — the presence check above is guarded by `!isApi`.
+  matcher: [
+    '/account/:path*',
+    '/admin/:path*',
+    '/api/account/:path*',
+    '/api/sonar/:path*',
+    '/api/search',
+  ],
 };

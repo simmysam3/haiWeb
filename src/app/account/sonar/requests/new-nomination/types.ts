@@ -1,4 +1,3 @@
-import type { AuditScope, AuditScopeCoverage } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 
 export interface PartnerSummary {
@@ -18,6 +17,3 @@ export interface FormSelections {
   classes: Set<string>;   // class_id
   products: Set<string>;  // external_product_id
 }
-
-// Re-exports kept for convenience in step components.
-export type { AuditScope, AuditScopeCoverage, CatalogClass, CatalogProduct };

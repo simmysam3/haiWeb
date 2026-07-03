@@ -1,23 +1,10 @@
 import { Panel } from '@/components';
+import type { CoverageCurrent } from '@haiwave/protocol';
 
 /**
  * v1.34 P6 — four-tile coverage stats (§10.2). Server-supplied percentages
  * (P6-D2). Pure server component (no client interactivity).
- *
- * Inline type mirror of @haiwave/protocol CoverageCurrent — keep in sync
- * with packages/protocol/src/audit/compliance-coverage.ts.
  */
-export interface CoverageSnapshot {
-  snapshot_id: string;
-  snapshot_completed_at: string;
-  coverage_total_products: number;
-  coverage_complete_products: number;
-  coverage_partial_products: number;
-  coverage_no_traversal_products: number;
-  complete_pct: number;
-  partial_pct: number;
-  no_traversal_pct: number;
-}
 
 function Tile({ label, count, pct }: { label: string; count: number; pct?: number }) {
   return (
@@ -29,7 +16,7 @@ function Tile({ label, count, pct }: { label: string; count: number; pct?: numbe
   );
 }
 
-export function CoverageStatsStrip({ snapshot }: { snapshot: CoverageSnapshot }) {
+export function CoverageStatsStrip({ snapshot }: { snapshot: CoverageCurrent }) {
   return (
     <Panel className="p-4">
       <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">

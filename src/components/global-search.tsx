@@ -40,11 +40,10 @@ const DEBOUNCE_MS = 250;
 const MIN_QUERY_LEN = 2;
 const PER_CATEGORY_LIMIT = 5;
 
-interface FlatRow {
-  kind: 'counterparty' | 'sku' | 'scope';
-  href: string;
-  hit: SearchCounterpartyHit | SearchSkuHit | SearchScopeHit;
-}
+type FlatRow =
+  | { kind: 'counterparty'; href: string; hit: SearchCounterpartyHit }
+  | { kind: 'sku'; href: string; hit: SearchSkuHit }
+  | { kind: 'scope'; href: string; hit: SearchScopeHit };
 
 function counterpartyHref(c: SearchCounterpartyHit): string {
   return `/account/partners/${c.participant_id}`;
@@ -390,7 +389,7 @@ function SearchSection({
 
 function SearchRowLabel({ row }: { row: FlatRow }) {
   if (row.kind === 'counterparty') {
-    const c = row.hit as SearchCounterpartyHit;
+    const c = row.hit;
     return (
       <span className="truncate text-navy">
         {c.legal_name}
@@ -401,7 +400,7 @@ function SearchRowLabel({ row }: { row: FlatRow }) {
     );
   }
   if (row.kind === 'sku') {
-    const s = row.hit as SearchSkuHit;
+    const s = row.hit;
     return (
       <span className="truncate text-navy">
         {s.sku_label}
@@ -412,7 +411,7 @@ function SearchRowLabel({ row }: { row: FlatRow }) {
       </span>
     );
   }
-  const sc = row.hit as SearchScopeHit;
+  const sc = row.hit;
   return (
     <span className="truncate text-navy">
       {sc.subject}
@@ -426,13 +425,10 @@ function SearchRowLabel({ row }: { row: FlatRow }) {
 
 function SearchRowBadge({ row }: { row: FlatRow }) {
   if (row.kind === 'counterparty') {
-    const c = row.hit as SearchCounterpartyHit;
-    return <Pill category="status" value={c.status} />;
+    return <Pill category="status" value={row.hit.status} />;
   }
   if (row.kind === 'sku') {
-    const s = row.hit as SearchSkuHit;
-    return <Pill category="status" value={s.status} />;
+    return <Pill category="status" value={row.hit.status} />;
   }
-  const sc = row.hit as SearchScopeHit;
-  return <Pill category="status" value={sc.acceptance_status} />;
+  return <Pill category="status" value={row.hit.acceptance_status} />;
 }

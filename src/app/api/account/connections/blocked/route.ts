@@ -1,6 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession, getToken, hasRole } from "@/lib/auth";
-import { createHaiwaveClient } from "@/lib/haiwave-api";
+import { NextResponse } from "next/server";
 import { withHaiCore } from "@/lib/with-hai-core";
 import { MOCK_BLOCKED_COMPANIES } from "@/lib/mock-data";
 
@@ -17,48 +15,24 @@ export const GET = withHaiCore(
 /**
  * POST /api/account/connections/blocked
  *
- * Blocks a company via haiCore. Requires account_admin or higher.
- * Returns 201 on success, so kept outside withHaiCore to preserve semantics.
+ * Blocks a company via haiCore. Requires account_admin or higher. No
+ * fallback: a non-JWT token (dev shim, or a poisoned/misconfigured cookie in
+ * prod) must 401 rather than fabricate a "blocked" result.
  */
-export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!hasRole(session.user.role, "account_admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  try {
-    const body = await request.json();
-    const { target_participant_id } = body;
-
+export const POST = withHaiCore(
+  async ({ client, request }) => {
+    const { target_participant_id } = await request.json();
     if (!target_participant_id) {
       return NextResponse.json(
         { error: "target_participant_id is required" },
         { status: 400 },
       );
     }
-
-    const token = await getToken();
-    if (!token || !token.includes(".")) {
-      return NextResponse.json(
-        { success: true, target_participant_id, status: "blocked" },
-        { status: 201 },
-      );
-    }
-
-    const client = createHaiwaveClient(token, session.participant.id);
     const result = await client.blockParticipant(target_participant_id);
     return NextResponse.json(result, { status: 201 });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to block company" },
-      { status: 500 },
-    );
-  }
-}
+  },
+  { role: "account_admin" },
+);
 
 /**
  * DELETE /api/account/connections/blocked?blocked_participant_id=xxx

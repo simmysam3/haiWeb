@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect } from 'react';
 
-export interface DrawerProps {
+interface DrawerProps {
   open: boolean;
   onClose: () => void;
   title: string;

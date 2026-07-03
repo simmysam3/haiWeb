@@ -50,13 +50,36 @@ describe('fetchBffJson', () => {
       expect(result.data).toEqual(body);
     }
 
-    // Cookie + proto + host are forwarded into the reconstructed URL.
+    // Cookie is forwarded; the base URL comes from the trusted configured
+    // origin (PORTAL_BASE_URL), NOT the attacker-influenceable
+    // x-forwarded-proto/host headers the `next/headers` mock above sets to
+    // 'https'/'example.test' — see the SSRF regression test below.
     const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(call[0]).toBe('https://example.test/api/sample?foo=1');
+    expect(call[0]).toBe('http://localhost:3001/api/sample?foo=1');
     expect(call[1]).toMatchObject({
       headers: { cookie: 'sid=abc123' },
       cache: 'no-store',
     });
+  });
+
+  // Regression pin: a spoofed Host header must not redirect this server-side
+  // fetch to an arbitrary origin (SSRF) or leak the forwarded session cookie
+  // to it. Behind a load balancer that forwards unmatched Hosts through, an
+  // unauthenticated client could otherwise set an attacker-controlled Host
+  // and have the BFF issue an authenticated-looking request to it.
+  it('ignores x-forwarded-proto/host and always targets the trusted configured origin', async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, items: 0 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await fetchBffJson<SamplePayload>('/api/sample');
+
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).not.toContain('example.test');
+    expect(call[0]).toBe('http://localhost:3001/api/sample');
   });
 
   it('returns { kind: "error", status, message } on a non-OK status', async () => {

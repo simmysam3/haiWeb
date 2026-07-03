@@ -1,5 +1,5 @@
-import { cookies, headers } from 'next/headers';
 import { PageHeader } from '@/components/page-header';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { UsageClient } from './_components/usage-client';
 
 interface CurrentPayload {
@@ -15,27 +15,13 @@ interface CurrentPayload {
   phantom_demand_inbound_probe_limit_is_custom: boolean;
 }
 
-async function getBaseUrl(): Promise<string> {
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  return `${proto}://${host}`;
-}
-
 async function loadCurrent(): Promise<CurrentPayload | null> {
-  const baseUrl = await getBaseUrl();
-  const cookieHeader = (await cookies()).toString();
-  try {
-    const res = await fetch(`${baseUrl}/api/account/usage/current`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as CurrentPayload;
-  } catch (err) {
-    console.error('[usage current] fetch failed', err);
+  const result = await fetchBffJson<CurrentPayload>('/api/account/usage/current');
+  if (result.kind === 'error') {
+    console.error('[usage current] fetch failed', { status: result.status, message: result.message });
     return null;
   }
+  return result.data;
 }
 
 export default async function UsagePage() {

@@ -4,7 +4,7 @@ import useSWR from 'swr';
 import type { WatcherRunStatus } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
 
-const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
+export const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
 
 interface WatcherRunStatusResponse {
   status: WatcherRunStatus;

@@ -1,16 +1,9 @@
-'use client';
-
 import { AuditPostureCard } from './audit-posture-card';
 import { WatcherSignalsCard } from './watcher-signals-card';
-
-interface Partner {
-  partner_id: string;
-  audit: { compliant: number; partial: number; non_compliant: number; total: number } | null;
-  watcher: { capacity_band: 'low' | 'moderate' | 'high' | 'at_capacity' | null; lead_time_p90_days: number | null } | null;
-}
+import type { CrossModalityPartner } from './cross-modality-table';
 
 interface Props {
-  partners: Partner[];
+  partners: Pick<CrossModalityPartner, 'audit' | 'watcher'>[];
 }
 
 export function ModalityLens({ partners }: Props) {

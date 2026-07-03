@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
-import { applyRedirects, proxy } from './proxy';
+import { applyRedirects, proxy, config } from './proxy';
 
 // These tests cover the v1.35 redirect rules (legacy /audit-nominations
 // monitoring URL + /compliance/posture/nominations consolidation). v1.37
@@ -332,5 +332,15 @@ describe('gated-route redirect → /api/auth/login (bypass /login card)', () => 
     const url = new URL(res.headers.get('location')!);
     expect(url.pathname).toBe('/api/auth/login');
     expect(url.searchParams.get('next')).toBe('/account');
+  });
+});
+
+describe('sliding-refresh matcher covers every mutating BFF surface', () => {
+  // The Request Management UI mutates via /api/sonar/* and the top-nav search
+  // hits /api/search; both must slide the session or an idle user 401s mid-task.
+  it('includes the sonar and search BFF paths, not just /api/account', () => {
+    expect(config.matcher).toContain('/api/sonar/:path*');
+    expect(config.matcher).toContain('/api/search');
+    expect(config.matcher).toContain('/api/account/:path*');
   });
 });

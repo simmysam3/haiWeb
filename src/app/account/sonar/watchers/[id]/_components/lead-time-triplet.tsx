@@ -1,10 +1,10 @@
-interface Numbered {
+export interface Numbered {
   days: number;
   observed_at: string;
   vendor_ref?: string;
 }
 
-interface Distribution {
+export interface Distribution {
   window_days: number;
   percentiles: { p50: number; p75: number; p90: number; p95: number; p99: number };
   sample_count: number;

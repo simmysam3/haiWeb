@@ -38,8 +38,8 @@ export default async function AuditRunDetailPage({
   );
 
   if (runResult.kind === 'error') {
-    if (runResult.status === 404) notFound();
-    // For auth / server errors, also surface notFound so we don't leak info
+    // Covers 404 as well as auth / server errors — always notFound so we
+    // don't leak info.
     notFound();
   }
 

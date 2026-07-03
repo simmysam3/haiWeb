@@ -95,8 +95,8 @@ async function loadPostures(): Promise<LoadResult> {
  * produced — in particular the phantom_demand cells correctly default to
  * `permissive`, matching the real backend behavior.
  *
- * Auth: covered by src/middleware.ts which redirects unauthenticated
- * /account/* requests to /login before this component runs.
+ * Auth: covered by src/proxy.ts which redirects unauthenticated
+ * /account/* requests to /api/auth/login before this component runs.
  */
 export default async function TrustPosturePage() {
   const { postures, error } = await loadPostures();

@@ -7,6 +7,7 @@ import type {
   TrustBypassAffectedCounterparty,
 } from '@haiwave/protocol';
 import { Modal, Button } from '@/components';
+import { TRUST_CLASS_LABEL } from './trust-class-label';
 
 interface ActivationResponseBody {
   config: {
@@ -29,13 +30,6 @@ interface ActivationModalProps {
    * declines preserved across the dissolution (always 0 for forward_only). */
   onSuccess: (preservedDeclines: number) => void;
 }
-
-const TRUST_CLASS_LABEL: Record<TrustClass, string> = {
-  unknown: 'Unknown',
-  behavioral_only: 'Behavioral-only',
-  trading_pair: 'Trading pair',
-  premier_partner: 'Premier partner',
-};
 
 /**
  * Activation modal per spec §7.5.

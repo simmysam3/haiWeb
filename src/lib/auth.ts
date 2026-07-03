@@ -11,6 +11,22 @@ const KEYCLOAK_JWKS_URI =
   `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs`;
 const JWKS = createRemoteJWKSet(new URL(KEYCLOAK_JWKS_URI));
 
+// The portal client the session cookie must belong to. A valid signature +
+// issuer is not enough: any client in the same realm (e.g. an agent
+// service-account token minted via client_credentials) would otherwise satisfy
+// them and be accepted as a user session.
+const PORTAL_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID ?? "haiwave-portal";
+
+function tokenIssuedToPortal(payload: JWTPayload): boolean {
+  // `azp` (authorized party) is the client that requested the token — the most
+  // reliable discriminator. Fall back to `aud` for realms that stamp it there.
+  if (payload.azp === PORTAL_CLIENT_ID) return true;
+  const aud = payload.aud;
+  if (typeof aud === "string") return aud === PORTAL_CLIENT_ID;
+  if (Array.isArray(aud)) return aud.includes(PORTAL_CLIENT_ID);
+  return false;
+}
+
 async function verifySessionJwt(token: string): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWKS, {
@@ -19,6 +35,7 @@ async function verifySessionJwt(token: string): Promise<JWTPayload | null> {
       issuer: process.env.KEYCLOAK_ISSUER ??
         `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`,
     });
+    if (!tokenIssuedToPortal(payload)) return null;
     return payload;
   } catch {
     return null;
@@ -35,6 +52,25 @@ export type UserRole =
   | "buyer_full_transact"
   | "inside_sales_read_only"
   | "inside_sales_transact";
+
+// Roles a participant's account_owner may assign to their own users. Excludes
+// account_owner (ownership transfer is not a self-service action) and any
+// platform-level realm role such as haiwave_admin — assigning those would be a
+// privilege escalation out of the tenant.
+export const ASSIGNABLE_USER_ROLES: readonly UserRole[] = [
+  "account_admin",
+  "procurement_read_only",
+  "procurement_transact",
+  "buyer_view_only",
+  "buyer_request_quote",
+  "buyer_full_transact",
+  "inside_sales_read_only",
+  "inside_sales_transact",
+];
+
+export function isAssignableRole(role: string): role is UserRole {
+  return (ASSIGNABLE_USER_ROLES as readonly string[]).includes(role);
+}
 
 export interface Session {
   user: {
@@ -112,7 +148,11 @@ export async function getSession(): Promise<Session | null> {
     };
   }
 
-  // Fallback to mock session for development
+  // A cookie value that is not a verifiable JWT only ever comes from the local
+  // dev/demo login shim. In production it can only be caller-forged, so fail
+  // closed: an unauthenticated request must not resolve to a session.
+  if (process.env.NODE_ENV === "production") return null;
+
   return {
     user: MOCK_SESSION.user,
     participant: {
@@ -134,10 +174,14 @@ export async function getToken(): Promise<string | null> {
     return value;
   }
 
-  // Dev mode: fetch a real Keycloak token via client credentials
-  // so BFF routes can call haiCore instead of returning mock data.
-  // Requires explicit opt-in via DEV_KEYCLOAK_TOKEN=true.
-  if (process.env.DEV_KEYCLOAK_TOKEN === "true") {
+  // Dev mode: fetch a real Keycloak token via client credentials so BFF routes
+  // can call haiCore instead of returning mock data. Opt-in via
+  // DEV_KEYCLOAK_TOKEN=true, and never in production — a real service token
+  // must not be mintable from a non-JWT cookie on a deployed environment.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.DEV_KEYCLOAK_TOKEN === "true"
+  ) {
     return getDevKeycloakToken();
   }
 

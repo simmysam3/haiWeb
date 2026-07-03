@@ -76,15 +76,13 @@ export function Sparkline({
           opacity={0.7}
         />
       )}
-      {/* End point dot, colored to indicate trajectory */}
-      {points.length > 0 && (
-        <circle
-          cx={points[points.length - 1][0]}
-          cy={points[points.length - 1][1]}
-          r={2}
-          fill="currentColor"
-        />
-      )}
+      {/* End-point dot */}
+      <circle
+        cx={points[points.length - 1][0]}
+        cy={points[points.length - 1][1]}
+        r={2}
+        fill="currentColor"
+      />
     </svg>
   );
 }

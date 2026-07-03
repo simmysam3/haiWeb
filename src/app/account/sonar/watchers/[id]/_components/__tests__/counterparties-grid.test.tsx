@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { CounterpartiesGrid } from '../counterparties-grid';
+import { CounterpartiesGrid, type EnrichedWatcherResult } from '../counterparties-grid';
 import type { WatcherResult } from '@haiwave/protocol';
 
 function makeResult(
   overrides: Partial<WatcherResult> & { counterparty_name?: string | null } = {},
-): WatcherResult {
+): EnrichedWatcherResult {
   return {
     result_id: crypto.randomUUID(),
     run_id: 'run-1',
@@ -25,7 +25,7 @@ function makeResult(
     aggregated_under_tier_1: null,
     external_product_id: null,
     ...overrides,
-  } as WatcherResult & { counterparty_name?: string | null };
+  } as EnrichedWatcherResult;
 }
 
 describe('<CounterpartiesGrid>', () => {

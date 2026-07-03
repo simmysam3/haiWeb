@@ -82,6 +82,22 @@ describe('GET /api/auth/callback', () => {
     expect(res.headers.get('location')).toContain('/login?error=exchange');
   });
 
+  it('sanitizes an unsafe kc_next cookie instead of building an open redirect', async () => {
+    // A cookie value that doesn't start with "/" (e.g. injected via cookie
+    // tossing from a sibling subdomain) must not be concatenated verbatim
+    // into the redirect — `${base}@evil.com` parses as userinfo@host, sending
+    // the browser to evil.com after a successful login.
+    exchangeCode.mockResolvedValue({
+      access_token: fakeJwt({ realm_access: { roles: ['buyer_view_only'] } }),
+      refresh_token: 'r', id_token: fakeJwt({ nonce: 'n' }), expires_in: 3600,
+    });
+    verifyIdTokenNonce.mockResolvedValue(undefined);
+    const res = await GET(cbReq('code=abc&state=real', {
+      kc_state: 'real', kc_verifier: 'v', kc_nonce: 'n', kc_next: '@evil.com',
+    }));
+    expect(res.headers.get('location')).toBe('http://localhost:3001/account');
+  });
+
   it('does not set a session when nonce verification fails (token-stuffing defense)', async () => {
     exchangeCode.mockResolvedValue({
       access_token: fakeJwt({ realm_access: { roles: ['buyer_view_only'] } }),

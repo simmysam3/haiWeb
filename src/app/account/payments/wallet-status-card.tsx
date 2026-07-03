@@ -37,14 +37,14 @@ function statusBadge(status: string) {
 export function WalletStatusCard() {
   const [registering, setRegistering] = useState(false);
 
-  const { data: wallet, loading, error, refetch } = useApi<WalletData>({
+  const { data: wallet, loading, error, refetch } = useApi<WalletData | null>({
     url: "/api/account/wallet",
-    fallback: null as unknown as WalletData,
+    fallback: null,
   });
 
-  const { data: balance } = useApi<BalanceData>({
+  const { data: balance } = useApi<BalanceData | null>({
     url: wallet ? `/api/account/wallet/${wallet.id}/balance` : "/api/account/wallet",
-    fallback: null as unknown as BalanceData,
+    fallback: null,
     enabled: !!wallet,
   });
 

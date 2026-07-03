@@ -49,18 +49,6 @@ async function loadAudit(client: {
   return { perVendor, resultsByVendor };
 }
 
-async function loadPhantomDemand(client: {
-  fetchRaw: (path: string, init?: RequestInit) => Promise<Response>;
-}): Promise<{
-  byPartner: Map<string, { response_rate: number; window_id: string; name: string | null }>;
-  degraded: boolean;
-}> {
-  // Refined PD (v1.44): legacy /reports endpoints + phantom-demand-aggregate
-  // endpoint deleted. Per-partner PD data no longer aggregated centrally.
-  // Cross-modality shows audit + watcher only. Return empty set gracefully.
-  return { byPartner: new Map(), degraded: false };
-}
-
 async function loadWatcher(client: {
   listWatcherRuns: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: string; triggered_at: string }> }>;
   getWatcherRun: (runId: string) => Promise<{ run: unknown; results: WatcherResult[] }>;
@@ -132,9 +120,8 @@ async function loadWatcher(client: {
 }
 
 export const GET = withHaiCore(async ({ client }) => {
-  const [auditResult, pdResult, watcherResult] = await Promise.allSettled([
+  const [auditResult, watcherResult] = await Promise.allSettled([
     loadAudit(client),
-    loadPhantomDemand(client),
     loadWatcher(client),
   ]);
 
@@ -148,16 +135,10 @@ export const GET = withHaiCore(async ({ client }) => {
     audit = auditResult.value;
   }
 
-  let pdData: Awaited<ReturnType<typeof loadPhantomDemand>>;
-  let partialPd = false;
-  if (pdResult.status === 'rejected') {
-    console.error('[cross-modality] phantom-demand load failed', pdResult.reason);
-    pdData = { byPartner: new Map<string, { response_rate: number; window_id: string; name: string | null }>(), degraded: false };
-    partialPd = true;
-  } else {
-    pdData = pdResult.value;
-    partialPd = pdResult.value.degraded;
-  }
+  // Refined PD (v1.44): legacy /reports endpoints + phantom-demand-aggregate
+  // endpoint deleted. Per-partner PD data no longer aggregated centrally;
+  // cross-modality shows audit + watcher only.
+  const partialPd = false;
 
   let watcherData: Awaited<ReturnType<typeof loadWatcher>>;
   let partialWatcher = false;
@@ -170,22 +151,20 @@ export const GET = withHaiCore(async ({ client }) => {
     partialWatcher = watcherResult.value.degraded;
   }
 
-  const pd = pdData;
   const watcher = watcherData.data;
 
   const allPartnerIds = new Set<string>();
   for (const id of audit.perVendor.keys()) allPartnerIds.add(id);
-  for (const id of pd.byPartner.keys()) allPartnerIds.add(id);
   for (const id of watcher.keys()) allPartnerIds.add(id);
 
   const partners = [...allPartnerIds].map((partner_id) => {
     const a = audit.perVendor.get(partner_id);
-    const p = pd.byPartner.get(partner_id);
     const w = watcher.get(partner_id);
-    const partner_name = a?.vendor_name ?? p?.name ?? null;
+    const partner_name = a?.vendor_name ?? null;
 
     const audit_w = a ? a.weight : null;
-    const pd_w = p ? 1 - p.response_rate : null;
+    // Phantom demand no longer contributes a weight (v1.44 refined-PD).
+    const pd_w = null;
     const watcher_w = w && w.capacity_band !== null ? BAND_TO_WEIGHT[w.capacity_band] : null;
 
     const risk = computeRiskScore({ audit: audit_w, phantom_demand: pd_w, watcher: watcher_w });
@@ -194,7 +173,7 @@ export const GET = withHaiCore(async ({ client }) => {
       partner_id,
       partner_name: partner_name ?? partner_id,
       audit: a ? audit.resultsByVendor.get(partner_id) ?? null : null,
-      phantom_demand: p ? { response_rate: p.response_rate, window_id: p.window_id } : null,
+      phantom_demand: null,
       watcher:
         w && (w.capacity_band !== null || w.lead_time_p90_days !== null)
           ? { capacity_band: w.capacity_band, lead_time_p90_days: w.lead_time_p90_days }

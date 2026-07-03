@@ -10,7 +10,7 @@ import type {
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { configNoun } from '../_lib/config-noun';
-import { ScopePicker } from './scope-picker';
+import { PhantomDemandScopeFields } from './phantom-demand-scope-fields';
 import { StepRail, type RailStep } from '../../_components/step-rail';
 import { StepCard } from '../../_components/step-card';
 import { NameField } from '../../_components/name-field';
@@ -23,7 +23,12 @@ import { LifecycleFields } from '../../_components/lifecycle-fields';
 // phantom_demand.
 const OBSERVATION_CLASS = 'phantom_demand' as const;
 
-function emptyScope(): RunTemplateScope {
+// This wizard is phantom-demand-only (see module comment above), so scope is
+// always the phantom_demand_bom extract of the RunTemplateScope union — not
+// the full union PhantomDemandScopeFields' sibling wizards would need.
+type PdBomScope = Extract<RunTemplateScope, { kind: 'phantom_demand_bom' }>;
+
+function emptyScope(): PdBomScope {
   // v.1.44 refined-PD: emit the new BOM template scope shape.
   // No authorization_basis — PhantomDemandBomTemplateScopeSchema does not carry it.
   return {
@@ -37,7 +42,7 @@ function emptyScope(): RunTemplateScope {
     catalog_source: { kind: 'own' },
     // v1.55 — default to a full BOM run; the user opts into readiness.
     run_mode: 'full',
-  } as RunTemplateScope;
+  };
 }
 
 export function TemplateWizard() {
@@ -46,7 +51,7 @@ export function TemplateWizard() {
   // Phantom-demand configurations are manual-execution only — there is no
   // scheduling step, so the cadence is fixed to manual_only.
   const cadence: Cadence = { kind: 'manual_only' };
-  const [scope, setScope] = useState<RunTemplateScope>(emptyScope());
+  const [scope, setScope] = useState<PdBomScope>(emptyScope());
   const [enabled, setEnabled] = useState(true);
   const [retentionDays, setRetentionDays] = useState(365);
   const [busy, setBusy] = useState(false);
@@ -159,7 +164,7 @@ export function TemplateWizard() {
         </StepCard>
 
         <StepCard id="scope" index={1} title="Scope">
-          <ScopePicker value={scope} onChange={setScope} />
+          <PhantomDemandScopeFields value={scope} onChange={setScope} />
         </StepCard>
 
         <StepCard id="lifecycle" index={2} title="Lifecycle">

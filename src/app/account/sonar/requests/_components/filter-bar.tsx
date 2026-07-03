@@ -128,16 +128,6 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
     pushWithParams(pathname, sp);
   }
 
-  function setState(value: string) {
-    const sp = new URLSearchParams(searchParams.toString());
-    if (!value) {
-      sp.delete('state');
-      pushWithParams(pathname, sp);
-      return;
-    }
-    setParam('state', value);
-  }
-
   function clearAll() {
     router.push(pathname);
   }
@@ -224,7 +214,7 @@ export function FilterBar({ counterpartyOptions }: FilterBarProps) {
           </span>
           <select
             value={stateDropdownValue}
-            onChange={(e) => setState(e.target.value)}
+            onChange={(e) => setParam('state', e.target.value || null)}
             title="Filter the active queue by item state. Declined items live on their own direction tab."
             className="w-full rounded-md border border-slate/30 px-2 py-2 text-sm md:w-auto md:py-1 md:text-xs"
           >

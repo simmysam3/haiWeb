@@ -19,6 +19,50 @@ const nextConfig: NextConfig = {
     root: path.join(import.meta.dirname, ".."),
   },
   transpilePackages: ["@haiwave/protocol"],
+  async headers() {
+    // Baseline hardening for a FedRAMP-High BFF. TLS is terminated at the GCP
+    // edge, so HSTS here is belt-and-suspenders. The ENFORCED CSP intentionally
+    // omits script-src/style-src: locking those down needs per-request nonces
+    // and browser validation, so the strict script policy ships report-only
+    // until that rollout lands. What is enforced (frame-ancestors, object-src,
+    // base-uri) cannot break script rendering.
+    const enforcedCsp =
+      "frame-ancestors 'none'; object-src 'none'; base-uri 'self'";
+    const reportOnlyCsp = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "font-src 'self'",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          { key: "Content-Security-Policy", value: enforcedCsp },
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: reportOnlyCsp,
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

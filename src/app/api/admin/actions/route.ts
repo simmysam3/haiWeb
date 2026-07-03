@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PROTOCOL_VERSION } from "@haiwave/protocol";
-import { getSession, getToken } from "@/lib/auth";
-import { isJwtLike } from "@/lib/with-hai-core";
+import { requireAdminToken } from "@/lib/with-hai-core";
 import { loadEnv } from "@/config/env";
 
 const API_URL = loadEnv().HAIWAVE_API_URL;
@@ -17,12 +16,9 @@ const ACTION_SLUGS = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!session.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  const token = await getToken();
-  if (!isJwtLike(token)) return NextResponse.json({ error: "No token" }, { status: 401 });
+  const gate = await requireAdminToken();
+  if (gate instanceof NextResponse) return gate;
+  const { token } = gate;
 
   const { action, ...rest } = (await request.json()) as { action?: unknown; [key: string]: unknown };
   if (typeof action !== "string" || !ACTION_SLUGS.has(action)) {

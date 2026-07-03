@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
+import { useApi } from "@/lib/use-api";
 
 interface AbuseMonitoring {
   active_blocks: number;
@@ -21,14 +21,10 @@ const MOCK_ABUSE: AbuseMonitoring = {
 };
 
 export default function AbusePage() {
-  const [data, setData] = useState<AbuseMonitoring>(MOCK_ABUSE);
-
-  useEffect(() => {
-    fetch("/api/admin/dashboard?type=abuse")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setData(d); })
-      .catch(() => {});
-  }, []);
+  const { data } = useApi<AbuseMonitoring>({
+    url: "/api/admin/dashboard?type=abuse",
+    fallback: MOCK_ABUSE,
+  });
 
   return (
     <div className="space-y-8">

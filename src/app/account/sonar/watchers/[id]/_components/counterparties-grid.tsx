@@ -13,12 +13,17 @@ import {
   scoreOf,
 } from '@/components/sonar/observations';
 import { Pill } from '@/components/pill';
-import { LeadTimeTriplet } from './lead-time-triplet';
+import { LeadTimeTriplet, type Numbered, type Distribution } from './lead-time-triplet';
 import { CapacityBandPanel } from './capacity-band-panel';
 import { DeliveryEventLog } from './delivery-event-log';
 
+// Page-enriched shape — watchers/[id]/page.tsx joins in counterparty_name
+// client-side (WatcherResult only carries the participant id) before handing
+// results to this component.
+export type EnrichedWatcherResult = WatcherResult & { counterparty_name?: string | null };
+
 interface Props {
-  results: WatcherResult[];
+  results: EnrichedWatcherResult[];
   /**
    * Optional `external_product_id` → display-name map, supplied by the page
    * via the `/api/account/sonar/manifest-catalog` BFF (Plan 3 E5). Missing
@@ -47,27 +52,13 @@ interface CounterpartyGroup {
   score: number;
 }
 
-interface Numbered {
-  days: number;
-  observed_at: string;
-  vendor_ref?: string;
-}
-
-interface Distribution {
-  window_days: number;
-  percentiles: { p50: number; p75: number; p90: number; p95: number; p99: number };
-  sample_count: number;
-}
-
-function nameOf(r: WatcherResult): string {
+function nameOf(r: EnrichedWatcherResult): string {
   // Sub-tier aggregate rows: identity is intentionally null (tier-2+ rollups).
   if (r.counterparty_participant_id === null) return 'Identity withheld';
   // Direct tier-1 rows: prefer the page-enriched counterparty_name; fall back
   // to the canonical "Vendor Name Not Disclosed" framing used elsewhere
   // (e.g. tree-view) rather than exposing a raw UUID slice.
-  const named = (r as WatcherResult & { counterparty_name?: string | null })
-    .counterparty_name;
-  return named ?? 'Vendor Name Not Disclosed';
+  return r.counterparty_name ?? 'Vendor Name Not Disclosed';
 }
 
 function gapTiersFor(results: WatcherResult[]): Map<number, number> {
@@ -172,12 +163,16 @@ function extractCalibrated(results: WatcherResult[]): Distribution | null {
   };
 }
 
-function signalRow(r: WatcherResult | undefined): {
-  synthesisMode: WatcherSynthesisMode;
-  payload: unknown;
-} {
-  if (!r) return { synthesisMode: 'redacted_gap', payload: null };
-  return { synthesisMode: r.synthesis_mode, payload: r.payload };
+// Generic over the panel's own Props shape (via `Parameters<typeof Panel>[0]`
+// at the call site) so callers get back an already-typed value instead of
+// wrapping the call in a local `as Parameters<typeof Panel>[0]` cast — the
+// one unavoidable cast (WatcherResult['payload'] is `unknown` at the
+// protocol level; each panel narrows it per synthesis_mode) lives here once.
+function signalRow<P extends { synthesisMode: WatcherSynthesisMode; payload: unknown }>(
+  r: WatcherResult | undefined,
+): P {
+  if (!r) return { synthesisMode: 'redacted_gap', payload: null } as P;
+  return { synthesisMode: r.synthesis_mode, payload: r.payload } as P;
 }
 
 export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
@@ -374,9 +369,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                               {capGap && <GapChip tier={capGap.tier} points={capGap.points} />}
                             </h4>
                             <CapacityBandPanel
-                              {...(signalRow(cap) as Parameters<
-                                typeof CapacityBandPanel
-                              >[0])}
+                              {...signalRow<Parameters<typeof CapacityBandPanel>[0]>(cap)}
                             />
                           </div>
                           <div>
@@ -385,9 +378,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                               {delGap && <GapChip tier={delGap.tier} points={delGap.points} />}
                             </h4>
                             <DeliveryEventLog
-                              {...(signalRow(del) as Parameters<
-                                typeof DeliveryEventLog
-                              >[0])}
+                              {...signalRow<Parameters<typeof DeliveryEventLog>[0]>(del)}
                             />
                           </div>
                         </div>

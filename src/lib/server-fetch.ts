@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { loadEnv } from '@/config/env';
 
 /**
  * Discriminated union for server-side BFF fetches.
@@ -21,8 +22,12 @@ export type FetchResult<T> =
  *   return <Page data={result.data} />;
  *
  * - Forwards `cookie` header from the incoming request.
- * - Uses `x-forwarded-proto` + `host` to reconstruct the base URL
- *   (defaults to `http://localhost:3000` if either header is missing).
+ * - Builds the base URL from `PORTAL_BASE_URL` (the trusted configured
+ *   origin), NOT from the incoming request's `x-forwarded-proto`/`host`
+ *   headers — those are client-influenceable, and behind a load balancer
+ *   that forwards unmatched Hosts through, trusting them would let a
+ *   spoofed Host redirect this server-side fetch (with the caller's cookie
+ *   attached) to an arbitrary origin.
  * - `cache: 'no-store'` — these are dynamic, per-user surfaces.
  * - Returns a discriminated `FetchResult<T>`. On a non-OK response the
  *   error path includes the HTTP status + response body text. On a
@@ -32,10 +37,9 @@ export async function fetchBffJson<T>(
   pathAndQuery: string,
 ): Promise<FetchResult<T>> {
   const h = await headers();
-  const proto = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
   const cookie = h.get('cookie') ?? '';
-  const url = `${proto}://${host}${pathAndQuery}`;
+  const { PORTAL_BASE_URL } = loadEnv();
+  const url = `${PORTAL_BASE_URL}${pathAndQuery}`;
 
   try {
     const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });

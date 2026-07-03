@@ -1060,7 +1060,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ success: boolean }>("PUT", "/pricing/level", data);
     },
     deletePricingLevel(manifestId: string) {
-      return request<{ success: boolean }>("DELETE", `/pricing/level/${manifestId}`);
+      return request<{ success: boolean }>("DELETE", `/pricing/level/${encodeURIComponent(manifestId)}`);
     },
     bulkUploadPricing(entries: unknown[]) {
       return request<{ success: boolean }>("POST", "/pricing/bulk-upload", { entries });
@@ -1092,7 +1092,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ success: boolean }>("POST", "/connections/block", { target_participant_id: targetId });
     },
     unblockParticipant(blockedId: string) {
-      return request<{ success: boolean }>("DELETE", `/connections/block?blocked_participant_id=${blockedId}`);
+      return request<{ success: boolean }>(
+        "DELETE",
+        `/connections/block?${new URLSearchParams({ blocked_participant_id: blockedId })}`,
+      );
     },
     downgradeConnection(connectionId: string) {
       return request<ConnectionRecord>("POST", `/connections/${connectionId}/downgrade`);
@@ -1109,19 +1112,23 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{ wallet_id: string }>("POST", "/wallets/register", data);
     },
     getPaymentManifest(participantId: string, type = "vendor") {
-      return request<Record<string, unknown>>("GET", `/payments/manifests/${participantId}?type=${type}`);
+      return request<Record<string, unknown>>(
+        "GET",
+        `/payments/manifests/${encodeURIComponent(participantId)}?${new URLSearchParams({ type })}`,
+      );
     },
     updatePaymentManifest(data: unknown) {
       return request<{ success: boolean }>("POST", "/payments/manifests", data);
     },
     getSpendingPolicy(participantId: string) {
-      return request<Record<string, unknown>>("GET", `/policies/spending/${participantId}`);
+      return request<Record<string, unknown>>("GET", `/policies/spending/${encodeURIComponent(participantId)}`);
     },
     updateSpendingPolicy(data: unknown) {
       return request<{ success: boolean }>("POST", "/policies/spending", data);
     },
     getPaymentHistory(address: string, limit = 20, offset = 0) {
-      return request<Record<string, unknown>[]>("GET", `/payments/history?address=${address}&limit=${limit}&offset=${offset}`);
+      const qs = new URLSearchParams({ address, limit: String(limit), offset: String(offset) });
+      return request<Record<string, unknown>[]>("GET", `/payments/history?${qs}`);
     },
     getPaymentStatus(orderId: string) {
       return request<{ status: string }>("GET", `/payments/${orderId}/status`);
@@ -1135,7 +1142,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
 
     // ─── Orders (v1.15) ───────────────────────────────────
     async getSellSideOrders(statusFilter?: string) {
-      const qs = statusFilter ? `?status=${statusFilter}` : "";
+      const qs = statusFilter ? `?${new URLSearchParams({ status: statusFilter })}` : "";
       const env = await request<{ items: Record<string, unknown>[]; total_count: number }>(
         "GET",
         `/orders/sell-side${qs}`,
