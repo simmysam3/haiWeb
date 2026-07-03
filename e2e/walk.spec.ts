@@ -44,6 +44,17 @@ async function loggedInPage(browser: any): Promise<Page> {
   return ctx.newPage();
 }
 
+// haiCore's test-seed routes require app.authenticate (a Bearer JWT) — the
+// session cookie the browser holds is not read as an Authorization header on a
+// direct API call, so lift the JWT out of storage state and send it explicitly.
+function seedHeaders(): Record<string, string> {
+  const jwt =
+    sharedContext!.storageState.cookies.find(
+      (c: { name: string; value: string }) => c.name === "haiwave_session",
+    )?.value ?? "";
+  return { ...HAICORE_HEADERS, authorization: `Bearer ${jwt}` };
+}
+
 async function gotoOk(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response, `no response from ${path}`).not.toBeNull();
@@ -626,7 +637,7 @@ test.describe("§14 v1.35 Request Management", () => {
       }
       const req = await playwright.request.newContext({
         baseURL: HAICORE,
-        extraHTTPHeaders: HAICORE_HEADERS,
+        extraHTTPHeaders: seedHeaders(),
       });
       try {
         const res = await req.post("/api/v1/test/seed/pending-scope", {
@@ -659,7 +670,7 @@ test.describe("§14 v1.35 Request Management", () => {
       try {
         const req = await playwright.request.newContext({
           baseURL: HAICORE,
-          extraHTTPHeaders: HAICORE_HEADERS,
+          extraHTTPHeaders: seedHeaders(),
         });
         await req.delete(`/api/v1/test/seed/${seededScopeId}`);
         await req.dispose();
@@ -705,7 +716,9 @@ test.describe("§14 v1.35 Request Management", () => {
       // (see v1.35 follow-up #3 — decision_reason surfacing).
       const page = await loggedInPage(browser);
       await page.goto("/account/sonar/compliance/requests?awaiting=me");
-      await page.getByRole("button", { name: "Decline" }).first().click();
+      // `exact` so we hit the row's "Decline" button, not the "Declined" filter
+      // tab (whose accessible name substring-matches "Decline").
+      await page.getByRole("button", { name: "Decline", exact: true }).first().click();
       // Decline dialog: textarea (id=decline-reason, label="Reason (optional)")
       // + submit Decline button. Scope the submit click to the dialog so we
       // don't strict-mode-collide with the row's own Decline button, which
@@ -714,13 +727,13 @@ test.describe("§14 v1.35 Request Management", () => {
       const declineDialog = page.getByRole("dialog", { name: "Decline request" });
       await declineDialog.getByLabel("Reason (optional)").fill("Not our product line");
       await declineDialog.getByRole("button", { name: /^Decline$/ }).click();
-      await page.goto("/account/sonar/compliance/requests/declined");
-      // Reason cell currently renders "—"; row presence is the only stable
-      // assertion. We don't have the counterparty name to anchor on
-      // deterministically (the seeded initiator is "Test Initiator (e2e)"),
-      // so just confirm the declined-page renders without error and at least
-      // one row is present.
-      await expect(page.locator("h1", { hasText: /Declined Requests/i })).toBeVisible();
+      await gotoOk(page, "/account/sonar/compliance/requests/declined");
+      // The declined view is a filter on the unified Request Management page;
+      // confirm it renders (reason surfacing is a separate follow-up). Allow a
+      // generous timeout — under a full serial run this page is SWR-hydrating.
+      await expect(
+        page.locator("h1", { hasText: /Request Management/i }),
+      ).toBeVisible({ timeout: 15_000 });
     });
   });
 });
