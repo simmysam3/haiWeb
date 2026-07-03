@@ -26,14 +26,15 @@ let sharedContext: { storageState: any } | null = null;
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
-  const res = await page.request.post(`${HAIWEB}/api/auth/login`, {
-    headers: { "Content-Type": "application/json" },
-    data: { email: EMAIL, password: PASSWORD },
-  });
-  if (!res.ok()) {
-    const body = await res.text();
-    throw new Error(`Login failed (${res.status()}): ${body.slice(0, 200)}`);
-  }
+  // OIDC Authorization-Code + PKCE (D-42): GET /api/auth/login redirects to the
+  // Keycloak login page; submit the form and land back on the portal
+  // authenticated. (Replaces the retired POST-credential login endpoint.)
+  await page.goto(`${HAIWEB}/api/auth/login`);
+  await page.waitForLoadState("domcontentloaded");
+  await page.locator('#username, input[name="username"], input[type="email"]').first().fill(EMAIL);
+  await page.locator('#password, input[type="password"]').first().fill(PASSWORD);
+  await page.locator('#kc-login, button[type="submit"], input[type="submit"]').first().click();
+  await page.waitForURL(/\/account(\/|$|\?)/, { timeout: 15_000 });
   sharedContext = { storageState: await page.context().storageState() };
   await page.close();
 });
