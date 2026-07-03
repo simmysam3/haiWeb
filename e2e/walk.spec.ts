@@ -26,14 +26,15 @@ let sharedContext: { storageState: any } | null = null;
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
-  const res = await page.request.post(`${HAIWEB}/api/auth/login`, {
-    headers: { "Content-Type": "application/json" },
-    data: { email: EMAIL, password: PASSWORD },
-  });
-  if (!res.ok()) {
-    const body = await res.text();
-    throw new Error(`Login failed (${res.status()}): ${body.slice(0, 200)}`);
-  }
+  // OIDC Authorization-Code + PKCE (D-42): GET /api/auth/login redirects to the
+  // Keycloak login page; submit the form and land back on the portal
+  // authenticated. (Replaces the retired POST-credential login endpoint.)
+  await page.goto(`${HAIWEB}/api/auth/login`);
+  await page.waitForLoadState("domcontentloaded");
+  await page.locator('#username, input[name="username"], input[type="email"]').first().fill(EMAIL);
+  await page.locator('#password, input[type="password"]').first().fill(PASSWORD);
+  await page.locator('#kc-login, button[type="submit"], input[type="submit"]').first().click();
+  await page.waitForURL(/\/account(\/|$|\?)/, { timeout: 15_000 });
   sharedContext = { storageState: await page.context().storageState() };
   await page.close();
 });
@@ -41,6 +42,17 @@ test.beforeAll(async ({ browser }) => {
 async function loggedInPage(browser: any): Promise<Page> {
   const ctx = await browser.newContext({ storageState: sharedContext!.storageState });
   return ctx.newPage();
+}
+
+// haiCore's test-seed routes require app.authenticate (a Bearer JWT) — the
+// session cookie the browser holds is not read as an Authorization header on a
+// direct API call, so lift the JWT out of storage state and send it explicitly.
+function seedHeaders(): Record<string, string> {
+  const jwt =
+    sharedContext!.storageState.cookies.find(
+      (c: { name: string; value: string }) => c.name === "haiwave_session",
+    )?.value ?? "";
+  return { ...HAICORE_HEADERS, authorization: `Bearer ${jwt}` };
 }
 
 async function gotoOk(page: Page, path: string) {
@@ -142,8 +154,8 @@ test.describe("§2 RunTemplate primitive", () => {
   test("2.2 templates/new wizard loads", async ({ browser }) => {
     const page = await loggedInPage(browser);
     await gotoOk(page, "/account/sonar/templates/new");
-    // form wizard should render some cadence-related control
-    await expect(page.locator("body")).toContainText(/cadence|template/i);
+    // The template-creation wizard (v1.55 renamed the surface to "Demand Request").
+    await expect(page.locator("body")).toContainText(/demand request/i);
   });
 
   test("2.4 save-as-template deep link from audit dashboard", async ({ browser }) => {
@@ -298,7 +310,8 @@ test.describe("§9 Observations + 301 redirects", () => {
   test("9.1 observations page renders", async ({ browser }) => {
     const page = await loggedInPage(browser);
     await gotoOk(page, "/account/sonar/observations");
-    await expect(page.locator("h1", { hasText: /Observations/i })).toBeVisible();
+    // The observations surface defaults to the Phantom Demand view.
+    await expect(page.locator("h1", { hasText: /Phantom Demand/i })).toBeVisible();
   });
 
   test("9.2 ?tab=watcher selects watcher tab", async ({ browser }) => {
@@ -308,15 +321,16 @@ test.describe("§9 Observations + 301 redirects", () => {
     await expect(page.locator("body")).toContainText(/Watcher/i);
   });
 
-  test("9.6 /account/monitoring/audit-nominations 301 → observations?tab=audit", async ({
+  test("9.6 /account/monitoring/audit-nominations 301 → requests?awaiting=me&type=nomination", async ({
     playwright,
   }) => {
-    // Use a context that does NOT follow redirects to inspect the 301 itself.
+    // The legacy monitoring URL was retargeted (v1.37) to Request Management.
     const req = await playwright.request.newContext({ baseURL: HAIWEB });
     const res = await req.get("/account/monitoring/audit-nominations", { maxRedirects: 0 });
     expect(res.status(), "expected 301").toBe(301);
-    expect(res.headers()["location"]).toContain("/account/sonar/observations");
-    expect(res.headers()["location"]).toContain("tab=audit");
+    expect(res.headers()["location"]).toContain("/account/sonar/requests");
+    expect(res.headers()["location"]).toContain("awaiting=me");
+    expect(res.headers()["location"]).toContain("type=nomination");
     await req.dispose();
   });
 
@@ -448,7 +462,8 @@ test.describe("§12 Reports List", () => {
   test("12.1 /account/sonar/reports renders", async ({ browser }) => {
     const page = await loggedInPage(browser);
     await gotoOk(page, "/account/sonar/reports");
-    await expect(page.locator("h1", { hasText: /Reports/i })).toBeVisible();
+    // /reports was retired (v1.44) and collapses onto the Audits surface.
+    await expect(page.locator("h1", { hasText: /Audits/i })).toBeVisible();
   });
 
   test("12.1b BFF GET /api/account/sonar/reports (list)", async () => {
@@ -522,7 +537,8 @@ test.describe("§14 v1.35 Request Management", () => {
   test("14.2 /account/sonar/compliance/requests/declined renders", async ({ browser }) => {
     const page = await loggedInPage(browser);
     await gotoOk(page, "/account/sonar/compliance/requests/declined");
-    await expect(page.locator("h1", { hasText: /Declined Requests/i })).toBeVisible();
+    // Declined requests are a filtered view of the unified Request Management page.
+    await expect(page.locator("h1", { hasText: /Request Management/i })).toBeVisible();
   });
 
   test("14.3 nav badge — Compliance entry present (count-tolerant)", async ({ browser }) => {
@@ -531,8 +547,9 @@ test.describe("§14 v1.35 Request Management", () => {
     // entry itself exists; the SWR-fetched count is a separate concern.
     const page = await loggedInPage(browser);
     await gotoOk(page, "/account");
+    // The Compliance section became Request Management (v1.37 IA split).
     await expect(
-      page.locator("a[href='/account/sonar/compliance']", { hasText: /Compliance/i }).first(),
+      page.locator("a[href='/account/sonar/requests']", { hasText: /Request Management/i }).first(),
     ).toBeVisible();
   });
 
@@ -557,7 +574,7 @@ test.describe("§14 v1.35 Request Management", () => {
     const res = await req.get("/account/monitoring/audit-nominations", { maxRedirects: 0 });
     expect(res.status(), "expected 301").toBe(301);
     const location = res.headers()["location"] ?? "";
-    expect(location).toContain("/account/sonar/compliance/requests");
+    expect(location).toContain("/account/sonar/requests");
     expect(location).toContain("awaiting=me");
     expect(location).toContain("type=nomination");
     await req.dispose();
@@ -572,7 +589,7 @@ test.describe("§14 v1.35 Request Management", () => {
     });
     expect(res.status(), "expected 301").toBe(301);
     const location = res.headers()["location"] ?? "";
-    expect(location).toContain("/account/sonar/compliance/requests");
+    expect(location).toContain("/account/sonar/requests");
     expect(location).toContain("awaiting=them");
     expect(location).toContain("type=nomination");
     await req.dispose();
@@ -587,7 +604,7 @@ test.describe("§14 v1.35 Request Management", () => {
     });
     expect(res.status(), "expected 301").toBe(301);
     const location = res.headers()["location"] ?? "";
-    expect(location).toContain("/account/sonar/compliance/requests/new-nomination");
+    expect(location).toContain("/account/sonar/requests/new-nomination");
     await req.dispose();
   });
 
@@ -620,7 +637,7 @@ test.describe("§14 v1.35 Request Management", () => {
       }
       const req = await playwright.request.newContext({
         baseURL: HAICORE,
-        extraHTTPHeaders: HAICORE_HEADERS,
+        extraHTTPHeaders: seedHeaders(),
       });
       try {
         const res = await req.post("/api/v1/test/seed/pending-scope", {
@@ -628,10 +645,16 @@ test.describe("§14 v1.35 Request Management", () => {
         });
         if (!res.ok()) {
           const body = await res.text();
-          throw new Error(
-            `Seed harness failed (${res.status()}): ${body.slice(0, 200)}. ` +
-              "Confirm haiCore is running with ENABLE_TEST_SEED=true or NODE_ENV=test.",
-          );
+          // The seed harness is only mounted when haiCore runs with
+          // ENABLE_TEST_SEED=true / NODE_ENV=test. If the route is absent
+          // (404) or the harness is disabled (503), skip rather than fail —
+          // these tests genuinely cannot run without it. A 4xx that is NOT a
+          // missing route (e.g. 400 bad participant) is a real error.
+          if (res.status() === 404 || res.status() === 503) {
+            test.skip(true, `Seed harness unavailable (${res.status()}) — start haiCore with ENABLE_TEST_SEED=true to exercise §14.8/§14.9.`);
+            return;
+          }
+          throw new Error(`Seed harness failed (${res.status()}): ${body.slice(0, 200)}.`);
         }
         const body = await res.json();
         seededScopeId = body.scope_id;
@@ -647,7 +670,7 @@ test.describe("§14 v1.35 Request Management", () => {
       try {
         const req = await playwright.request.newContext({
           baseURL: HAICORE,
-          extraHTTPHeaders: HAICORE_HEADERS,
+          extraHTTPHeaders: seedHeaders(),
         });
         await req.delete(`/api/v1/test/seed/${seededScopeId}`);
         await req.dispose();
@@ -693,7 +716,9 @@ test.describe("§14 v1.35 Request Management", () => {
       // (see v1.35 follow-up #3 — decision_reason surfacing).
       const page = await loggedInPage(browser);
       await page.goto("/account/sonar/compliance/requests?awaiting=me");
-      await page.getByRole("button", { name: "Decline" }).first().click();
+      // `exact` so we hit the row's "Decline" button, not the "Declined" filter
+      // tab (whose accessible name substring-matches "Decline").
+      await page.getByRole("button", { name: "Decline", exact: true }).first().click();
       // Decline dialog: textarea (id=decline-reason, label="Reason (optional)")
       // + submit Decline button. Scope the submit click to the dialog so we
       // don't strict-mode-collide with the row's own Decline button, which
@@ -702,13 +727,13 @@ test.describe("§14 v1.35 Request Management", () => {
       const declineDialog = page.getByRole("dialog", { name: "Decline request" });
       await declineDialog.getByLabel("Reason (optional)").fill("Not our product line");
       await declineDialog.getByRole("button", { name: /^Decline$/ }).click();
-      await page.goto("/account/sonar/compliance/requests/declined");
-      // Reason cell currently renders "—"; row presence is the only stable
-      // assertion. We don't have the counterparty name to anchor on
-      // deterministically (the seeded initiator is "Test Initiator (e2e)"),
-      // so just confirm the declined-page renders without error and at least
-      // one row is present.
-      await expect(page.locator("h1", { hasText: /Declined Requests/i })).toBeVisible();
+      await gotoOk(page, "/account/sonar/compliance/requests/declined");
+      // The declined view is a filter on the unified Request Management page;
+      // confirm it renders (reason surfacing is a separate follow-up). Allow a
+      // generous timeout — under a full serial run this page is SWR-hydrating.
+      await expect(
+        page.locator("h1", { hasText: /Request Management/i }),
+      ).toBeVisible({ timeout: 15_000 });
     });
   });
 });
