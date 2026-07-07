@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { IdChip } from "@/components/id-chip";
-import { MOCK_AGENTS } from "@/lib/mock-data";
 import type { MockAgent } from "@/lib/mock-types";
 
 function heartbeatAgeMinutes(lastHeartbeat: string): number | null {
@@ -32,7 +31,10 @@ function failureColor(count: number): string {
 }
 
 export function AgentHealthPanel() {
-  const agents = MOCK_AGENTS;
+  // No portal endpoint lists a participant's real agents yet, so this reports
+  // an empty fleet rather than fabricating demo agents. Wire a real "list my
+  // agents" BFF route here when it exists.
+  const agents: MockAgent[] = [];
   const activeCount = agents.filter((a) => a.status === "active").length;
   const impairedCount = agents.filter((a) => a.status !== "active").length;
 
@@ -56,6 +58,26 @@ export function AgentHealthPanel() {
       </div>
 
       <div className="space-y-4">
+        {agents.length === 0 && (
+          <Card>
+            <div className="text-center py-8 max-w-md mx-auto">
+              <p className="text-sm font-medium text-charcoal mb-1">
+                No agents to report on yet
+              </p>
+              <p className="text-sm text-slate mb-5">
+                Once you deploy an agent it will report heartbeat and status
+                here. Get started by downloading the client and configuration
+                guide.
+              </p>
+              <Link
+                href="/account/agent-software"
+                className="inline-flex items-center justify-center font-medium rounded-lg transition-colors bg-navy text-white hover:bg-charcoal px-4 py-2.5 text-sm"
+              >
+                Get the client &amp; configuration guide
+              </Link>
+            </div>
+          </Card>
+        )}
         {agents.map((agent) => {
           const enabledTypes = agent.types.filter((t) => t.enabled);
           return (
