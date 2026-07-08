@@ -57,6 +57,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     open: 'Open and unresolved.',
     probation: 'Permitted but under heightened scrutiny.',
     jailed: 'Temporarily restricted due to policy violation.',
+    revoked: 'Credential revoked — the agent can no longer authenticate.',
     suspended: 'Access suspended.',
     past_due: 'Payment is overdue.',
     banned: 'Permanently blocked from the network.',
@@ -276,7 +277,7 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
 
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
   const v = value ?? '';
-  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed'].includes(v)) return 'problem';
+  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed', 'revoked'].includes(v)) return 'problem';
   if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning'].includes(v)) return 'warn';
   if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified', 'enabled'].includes(v)) return 'success';
   // run_origin tones: scheduled/event triggers are info (intentional automation); ad_hoc/manual = neutral

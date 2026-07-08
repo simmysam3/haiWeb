@@ -124,6 +124,33 @@ export interface CatalogClass {
   product_count: number;
 }
 
+// Agent credential types — not exported from @haiwave/protocol (haiWeb declares
+// its own snake_case interfaces to match the haiCore route response shapes).
+export interface AgentSummary {
+  id: string;
+  name: string | null;
+  client_id: string;
+  participant_id: string;
+  status: string;
+  agent_endpoint: string | null;
+  last_heartbeat_at: string | null;
+  registered_at: string;
+}
+
+export interface AgentCredential {
+  id: string;
+  name: string | null;
+  client_id: string;
+  participant_id: string;
+  status: string;
+  registered_at: string;
+  client_secret: string;
+  auth_token_endpoint: string;
+  auth_issuer: string;
+  auth_jwks_uri: string;
+  api_base_url: string;
+}
+
 export interface CatalogProduct {
   external_product_id: string;
   product_name: string | null;
@@ -427,6 +454,11 @@ export interface HaiwaveClient {
   /** Marks a notification read. haiCore returns 404 for an unknown/foreign id. */
   markNotificationRead(id: string): Promise<unknown>;
   getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
+  // Agent credential issuance (v.1.58)
+  listAgents(): Promise<{ agents: AgentSummary[] }>;
+  createAgent(name: string): Promise<AgentCredential>;
+  rotateAgentSecret(agentId: string): Promise<AgentCredential>;
+  revokeAgent(agentId: string): Promise<AgentSummary>;
   // Admin
   getAdminOverview(): Promise<Record<string, unknown>>;
   getConnectionAnalytics(): Promise<Record<string, unknown>>;
@@ -1013,6 +1045,20 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
 
     getAgentStatus(agentId) {
       return request<Record<string, unknown>>("GET", `/heartbeat/status/${agentId}`);
+    },
+
+    // ─── Agent credential issuance (v.1.58) ───────────────
+    listAgents() {
+      return request<{ agents: AgentSummary[] }>("GET", "/participants/me/agents");
+    },
+    createAgent(name) {
+      return request<AgentCredential>("POST", "/participants/me/agents", { name });
+    },
+    rotateAgentSecret(agentId) {
+      return request<AgentCredential>("POST", `/participants/me/agents/${encodeURIComponent(agentId)}/rotate`);
+    },
+    revokeAgent(agentId) {
+      return request<AgentSummary>("POST", `/participants/me/agents/${encodeURIComponent(agentId)}/revoke`);
     },
 
     // ─── Admin ───────────────────────────────────────────

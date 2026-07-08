@@ -1,223 +1,226 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/button";
-import { Modal } from "@/components/modal";
-import { Card } from "@/components/card";
-import { IdChip } from "@/components/id-chip";
-import { MOCK_AGENTS } from "@/lib/mock-data";
-import type { MockAgent } from "@/lib/mock-types";
-import { useToast } from "@/lib/use-toast";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card } from '@/components/card';
+import { StatusBadge } from '@/components/status-badge';
+import { IdChip } from '@/components/id-chip';
+import { CreateAgentModal } from './create-agent-modal';
+import { RevealCredentialsModal } from './reveal-credentials-modal';
+import type { AgentSummary, AgentCredential } from '@/lib/haiwave-api';
 
-function keyAgeColor(days: number): string {
-  if (days === 0) return "bg-slate/10 text-slate";
-  if (days < 180) return "bg-success/10 text-success";
-  if (days < 365) return "bg-warning/10 text-warning";
-  return "bg-problem/10 text-problem";
-}
-
-function keyAgeLabel(days: number): string {
-  if (days === 0) return "Not generated";
-  if (days < 30) return `${days}d`;
-  return `${Math.floor(days / 30)}mo`;
+/**
+ * Live agents list. Fetches the participant's provisioned agents from the BFF
+ * (which forwards to haiCore) and supports create → one-time credential
+ * reveal, rotate (new secret, also revealed once), and revoke.
+ */
+/**
+ * Pull a human-readable message out of a BFF error response. The BFF forwards
+ * haiCore 4xx bodies verbatim (`{ error: { code, message } }`) and shapes its
+ * own 5xx as `{ error: "<message>" }`, so tolerate both — and a non-JSON body
+ * (e.g. an edge/proxy 502 HTML page) by falling back to a safe default.
+ */
+async function bffErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const err = (await res.json())?.error as unknown;
+    if (typeof err === 'string' && err.trim()) return err;
+    if (err && typeof err === 'object') {
+      const message = (err as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+  } catch {
+    // Non-JSON body — fall through to the default.
+  }
+  return fallback;
 }
 
 export function AgentsPanel() {
-  const [agents, setAgents] = useState(MOCK_AGENTS);
-  const [registerOpen, setRegisterOpen] = useState(false);
-  const [registerStep, setRegisterStep] = useState(0);
-  const [newAgentId] = useState(() => crypto.randomUUID());
-  const [newTypes, setNewTypes] = useState({ cs: true, sales: true, procurement: true });
-  const [decommissionAgent, setDecommissionAgent] = useState<MockAgent | null>(null);
-  const { toast, showToast } = useToast();
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [revealed, setRevealed] = useState<AgentCredential | undefined>(undefined);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  function handleRegister() {
-    const newAgent: MockAgent = {
-      id: `a-${newAgentId}`,
-      status: "offline",
-      types: [
-        { key: "cs_agent_key", label: "Customer Service", enabled: newTypes.cs, age_days: newTypes.cs ? 0 : 0 },
-        { key: "sales_agent_key", label: "Inside Sales", enabled: newTypes.sales, age_days: newTypes.sales ? 0 : 0 },
-        { key: "procurement_agent_key", label: "Procurement", enabled: newTypes.procurement, age_days: newTypes.procurement ? 0 : 0 },
-      ],
-      last_heartbeat: "",
-      consecutive_failures: 0,
-      created_at: new Date().toISOString(),
-    };
-    setAgents([...agents, newAgent]);
-    setRegisterOpen(false);
-    setRegisterStep(0);
-    showToast("Agent registered successfully");
+  async function loadAgents() {
+    try {
+      const res = await fetch('/api/account/agents');
+      if (!res.ok) {
+        // An outage must be a distinct, visible state — never render as the
+        // "no agents provisioned yet" empty state, which reads as success.
+        setLoadError(await bffErrorMessage(res, 'Could not load your agents. Please retry.'));
+        return;
+      }
+      const body = (await res.json()) as { agents?: AgentSummary[] };
+      setAgents(body.agents ?? []);
+      setLoadError(null);
+    } catch {
+      // Network failure or a non-JSON body — treat as an outage, not empty.
+      setLoadError('Could not load your agents. Please retry.');
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function handleDecommission() {
-    if (!decommissionAgent) return;
-    setAgents(agents.filter((a) => a.id !== decommissionAgent.id));
-    setDecommissionAgent(null);
-    showToast("Agent decommissioned. 24-hour grace period started.");
+  useEffect(() => {
+    void loadAgents();
+  }, []);
+
+  async function create(name: string) {
+    const res = await fetch('/api/account/agents', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      // Surface the real cause (400 name / 403 role / 500 Keycloak) so the
+      // create modal shows it, rather than a generic swallow.
+      throw new Error(await bffErrorMessage(res, 'Could not create the agent'));
+    }
+    const cred = (await res.json()) as AgentCredential;
+    setCreateOpen(false);
+    setRevealed(cred);
+    await loadAgents();
   }
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    showToast("Copied to clipboard");
+  async function rotate(agentId: string) {
+    setActionError(null);
+    const res = await fetch(`/api/account/agents/${agentId}/rotate`, { method: 'POST' });
+    if (!res.ok) {
+      setActionError(await bffErrorMessage(res, 'Could not rotate the secret. Please retry.'));
+      return;
+    }
+    setRevealed((await res.json()) as AgentCredential);
   }
 
-  const envConfig = `HAIWAVE_AGENT_ID=${newAgentId}
-HAIWAVE_PARTICIPANT_ID=p-apex-001
-HAIWAVE_AUTH_URL=https://auth.haiwave.io/realms/haiwave-network
-HAIWAVE_CLIENT_ID=haiwave-agent-p-apex-001
-HAIWAVE_CLIENT_SECRET=mock-secret-${newAgentId.slice(0, 8)}
-HAIWAVE_API_URL=https://api.haiwave.io
-${newTypes.cs ? `HAIWAVE_CS_AGENT_KEY=cs-key-${newAgentId.slice(0, 8)}` : "# HAIWAVE_CS_AGENT_KEY="}
-${newTypes.sales ? `HAIWAVE_SALES_AGENT_KEY=sales-key-${newAgentId.slice(0, 8)}` : "# HAIWAVE_SALES_AGENT_KEY="}
-${newTypes.procurement ? `HAIWAVE_PROCUREMENT_AGENT_KEY=proc-key-${newAgentId.slice(0, 8)}` : "# HAIWAVE_PROCUREMENT_AGENT_KEY="}`;
+  async function revoke(agentId: string) {
+    setActionError(null);
+    const res = await fetch(`/api/account/agents/${agentId}/revoke`, { method: 'POST' });
+    if (!res.ok) {
+      setActionError(await bffErrorMessage(res, 'Could not revoke the agent. Please retry.'));
+      return;
+    }
+    await loadAgents();
+  }
+
+  if (loading) {
+    return <p className="text-sm text-slate">Loading agents…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <Card>
+        <div className="text-center py-8 max-w-md mx-auto">
+          <p className="text-sm font-medium text-problem mb-1">Could not load your agents</p>
+          <p className="text-sm text-slate mb-5">{loadError}</p>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center font-medium rounded-lg transition-colors bg-navy text-white hover:bg-charcoal px-4 py-2.5 text-sm"
+            onClick={() => {
+              setLoading(true);
+              setLoadError(null);
+              void loadAgents();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
-    <>
-      {toast && (
-        <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
-          {toast}
+    <div>
+      {actionError && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-problem/20 bg-problem/5 px-4 py-3 text-sm text-problem"
+        >
+          {actionError}
+        </div>
+      )}
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          className="inline-flex items-center justify-center font-medium rounded-lg transition-colors bg-navy text-white hover:bg-charcoal px-4 py-2.5 text-sm"
+          onClick={() => setCreateOpen(true)}
+        >
+          Create agent
+        </button>
+      </div>
+
+      {agents.length === 0 ? (
+        <Card>
+          <div className="text-center py-8 max-w-md mx-auto">
+            <p className="text-sm font-medium text-charcoal mb-1">
+              No agents provisioned yet
+            </p>
+            <p className="text-sm text-slate mb-5">
+              HAIWAVE agents run on your own infrastructure. Download the agent
+              client and follow the configuration guide — it walks you through
+              getting your agent keys and connecting to the network.
+            </p>
+            <Link
+              href="/account/agent-software"
+              className="inline-flex items-center justify-center font-medium rounded-lg transition-colors bg-navy text-white hover:bg-charcoal px-4 py-2.5 text-sm"
+            >
+              Get the client &amp; configuration guide from Agent Software
+            </Link>
+          </div>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {agents.map((agent) => (
+            <Card key={agent.id}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-charcoal">
+                    {agent.name ?? 'Unnamed agent'}
+                  </p>
+                  <IdChip id={agent.client_id} className="text-sm" />
+                  <p className="text-xs text-slate mt-0.5">
+                    Registered {new Date(agent.registered_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <StatusBadge status={agent.status} />
+                  <Link
+                    href="/account/agent-health"
+                    className="text-sm text-teal hover:text-teal-dark"
+                  >
+                    Health
+                  </Link>
+                  {agent.status !== 'revoked' && (
+                    <>
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-navy hover:text-charcoal"
+                        onClick={() => rotate(agent.id)}
+                      >
+                        Rotate
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm font-medium text-problem hover:opacity-80"
+                        onClick={() => revoke(agent.id)}
+                      >
+                        Revoke
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
 
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setRegisterOpen(true)}>Register New Agent</Button>
-      </div>
-
-      <div className="space-y-6">
-        {agents.map((agent) => (
-          <Card key={agent.id}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <IdChip id={agent.id} className="text-sm" />
-                    <button onClick={() => copyToClipboard(agent.id)} className="text-xs text-teal-dark hover:underline">
-                      Copy
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate mt-0.5">Created {new Date(agent.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={agent.status} />
-                <Button size="sm" variant="danger" onClick={() => setDecommissionAgent(agent)}>
-                  Decommission
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              {agent.types.map((t) => (
-                <div key={t.key} className="p-3 rounded-lg border border-slate/15">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-charcoal">{t.label}</span>
-                    {t.enabled ? (
-                      <span className={`px-2 py-0.5 text-xs rounded-full ${keyAgeColor(t.age_days)}`}>
-                        {keyAgeLabel(t.age_days)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate">Disabled</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate">{t.enabled ? `Key age: ${t.age_days} days` : "No key generated"}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-6 text-xs text-slate">
-              <span>Last heartbeat: {agent.last_heartbeat ? new Date(agent.last_heartbeat).toLocaleString() : "Never"}</span>
-              <span>Failures: {agent.consecutive_failures}</span>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Register Modal */}
-      <Modal open={registerOpen} onClose={() => { setRegisterOpen(false); setRegisterStep(0); }} title="Register New Agent" width="max-w-lg">
-        {registerStep === 0 && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-1">Agent Instance ID</label>
-              <div className="flex items-center gap-2">
-                <input type="text" value={newAgentId} readOnly className="flex-1 px-3 py-2 border border-slate/20 rounded-lg text-sm bg-light-gray font-mono" />
-                <Button size="sm" variant="secondary" onClick={() => copyToClipboard(newAgentId)}>Copy</Button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-2">Agent Types</label>
-              <div className="space-y-2">
-                {[
-                  { key: "cs" as const, label: "Customer Service" },
-                  { key: "sales" as const, label: "Inside Sales" },
-                  { key: "procurement" as const, label: "Procurement" },
-                ].map((type) => (
-                  <label key={type.key} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={newTypes[type.key]}
-                      onChange={(e) => setNewTypes({ ...newTypes, [type.key]: e.target.checked })}
-                      className="accent-teal"
-                    />
-                    <span className="text-sm text-charcoal">{type.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => { setRegisterOpen(false); setRegisterStep(0); }}>Cancel</Button>
-              <Button onClick={() => setRegisterStep(1)}>Generate Keys</Button>
-            </div>
-          </div>
-        )}
-
-        {registerStep === 1 && (
-          <div className="space-y-4">
-            <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
-              These keys will only be shown once. Copy or download them now.
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-charcoal mb-1">Configuration</label>
-              <pre className="p-3 bg-navy text-white text-xs rounded-lg overflow-x-auto font-mono whitespace-pre-wrap">{envConfig}</pre>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button variant="secondary" onClick={() => copyToClipboard(envConfig)}>Copy Config</Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const blob = new Blob([envConfig], { type: "text/plain" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `.env.agent-${newAgentId.slice(0, 8)}`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                Download .env
-              </Button>
-              <Button onClick={handleRegister}>Done</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Decommission Modal */}
-      <Modal open={!!decommissionAgent} onClose={() => setDecommissionAgent(null)} title="Decommission Agent">
-        <div className="space-y-4">
-          <p className="text-sm text-charcoal">
-            Are you sure you want to decommission agent {decommissionAgent && <IdChip id={decommissionAgent.id} />}?
-          </p>
-          <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
-            This agent will have a 24-hour grace period before credentials are revoked. After that, it cannot reconnect.
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setDecommissionAgent(null)}>Cancel</Button>
-            <Button variant="danger" onClick={handleDecommission}>Decommission</Button>
-          </div>
-        </div>
-      </Modal>
-    </>
+      <CreateAgentModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={create} />
+      <RevealCredentialsModal
+        open={revealed !== undefined}
+        onClose={() => setRevealed(undefined)}
+        credential={revealed}
+      />
+    </div>
   );
 }

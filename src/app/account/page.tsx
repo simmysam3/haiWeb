@@ -1,39 +1,33 @@
-import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
-import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
 import { NotificationsPanel } from "./_components/notifications-panel";
 import { fetchFromApi } from "@/lib/server-haiwave-client";
 import { getSession } from "@/lib/auth";
-import {
-  MOCK_AGENTS,
-  MOCK_ACCESS_REQUESTS,
-  MOCK_INVOICES,
-  MOCK_PARTNERS,
-  MOCK_SCORE_COMPOSITE,
-} from "@/lib/mock-data";
+
+/** Placeholder shown in a card body when its data source is not yet wired. */
+function NotAvailable() {
+  return <p className="text-sm text-slate/60">Not Available</p>;
+}
 
 export default async function DashboardPage() {
   const session = await getSession();
 
-  // Fetch composite behavioral score from haiCore, falling back to mock data
-  const scoreData = session
+  // Composite behavioral score from haiCore. No real score → null (the tile
+  // renders "Not Available") rather than a fabricated placeholder number.
+  const scoreData: number | null = session
     ? await fetchFromApi(
         async (client) => {
           const result = (await client.getScore(session.participant.id)) as {
             composite_score?: number;
             composite?: number;
           } | null;
-          return result?.composite_score ?? result?.composite ?? MOCK_SCORE_COMPOSITE;
+          return result?.composite_score ?? result?.composite ?? null;
         },
-        MOCK_SCORE_COMPOSITE,
+        null,
       )
-    : MOCK_SCORE_COMPOSITE;
-
-  const agentsOnline = MOCK_AGENTS.filter((a) => a.status === "active").length;
-  const pendingInvoice = MOCK_INVOICES.find((i) => i.status === "open");
+    : null;
 
   return (
     <div>
@@ -45,86 +39,27 @@ export default async function DashboardPage() {
         Your at-a-glance view of inbound activity across the HAIWAVE network — recent orders, behavioral signals, compliance flags, and agent health. Use it to triage anomalies and drop into the section that owns the decision (Compliance, Behavioral Scores, Provenance, Agent Health) when something needs attention.
       </PageIntro>
 
-      {/* Row 1: Stat Cards */}
+      {/* Row 1: Stat Cards. Values with no real data source render "Not
+          Available" (pass null) rather than fabricated numbers. */}
       <div className="grid grid-cols-4 gap-6 mb-8">
-        <StatCard label="Account Status" value="Active" color="text-success" />
-        <StatCard
-          label="Trading Pairs"
-          value={`${MOCK_PARTNERS.filter((p) => p.status === "trading_pair").length} pairs`}
-          trend={8}
-        />
-        <StatCard
-          label="Agents Online"
-          value={`${agentsOnline} / ${MOCK_AGENTS.length}`}
-          color="text-navy"
-        />
+        <StatCard label="Account Status" value={null} />
+        <StatCard label="Trading Pairs" value={null} />
+        <StatCard label="Agents Online" value={null} />
         <StatCard
           label="Behavioral Score"
-          value={`${scoreData}%`}
-          trend={2}
-          color={scoreData >= 90 ? "text-success" : "text-teal"}
+          value={scoreData != null ? `${scoreData}%` : null}
+          color={scoreData != null && scoreData >= 90 ? "text-success" : "text-teal"}
         />
       </div>
 
       {/* Row 2: Pending & Billing */}
       <div className="grid grid-cols-2 gap-6 mb-8">
         <Card title="Pending Requests">
-          {MOCK_ACCESS_REQUESTS.length === 0 ? (
-            <p className="text-sm text-slate">No pending requests.</p>
-          ) : (
-            <div className="space-y-3">
-              {MOCK_ACCESS_REQUESTS.slice(0, 3).map((req) => (
-                <Link
-                  key={req.id}
-                  href="/account/partners?tab=queue"
-                  className="flex items-center justify-between py-2 border-b border-slate/10 last:border-0 hover:bg-light-gray/30 -mx-2 px-2 rounded transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-charcoal">
-                      {req.company_name}
-                    </p>
-                    <p className="text-xs text-slate">{req.industry}</p>
-                  </div>
-                  <span className="text-xs text-teal font-medium">
-                    Review <span className="text-lg font-bold align-middle">›</span>
-                  </span>
-                </Link>
-              ))}
-              <Link
-                href="/account/partners?tab=queue"
-                className="block text-sm text-teal-dark hover:underline pt-1"
-              >
-                Review &amp; Approve ›
-              </Link>
-            </div>
-          )}
+          <NotAvailable />
         </Card>
 
         <Card title="Upcoming Billing">
-          {pendingInvoice ? (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-charcoal">
-                  {pendingInvoice.description}
-                </p>
-                <StatusBadge status={pendingInvoice.status} />
-              </div>
-              <p className="text-2xl font-bold text-navy">
-                ${pendingInvoice.amount.toLocaleString()}
-              </p>
-              <p className="text-xs text-slate mt-1">
-                Due {pendingInvoice.date}
-              </p>
-              <Link
-                href="/account/billing"
-                className="block text-sm text-teal-dark hover:underline mt-3"
-              >
-                View billing details
-              </Link>
-            </div>
-          ) : (
-            <p className="text-sm text-slate">No upcoming invoices.</p>
-          )}
+          <NotAvailable />
         </Card>
       </div>
 
@@ -135,58 +70,7 @@ export default async function DashboardPage() {
 
       {/* Row 4: Agent Overview */}
       <Card title="Agent Overview">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate/15">
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">
-                  Agent ID
-                </th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">
-                  Status
-                </th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">
-                  Last Heartbeat
-                </th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">
-                  Active Types
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_AGENTS.map((agent) => (
-                <tr
-                  key={agent.id}
-                  className="border-b border-slate/10 hover:bg-light-gray/50"
-                >
-                  <td className="py-3 px-4 font-mono text-xs">
-                    {agent.id.slice(0, 12)}...
-                  </td>
-                  <td className="py-3 px-4">
-                    <StatusBadge status={agent.status} />
-                  </td>
-                  <td className="py-3 px-4 text-slate">
-                    {new Date(agent.last_heartbeat).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-1">
-                      {agent.types
-                        .filter((t) => t.enabled)
-                        .map((t) => (
-                          <span
-                            key={t.key}
-                            className="px-2 py-0.5 text-xs bg-teal/10 text-teal-dark rounded"
-                          >
-                            {t.label}
-                          </span>
-                        ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <NotAvailable />
       </Card>
     </div>
   );

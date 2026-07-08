@@ -236,7 +236,7 @@ export default function DeploymentGuidePage() {
                   Joining the Network
                 </h2>
                 <p className="text-base text-slate leading-relaxed mb-4">
-                  Before your agent can participate in the HAIWAVE network, your organization registers as a network participant. HAIWAVE provisions your identity credentials: a participant ID that represents your company on the network, an agent ID for each agent instance you deploy, and OAuth client credentials that your agent uses to authenticate every network interaction through Keycloak.
+                  Before your agent can participate in the HAIWAVE network, your organization registers as a network participant. HAIWAVE provisions your participant identity. You then create each agent yourself in the console under Account &gt; Agents, which issues that agent&apos;s ID and its OAuth client credentials (client ID and secret, shown once) for authenticating every network interaction through Keycloak.
                 </p>
                 <p className="text-base text-slate leading-relaxed mb-4">
                   Your agent requests a short-lived JWT token using these credentials before making any API call. Tokens expire quickly and are refreshed automatically. Every request your agent sends to the network is authenticated. Every request it receives from the network is verified.
