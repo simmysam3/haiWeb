@@ -1,6 +1,6 @@
 import { getSession, hasRole } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
-import { BillingPanel } from "./billing-panel";
+import { ComingSoon } from "@/components/coming-soon";
 import { redirect } from "next/navigation";
 
 export default async function BillingPage() {
@@ -15,7 +15,7 @@ export default async function BillingPage() {
         title="Billing"
         description="Subscription, payment methods, and invoice history."
       />
-      <BillingPanel />
+      <ComingSoon note="Subscription, payment methods, and invoice history will appear here once the Stripe billing integration ships." />
     </div>
   );
 }
