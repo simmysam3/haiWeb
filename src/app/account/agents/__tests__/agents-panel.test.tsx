@@ -129,6 +129,32 @@ describe('AgentsPanel', () => {
     await screen.findByText(/you do not have the account_admin role/i);
   });
 
+  it('offers a non-secret config .env download on the card when the summary has endpoints', async () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(mockFetchOnceJson({ agents: [{
+      id: 'aid', name: 'Bot', client_id: 'agent-aid', participant_id: 'pid',
+      status: 'active', agent_endpoint: null, last_heartbeat_at: null, registered_at: 'r',
+      auth_token_endpoint: 'https://auth/token', auth_issuer: 'https://auth/realm',
+      auth_jwks_uri: 'https://auth/certs', api_base_url: 'https://api',
+    }] }));
+
+    render(<AgentsPanel />);
+    const btn = await screen.findByRole('button', { name: /download \.env/i });
+    fireEvent.click(btn);
+    expect(create).toHaveBeenCalled();
+  });
+
+  it('does not offer the config download when the summary carries no endpoints', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(mockFetchOnceJson({ agents: [{
+      id: 'aid', name: 'Bot', client_id: 'agent-aid', participant_id: 'pid',
+      status: 'active', agent_endpoint: null, last_heartbeat_at: null, registered_at: 'r',
+    }] }));
+    render(<AgentsPanel />);
+    await screen.findByText('Bot');
+    expect(screen.queryByRole('button', { name: /download \.env/i })).not.toBeInTheDocument();
+  });
+
   it('revoking an agent refreshes the list and hides rotate/revoke for it', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     fetchMock.mockResolvedValueOnce(mockFetchOnceJson({ agents: [{

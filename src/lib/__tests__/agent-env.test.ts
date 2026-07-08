@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { toConfigEnvBlock, secretEnvLine } from '../agent-env';
+import { toConfigEnvBlock, secretEnvLine, summaryConfig } from '../agent-env';
+import type { AgentSummary } from '../haiwave-api';
 
 const cred = {
   id: 'aid', name: 'Bot', client_id: 'agent-aid', participant_id: 'pid',
@@ -36,5 +37,29 @@ describe('toConfigEnvBlock', () => {
 describe('secretEnvLine', () => {
   it('is exactly the one sensitive line, copy-paste ready', () => {
     expect(secretEnvLine(cred)).toBe('KEYCLOAK_CLIENT_SECRET=sekret');
+  });
+});
+
+describe('summaryConfig', () => {
+  const base: AgentSummary = {
+    id: 'aid', name: 'Bot', client_id: 'agent-aid', participant_id: 'pid',
+    status: 'active', agent_endpoint: null, last_heartbeat_at: null, registered_at: 'r',
+  };
+
+  it('returns null when a summary carries no endpoints (older haiCore)', () => {
+    expect(summaryConfig(base)).toBeNull();
+  });
+
+  it('builds a non-secret config block from a summary that has the endpoints', () => {
+    const cfg = summaryConfig({
+      ...base,
+      auth_token_endpoint: 'https://auth/token', auth_issuer: 'https://auth/realm',
+      auth_jwks_uri: 'https://auth/certs', api_base_url: 'https://api',
+    });
+    expect(cfg).not.toBeNull();
+    const block = toConfigEnvBlock(cfg!);
+    expect(block).toContain('PARTICIPANT_ID=pid');
+    expect(block).toContain('HAICORE_BASE_URL=https://api');
+    expect(block).toMatch(/#\s*KEYCLOAK_CLIENT_SECRET=/);
   });
 });

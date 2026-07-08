@@ -135,6 +135,11 @@ export interface AgentSummary {
   agent_endpoint: string | null;
   last_heartbeat_at: string | null;
   registered_at: string;
+  // Non-secret network endpoints (protocol 3.44.0), optional for older haiCore.
+  auth_token_endpoint?: string;
+  auth_issuer?: string;
+  auth_jwks_uri?: string;
+  api_base_url?: string;
 }
 
 export interface AgentCredential {
