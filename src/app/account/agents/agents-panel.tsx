@@ -7,7 +7,26 @@ import { StatusBadge } from '@/components/status-badge';
 import { IdChip } from '@/components/id-chip';
 import { CreateAgentModal } from './create-agent-modal';
 import { RevealCredentialsModal } from './reveal-credentials-modal';
+import { summaryConfig, toConfigEnvBlock } from '@/lib/agent-env';
 import type { AgentSummary, AgentCredential } from '@/lib/haiwave-api';
+
+/**
+ * Download the agent's non-secret config `.env` (everything but the client
+ * secret) from a list summary — re-downloadable anytime because these values
+ * are non-secret and stable. `agent.env` not `.env` (Chrome sanitizes a
+ * leading-dot name).
+ */
+function downloadConfigEnv(agent: AgentSummary) {
+  const cfg = summaryConfig(agent);
+  if (!cfg) return;
+  const blob = new Blob([toConfigEnvBlock(cfg) + '\n'], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'agent.env';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /**
  * Live agents list. Fetches the participant's provisioned agents from the BFF
@@ -190,6 +209,15 @@ export function AgentsPanel() {
                   >
                     Health
                   </Link>
+                  {summaryConfig(agent) && (
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-navy hover:text-charcoal"
+                      onClick={() => downloadConfigEnv(agent)}
+                    >
+                      Download .env
+                    </button>
+                  )}
                   {agent.status !== 'revoked' && (
                     <>
                       <button
