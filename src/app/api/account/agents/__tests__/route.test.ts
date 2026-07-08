@@ -111,6 +111,14 @@ describe('/api/account/agents', () => {
     });
   });
 
+  /** An upstream haiCore 4xx as thrown by the haiwave-api client. */
+  function upstream4xx(status: number, haiCoreBody: unknown): Error {
+    const err = new Error(`haiCore error ${status}`) as Error & { status?: number; haiCoreBody?: unknown };
+    err.status = status;
+    err.haiCoreBody = haiCoreBody;
+    return err;
+  }
+
   describe('POST /[agentId]/rotate', () => {
     it('returns the upstream rotated credential for account_admin', async () => {
       client.rotateAgentSecret.mockResolvedValueOnce({ id: 'aid', client_secret: 'new-secret' });
@@ -122,6 +130,27 @@ describe('/api/account/agents', () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.client_secret).toBe('new-secret');
+    });
+
+    it('propagates an upstream 409 AGENT_REVOKED verbatim (not masked as 500)', async () => {
+      const body = { error: { code: 'AGENT_REVOKED', message: 'Agent has been revoked' } };
+      client.rotateAgentSecret.mockRejectedValueOnce(upstream4xx(409, body));
+      const { POST } = await import('../[agentId]/rotate/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ agentId: 'aid' }),
+      });
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual(body);
+    });
+
+    it('returns 403 without account_admin and does not call upstream', async () => {
+      hasRole.mockReturnValue(false);
+      const { POST } = await import('../[agentId]/rotate/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ agentId: 'aid' }),
+      });
+      expect(res.status).toBe(403);
+      expect(client.rotateAgentSecret).not.toHaveBeenCalled();
     });
   });
 
@@ -136,6 +165,27 @@ describe('/api/account/agents', () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.status).toBe('revoked');
+    });
+
+    it('propagates an upstream 404 NOT_FOUND verbatim (not masked as 500)', async () => {
+      const body = { error: { code: 'NOT_FOUND', message: 'Agent not found' } };
+      client.revokeAgent.mockRejectedValueOnce(upstream4xx(404, body));
+      const { POST } = await import('../[agentId]/revoke/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ agentId: 'aid' }),
+      });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual(body);
+    });
+
+    it('returns 403 without account_admin and does not call upstream', async () => {
+      hasRole.mockReturnValue(false);
+      const { POST } = await import('../[agentId]/revoke/route');
+      const res = await POST(new NextRequest('http://localhost/x', { method: 'POST' }), {
+        params: Promise.resolve({ agentId: 'aid' }),
+      });
+      expect(res.status).toBe(403);
+      expect(client.revokeAgent).not.toHaveBeenCalled();
     });
   });
 });
