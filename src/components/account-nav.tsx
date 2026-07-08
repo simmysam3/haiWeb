@@ -155,8 +155,6 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
       { href: "/account/orders", label: "Orders", tooltip: "Browse inbound and outbound orders flowing between your agent and counterparties." },
       { href: "/account/scores", label: "Behavioral Scores", tooltip: "Reliability and response-time scores HAIWAVE assigns to you and your trading partners." },
-      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
-      { href: "/account/agents", label: "Agents", tooltip: "Provision, configure, and monitor the HAIWAVE agents that act for your organization." },
       { href: "/account/partners", label: "Trading Partners", tooltip: "Counterparties you have an active bilateral relationship with on HAIWAVE." },
       { href: "/account/partners/blocked", label: "Blocked Companies", indent: true, tooltip: "Counterparties you've blocked from initiating relationships or visibility against you." },
       { href: "/account/manifests", label: "Manifests", tooltip: "Counterparty and pricing manifests that drive your agent's access rules and quoted prices." },
@@ -167,13 +165,8 @@ const navSections: NavSection[] = [
       // v.1.41: Provenance Keys → Sonar Audit (as "Key Management").
       { href: "/account/data-cleansing", label: "Data Cleansing", tooltip: "Review and resolve classification or catalog data issues HAIWAVE has flagged." },
       { href: "/account/profile", label: "Company Profile", tooltip: "Edit your company's public profile, contact info, and business address." },
-    ],
-  },
-  {
-    label: "Settings",
-    items: [
+      // v.1.58: Settings section dissolved — Trust Posture moved here.
       { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
-      { href: "/account/security", label: "Sign-in & Security", tooltip: "Manage your password, two-factor authentication, and passkeys for signing in to HAIWAVE." },
     ],
   },
   {
@@ -181,16 +174,24 @@ const navSections: NavSection[] = [
     items: [
       { href: "/account/users", label: "Users", tooltip: "Manage the user accounts and roles inside your organization." },
       { href: "/account/billing", label: "Billing", tooltip: "Stripe subscription and metered-usage billing for your HAIWAVE account." },
+      // v.1.58: Settings section dissolved — Sign-in & Security moved here.
+      { href: "/account/security", label: "Sign-in & Security", tooltip: "Manage your password, two-factor authentication, and passkeys for signing in to HAIWAVE." },
     ],
   },
   {
-    label: "Agent Software",
+    // v.1.58: agent management consolidated under one "Agents" section (was
+    // "Agent Software"). Agent Health moved here from Account Management, and
+    // the provisioning page (formerly the "Agents" link) is now "Agent
+    // Provisioning" so all agent lifecycle surfaces live together.
+    label: "Agents",
     items: [
+      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
       {
         href: "/account/agent-software",
         label: "Agent Software",
         tooltip: "Download the agent configuration guide and the latest agent client software.",
       },
+      { href: "/account/agents", label: "Agent Provisioning", tooltip: "Provision, configure, rotate, and revoke the HAIWAVE agents that act for your organization, including their credentials." },
     ],
   },
 ];
