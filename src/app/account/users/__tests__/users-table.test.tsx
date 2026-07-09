@@ -74,3 +74,42 @@ describe('UsersTable — invite', () => {
     expect(postCall(fetchMock)).toBeUndefined();
   });
 });
+
+const seedUser = {
+  id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
+  role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
+};
+
+describe('UsersTable — mutations surface failures (no fire-and-forget)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('edit-role: surfaces the error and shows no success toast when the PATCH fails', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(jsonResponse([seedUser])); // initial GET
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'role change rejected' }, 500)); // PATCH fails
+
+    render(<UsersTable />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /edit role/i }));
+    fireEvent.change(screen.getByLabelText(/role/i), { target: { value: 'procurement_transact' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(await screen.findByText(/role change rejected/i)).toBeInTheDocument();
+    expect(screen.queryByText(/role updated/i)).not.toBeInTheDocument();
+  });
+
+  it('deactivate: surfaces the error and shows no success toast when the DELETE fails', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(jsonResponse([seedUser])); // initial GET
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'cannot deactivate' }, 500)); // DELETE fails
+
+    render(<UsersTable />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /deactivate/i })); // row button opens the modal
+    const buttons = screen.getAllByRole('button', { name: /deactivate/i });
+    fireEvent.click(buttons[buttons.length - 1]); // modal confirm
+
+    expect(await screen.findByText(/cannot deactivate/i)).toBeInTheDocument();
+    expect(screen.queryByText(/user deactivated/i)).not.toBeInTheDocument();
+  });
+});

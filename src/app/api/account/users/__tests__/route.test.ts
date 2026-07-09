@@ -12,9 +12,9 @@ vi.mock('@/lib/keycloak', () => ({
 }));
 vi.mock('@/lib/mock-data', () => ({ MOCK_USERS: [] }));
 
-import { POST } from '../route';
+import { GET, POST } from '../route';
 import { getSession } from '@/lib/auth';
-import { createUser, sendExecuteActionsEmail } from '@/lib/keycloak';
+import { createUser, sendExecuteActionsEmail, listUsers } from '@/lib/keycloak';
 
 const owner = { user: { id: 'u-owner', role: 'account_owner' }, participant: { id: 'p-apex' }, is_admin: false };
 const invite = { email: 'new@apex.com', first_name: 'New', last_name: 'User', role: 'buyer_view_only' };
@@ -43,5 +43,21 @@ describe('POST /api/account/users — invited-user provisioning', () => {
     const res = await POST(req(invite));
     expect(res.status).toBe(403);
     expect(createUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/account/users — Keycloak → DTO mapping', () => {
+  it('maps raw Keycloak users to the snake_case account DTO the table renders', async () => {
+    (listUsers as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'kc1', email: 'a@b.com', firstName: 'Ada', lastName: 'Lovelace', enabled: true, attributes: { role: ['procurement_transact'] } },
+      { id: 'kc2', email: 'x@y.com', firstName: 'Grace', lastName: 'Hopper', enabled: false },
+    ]);
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual([
+      expect.objectContaining({ id: 'kc1', email: 'a@b.com', first_name: 'Ada', last_name: 'Lovelace', role: 'procurement_transact', status: 'active' }),
+      expect.objectContaining({ id: 'kc2', first_name: 'Grace', last_name: 'Hopper', role: 'buyer_view_only', status: 'disabled' }),
+    ]);
   });
 });

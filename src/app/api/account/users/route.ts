@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail } from "@/lib/keycloak";
+import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
 import { MOCK_USERS } from "@/lib/mock-data";
 
 /**
@@ -21,7 +22,7 @@ export async function GET() {
 
   try {
     const users = await listUsers(session.participant.id);
-    return NextResponse.json(users);
+    return NextResponse.json((users as KeycloakUserRep[]).map(toAccountUser));
   } catch {
     return NextResponse.json(MOCK_USERS);
   }

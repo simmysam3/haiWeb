@@ -33,7 +33,27 @@ export function UsersTable() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [editRole, setEditRole] = useState<string>("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const { toast, showToast } = useToast();
+
+  function openEdit(u: MockUser) {
+    setActionError(null);
+    setEditUser(u);
+    setEditRole(u.role);
+  }
+  function closeEdit() {
+    setEditUser(null);
+    setActionError(null);
+  }
+  function openDeactivate(u: MockUser) {
+    setActionError(null);
+    setDeactivateUser(u);
+  }
+  function closeDeactivate() {
+    setDeactivateUser(null);
+    setActionError(null);
+  }
 
   useEffect(() => {
     setUsers(apiUsers);
@@ -96,30 +116,50 @@ export function UsersTable() {
     }
   }
 
-  function handleEditRole() {
+  async function handleEditRole() {
     if (!editUser || !editRole) return;
-    setUsers(users.map((u) => u.id === editUser.id ? { ...u, role: editRole as MockUser["role"] } : u));
-    const userId = editUser.id;
-    setEditUser(null);
-    showToast("Role updated");
-
-    fetch(`/api/account/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: editRole }),
-    }).catch(() => {});
+    setActionError(null);
+    setActionBusy(true);
+    try {
+      const res = await fetch(`/api/account/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: editRole }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? `Could not update the role (${res.status}).`);
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.id === editUser.id ? { ...u, role: editRole as MockUser["role"] } : u)));
+      showToast("Role updated");
+      closeEdit();
+    } catch {
+      setActionError("Could not reach the server. Please try again.");
+    } finally {
+      setActionBusy(false);
+    }
   }
 
-  function handleDeactivate() {
+  async function handleDeactivate() {
     if (!deactivateUser) return;
-    setUsers(users.map((u) => u.id === deactivateUser.id ? { ...u, status: "disabled" as const } : u));
-    const userId = deactivateUser.id;
-    setDeactivateUser(null);
-    showToast("User deactivated");
-
-    fetch(`/api/account/users/${userId}`, {
-      method: "DELETE",
-    }).catch(() => {});
+    setActionError(null);
+    setActionBusy(true);
+    try {
+      const res = await fetch(`/api/account/users/${deactivateUser.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? `Could not deactivate the user (${res.status}).`);
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.id === deactivateUser.id ? { ...u, status: "disabled" as const } : u)));
+      showToast("User deactivated");
+      closeDeactivate();
+    } catch {
+      setActionError("Could not reach the server. Please try again.");
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   const columns: Column<MockUser>[] = [
@@ -153,11 +193,11 @@ export function UsersTable() {
       label: "",
       render: (u) => u.role === "account_owner" ? null : (
         <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => { setEditUser(u); setEditRole(u.role); }}>
+          <Button size="sm" variant="ghost" onClick={() => openEdit(u)}>
             Edit Role
           </Button>
           {u.status === "active" && (
-            <Button size="sm" variant="ghost" onClick={() => setDeactivateUser(u)}>
+            <Button size="sm" variant="ghost" onClick={() => openDeactivate(u)}>
               Deactivate
             </Button>
           )}
@@ -248,35 +288,49 @@ export function UsersTable() {
       </Modal>
 
       {/* Edit Role Modal */}
-      <Modal open={!!editUser} onClose={() => setEditUser(null)} title="Edit Role">
+      <Modal open={!!editUser} onClose={closeEdit} title="Edit Role">
         <div className="space-y-4">
+          {actionError && (
+            <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+              {actionError}
+            </div>
+          )}
           <p className="text-sm text-charcoal">
             Change role for <strong>{editUser?.first_name} {editUser?.last_name}</strong>
           </p>
-          <select
-            value={editRole}
-            onChange={(e) => setEditRole(e.target.value)}
-            className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="edit-role" className="block text-sm font-medium text-charcoal mb-1">Role</label>
+            <select
+              id="edit-role"
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value)}
+              className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setEditUser(null)}>Cancel</Button>
-            <Button onClick={handleEditRole}>Save</Button>
+            <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
+            <Button onClick={handleEditRole} disabled={actionBusy}>{actionBusy ? "Saving…" : "Save"}</Button>
           </div>
         </div>
       </Modal>
 
       {/* Deactivate Modal */}
-      <Modal open={!!deactivateUser} onClose={() => setDeactivateUser(null)} title="Deactivate User">
+      <Modal open={!!deactivateUser} onClose={closeDeactivate} title="Deactivate User">
+        {actionError && (
+          <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem mb-4">
+            {actionError}
+          </div>
+        )}
         <p className="text-sm text-charcoal mb-4">
           Are you sure you want to deactivate <strong>{deactivateUser?.first_name} {deactivateUser?.last_name}</strong>? They will lose access to the portal.
         </p>
         <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setDeactivateUser(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeactivate}>Deactivate</Button>
+          <Button variant="secondary" onClick={closeDeactivate}>Cancel</Button>
+          <Button variant="danger" onClick={handleDeactivate} disabled={actionBusy}>{actionBusy ? "Deactivating…" : "Deactivate"}</Button>
         </div>
       </Modal>
     </>
