@@ -19,7 +19,7 @@ with overflow split across pages. It is **not** the output of a markdown
 converter, so the pipeline does no markdown step.
 
 The body is produced by a **Claude authoring pass** from the source guide
-(`haiCore/docs/client-implementation-guidelines.md`): translate the guide's
+(`haiCore/docs/client-implementation-guidelines-v1.1.md`, the canonical guide): translate the guide's
 content into the design-system markup per the contract, then stage it as
 `body.html` (committed alongside this template). A first pass is in place; re-run
 the authoring pass to refresh it whenever the guide changes.
