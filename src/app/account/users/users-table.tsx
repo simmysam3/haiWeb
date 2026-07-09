@@ -27,7 +27,11 @@ export function UsersTable() {
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [inviteRole, setInviteRole] = useState<string>("buyer_view_only");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [editRole, setEditRole] = useState<string>("");
   const { toast, showToast } = useToast();
 
@@ -35,29 +39,61 @@ export function UsersTable() {
     setUsers(apiUsers);
   }, [apiUsers]);
 
-  function handleInvite() {
-    if (!inviteEmail) return;
-    const newUser: MockUser = {
-      id: `u-${Date.now()}`,
-      email: inviteEmail,
-      first_name: "Invited",
-      last_name: "User",
-      role: inviteRole as MockUser["role"],
-      job_title: "",
-      phone: "",
-      status: "active",
-      last_login: "Never",
-    };
-    setUsers([...users, newUser]);
+  function closeInvite() {
     setInviteOpen(false);
     setInviteEmail("");
-    showToast(`Invitation sent to ${inviteEmail}`);
+    setInviteFirstName("");
+    setInviteLastName("");
+    setInviteError(null);
+  }
 
-    fetch("/api/account/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-    }).catch(() => {});
+  async function handleInvite() {
+    setInviteError(null);
+    // The BFF requires all three; without them the invite 400s. Validate up
+    // front rather than firing a request we know will fail.
+    if (!inviteEmail || !inviteFirstName || !inviteLastName) {
+      setInviteError("Email, first name, and last name are all required.");
+      return;
+    }
+    setInviting(true);
+    try {
+      const res = await fetch("/api/account/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmail,
+          first_name: inviteFirstName,
+          last_name: inviteLastName,
+          role: inviteRole,
+        }),
+      });
+      if (!res.ok) {
+        // Surface the real BFF error; do NOT add an optimistic row for a user
+        // that was never created.
+        const body = await res.json().catch(() => ({}));
+        setInviteError(body.error ?? `Could not send the invitation (${res.status}).`);
+        return;
+      }
+      const created = await res.json();
+      const newUser: MockUser = {
+        id: created.id,
+        email: created.email ?? inviteEmail,
+        first_name: created.first_name ?? inviteFirstName,
+        last_name: created.last_name ?? inviteLastName,
+        role: (created.role ?? inviteRole) as MockUser["role"],
+        job_title: "",
+        phone: "",
+        status: "active",
+        last_login: "Never",
+      };
+      setUsers((prev) => [...prev, newUser]);
+      showToast(`Invitation sent to ${newUser.email}`);
+      closeInvite();
+    } catch {
+      setInviteError("Could not reach the server. Please try again.");
+    } finally {
+      setInviting(false);
+    }
   }
 
   function handleEditRole() {
@@ -147,11 +183,41 @@ export function UsersTable() {
       </div>
 
       {/* Invite Modal */}
-      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite User">
+      <Modal open={inviteOpen} onClose={closeInvite} title="Invite User">
         <div className="space-y-4">
+          {inviteError && (
+            <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+              {inviteError}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="invite-first-name" className="block text-sm font-medium text-charcoal mb-1">First Name</label>
+              <input
+                id="invite-first-name"
+                type="text"
+                value={inviteFirstName}
+                onChange={(e) => setInviteFirstName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                placeholder="Jordan"
+              />
+            </div>
+            <div>
+              <label htmlFor="invite-last-name" className="block text-sm font-medium text-charcoal mb-1">Last Name</label>
+              <input
+                id="invite-last-name"
+                type="text"
+                value={inviteLastName}
+                onChange={(e) => setInviteLastName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                placeholder="Reyes"
+              />
+            </div>
+          </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
+            <label htmlFor="invite-email" className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
             <input
+              id="invite-email"
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
@@ -160,8 +226,9 @@ export function UsersTable() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal mb-1">Role</label>
+            <label htmlFor="invite-role" className="block text-sm font-medium text-charcoal mb-1">Role</label>
             <select
+              id="invite-role"
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
               className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
@@ -172,8 +239,10 @@ export function UsersTable() {
             </select>
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite}>Send Invitation</Button>
+            <Button variant="secondary" onClick={closeInvite}>Cancel</Button>
+            <Button onClick={handleInvite} disabled={inviting}>
+              {inviting ? "Sending…" : "Send Invitation"}
+            </Button>
           </div>
         </div>
       </Modal>
