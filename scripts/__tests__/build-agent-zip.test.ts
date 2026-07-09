@@ -63,4 +63,21 @@ describe('buildAgentZip', () => {
     const out = tmp('agentzip-out-');
     expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/version/);
   });
+
+  it('throws when the archive contains a demo company fingerprint', () => {
+    const repo = initRepo();
+    const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { stdio: 'pipe' });
+    // Plant a tracked file that names a demo company.
+    writeFileSync(join(repo, 'leak.ts'), '// example from an Amphenol search\n');
+    git('add', '-A');
+    git('commit', '-qm', 'plant');
+    const out = tmp('agentzip-out-');
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+  });
+
+  it('succeeds and reports no leak for a clean repo', () => {
+    const repo = initRepo();
+    const out = tmp('agentzip-out-');
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).not.toThrow();
+  });
 });
