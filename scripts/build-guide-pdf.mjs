@@ -14,7 +14,7 @@ import { dirname, resolve } from 'node:path';
  * of `<section class="page">` blocks written in the design system's vocabulary
  * (.sec-open / .h3 / .p / .tbl / .code / .note / .planned / .cfg …). That body
  * is produced by a Claude authoring pass from the source guide
- * (`haiCore/docs/client-implementation-guidelines.md`) — so this build step does
+ * (`haiCore/docs/client-implementation-guidelines-v1.1.md`) — so this build step does
  * NO markdown conversion; it only assembles + renders.
  *
  * Only `injectTemplate` runs without an external dependency (and is unit-tested,
