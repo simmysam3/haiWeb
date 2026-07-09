@@ -75,6 +75,19 @@ describe('buildAgentZip', () => {
     expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
   });
 
+  it('deletes the leaked zip and writes no manifest when a fingerprint is found', () => {
+    const repo = initRepo();
+    const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { stdio: 'pipe' });
+    // Plant a tracked file that names a demo company.
+    writeFileSync(join(repo, 'leak.ts'), '// example from an Amphenol search\n');
+    git('add', '-A');
+    git('commit', '-qm', 'plant');
+    const out = tmp('agentzip-out-');
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+    expect(existsSync(join(out, 'haiwave-agent-v9.9.9.zip'))).toBe(false);
+    expect(existsSync(join(out, 'manifest.json'))).toBe(false);
+  });
+
   it('succeeds and reports no leak for a clean repo', () => {
     const repo = initRepo();
     const out = tmp('agentzip-out-');

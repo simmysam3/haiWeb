@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { DENYLIST } from './lib/agent-archive-denylist.mjs';
 
@@ -25,7 +25,7 @@ export function scanZipForDenylist(zipPath) {
     try {
       text = execFileSync('unzip', ['-p', zipPath, entry], { maxBuffer: 64 * 1024 * 1024 }).toString();
     } catch {
-      continue; // binary/unreadable entry — skip
+      continue; // entry that failed extraction (corrupt/encrypted) — skip
     }
     for (const re of DENYLIST) {
       const m = text.match(re);
@@ -59,6 +59,13 @@ export function buildAgentZip({ repoPath, outDir, now = new Date() }) {
 
   const leaks = scanZipForDenylist(zipPath);
   if (leaks.length > 0) {
+    // Fail closed: don't leave the leaking artifact on disk for a downstream
+    // pipeline (e.g. Docker COPY) to pick up.
+    try {
+      if (existsSync(zipPath)) unlinkSync(zipPath);
+    } catch {
+      // best-effort cleanup — don't mask the real leak error below
+    }
     const detail = leaks.slice(0, 20).map((h) => `  ${h.file}: "${h.term}"`).join('\n');
     throw new Error(`Agent archive leak: ${leaks.length} denylisted fingerprint(s) in ${zipFile}:\n${detail}`);
   }
