@@ -13,7 +13,11 @@ export const DENYLIST = [
   /huntwood/i, /us\s?steel/i, /sel\s+inc/i, /selinc/i, /deltaflow/i, /greatlakes/i,
   /lyntron/i, /ussteel/i, /\beg4\b/i,
   // Product-ID prefixes
-  /\bLYN-/, /\bAPEX-/, /\bMWF-/, /\bNIS-/, /\bPSP-/, /\bANS-/, /\bSEC-/, /\bPPC-/,
+  // Note: SEC- intentionally dropped — collides with the pervasive
+  // security-decision IDs (SEC-1, SEC-5, SEC-10(b), SEC-13) used in the
+  // adopter-facing .env.example and UPGRADING.md. Summit Electrical remains
+  // caught by the /summit\s+electrical/i full-name pattern above.
+  /\bLYN-/, /\bAPEX-/, /\bMWF-/, /\bNIS-/, /\bPSP-/, /\bANS-/, /\bPPC-/,
   /\bDFS-/, /\bGORE-/, /\bGLH-/,
   // Demo cast
   /\bnike\b/i, /\boia\b/i, /\bcsg\b/i, /vomero/i,
