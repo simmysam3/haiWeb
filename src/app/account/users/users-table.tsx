@@ -21,7 +21,7 @@ const ROLES = [
 
 
 export function UsersTable() {
-  const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
+  const { data: apiUsers, loading, error, refetch } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
   const [users, setUsers] = useState<MockUser[]>(apiUsers);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<MockUser | null>(null);
@@ -205,6 +205,19 @@ export function UsersTable() {
       ),
     },
   ];
+
+  // A load failure must read as an outage, not as "this account has no users".
+  if (error && !loading) {
+    return (
+      <div className="bg-white rounded-lg border border-slate/15 p-8 text-center">
+        <p className="text-sm font-medium text-problem">Could not load users.</p>
+        <p className="mt-1 text-sm text-slate">There was a problem reaching the identity service. Your team members are safe — this is a display issue.</p>
+        <div className="mt-4">
+          <Button size="sm" variant="secondary" onClick={refetch}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

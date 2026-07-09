@@ -113,3 +113,18 @@ describe('UsersTable — mutations surface failures (no fire-and-forget)', () =>
     expect(screen.queryByText(/user deactivated/i)).not.toBeInTheDocument();
   });
 });
+
+describe('UsersTable — load error', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('shows a distinct error state with Retry (not an empty "0 users" list) when the load fails', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: 'Could not load users' }, 502));
+
+    render(<UsersTable />);
+    expect(await screen.findByText(/could not load users/i)).toBeInTheDocument();
+    // An outage must NOT read as "this account has no users".
+    expect(screen.queryByText(/0 users/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+});

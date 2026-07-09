@@ -60,4 +60,13 @@ describe('GET /api/account/users — Keycloak → DTO mapping', () => {
       expect.objectContaining({ id: 'kc2', first_name: 'Grace', last_name: 'Hopper', role: 'buyer_view_only', status: 'disabled' }),
     ]);
   });
+
+  it('returns an error (never mock users) when Keycloak is unavailable', async () => {
+    (listUsers as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('kc down'));
+    const res = await GET();
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(false); // an outage must NOT return a user list
+    expect(body.error).toBeTruthy();
+  });
 });
