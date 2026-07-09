@@ -85,6 +85,48 @@ describe('AccountNav', () => {
     expect(link.getAttribute('href')).toBe('/account/agent-software');
   });
 
+  // The "Agent Software" section was renamed "Agents" and now consolidates all
+  // agent management: Agent Health + Agent Software + the provisioning page
+  // (relabeled from "Agents" to "Agent Provisioning"). "Agents" is a section
+  // heading now, not a link.
+  it('Agents section groups Agent Health, Agent Software, and Agent Provisioning', () => {
+    const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+
+    const provisioning = screen.getByRole('link', { name: 'Agent Provisioning' });
+    expect(provisioning.getAttribute('href')).toBe('/account/agents');
+
+    // the bare "Agents" nav link is gone — it's a section heading now
+    expect(screen.queryByRole('link', { name: 'Agents' })).toBeNull();
+
+    // all three agent links live under the same "Agents" section heading
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const agentsSection = sections.find((s) => s.textContent?.trimStart().startsWith('Agents'));
+    expect(agentsSection).toBeTruthy();
+    const hrefs = Array.from(agentsSection!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(
+      expect.arrayContaining(['/account/agent-health', '/account/agent-software', '/account/agents']),
+    );
+  });
+
+  // v.1.58: the "Settings" section was dissolved — Trust Posture moves under
+  // Account Management and Sign-in & Security under Admin.
+  it('dissolves Settings: Trust Posture under Account Management, Sign-in & Security under Admin', () => {
+    const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+
+    // no "Settings" section heading remains
+    expect(sections.some((s) => s.textContent?.trimStart().startsWith('Settings'))).toBe(false);
+
+    const sectionHrefs = (prefix: string) => {
+      const section = sections.find((s) => s.textContent?.trimStart().startsWith(prefix));
+      expect(section).toBeTruthy();
+      return Array.from(section!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    };
+
+    expect(sectionHrefs('Account Management')).toContain('/account/settings/trust-posture');
+    expect(sectionHrefs('Admin')).toContain('/account/security');
+  });
+
   // Regression: Sign Out must NOT be a <Link>/<a> to the logout route. Next's
   // router prefetches visible <Link>s on navigation, and a prefetch of a
   // GET-mutating logout route silently destroys the session → the user is

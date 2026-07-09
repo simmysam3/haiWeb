@@ -31,11 +31,11 @@ export default async function AgentSoftwarePage() {
           available={guideAvailable}
         />
         <DownloadCard
-          title={`Agent — Latest Version${manifest ? ` (v${manifest.version})` : ""}`}
+          title={`HAIWAVE Agent — Source Archive${manifest ? ` (v${manifest.version})` : ""}`}
           subtitle={
             manifest
-              ? `Built ${manifest.builtAt.slice(0, 10)}`
-              : "Source archive of the latest agent client."
+              ? `Complete self-hosted agent source: reference agent, client SDK, Dockerfile, and config templates. Unzip and run with Docker per the Configuration Guide. ZIP · ${(manifest.zipBytes / 1_048_576).toFixed(1)} MB · built ${manifest.builtAt.slice(0, 10)}.`
+              : "Complete self-hosted agent source: reference agent, client SDK, Dockerfile, and config templates. Unzip and run with Docker per the Configuration Guide."
           }
           href="/api/agent-software/download/agent"
           available={agentAvailable}
