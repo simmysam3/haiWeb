@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail } from "@/lib/keycloak";
-import { MOCK_USERS } from "@/lib/mock-data";
+import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
 
 /**
  * GET /api/account/users
@@ -21,9 +21,14 @@ export async function GET() {
 
   try {
     const users = await listUsers(session.participant.id);
-    return NextResponse.json(users);
-  } catch {
-    return NextResponse.json(MOCK_USERS);
+    return NextResponse.json((users as KeycloakUserRep[]).map(toAccountUser));
+  } catch (err) {
+    // Surface the outage; never fabricate a user list from mock data.
+    console.error("[account/users GET] failed to list users", err);
+    return NextResponse.json(
+      { error: "Could not load users. Please try again." },
+      { status: 502 },
+    );
   }
 }
 

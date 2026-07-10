@@ -21,69 +21,145 @@ const ROLES = [
 
 
 export function UsersTable() {
-  const { data: apiUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
+  const { data: apiUsers, loading, error, refetch } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
   const [users, setUsers] = useState<MockUser[]>(apiUsers);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [inviteRole, setInviteRole] = useState<string>("buyer_view_only");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [editRole, setEditRole] = useState<string>("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const { toast, showToast } = useToast();
+
+  function openEdit(u: MockUser) {
+    setActionError(null);
+    setEditUser(u);
+    setEditRole(u.role);
+  }
+  function closeEdit() {
+    setEditUser(null);
+    setActionError(null);
+  }
+  function openDeactivate(u: MockUser) {
+    setActionError(null);
+    setDeactivateUser(u);
+  }
+  function closeDeactivate() {
+    setDeactivateUser(null);
+    setActionError(null);
+  }
 
   useEffect(() => {
     setUsers(apiUsers);
   }, [apiUsers]);
 
-  function handleInvite() {
-    if (!inviteEmail) return;
-    const newUser: MockUser = {
-      id: `u-${Date.now()}`,
-      email: inviteEmail,
-      first_name: "Invited",
-      last_name: "User",
-      role: inviteRole as MockUser["role"],
-      job_title: "",
-      phone: "",
-      status: "active",
-      last_login: "Never",
-    };
-    setUsers([...users, newUser]);
+  function closeInvite() {
     setInviteOpen(false);
     setInviteEmail("");
-    showToast(`Invitation sent to ${inviteEmail}`);
-
-    fetch("/api/account/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-    }).catch(() => {});
+    setInviteFirstName("");
+    setInviteLastName("");
+    setInviteError(null);
   }
 
-  function handleEditRole() {
+  async function handleInvite() {
+    setInviteError(null);
+    // The BFF requires all three; without them the invite 400s. Validate up
+    // front rather than firing a request we know will fail.
+    if (!inviteEmail || !inviteFirstName || !inviteLastName) {
+      setInviteError("Email, first name, and last name are all required.");
+      return;
+    }
+    setInviting(true);
+    try {
+      const res = await fetch("/api/account/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmail,
+          first_name: inviteFirstName,
+          last_name: inviteLastName,
+          role: inviteRole,
+        }),
+      });
+      if (!res.ok) {
+        // Surface the real BFF error; do NOT add an optimistic row for a user
+        // that was never created.
+        const body = await res.json().catch(() => ({}));
+        setInviteError(body.error ?? `Could not send the invitation (${res.status}).`);
+        return;
+      }
+      const created = await res.json();
+      const newUser: MockUser = {
+        id: created.id,
+        email: created.email ?? inviteEmail,
+        first_name: created.first_name ?? inviteFirstName,
+        last_name: created.last_name ?? inviteLastName,
+        role: (created.role ?? inviteRole) as MockUser["role"],
+        job_title: "",
+        phone: "",
+        status: "active",
+        last_login: "Never",
+      };
+      setUsers((prev) => [...prev, newUser]);
+      showToast(`Invitation sent to ${newUser.email}`);
+      closeInvite();
+    } catch {
+      setInviteError("Could not reach the server. Please try again.");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function handleEditRole() {
     if (!editUser || !editRole) return;
-    setUsers(users.map((u) => u.id === editUser.id ? { ...u, role: editRole as MockUser["role"] } : u));
-    const userId = editUser.id;
-    setEditUser(null);
-    showToast("Role updated");
-
-    fetch(`/api/account/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: editRole }),
-    }).catch(() => {});
+    setActionError(null);
+    setActionBusy(true);
+    try {
+      const res = await fetch(`/api/account/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: editRole }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? `Could not update the role (${res.status}).`);
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.id === editUser.id ? { ...u, role: editRole as MockUser["role"] } : u)));
+      showToast("Role updated");
+      closeEdit();
+    } catch {
+      setActionError("Could not reach the server. Please try again.");
+    } finally {
+      setActionBusy(false);
+    }
   }
 
-  function handleDeactivate() {
+  async function handleDeactivate() {
     if (!deactivateUser) return;
-    setUsers(users.map((u) => u.id === deactivateUser.id ? { ...u, status: "disabled" as const } : u));
-    const userId = deactivateUser.id;
-    setDeactivateUser(null);
-    showToast("User deactivated");
-
-    fetch(`/api/account/users/${userId}`, {
-      method: "DELETE",
-    }).catch(() => {});
+    setActionError(null);
+    setActionBusy(true);
+    try {
+      const res = await fetch(`/api/account/users/${deactivateUser.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActionError(body.error ?? `Could not deactivate the user (${res.status}).`);
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u.id === deactivateUser.id ? { ...u, status: "disabled" as const } : u)));
+      showToast("User deactivated");
+      closeDeactivate();
+    } catch {
+      setActionError("Could not reach the server. Please try again.");
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   const columns: Column<MockUser>[] = [
@@ -117,11 +193,11 @@ export function UsersTable() {
       label: "",
       render: (u) => u.role === "account_owner" ? null : (
         <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => { setEditUser(u); setEditRole(u.role); }}>
+          <Button size="sm" variant="ghost" onClick={() => openEdit(u)}>
             Edit Role
           </Button>
           {u.status === "active" && (
-            <Button size="sm" variant="ghost" onClick={() => setDeactivateUser(u)}>
+            <Button size="sm" variant="ghost" onClick={() => openDeactivate(u)}>
               Deactivate
             </Button>
           )}
@@ -129,6 +205,19 @@ export function UsersTable() {
       ),
     },
   ];
+
+  // A load failure must read as an outage, not as "this account has no users".
+  if (error && !loading) {
+    return (
+      <div className="bg-white rounded-lg border border-slate/15 p-8 text-center">
+        <p className="text-sm font-medium text-problem">Could not load users.</p>
+        <p className="mt-1 text-sm text-slate">There was a problem reaching the identity service. Your team members are safe — this is a display issue.</p>
+        <div className="mt-4">
+          <Button size="sm" variant="secondary" onClick={refetch}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -147,11 +236,41 @@ export function UsersTable() {
       </div>
 
       {/* Invite Modal */}
-      <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite User">
+      <Modal open={inviteOpen} onClose={closeInvite} title="Invite User">
         <div className="space-y-4">
+          {inviteError && (
+            <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+              {inviteError}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="invite-first-name" className="block text-sm font-medium text-charcoal mb-1">First Name</label>
+              <input
+                id="invite-first-name"
+                type="text"
+                value={inviteFirstName}
+                onChange={(e) => setInviteFirstName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                placeholder="Jordan"
+              />
+            </div>
+            <div>
+              <label htmlFor="invite-last-name" className="block text-sm font-medium text-charcoal mb-1">Last Name</label>
+              <input
+                id="invite-last-name"
+                type="text"
+                value={inviteLastName}
+                onChange={(e) => setInviteLastName(e.target.value)}
+                className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                placeholder="Reyes"
+              />
+            </div>
+          </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
+            <label htmlFor="invite-email" className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
             <input
+              id="invite-email"
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
@@ -160,8 +279,9 @@ export function UsersTable() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal mb-1">Role</label>
+            <label htmlFor="invite-role" className="block text-sm font-medium text-charcoal mb-1">Role</label>
             <select
+              id="invite-role"
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
               className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
@@ -172,42 +292,58 @@ export function UsersTable() {
             </select>
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite}>Send Invitation</Button>
+            <Button variant="secondary" onClick={closeInvite}>Cancel</Button>
+            <Button onClick={handleInvite} disabled={inviting}>
+              {inviting ? "Sending…" : "Send Invitation"}
+            </Button>
           </div>
         </div>
       </Modal>
 
       {/* Edit Role Modal */}
-      <Modal open={!!editUser} onClose={() => setEditUser(null)} title="Edit Role">
+      <Modal open={!!editUser} onClose={closeEdit} title="Edit Role">
         <div className="space-y-4">
+          {actionError && (
+            <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+              {actionError}
+            </div>
+          )}
           <p className="text-sm text-charcoal">
             Change role for <strong>{editUser?.first_name} {editUser?.last_name}</strong>
           </p>
-          <select
-            value={editRole}
-            onChange={(e) => setEditRole(e.target.value)}
-            className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="edit-role" className="block text-sm font-medium text-charcoal mb-1">Role</label>
+            <select
+              id="edit-role"
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value)}
+              className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{STATUS_LABELS[r] ?? r}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setEditUser(null)}>Cancel</Button>
-            <Button onClick={handleEditRole}>Save</Button>
+            <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
+            <Button onClick={handleEditRole} disabled={actionBusy}>{actionBusy ? "Saving…" : "Save"}</Button>
           </div>
         </div>
       </Modal>
 
       {/* Deactivate Modal */}
-      <Modal open={!!deactivateUser} onClose={() => setDeactivateUser(null)} title="Deactivate User">
+      <Modal open={!!deactivateUser} onClose={closeDeactivate} title="Deactivate User">
+        {actionError && (
+          <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem mb-4">
+            {actionError}
+          </div>
+        )}
         <p className="text-sm text-charcoal mb-4">
           Are you sure you want to deactivate <strong>{deactivateUser?.first_name} {deactivateUser?.last_name}</strong>? They will lose access to the portal.
         </p>
         <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={() => setDeactivateUser(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDeactivate}>Deactivate</Button>
+          <Button variant="secondary" onClick={closeDeactivate}>Cancel</Button>
+          <Button variant="danger" onClick={handleDeactivate} disabled={actionBusy}>{actionBusy ? "Deactivating…" : "Deactivate"}</Button>
         </div>
       </Modal>
     </>
