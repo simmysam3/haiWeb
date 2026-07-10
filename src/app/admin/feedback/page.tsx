@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
+import { Button } from "@/components/button";
 import { Pill } from "@/components/pill";
 import { DetailChevron } from "@/components/sonar/observations";
 
@@ -173,23 +174,13 @@ export default function AdminFeedbackPage() {
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate/10">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-              className="inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white text-charcoal border border-slate/20 hover:bg-light-gray px-3 py-1.5 text-xs"
-            >
+            <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
               Previous
-            </button>
+            </Button>
             <span className="text-sm text-slate">Page {page} of {totalPages}</span>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
-              className="inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white text-charcoal border border-slate/20 hover:bg-light-gray px-3 py-1.5 text-xs"
-            >
+            <Button size="sm" variant="secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
               Next
-            </button>
+            </Button>
           </div>
         )}
       </Card>
