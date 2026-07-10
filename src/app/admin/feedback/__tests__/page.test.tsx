@@ -107,6 +107,23 @@ describe('AdminFeedbackPage', () => {
     });
   });
 
+  it('setting the To date yields an inclusive end-of-day upper bound (T23:59:59.999Z)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(EMPTY_RESPONSE));
+    const user = userEvent.setup();
+
+    render(<Page />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const toInput = screen.getByLabelText(/to date/i);
+    await user.type(toInput, '2026-07-09');
+
+    await waitFor(() => {
+      const lastUrl = fetchMock.mock.calls.at(-1)?.[0] as string;
+      const to = new URLSearchParams(lastUrl.split('?')[1]).get('to');
+      expect(to).toBe('2026-07-09T23:59:59.999Z');
+    });
+  });
+
   it('shows an empty-state message with no crash when the feed has no events', async () => {
     fetchMock.mockResolvedValue(jsonResponse(EMPTY_RESPONSE));
 

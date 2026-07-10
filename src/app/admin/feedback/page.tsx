@@ -53,8 +53,11 @@ export default function AdminFeedbackPage() {
     const params = new URLSearchParams();
     if (sentiment) params.set("sentiment", sentiment);
     if (deployment) params.set("deployment", deployment);
+    // Date inputs are UTC-aligned windows: "from" starts at UTC midnight of
+    // that day, and "to" must reach end-of-day so haiCore's inclusive upper
+    // bound doesn't exclude the selected day entirely.
     if (from) params.set("from", new Date(from).toISOString());
-    if (to) params.set("to", new Date(to).toISOString());
+    if (to) params.set("to", new Date(`${to}T23:59:59.999Z`).toISOString());
     return params;
   }, [sentiment, deployment, from, to]);
 

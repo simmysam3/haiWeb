@@ -43,13 +43,13 @@ describe('GET /api/admin/chat-feedback (BFF list)', () => {
   });
 
   it('authed: fetches haiCore with same query string, Bearer token + protocol header, returns JSON', async () => {
-    const res = await get('?rating=down&page=2');
+    const res = await get('?sentiment=down&page=2');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ events: [{ id: 'e1' }], total: 1, page: 1, page_size: 20 });
 
     const [calledUrl, init] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(calledUrl).toContain('/api/v1/admin/chat-feedback?');
-    expect(calledUrl).toContain('rating=down');
+    expect(calledUrl).toContain('sentiment=down');
     expect(calledUrl).toContain('page=2');
     expect((init.headers as Record<string, string>).Authorization).toBe(
       'Bearer header.payload.signature',
@@ -72,6 +72,13 @@ describe('GET /api/admin/chat-feedback/export (BFF JSONL export)', () => {
     vi.clearAllMocks();
     getSession.mockResolvedValue({ is_admin: true });
     getToken.mockResolvedValue('header.payload.signature');
+  });
+
+  it('401 when unauthenticated (requireAdminToken gate short-circuits)', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await getExport();
+    expect(res.status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('authed: streams body with content-type + content-disposition passthrough', async () => {
