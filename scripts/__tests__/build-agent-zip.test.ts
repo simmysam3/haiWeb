@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildAgentZip } from '../build-agent-zip.mjs';
+import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
 const created: string[] = [];
 function tmp(prefix: string): string {
@@ -104,5 +105,106 @@ describe('buildAgentZip', () => {
     git('commit', '-qm', 'plant filename-only fingerprint');
     const out = tmp('agentzip-out-');
     expect(() => buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] })).toThrow(/Agent archive leak/);
+  });
+});
+
+function initStructuredRepo(): string {
+  const dir = tmp('agentzip-struct-');
+  const git = (...a: string[]) => execFileSync('git', ['-C', dir, ...a], { stdio: 'pipe' });
+  git('init', '-q');
+  git('config', 'user.email', 't@t.t');
+  git('config', 'user.name', 'T');
+  const write = (rel: string, content: string) => {
+    const full = join(dir, rel);
+    mkdirSync(join(full, '..'), { recursive: true });
+    writeFileSync(full, content);
+  };
+  // package.json needs a version for buildAgentZip
+  write('package.json', JSON.stringify({ name: 'agent', version: '9.9.9' }));
+  // allowlisted paths (should ship)
+  write('src/index.ts', 'export const x = 1;\n');
+  write('packages/client-sdk/src/__tests__/conformance/jwt-auth.test.ts', '// conformance\n');
+  write('haicore-protocol/dist/index.js', 'exports.x = 1;\n');
+  write('Dockerfile', 'FROM node:22\n');
+  write('scripts/docker-entrypoint.sh', '#!/bin/sh\n');
+  write('scripts/seed-config.mjs', '// seed\n');
+  write('scripts/hash-chat-password.mjs', '// hash\n');
+  // remaining ALLOWLIST top-level entries: `git archive` is fail-loud — every
+  // pathspec passed to it must match something, so the default-allowlist call
+  // in this test needs a stub for every ALLOWLIST entry, not just the ones
+  // under assertion below.
+  write('frontend/index.ts', '// frontend stub\n');
+  write('public/index.html', '<!-- public stub -->\n');
+  write('config/default.json', '{}\n');
+  write('package-lock.json', '{}\n');
+  write('tsconfig.json', '{}\n');
+  write('tsconfig.typecheck.json', '{}\n');
+  write('vitest.config.ts', 'export default {};\n');
+  write('docker-compose.yml', 'services: {}\n');
+  write('.dockerignore', 'node_modules\n');
+  write('README.md', '# agent\n');
+  write('UPGRADING.md', '# upgrading\n');
+  write('CHANGELOG.md', '# changelog\n');
+  write('LICENSE', 'MIT\n');
+  write('.env.example', 'SECRET=\n');
+  write('.gitignore', 'node_modules\n');
+  // internal paths (should NOT ship)
+  write('CLAUDE.md', '# internal\n');
+  write('.gitattributes',
+    'tests/** export-ignore\n' +
+    '**/__tests__/** export-ignore\n' +
+    '**/*.test.ts export-ignore\n' +
+    '**/*.spec.ts export-ignore\n' +
+    'packages/client-sdk/src/__tests__/conformance -export-ignore\n' +
+    'packages/client-sdk/src/__tests__/conformance/** -export-ignore\n');
+  write('kill-agents.ps1', '# kill\n');
+  write('deploy-agent.sh', '#!/bin/sh\n');
+  write('docs/typed-memory.md', '# doc\n');
+  write('scripts/sync-protocol.mjs', '// internal\n');
+  write('src/chat/__tests__/query-router.test.ts', '// non-conformance test\n');
+  git('add', '-A');
+  git('commit', '-qm', 'init');
+  return dir;
+}
+
+describe('agent archive allowlist invariants', () => {
+  it('ships required entries and excludes internal ones under the default allowlist', () => {
+    const repo = initStructuredRepo();
+    const out = tmp('agentzip-out-');
+    const manifest = buildAgentZip({ repoPath: repo, outDir: out }); // default ALLOWLIST
+    const entries = execFileSync('unzip', ['-Z1', join(out, manifest.zipFile)]).toString();
+
+    // present (required)
+    for (const p of [
+      'src/index.ts',
+      'packages/client-sdk/src/__tests__/conformance/jwt-auth.test.ts',
+      'haicore-protocol/dist/index.js',
+      'Dockerfile',
+      'scripts/docker-entrypoint.sh',
+      'scripts/seed-config.mjs',
+      'scripts/hash-chat-password.mjs',
+      'package.json',
+    ]) {
+      expect(entries, `expected ${p} to ship`).toContain(p);
+    }
+
+    // absent (internal / non-conformance)
+    for (const p of [
+      'CLAUDE.md',
+      '.gitattributes',
+      'kill-agents.ps1',
+      'deploy-agent.sh',
+      'docs/typed-memory.md',
+      'scripts/sync-protocol.mjs',
+      'src/chat/__tests__/query-router.test.ts',
+    ]) {
+      expect(entries.split('\n'), `expected ${p} to be excluded`).not.toContain(p);
+    }
+  });
+
+  it('the allowlist has no obviously-internal entries', () => {
+    for (const p of ALLOWLIST) {
+      expect(p).not.toMatch(/^(CLAUDE\.md|deploy-agent\.sh|kill-|docs\/|\.gitattributes)/);
+    }
   });
 });
