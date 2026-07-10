@@ -13,13 +13,17 @@ import { DENYLIST } from './lib/agent-archive-denylist.mjs';
  */
 
 /**
- * Scan a produced zip for denylisted fingerprints by streaming each entry's
- * text via `unzip -p`. Returns every (file, matched-term) hit.
+ * Scan a produced zip for denylisted fingerprints, checking both each
+ * entry's path and its text content (streamed via `unzip -p`). Returns
+ * every (file, matched-term) hit.
  */
 export function scanZipForDenylist(zipPath) {
   const listing = execFileSync('unzip', ['-Z1', zipPath]).toString().split('\n').filter(Boolean);
   const hits = [];
   for (const entry of listing) {
+    for (const re of DENYLIST) {
+      if (re.test(entry)) hits.push({ file: entry, term: `<path> ${entry.match(re)[0]}` });
+    }
     if (entry.endsWith('/')) continue;
     let text;
     try {

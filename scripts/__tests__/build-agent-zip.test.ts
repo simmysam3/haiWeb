@@ -93,4 +93,16 @@ describe('buildAgentZip', () => {
     const out = tmp('agentzip-out-');
     expect(() => buildAgentZip({ repoPath: repo, outDir: out })).not.toThrow();
   });
+
+  it('throws when a tracked filename names a demo company, even with clean content', () => {
+    const repo = initRepo();
+    const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { stdio: 'pipe' });
+    // Plant a tracked file whose NAME carries the fingerprint but whose
+    // CONTENT is unrelated/clean — the content scan alone would miss this.
+    writeFileSync(join(repo, 'amphenol-config.json'), '{"port":3000}\n');
+    git('add', '-A');
+    git('commit', '-qm', 'plant filename-only fingerprint');
+    const out = tmp('agentzip-out-');
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+  });
 });
