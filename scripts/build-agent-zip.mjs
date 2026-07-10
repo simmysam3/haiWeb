@@ -41,6 +41,23 @@ export function scanZipForDenylist(zipPath) {
 }
 
 /**
+ * Assert the produced archive ships the protocol conformance kit and no other
+ * tests. Guards the subtle .gitattributes un-ignore rules: a dir-prune pattern
+ * silently ships zero conformance files, which the denylist guard won't catch.
+ */
+export function assertConformanceShipped(zipPath, { minKitFiles = 10 } = {}) {
+  const listing = execFileSync('unzip', ['-Z1', zipPath]).toString().split('\n').filter(Boolean);
+  const kit = listing.filter((e) => e.includes('__tests__/conformance/') && /\.test\.ts$/.test(e));
+  if (kit.length < minKitFiles) {
+    throw new Error(`Conformance kit missing from archive: ${kit.length} conformance test(s) shipped (expected >= ${minKitFiles}). Check the haiClient .gitattributes test-exclusion/un-ignore rules.`);
+  }
+  const strayTests = listing.filter((e) => /\.(test|spec)\.ts$/.test(e) && !e.includes('__tests__/conformance/'));
+  if (strayTests.length > 0) {
+    throw new Error(`Non-conformance test(s) shipped in archive (expected only the conformance kit): ${strayTests.slice(0, 10).join(', ')}`);
+  }
+}
+
+/**
  * @param {{ repoPath: string, outDir: string, now?: Date, allowlist?: string[] }} opts
  * @returns {{ version: string, zipFile: string, zipBytes: number, builtAt: string }}
  */
@@ -90,5 +107,6 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const repoPath = process.env.AGENT_SOURCE_REPO ?? '../haiClient';
   const outDir = resolve('private/agent-downloads');
   const manifest = buildAgentZip({ repoPath, outDir });
+  assertConformanceShipped(join(outDir, manifest.zipFile));
   console.log(`Built ${manifest.zipFile} (${manifest.zipBytes} bytes) for agent v${manifest.version}`);
 }

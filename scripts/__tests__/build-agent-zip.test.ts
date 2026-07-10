@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildAgentZip } from '../build-agent-zip.mjs';
+import { buildAgentZip, assertConformanceShipped } from '../build-agent-zip.mjs';
 import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
 const created: string[] = [];
@@ -206,5 +206,52 @@ describe('agent archive allowlist invariants', () => {
     for (const p of ALLOWLIST) {
       expect(p).not.toMatch(/^(CLAUDE\.md|deploy-agent\.sh|kill-|docs\/|\.gitattributes)/);
     }
+  });
+});
+
+function initRepoWithConformanceKit(opts: { kitFiles?: number; strayTest?: boolean } = {}): string {
+  const { kitFiles = 12, strayTest = false } = opts;
+  const dir = tmp('agentzip-conf-');
+  const git = (...a: string[]) => execFileSync('git', ['-C', dir, ...a], { stdio: 'pipe' });
+  git('init', '-q');
+  git('config', 'user.email', 't@t.t');
+  git('config', 'user.name', 'T');
+  const write = (rel: string, content: string) => {
+    const full = join(dir, rel);
+    mkdirSync(join(full, '..'), { recursive: true });
+    writeFileSync(full, content);
+  };
+  write('package.json', JSON.stringify({ name: 'agent', version: '9.9.9' }));
+  for (let i = 0; i < kitFiles; i++) {
+    write(`packages/client-sdk/src/__tests__/conformance/kit-${i}.test.ts`, `// conformance ${i}\n`);
+  }
+  if (strayTest) {
+    write('src/foo.test.ts', '// stray non-conformance test\n');
+  }
+  git('add', '-A');
+  git('commit', '-qm', 'init');
+  return dir;
+}
+
+describe('assertConformanceShipped', () => {
+  it('does not throw when the archive ships >= minKitFiles conformance tests and no other tests', () => {
+    const repo = initRepoWithConformanceKit({ kitFiles: 12 });
+    const out = tmp('agentzip-out-');
+    const manifest = buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] });
+    expect(() => assertConformanceShipped(join(out, manifest.zipFile))).not.toThrow();
+  });
+
+  it('throws "Conformance kit missing" when the archive ships no conformance files', () => {
+    const repo = initRepoWithConformanceKit({ kitFiles: 0 });
+    const out = tmp('agentzip-out-');
+    const manifest = buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] });
+    expect(() => assertConformanceShipped(join(out, manifest.zipFile))).toThrow(/Conformance kit missing/);
+  });
+
+  it('throws "Non-conformance test" when a stray test file ships alongside the kit', () => {
+    const repo = initRepoWithConformanceKit({ kitFiles: 12, strayTest: true });
+    const out = tmp('agentzip-out-');
+    const manifest = buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] });
+    expect(() => assertConformanceShipped(join(out, manifest.zipFile))).toThrow(/Non-conformance test/);
   });
 });
