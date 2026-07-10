@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { DENYLIST } from './lib/agent-archive-denylist.mjs';
+import { ALLOWLIST } from './lib/agent-archive-allowlist.mjs';
 
 /**
  * Build a secret-safe source archive of the haiClient agent via `git archive`
@@ -40,10 +41,10 @@ export function scanZipForDenylist(zipPath) {
 }
 
 /**
- * @param {{ repoPath: string, outDir: string, now?: Date }} opts
+ * @param {{ repoPath: string, outDir: string, now?: Date, allowlist?: string[] }} opts
  * @returns {{ version: string, zipFile: string, zipBytes: number, builtAt: string }}
  */
-export function buildAgentZip({ repoPath, outDir, now = new Date() }) {
+export function buildAgentZip({ repoPath, outDir, now = new Date(), allowlist = ALLOWLIST }) {
   const repo = resolve(repoPath);
   if (!existsSync(join(repo, '.git'))) {
     throw new Error(`Not a git repository: ${repo}`);
@@ -59,7 +60,7 @@ export function buildAgentZip({ repoPath, outDir, now = new Date() }) {
   const zipFile = `haiwave-agent-v${version}.zip`;
   const zipPath = join(outDir, zipFile);
 
-  execFileSync('git', ['-C', repo, 'archive', '--format=zip', '-o', zipPath, 'HEAD'], { stdio: 'pipe' });
+  execFileSync('git', ['-C', repo, 'archive', '--format=zip', '-o', zipPath, 'HEAD', '--', ...allowlist], { stdio: 'pipe' });
 
   const leaks = scanZipForDenylist(zipPath);
   if (leaks.length > 0) {

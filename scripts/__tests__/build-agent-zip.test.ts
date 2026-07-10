@@ -37,7 +37,7 @@ describe('buildAgentZip', () => {
     const repo = initRepo();
     const out = tmp('agentzip-out-');
 
-    const manifest = buildAgentZip({ repoPath: repo, outDir: out, now: new Date('2026-06-08T00:00:00Z') });
+    const manifest = buildAgentZip({ repoPath: repo, outDir: out, now: new Date('2026-06-08T00:00:00Z'), allowlist: ['.'] });
 
     expect(manifest.version).toBe('9.9.9');
     expect(manifest.zipFile).toBe('haiwave-agent-v9.9.9.zip');
@@ -72,7 +72,7 @@ describe('buildAgentZip', () => {
     git('add', '-A');
     git('commit', '-qm', 'plant');
     const out = tmp('agentzip-out-');
-    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] })).toThrow(/Agent archive leak/);
   });
 
   it('deletes the leaked zip and writes no manifest when a fingerprint is found', () => {
@@ -83,7 +83,7 @@ describe('buildAgentZip', () => {
     git('add', '-A');
     git('commit', '-qm', 'plant');
     const out = tmp('agentzip-out-');
-    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] })).toThrow(/Agent archive leak/);
     expect(existsSync(join(out, 'haiwave-agent-v9.9.9.zip'))).toBe(false);
     expect(existsSync(join(out, 'manifest.json'))).toBe(false);
   });
@@ -91,7 +91,7 @@ describe('buildAgentZip', () => {
   it('succeeds and reports no leak for a clean repo', () => {
     const repo = initRepo();
     const out = tmp('agentzip-out-');
-    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).not.toThrow();
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] })).not.toThrow();
   });
 
   it('throws when a tracked filename names a demo company, even with clean content', () => {
@@ -103,6 +103,6 @@ describe('buildAgentZip', () => {
     git('add', '-A');
     git('commit', '-qm', 'plant filename-only fingerprint');
     const out = tmp('agentzip-out-');
-    expect(() => buildAgentZip({ repoPath: repo, outDir: out })).toThrow(/Agent archive leak/);
+    expect(() => buildAgentZip({ repoPath: repo, outDir: out, allowlist: ['.'] })).toThrow(/Agent archive leak/);
   });
 });
