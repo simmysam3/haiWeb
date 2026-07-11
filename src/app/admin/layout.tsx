@@ -9,6 +9,7 @@ const adminNav = [
   { href: "/admin/abuse", label: "Abuse Monitoring" },
   { href: "/admin/health", label: "Network Health" },
   { href: "/admin/audit", label: "Audit Log" },
+  { href: "/admin/feedback", label: "Feedback" },
 ];
 
 export default async function AdminLayout({

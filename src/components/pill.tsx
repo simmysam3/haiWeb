@@ -247,6 +247,17 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     not_ready: 'No interchangeable trading pair matched, or every interchangeable vendor is unavailable.',
     not_evaluated: 'Readiness was not evaluated for this component (not a fan-out target).',
   },
+  // Task 11 — admin chat-feedback review page (/admin/feedback). Sentiment on
+  // a thumbs up/down event uploaded by a deployed agent.
+  'feedback-sentiment': {
+    up: 'End user rated this answer helpful.',
+    down: 'End user flagged this answer as wrong or unhelpful.',
+  },
+  // Task 11 — deployment context of the agent that reported the feedback event.
+  'agent-deployment': {
+    internal: 'HAIWAVE-operated agent (demo/internal fleet).',
+    external: "Adopter-deployed agent reporting from a customer environment.",
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -349,6 +360,12 @@ function deriveTone(category?: string, value?: string): NonNullable<PillProps['t
     if (v === 'at_risk') return 'warn';
     if (v === 'not_ready') return 'problem';
     // not_evaluated → neutral
+  }
+  // Task 11 — feedback-sentiment tones: up = green, down = amber (flagged for
+  // review, not a hard failure). Never orange (nav-only).
+  if (category === 'feedback-sentiment') {
+    if (v === 'up') return 'success';
+    if (v === 'down') return 'warn';
   }
   return 'neutral';
 }
