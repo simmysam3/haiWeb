@@ -11,6 +11,7 @@ const WALL_LABELS: Record<string, string> = {
   no_answer: 'No answer',
   depth_cap: 'Recursion depth cap',
   agent_error: 'Agent error',
+  posture_opt_out: 'Supplier posture: opted out',
 };
 
 // v1.55 Spec 3 — human phrasing for the ReadinessReason enum, shown beside the
@@ -84,11 +85,24 @@ export function BomNodeDetail({ node, targetDate }: BomNodeDetailProps) {
 
       {node.vendor_block && (
         <section className="space-y-2 text-sm">
-          <h4 className="font-medium text-slate-700">Vendor</h4>
-          <p>
-            <span className="text-slate-500">SKU:</span>{' '}
-            <span className="font-mono">{node.vendor_block.vendor_sku}</span>
-          </p>
+          {node.vendor_block.vendor_participant_id ? (
+            <>
+              <h4 className="font-medium text-slate-700">Vendor</h4>
+              <p>
+                <span className="text-slate-500">SKU:</span>{' '}
+                <span className="font-mono">{node.vendor_block.vendor_sku}</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <h4 className="font-medium text-slate-700">Upstream source</h4>
+              <p className="text-xs text-slate-500">
+                A supplier behind this vendor. Identity is not disclosed across the tier;
+                availability and lead-time state roll up.{' '}
+                <span className="font-mono">{node.vendor_block.anonymous_handle}</span>
+              </p>
+            </>
+          )}
           {node.vendor_block.plt_days !== null && (
             <p>
               <span className="text-slate-500">PLT (published):</span>{' '}

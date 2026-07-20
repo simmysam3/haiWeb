@@ -142,3 +142,37 @@ describe('BomNodeDetail — interchangeable vendors', () => {
     expect(screen.getByTestId('readiness-reason')).toHaveTextContent(/short on quantity/i);
   });
 });
+
+const redactedNode: BomNode = {
+  line_id: '4b4de1a4-58f5-4f14-9a3e-444444444444',
+  component_sku: 'EIVMU-MODULE',
+  component_label: 'Engine interface & vibration monitoring unit',
+  qty_per_parent_unit: 1, qty_required_total: 4, source: 'vendor_stock',
+  on_hand_qty: null,
+  vendor_block: {
+    anonymous_handle: 'tier_2_responder_abcd2345',
+    mto_reference: null, plt_days: 45, qlt: null,
+    inventory_disclosure: 'not_disclosed', on_hand_qty_at_vendor: null, historical_lt: null,
+  },
+  internal_block: null, wall_block: null, subcomponents: [], attributes: [],
+  alternates: [], alternates_status: 'not_evaluated',
+  synthesis_mode: 'aggregated_derivative',
+};
+
+describe('anonymous upstream node', () => {
+  it('renders the upstream card without SKU or identity', () => {
+    render(<BomNodeDetail node={redactedNode} targetDate="2026-09-01" />);
+    expect(screen.getByText('Upstream source')).toBeInTheDocument();
+    expect(screen.getByText('tier_2_responder_abcd2345')).toBeInTheDocument();
+    expect(screen.queryByText('SKU:')).not.toBeInTheDocument();
+    expect(screen.getByText(/45 days/)).toBeInTheDocument();   // state survives
+  });
+
+  it('labels the posture_opt_out wall', () => {
+    render(<BomNodeDetail node={{
+      ...redactedNode, source: 'wall', vendor_block: null, synthesis_mode: undefined,
+      wall_block: { reason: 'posture_opt_out', depth_when_hit: 2, intended_counterparty: null, detail: null },
+    }} targetDate="2026-09-01" />);
+    expect(screen.getByText(/Supplier posture: opted out/)).toBeInTheDocument();
+  });
+});
