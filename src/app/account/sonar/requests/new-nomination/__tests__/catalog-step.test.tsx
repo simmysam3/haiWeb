@@ -77,6 +77,31 @@ describe('CatalogStep', () => {
     expect(next.classes.has('c1')).toBe(true);
   });
 
+  it('passes class and product labels alongside selections', async () => {
+    const onChange = vi.fn();
+    render(
+      <CatalogStep
+        vendor={{ id: 'v1', legal_name: 'Apex' }}
+        selections={{ classes: new Set(), products: new Set() }}
+        onChange={onChange}
+        onAdvance={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => screen.getByText('Ball Bearings'));
+    await userEvent.click(screen.getByLabelText('Ball Bearings'));
+    expect(onChange.mock.calls.at(-1)![1]).toMatchObject({
+      classLabels: { c1: 'Ball Bearings' },
+    });
+
+    await userEvent.click(screen.getAllByText(/show products/i)[0]);
+    await waitFor(() => screen.getByText('6201-2RS Bearing'));
+    await userEvent.click(screen.getByLabelText('6201-2RS Bearing'));
+    expect(onChange.mock.calls.at(-1)![1]).toMatchObject({
+      productLabels: { p1: '6201-2RS Bearing' },
+    });
+  });
+
   it('disables product checkboxes when their class is selected', async () => {
     render(
       <CatalogStep

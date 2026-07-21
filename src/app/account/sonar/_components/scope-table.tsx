@@ -48,12 +48,15 @@ export function ScopeTable({
     {
       key: 'scope',
       label: 'Scope',
-      render: (s) => (
-        <>
-          {s.scope_type}
-          {s.scope_ref ? ` / ${s.scope_ref}` : ''}
-        </>
-      ),
+      render: (s) => {
+        const ref = s.scope_label ?? s.scope_ref;
+        return (
+          <>
+            {s.scope_type}
+            {ref ? ` / ${ref}` : ''}
+          </>
+        );
+      },
     },
     {
       key: 'created',
