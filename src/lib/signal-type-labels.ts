@@ -26,4 +26,12 @@ export const SIGNAL_TYPE_LABELS: Record<SignalType, SignalTypeLabel> = {
     label: 'Quoted lead time',
     tooltip: 'Counterparty-quoted lead time for a SKU under your specific trading relationship — typically tighter than the published figure.',
   },
+  order_fulfillment_history: {
+    label: 'Order state',
+    tooltip: 'Active orders and recent quoted-vs-actual ship dates for this SKU.',
+  },
+  soft_quoted_lead_time: {
+    label: 'Soft-quoted',
+    tooltip: 'Live best-effort lead time for the ask quantity, from a phantom-demand traversal.',
+  },
 };

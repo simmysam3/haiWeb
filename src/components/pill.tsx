@@ -118,6 +118,18 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     PLT: 'Published lead time — vendor\'s stated/advertised lead time (the contract baseline).',
     QLT: 'Quoted lead time — what the vendor would commit to for a new order placed today.',
   },
+  // Readiness watcher redesign — column headers on the run-detail lead-time
+  // history table. Each column is a distinct lead-time provenance for a
+  // (SKU, vendor): published (ERP baseline), calibrated (from fulfillment
+  // history), soft_quoted (live phantom-demand traversal for the ask qty),
+  // plus available-capacity band and the ask-quantity target.
+  lead_time_col: {
+    published: "Published lead time: the vendor's officially listed timeline, typically ERP-set. May not reflect current performance.",
+    calibrated: "Calibrated: system-computed from the vendor's actual fulfillment history — the quoted-vs-actual ship-date delta over recent orders, outliers removed.",
+    soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
+    capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
+    ask_quantity: "Ask quantity: the forward-demand quantity and target date you want this SKU to be sourceable for.",
+  },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
   },

@@ -170,6 +170,36 @@ describe('Pill', () => {
   });
 });
 
+describe('lead_time_col pill category', () => {
+  it.each([
+    ['soft_quoted', /phantom-demand traversal/i],
+    ['published', /officially listed timeline/i],
+    ['calibrated', /actual fulfillment history/i],
+    ['capacity', /capacity utilization band/i],
+    ['ask_quantity', /forward-demand quantity and target date/i],
+  ])('%s resolves its definition tooltip', (value, expected) => {
+    render(<Pill category="lead_time_col" value={value} />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip?.textContent).toMatch(expected);
+  });
+
+  it('renders every lead_time_col value without a missing-definition warn', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(
+      <>
+        <Pill category="lead_time_col" value="published" />
+        <Pill category="lead_time_col" value="calibrated" />
+        <Pill category="lead_time_col" value="soft_quoted" />
+        <Pill category="lead_time_col" value="capacity" />
+        <Pill category="lead_time_col" value="ask_quantity" />
+      </>,
+    );
+    expect(warn).not.toHaveBeenCalled();
+  });
+});
+
 describe('readiness pill', () => {
   it('renders a readiness verdict with a definition tooltip', () => {
     render(<Pill category="readiness" value="not_ready" />);
