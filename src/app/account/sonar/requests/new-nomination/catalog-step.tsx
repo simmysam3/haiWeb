@@ -15,7 +15,10 @@ interface ProductsState {
 interface Props {
   vendor: PartnerSummary;
   selections: FormSelections;
-  onChange: (next: FormSelections) => void;
+  onChange: (
+    next: FormSelections,
+    labels?: { classLabels?: Record<string, string>; productLabels?: Record<string, string> },
+  ) => void;
   onAdvance: () => void;
   onBack: () => void;
 }
@@ -98,21 +101,31 @@ export function CatalogStep({ vendor, selections, onChange, onAdvance, onBack }:
   );
 
   const toggleClass = useCallback(
-    (classId: string) => {
+    (klass: CatalogClass) => {
       const nextClasses = new Set(selections.classes);
-      if (nextClasses.has(classId)) nextClasses.delete(classId);
-      else nextClasses.add(classId);
-      onChange({ classes: nextClasses, products: selections.products });
+      if (nextClasses.has(klass.class_id)) nextClasses.delete(klass.class_id);
+      else nextClasses.add(klass.class_id);
+      onChange(
+        { classes: nextClasses, products: selections.products },
+        { classLabels: { [klass.class_id]: klass.class_name } },
+      );
     },
     [selections, onChange],
   );
 
   const toggleProduct = useCallback(
-    (productId: string) => {
+    (product: CatalogProduct) => {
       const nextProducts = new Set(selections.products);
-      if (nextProducts.has(productId)) nextProducts.delete(productId);
-      else nextProducts.add(productId);
-      onChange({ classes: selections.classes, products: nextProducts });
+      if (nextProducts.has(product.external_product_id)) nextProducts.delete(product.external_product_id);
+      else nextProducts.add(product.external_product_id);
+      onChange(
+        { classes: selections.classes, products: nextProducts },
+        {
+          productLabels: {
+            [product.external_product_id]: product.product_name ?? product.external_product_id,
+          },
+        },
+      );
     },
     [selections, onChange],
   );
@@ -163,7 +176,7 @@ export function CatalogStep({ vendor, selections, onChange, onAdvance, onBack }:
                   aria-label={klass.class_name}
                   checked={isAlreadyCovered || isSelected}
                   disabled={isAlreadyCovered}
-                  onChange={() => toggleClass(klass.class_id)}
+                  onChange={() => toggleClass(klass)}
                   className="h-4 w-4 accent-teal"
                 />
                 <label htmlFor={`class-${klass.class_id}`} className="flex-1 cursor-pointer">
@@ -213,7 +226,7 @@ export function CatalogStep({ vendor, selections, onChange, onAdvance, onBack }:
                               aria-label={product.product_name ?? product.external_product_id}
                               checked={checked}
                               disabled={disabled}
-                              onChange={() => toggleProduct(product.external_product_id)}
+                              onChange={() => toggleProduct(product)}
                               className="h-4 w-4 accent-teal"
                             />
                             <label

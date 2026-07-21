@@ -12,13 +12,18 @@ const vendorPickerProps: Array<{ onAdvance: (v: { id: string; legal_name: string
 const catalogStepProps: Array<{
   vendor: { id: string; legal_name: string };
   selections: { classes: Set<string>; products: Set<string> };
-  onChange: (next: { classes: Set<string>; products: Set<string> }) => void;
+  onChange: (
+    next: { classes: Set<string>; products: Set<string> },
+    labels?: { classLabels?: Record<string, string>; productLabels?: Record<string, string> },
+  ) => void;
   onAdvance: () => void;
   onBack: () => void;
 }> = [];
 const confirmStepProps: Array<{
   vendor: { id: string; legal_name: string };
   selections: { classes: Set<string>; products: Set<string> };
+  classLabels: Record<string, string>;
+  productLabels: Record<string, string>;
   onSubmitted: () => void;
   onBack: () => void;
 }> = [];
@@ -34,7 +39,14 @@ vi.mock('../catalog-step', () => ({
     catalogStepProps.push(props);
     return (
       <div>
-        <button onClick={() => props.onChange({ classes: new Set(['c1']), products: new Set() })}>
+        <button
+          onClick={() =>
+            props.onChange(
+              { classes: new Set(['c1']), products: new Set() },
+              { classLabels: { c1: 'Ball Bearings' } },
+            )
+          }
+        >
           select-c1
         </button>
         <button onClick={props.onAdvance}>continue</button>
@@ -121,6 +133,15 @@ describe('NominationForm', () => {
     await userEvent.click(screen.getByText('select-c1'));      // catalog selects c1
     await userEvent.click(screen.getByText('continue'));        // catalog → step 2
     expect(screen.getByText('submit')).toBeInTheDocument();
+  });
+
+  it('forwards labels from catalog selections to the confirm step', async () => {
+    render(<NominationForm initialState={{ kind: 'cold' }} />);
+    await userEvent.click(screen.getByText('pick-apex'));
+    await userEvent.click(screen.getByText('select-c1'));
+    await userEvent.click(screen.getByText('continue'));
+    expect(screen.getByText('submit')).toBeInTheDocument();
+    expect(confirmStepProps.at(-1)!.classLabels).toMatchObject({ c1: 'Ball Bearings' });
   });
 
   it('back button on catalog step returns to vendor picker', async () => {

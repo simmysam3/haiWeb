@@ -122,7 +122,7 @@ export function NominationForm({ initialState }: { initialState: InitialState })
           <CatalogStep
             vendor={vendor}
             selections={selections}
-            onChange={(next) => onCatalogChange(next)}
+            onChange={onCatalogChange}
             onAdvance={onCatalogAdvance}
             onBack={() => setStep(0)}
           />
