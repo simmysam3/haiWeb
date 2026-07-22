@@ -96,7 +96,7 @@ const results: WatcherResult[] = [
 ];
 
 const skuAsks: SkuAsk[] = [
-  { sku: SKU, ask_quantity: 40, target_date: '2026-09-01' },
+  { sku: SKU, ask_quantity: 40, target_days: 42 },
 ];
 
 describe('pivotReadiness', () => {
@@ -107,7 +107,7 @@ describe('pivotReadiness', () => {
     const sku = skus[0];
     expect(sku.sku).toBe(SKU);
     expect(sku.ask?.ask_quantity).toBe(40);
-    expect(sku.ask?.target_date).toBe('2026-09-01');
+    expect(sku.ask?.target_days).toBe(42);
     expect(sku.vendors).toHaveLength(1);
 
     const vendor = sku.vendors[0];

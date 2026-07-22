@@ -59,7 +59,7 @@ export function ReadinessReport({ skus }: Props) {
             <h3 className="text-lg font-semibold text-charcoal">{sku.product_name}</h3>
             {sku.ask && (
               <p className="text-sm text-slate">
-                Ask: {sku.ask.ask_quantity} units by {sku.ask.target_date}
+                Ask: {sku.ask.ask_quantity} units within {sku.ask.target_days} calendar days
               </p>
             )}
           </header>

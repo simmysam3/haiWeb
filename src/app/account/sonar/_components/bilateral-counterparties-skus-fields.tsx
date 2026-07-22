@@ -55,12 +55,22 @@ interface Props {
   collectAsks?: boolean;
 }
 
-// Per-SKU ask draft held in local state. ask_quantity is NaN until the user
+// Per-SKU ask draft held in local state. Both fields are NaN until the user
 // types a value; an ask is emitted as a sku_asks entry only once BOTH a
-// positive quantity AND a target date are present.
+// positive quantity AND a positive target window (calendar days) are present.
+// target_days is a rolling offset from each run's date, not a fixed date.
 interface AskDraft {
   ask_quantity: number;
-  target_date: string;
+  target_days: number;
+}
+
+// "If run today" preview of the rolling target window — today + N calendar days,
+// shown next to the days input. Presentational only; the stored ask keeps the
+// offset (target_days) so each run resolves against its own date.
+function previewTargetDate(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 type WizardOptions = AuditWizardOptionsResponse;
@@ -243,8 +253,8 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
       }
     }
     // Emit an ask only for selected SKUs that carry BOTH a positive quantity
-    // and a non-empty target date. A blank target_date produces an invalid ask
-    // that fails the run, so a quantity-only draft is held locally, not emitted.
+    // and a positive target window (calendar days). A quantity-only draft is
+    // held locally, not emitted — an incomplete ask would fail the run.
     const skuAsks: SkuAsk[] = [];
     for (const sku of nextSelected) {
       const draft = nextAsks.get(sku);
@@ -252,12 +262,13 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
         draft &&
         Number.isFinite(draft.ask_quantity) &&
         draft.ask_quantity > 0 &&
-        draft.target_date.trim() !== ''
+        Number.isFinite(draft.target_days) &&
+        draft.target_days > 0
       ) {
         skuAsks.push({
           sku,
           ask_quantity: draft.ask_quantity,
-          target_date: draft.target_date,
+          target_days: draft.target_days,
         });
       }
     }
@@ -273,7 +284,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
   }
 
   function updateAsk(sku: string, patch: Partial<AskDraft>) {
-    const current = asks.get(sku) ?? { ask_quantity: Number.NaN, target_date: '' };
+    const current = asks.get(sku) ?? { ask_quantity: Number.NaN, target_days: Number.NaN };
     const next = new Map(asks);
     next.set(sku, { ...current, ...patch });
     setAsks(next);
@@ -287,6 +298,12 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
     if (!collectAsks || !selectedSkus.has(sku)) return null;
     const draft = asks.get(sku);
     const qtyValue = draft && Number.isFinite(draft.ask_quantity) ? String(draft.ask_quantity) : '';
+    const daysValue = draft && Number.isFinite(draft.target_days) ? String(draft.target_days) : '';
+    // "if run today" preview so the rolling window reads as a concrete date
+    // without pinning the stored value to one — the ask stays run_date + N days.
+    const preview = draft && Number.isFinite(draft.target_days) && draft.target_days > 0
+      ? previewTargetDate(draft.target_days)
+      : null;
     return (
       <span className="flex items-center gap-1">
         <input
@@ -298,14 +315,24 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
           placeholder="qty"
           className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
         />
-        <input
-          type="date"
-          required
-          aria-label={`Target date for ${sku}`}
-          value={draft?.target_date ?? ''}
-          onChange={(e) => updateAsk(sku, { target_date: e.target.value })}
-          className="rounded border border-slate-300 px-1.5 py-0.5 text-xs"
-        />
+        <label className="flex items-center gap-1 text-xs text-slate">
+          <input
+            type="number"
+            min={1}
+            required
+            aria-label={`Target window in calendar days for ${sku}`}
+            value={daysValue}
+            onChange={(e) => updateAsk(sku, { target_days: Number.parseInt(e.target.value, 10) })}
+            placeholder="days"
+            className="w-14 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+          />
+          calendar days
+        </label>
+        {preview && (
+          <span className="text-xs text-slate whitespace-nowrap" aria-hidden>
+            → ~{preview} if run today
+          </span>
+        )}
       </span>
     );
   }

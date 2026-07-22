@@ -79,7 +79,7 @@ describe('<WatcherScopePicker>', () => {
     expect(next).toBe(3);
   });
 
-  it('entering both an ask quantity and a target date for a selected SKU emits sku_asks on the scope', async () => {
+  it('entering both an ask quantity and a target window (calendar days) for a selected SKU emits sku_asks on the scope', async () => {
     stubCatalogFetch();
 
     const onChange = vi.fn();
@@ -93,20 +93,20 @@ describe('<WatcherScopePicker>', () => {
 
     const qty = await screen.findByLabelText('Ask quantity for PN-88A');
     await userEvent.type(qty, '40');
-    const date = await screen.findByLabelText('Target date for PN-88A');
-    fireEvent.change(date, { target: { value: '2026-09-12' } });
+    const days = await screen.findByLabelText('Target window in calendar days for PN-88A');
+    fireEvent.change(days, { target: { value: '30' } });
 
     const last = onChange.mock.calls.at(-1)?.[0] as WatcherScope;
     expect(last.sku_asks).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ sku: 'PN-88A', ask_quantity: 40, target_date: '2026-09-12' }),
+        expect.objectContaining({ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }),
       ]),
     );
   });
 
-  // A blank target date makes an invalid ask that fails the run — so an ask must
-  // be emitted only when BOTH a positive quantity and a target date are present.
-  it('does not emit a sku_ask when a quantity is entered but the target date is left blank', async () => {
+  // A blank target window makes an invalid ask that fails the run — so an ask must
+  // be emitted only when BOTH a positive quantity and a positive window are present.
+  it('does not emit a sku_ask when a quantity is entered but the target window is left blank', async () => {
     stubCatalogFetch();
 
     const onChange = vi.fn();

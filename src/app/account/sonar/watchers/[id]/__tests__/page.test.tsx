@@ -95,7 +95,7 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
             observation_class: 'watcher',
             scope: {
               kind: 'watcher',
-              sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_date: '2026-09-12' }],
+              sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }],
             },
           },
         },
@@ -118,7 +118,7 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
 
     // ReadinessReport: the SKU heading + its forward-demand ask quantity.
     expect(screen.getByRole('heading', { name: 'PN-88A' })).toBeInTheDocument();
-    expect(screen.getByText(/Ask: 40 units by 2026-09-12/)).toBeInTheDocument();
+    expect(screen.getByText(/Ask: 40 units within 30 calendar days/)).toBeInTheDocument();
     // The order-state table (inside ReadinessReport) shows the active PO.
     expect(screen.getByText('PO-4471')).toBeInTheDocument();
     // NOT the legacy counterparties grid.
@@ -149,6 +149,6 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(
       screen.getByRole('heading', { name: 'Counterparty observations' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Ask: .* units by/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ask: .* units within/)).not.toBeInTheDocument();
   });
 });

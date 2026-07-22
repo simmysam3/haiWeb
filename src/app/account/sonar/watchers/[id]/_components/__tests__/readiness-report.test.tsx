@@ -6,7 +6,7 @@ import type { ReadinessSku } from '../../_lib/pivot-readiness';
 const sku: ReadinessSku = {
   sku: 'SKU-COMPRESSOR-BLADE',
   product_name: 'Compressor Blade',
-  ask: { sku: 'SKU-COMPRESSOR-BLADE', ask_quantity: 40, target_date: '2026-09-01' },
+  ask: { sku: 'SKU-COMPRESSOR-BLADE', ask_quantity: 40, target_days: 42 },
   vendors: [
     {
       vendor_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -34,11 +34,11 @@ const sku: ReadinessSku = {
 };
 
 describe('<ReadinessReport>', () => {
-  it('renders the SKU header with the ask quantity + target date', () => {
+  it('renders the SKU header with the ask quantity + rolling target window', () => {
     render(<ReadinessReport skus={[sku]} />);
 
     expect(screen.getByText('Compressor Blade')).toBeInTheDocument();
-    expect(screen.getByText(/Ask:\s*40\s*.*by\s*2026-09-01/)).toBeInTheDocument();
+    expect(screen.getByText(/Ask:\s*40\s*.*within\s*42\s*calendar days/)).toBeInTheDocument();
   });
 
   it('renders each vendor with both the order-state and lead-time tables', () => {
