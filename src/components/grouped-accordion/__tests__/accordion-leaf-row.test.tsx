@@ -51,4 +51,34 @@ describe('<AccordionLeafRow>', () => {
     fireEvent.click(screen.getByTestId('id-chip'));
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('renders detailSlot content on its own line beneath the row, not inside it', () => {
+    render(
+      <AccordionLeafRow
+        label="Leaf"
+        metaSlot={<span>SKU-1</span>}
+        detailSlot={<span>ask cluster</span>}
+      />,
+    );
+    const detail = screen.getByText('ask cluster');
+    expect(detail).toBeInTheDocument();
+    // The detail line is a sibling of the treeitem row, not part of its flex line.
+    const row = screen.getByText('Leaf').closest('[role="treeitem"]');
+    expect(row).not.toBeNull();
+    expect(row).not.toContainElement(detail);
+  });
+
+  it('clicking detailSlot content does not activate a clickable row', () => {
+    const onClick = vi.fn();
+    render(
+      <AccordionLeafRow
+        label="Leaf"
+        onClick={onClick}
+        metaSlot={<span>m</span>}
+        detailSlot={<button type="button">inner control</button>}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'inner control' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });
