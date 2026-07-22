@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AuditWizardOptionsResponse } from '@haiwave/protocol';
+import type { AuditWizardOptionsResponse, SkuAsk } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import {
   GroupedAccordion,
@@ -48,7 +48,18 @@ import { TristateCheckbox } from '@/components/tristate-checkbox';
 
 interface Props {
   skus: string[];
-  onChange: (next: { counterparties: string[]; skus: string[] }) => void;
+  onChange: (next: { counterparties: string[]; skus: string[]; sku_asks: SkuAsk[] }) => void;
+  // Readiness watchers collect a per-SKU forward-demand ask (quantity + target
+  // date) inline at each selected SKU. Off by default so the shared audit
+  // picker keeps its plain SKU-selection surface — audit ignores sku_asks.
+  collectAsks?: boolean;
+}
+
+// Per-SKU ask draft held in local state. ask_quantity is NaN until the user
+// types a value; only positive quantities are emitted as sku_asks.
+interface AskDraft {
+  ask_quantity: number;
+  target_date: string;
 }
 
 type WizardOptions = AuditWizardOptionsResponse;
@@ -71,8 +82,11 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
+export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks = false }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
+  // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
+  // re-selecting restores a typed value; only selected SKUs are emitted.
+  const [asks, setAsks] = useState<Map<string, AskDraft>>(new Map());
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [expandedCounterparties, setExpandedCounterparties] = useState<Set<string>>(new Set());
@@ -218,7 +232,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
     });
   }
 
-  function applySelection(nextSelected: Set<string>) {
+  function emitWith(nextSelected: Set<string>, nextAsks: Map<string, AskDraft>) {
     if (!options) return;
     // Derive counterparties from which counterparty owns any selected SKU.
     const cpSet = new Set<string>();
@@ -227,7 +241,64 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
         cpSet.add(cp.counterparty_id);
       }
     }
-    onChange({ counterparties: Array.from(cpSet), skus: Array.from(nextSelected) });
+    // Emit an ask only for selected SKUs that carry a positive quantity.
+    const skuAsks: SkuAsk[] = [];
+    for (const sku of nextSelected) {
+      const draft = nextAsks.get(sku);
+      if (draft && Number.isFinite(draft.ask_quantity) && draft.ask_quantity > 0) {
+        skuAsks.push({
+          sku,
+          ask_quantity: draft.ask_quantity,
+          target_date: draft.target_date,
+        });
+      }
+    }
+    onChange({
+      counterparties: Array.from(cpSet),
+      skus: Array.from(nextSelected),
+      sku_asks: skuAsks,
+    });
+  }
+
+  function applySelection(nextSelected: Set<string>) {
+    emitWith(nextSelected, asks);
+  }
+
+  function updateAsk(sku: string, patch: Partial<AskDraft>) {
+    const current = asks.get(sku) ?? { ask_quantity: Number.NaN, target_date: '' };
+    const next = new Map(asks);
+    next.set(sku, { ...current, ...patch });
+    setAsks(next);
+    emitWith(selectedSkus, next);
+  }
+
+  // Inline forward-demand ask inputs — rendered only for readiness watchers
+  // (collectAsks) at a currently-selected SKU. Null everywhere else so the
+  // shared audit picker is unchanged.
+  function askInputs(sku: string) {
+    if (!collectAsks || !selectedSkus.has(sku)) return null;
+    const draft = asks.get(sku);
+    const qtyValue = draft && Number.isFinite(draft.ask_quantity) ? String(draft.ask_quantity) : '';
+    return (
+      <span className="flex items-center gap-1">
+        <input
+          type="number"
+          min={1}
+          aria-label={`Ask quantity for ${sku}`}
+          value={qtyValue}
+          onChange={(e) => updateAsk(sku, { ask_quantity: Number.parseInt(e.target.value, 10) })}
+          placeholder="qty"
+          className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+        />
+        <input
+          type="date"
+          aria-label={`Target date for ${sku}`}
+          value={draft?.target_date ?? ''}
+          onChange={(e) => updateAsk(sku, { target_date: e.target.value })}
+          className="rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+        />
+      </span>
+    );
   }
 
   function toggleSku(skuId: string) {
@@ -364,9 +435,12 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
                               }
                               label={p.product_name ?? '(unnamed product)'}
                               metaSlot={
-                                <span className="text-xs font-mono text-slate truncate">
-                                  {p.external_product_id}
-                                </span>
+                                <>
+                                  <span className="text-xs font-mono text-slate truncate">
+                                    {p.external_product_id}
+                                  </span>
+                                  {askInputs(p.external_product_id)}
+                                </>
                               }
                             />
                           ))}
@@ -391,6 +465,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
                               onChange={() => toggleSku(id)}
                             />
                             <span className="font-mono text-slate truncate">{id}</span>
+                            {askInputs(id)}
                           </label>
                         ))}
                       </div>
