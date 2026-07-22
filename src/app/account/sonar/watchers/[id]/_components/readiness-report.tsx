@@ -52,13 +52,19 @@ interface Props {
 
 export function ReadinessReport({ skus }: Props) {
   return (
-    <div className="space-y-8">
+    <div className="divide-y-2 divide-slate-200">
       {skus.map((sku) => (
-        <section key={sku.sku} className="space-y-3">
-          <header>
-            <h3 className="text-lg font-semibold text-charcoal">{sku.product_name}</h3>
+        <section key={sku.sku} className="space-y-4 py-8 first:pt-0 last:pb-0">
+          <header className="border-b border-slate-100 pb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-teal">
+              Watched SKU
+            </p>
+            <h3 className="mt-0.5 text-lg font-semibold text-charcoal">
+              {sku.product_name}
+              <span className="ml-2 font-mono text-xs font-normal text-slate-500">{sku.sku}</span>
+            </h3>
             {sku.ask && (
-              <p className="text-sm text-slate">
+              <p className="mt-1 text-sm text-slate">
                 Ask: {sku.ask.ask_quantity} units within {sku.ask.target_days} calendar days
               </p>
             )}
