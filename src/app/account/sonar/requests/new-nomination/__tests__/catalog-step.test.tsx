@@ -94,12 +94,38 @@ describe('CatalogStep', () => {
       classLabels: { c1: 'Ball Bearings' },
     });
 
-    await userEvent.click(screen.getAllByText(/show products/i)[0]);
+    await userEvent.click(screen.getByRole('button', { name: /show products in ball bearings/i }));
     await waitFor(() => screen.getByText('6201-2RS Bearing'));
     await userEvent.click(screen.getByLabelText('6201-2RS Bearing'));
     expect(onChange.mock.calls.at(-1)![1]).toMatchObject({
       productLabels: { p1: '6201-2RS Bearing' },
     });
+  });
+
+  it('expands products via the standard chevron accordion, not a text link, and labels the child level Products', async () => {
+    render(
+      <CatalogStep
+        vendor={{ id: 'v1', legal_name: 'Apex' }}
+        selections={{ classes: new Set(), products: new Set() }}
+        onChange={() => {}}
+        onAdvance={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => screen.getByText('Ball Bearings'));
+    // UI consistency: no bespoke "Show/Hide products" text link
+    expect(screen.queryByText(/show products/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hide products/i)).not.toBeInTheDocument();
+    // standard chevron accordion toggle, collapsed by default
+    const toggle = screen.getByRole('button', { name: /products in ball bearings/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(toggle);
+    await waitFor(() => screen.getByText('6201-2RS Bearing'));
+    expect(
+      screen.getByRole('button', { name: /products in ball bearings/i }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    // the child level is explicitly identified as products
+    expect(screen.getByText('Products')).toBeInTheDocument();
   });
 
   it('disables product checkboxes when their class is selected', async () => {
@@ -113,7 +139,7 @@ describe('CatalogStep', () => {
       />,
     );
     await waitFor(() => screen.getByText('Ball Bearings'));
-    await userEvent.click(screen.getAllByText(/show products/i)[0]);
+    await userEvent.click(screen.getByRole('button', { name: /show products in ball bearings/i }));
     await waitFor(() => screen.getByText('6201-2RS Bearing'));
     const productCheckbox = screen.getByLabelText('6201-2RS Bearing');
     expect(productCheckbox).toBeDisabled();
