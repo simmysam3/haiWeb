@@ -55,8 +55,9 @@ consistent.
 
 `AccordionLeafRow` gains an optional `detailSlot?: ReactNode` prop. When
 present, it renders on a second line *beneath* the row's flex line, indented to
-align under the label (i.e. inset past the control column). It is part of the
-same treeitem node.
+align under the label (i.e. inset past the control column). It renders outside
+the treeitem element, as a following sibling, so row activation cannot swallow
+clicks on detail-line inputs.
 
 `src/app/account/sonar/_components/bilateral-counterparties-skus-fields.tsx`:
 

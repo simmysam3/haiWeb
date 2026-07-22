@@ -463,5 +463,6 @@ With the local stack up (haiWeb dev server on :3001; start with `npm run dev` if
 
 1. `http://localhost:3001/account/sonar/watchers/new` — body is visibly wider (896px); expanding a counterparty → class shows products indented one clear tab under the class label; checking a product reveals the `Qty … Target window … calendar days → ~<date> if run today` line fully rendered beneath it, nothing clipped.
 2. `http://localhost:3001/account/sonar/audit/new` — same width + indentation, NO ask inputs anywhere.
+3. `http://localhost:3001/account/provenance` — grouped browse AND an active search: the flat search-result list also gets the new pl-6 leaf inset; confirm it reads acceptably there (no parent group to indent under).
 
 If the stack or login isn't available, stop and hand the visual check to the user rather than skipping it.

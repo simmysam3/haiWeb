@@ -322,7 +322,7 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
     return (
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate">
         <label className="flex items-center gap-1.5">
-          <span>Qty</span>
+          <span>Quantity</span>
           <input
             type="number"
             min={1}

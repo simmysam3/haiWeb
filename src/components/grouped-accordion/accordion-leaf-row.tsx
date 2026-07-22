@@ -23,6 +23,9 @@ interface Props {
  * label. It is a SIBLING of the row element, not a child: detail content
  * routinely carries inputs, and nesting those inside the clickable treeitem
  * would make row activation swallow their clicks.
+ * The detail line therefore sits outside the tree's treeitem content model;
+ * its inputs are natively focusable, so Tab and browse-mode access are
+ * unaffected.
  *
  * The pl-6 inset on both variants keeps the leaf one visual tab deeper than
  * its parent group row's label (whose chevron + checkbox push it right).
@@ -36,8 +39,9 @@ export function AccordionLeafRow({ controlSlot, label, metaSlot, onClick, detail
       <span className="ml-auto flex items-center gap-2">{metaSlot}</span>
     </>
   );
-  const detail =
-    detailSlot != null ? <div className="pl-12 pr-3 pb-1">{detailSlot}</div> : null;
+  // Truthy check (not != null): `detailSlot={cond && <X/>}` passes `false`,
+  // which must not render an empty padded line.
+  const detail = detailSlot ? <div className="pl-12 pr-3 pb-1">{detailSlot}</div> : null;
   if (onClick) {
     return (
       <>

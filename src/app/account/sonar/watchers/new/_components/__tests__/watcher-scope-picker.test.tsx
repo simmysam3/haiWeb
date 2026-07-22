@@ -178,7 +178,7 @@ describe('<WatcherScopePicker>', () => {
     await userEvent.click(await screen.findByRole('button', { name: /expand unclassified/i }));
 
     // Visible labels (not just placeholders/aria-labels).
-    const qtyLabel = await screen.findByText('Qty');
+    const qtyLabel = await screen.findByText('Quantity');
     expect(screen.getByText('Target window')).toBeInTheDocument();
     // The predicted-date preview renders (target_days is set).
     expect(screen.getByText(/if run today/)).toBeInTheDocument();
