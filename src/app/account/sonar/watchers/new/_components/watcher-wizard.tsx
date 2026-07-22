@@ -174,7 +174,7 @@ export function WatcherWizard() {
       <div className="pt-1">
         <StepRail steps={steps} onJump={jump} />
       </div>
-      <div className="flex-1 max-w-2xl space-y-4">
+      <div className="flex-1 max-w-4xl space-y-4">
         <StepCard id="identity" index={0} title="Identity">
           <NameField noun="Watcher" value={name} onChange={setName} />
         </StepCard>

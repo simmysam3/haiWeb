@@ -338,7 +338,7 @@ export function DefinitionEditor({
       <div className="pt-1">
         <StepRail steps={railSteps} onJump={jump} />
       </div>
-      <div className="flex-1 max-w-2xl">
+      <div className="flex-1 max-w-4xl">
         <StepCard id="identity" index={0} title="Identity">
           <NameField noun={noun} value={name} onChange={setName} />
         </StepCard>
