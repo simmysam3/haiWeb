@@ -605,6 +605,12 @@ export interface HaiwaveClient {
   triggerWatcherRun(body: WatcherRunTriggerRequest): Promise<{ run_id: string; status: WatcherRunStatus }>;
   listWatcherRuns(opts?: { limit?: number; template_id?: string }): Promise<{ runs: WatcherRun[] }>;
   getWatcherRun(runId: string): Promise<{ run: WatcherRun; results: WatcherResult[] }>;
+  // Trailing history for the readiness run-detail page: the last N runs of the
+  // anchor run's watcher plus every result across them (SKU->vendor lead-time
+  // series). Anchor runs with no template return just their own run + results.
+  getWatcherTrailingHistory(
+    runId: string,
+  ): Promise<{ runs: { run_id: string; triggered_at: string }[]; results: WatcherResult[] }>;
   getWatcherRunStatus(runId: string): Promise<{ status: WatcherRunStatus }>;
   cancelWatcherRun(runId: string): Promise<{ cancelled: boolean }>;
   deleteWatcherRun(runId: string): Promise<{ deleted: boolean }>;
@@ -1609,6 +1615,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET',
         `/sonar/watcher/runs/${runId}`,
       );
+    },
+    getWatcherTrailingHistory(runId) {
+      return request<{
+        runs: { run_id: string; triggered_at: string }[];
+        results: WatcherResult[];
+      }>('GET', `/sonar/watcher/runs/${runId}/trailing-history`);
     },
     getWatcherRunStatus(runId) {
       return request<{ status: WatcherRunStatus }>(

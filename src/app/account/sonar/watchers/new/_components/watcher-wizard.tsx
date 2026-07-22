@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Cadence, WatcherScope } from '@haiwave/protocol';
+import { DEFAULT_WATCHER_DRIFT_THRESHOLDS } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
 import { FormError } from '@/components';
 import { SchedulePicker } from '../../../_components/schedule-picker';
 import { AuditLifecycleFields } from '../../../_components/audit-lifecycle-fields';
+import { DriftThresholdsFields } from '../../../_components/drift-thresholds-fields';
 import { StepRail, type RailStep } from '../../../_components/step-rail';
 import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
@@ -38,11 +40,21 @@ function emptyScope(): WatcherScope {
     kind: 'watcher',
     authorization_basis: 'bilateral',
     counterparties: [],
-    // Lead time + capacity utilization band cover the two highest-signal
-    // watcher use cases; delivery events are opt-in (noisier surface).
-    signal_types: ['lead_time_distribution', 'capacity_utilization_band'],
+    // Readiness watchers default to the forward-looking signal set: the
+    // published baseline, live capacity band, order-fulfillment history, and
+    // the soft-quoted phantom-demand traversal for the ask quantity.
+    signal_types: [
+      'published_lead_time',
+      'capacity_utilization_band',
+      'order_fulfillment_history',
+      'soft_quoted_lead_time',
+    ],
     skus: [],
     depth_limit: 1,
+    // Seed the drift thresholds so a watcher created without touching the
+    // Drift step still carries the defaults on its scope, and the Drift step
+    // has a concrete value to render and edit.
+    drift_thresholds: DEFAULT_WATCHER_DRIFT_THRESHOLDS,
   };
 }
 
@@ -75,6 +87,7 @@ export function WatcherWizard() {
     { id: 'identity', label: 'Identity', state: 'active' },
     { id: 'scope', label: 'Watcher Scope', state: 'todo' },
     { id: 'schedule', label: 'Schedule', state: 'todo' },
+    { id: 'drift', label: 'Drift', state: 'todo' },
     { id: 'lifecycle', label: 'Lifecycle', state: 'todo' },
   ];
 
@@ -179,7 +192,20 @@ export function WatcherWizard() {
           />
         </StepCard>
 
-        <StepCard id="lifecycle" index={3} title="Lifecycle">
+        {/* Drift thresholds are configured up front here, mirroring the
+            definition editor's Drift step. Locked while the cadence is
+            manual_only — drift is judged across scheduled runs, so a one-off
+            manual watcher has no baseline to tune against. The default
+            thresholds still ride along on the scope either way. */}
+        <StepCard id="drift" index={3} title="Drift detection">
+          <DriftThresholdsFields
+            value={scope.drift_thresholds ?? DEFAULT_WATCHER_DRIFT_THRESHOLDS}
+            onChange={(drift) => setScope({ ...scope, drift_thresholds: drift })}
+            locked={cadence.kind === 'manual_only'}
+          />
+        </StepCard>
+
+        <StepCard id="lifecycle" index={4} title="Lifecycle">
           <AuditLifecycleFields
             retentionDays={retentionDays}
             onRetentionChange={setRetentionDays}

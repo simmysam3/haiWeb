@@ -4,12 +4,19 @@ import { fetchBffJson } from '@/lib/server-fetch';
 import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
 import { CounterpartiesGrid, type EnrichedWatcherResult } from './_components/counterparties-grid';
+import { ReadinessReport } from './_components/readiness-report';
+import { pivotReadiness, type RunRef } from './_lib/pivot-readiness';
 import { RunControls } from './run-controls';
 import { RunFailureBanner } from './run-failure-banner';
-import type { RunTemplate, WatcherRun, WatcherResult } from '@haiwave/protocol';
+import type { RunTemplate, SkuAsk, WatcherRun, WatcherResult } from '@haiwave/protocol';
 
 interface WatcherRunDetailResponse {
   run: WatcherRun;
+  results: WatcherResult[];
+}
+
+interface TrailingHistoryResponse {
+  runs: RunRef[];
   results: WatcherResult[];
 }
 
@@ -65,7 +72,7 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
   // two-level grid — Plan 3 E3). WatcherResult only carries participant_id +
   // external_product_id; the protocol envelopes have no human-readable name,
   // so we join client-side.
-  const [defResult, partnersResult, manifestResult] = await Promise.all([
+  const [defResult, partnersResult, manifestResult, historyResult] = await Promise.all([
     run.template_id
       ? fetchBffJson<DefinitionResponse>(
           `/api/account/sonar/watcher/definitions/${run.template_id}`,
@@ -73,6 +80,9 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
       : Promise.resolve({ kind: 'error' as const, status: 0, message: 'no template' }),
     fetchBffJson<PartnerRecord[]>('/api/account/partners'),
     fetchBffJson<ManifestCatalogResponse>('/api/account/sonar/manifest-catalog'),
+    fetchBffJson<TrailingHistoryResponse>(
+      `/api/account/sonar/watcher/runs/${runId}/trailing-history`,
+    ),
   ]);
 
   const templateName =
@@ -96,6 +106,27 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
       ? partnerNameById.get(r.counterparty_participant_id) ?? null
       : null,
   }));
+
+  // Readiness watchers carry per-SKU forward-demand asks on their scope. When
+  // present, the run-detail page pivots to the SKU->vendor readiness surface
+  // (order-state + lead-time-history over the trailing runs) instead of the
+  // legacy per-counterparty grid. Non-readiness watchers (no sku_asks) fall
+  // through to <CounterpartiesGrid> unchanged.
+  const skuAsks: SkuAsk[] | null =
+    defResult.kind === 'ok' && defResult.data.template.observation_class === 'watcher'
+      ? defResult.data.template.scope.sku_asks ?? null
+      : null;
+
+  const readinessSkus =
+    skuAsks && skuAsks.length > 0 && historyResult.kind === 'ok'
+      ? pivotReadiness(
+          historyResult.data.results,
+          historyResult.data.runs,
+          skuAsks,
+          productNameByExtId,
+          partnerNameById,
+        )
+      : null;
 
   // Title is the watcher's configured name (every run originates from a named
   // template). Orphan runs without a resolvable template fall back to a
@@ -135,22 +166,39 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
         />
       )}
 
-      <section aria-labelledby="counterparties-heading" className="space-y-3">
-        <h2
-          id="counterparties-heading"
-          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-        >
-          Counterparty observations
-        </h2>
-        <p className="text-sm text-slate">
-          One row per vendor in scope. Each row summarises the signals returned
-          (or redacted) on this run; expand a row for the per-signal detail.
-        </p>
-        <CounterpartiesGrid
-          results={enrichedResults}
-          productNameByExtId={productNameByExtId}
-        />
-      </section>
+      {readinessSkus ? (
+        <section aria-labelledby="readiness-heading" className="space-y-3">
+          <h2
+            id="readiness-heading"
+            className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+          >
+            SKU readiness
+          </h2>
+          <p className="text-sm text-slate">
+            One section per watched SKU with its forward-demand ask, then each
+            supplier&rsquo;s current order state and lead-time history across the
+            most recent runs.
+          </p>
+          <ReadinessReport skus={readinessSkus} />
+        </section>
+      ) : (
+        <section aria-labelledby="counterparties-heading" className="space-y-3">
+          <h2
+            id="counterparties-heading"
+            className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+          >
+            Counterparty observations
+          </h2>
+          <p className="text-sm text-slate">
+            One row per vendor in scope. Each row summarises the signals returned
+            (or redacted) on this run; expand a row for the per-signal detail.
+          </p>
+          <CounterpartiesGrid
+            results={enrichedResults}
+            productNameByExtId={productNameByExtId}
+          />
+        </section>
+      )}
     </div>
   );
 }

@@ -117,6 +117,26 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     // with the vendor's own published baseline and a fresh quote for an order today.
     PLT: 'Published lead time — vendor\'s stated/advertised lead time (the contract baseline).',
     QLT: 'Quoted lead time — what the vendor would commit to for a new order placed today.',
+    // Readiness watcher redesign — the scope picker offers order-fulfillment
+    // history (ORD) and the soft-quoted phantom-demand lead time (SQL). Dual-keyed
+    // (full name + abbreviation) so both the scope picker's ORD/SQL chips and any
+    // full-name surface resolve a definition rather than console.warn.
+    order_fulfillment_history: 'Order state — active orders and recent quoted-vs-actual ship dates for this SKU.',
+    ORD: 'Order state — active orders and recent quoted-vs-actual ship dates for this SKU.',
+    soft_quoted_lead_time: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
+    SQL: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
+  },
+  // Readiness watcher redesign — column headers on the run-detail lead-time
+  // history table. Each column is a distinct lead-time provenance for a
+  // (SKU, vendor): published (ERP baseline), calibrated (from fulfillment
+  // history), soft_quoted (live phantom-demand traversal for the ask qty),
+  // plus available-capacity band and the ask-quantity target.
+  lead_time_col: {
+    published: "Published lead time: the vendor's officially listed timeline, typically ERP-set. May not reflect current performance.",
+    calibrated: "Calibrated: system-computed from the vendor's actual fulfillment history — the quoted-vs-actual ship-date delta over recent orders, outliers removed.",
+    soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
+    capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
+    ask_quantity: "Ask quantity: the forward-demand quantity and target date you want this SKU to be sourceable for.",
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',

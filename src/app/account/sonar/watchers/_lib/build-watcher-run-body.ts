@@ -18,5 +18,6 @@ export function buildWatcherRunBody(scope: WatcherScope, templateId: string) {
     skus: scope.skus.length > 0 ? scope.skus : undefined,
     depth_limit: scope.depth_limit,
     template_id: templateId,
+    ...(scope.sku_asks && scope.sku_asks.length > 0 ? { sku_asks: scope.sku_asks } : {}),
   };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AuditWizardOptionsResponse } from '@haiwave/protocol';
+import type { AuditWizardOptionsResponse, SkuAsk } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import {
   GroupedAccordion,
@@ -48,7 +48,34 @@ import { TristateCheckbox } from '@/components/tristate-checkbox';
 
 interface Props {
   skus: string[];
-  onChange: (next: { counterparties: string[]; skus: string[] }) => void;
+  // Saved asks to hydrate the per-SKU drafts from (edit flow). Without this,
+  // editing a saved readiness watcher would start from blank drafts and the
+  // next selection change would re-emit sku_asks WITHOUT the saved entries —
+  // silently wiping them on save.
+  skuAsks?: SkuAsk[];
+  onChange: (next: { counterparties: string[]; skus: string[]; sku_asks: SkuAsk[] }) => void;
+  // Readiness watchers collect a per-SKU forward-demand ask (quantity + target
+  // date) inline at each selected SKU. Off by default so the shared audit
+  // picker keeps its plain SKU-selection surface — audit ignores sku_asks.
+  collectAsks?: boolean;
+}
+
+// Per-SKU ask draft held in local state. Both fields are NaN until the user
+// types a value; an ask is emitted as a sku_asks entry only once BOTH a
+// positive quantity AND a positive target window (calendar days) are present.
+// target_days is a rolling offset from each run's date, not a fixed date.
+interface AskDraft {
+  ask_quantity: number;
+  target_days: number;
+}
+
+// "If run today" preview of the rolling target window — today + N calendar days,
+// shown next to the days input. Presentational only; the stored ask keeps the
+// offset (target_days) so each run resolves against its own date.
+function previewTargetDate(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 type WizardOptions = AuditWizardOptionsResponse;
@@ -71,8 +98,19 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
+export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, collectAsks = false }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
+  // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
+  // re-selecting restores a typed value; only selected SKUs are emitted.
+  // Seeded from the saved asks (edit flow) so existing entries render in the
+  // inputs and survive unrelated selection changes.
+  const [asks, setAsks] = useState<Map<string, AskDraft>>(() => {
+    const seeded = new Map<string, AskDraft>();
+    for (const ask of skuAsks ?? []) {
+      seeded.set(ask.sku, { ask_quantity: ask.ask_quantity, target_days: ask.target_days });
+    }
+    return seeded;
+  });
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [expandedCounterparties, setExpandedCounterparties] = useState<Set<string>>(new Set());
@@ -218,7 +256,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
     });
   }
 
-  function applySelection(nextSelected: Set<string>) {
+  function emitWith(nextSelected: Set<string>, nextAsks: Map<string, AskDraft>) {
     if (!options) return;
     // Derive counterparties from which counterparty owns any selected SKU.
     const cpSet = new Set<string>();
@@ -227,7 +265,89 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
         cpSet.add(cp.counterparty_id);
       }
     }
-    onChange({ counterparties: Array.from(cpSet), skus: Array.from(nextSelected) });
+    // Emit an ask only for selected SKUs that carry BOTH a positive quantity
+    // and a positive target window (calendar days). A quantity-only draft is
+    // held locally, not emitted — an incomplete ask would fail the run.
+    const skuAsks: SkuAsk[] = [];
+    for (const sku of nextSelected) {
+      const draft = nextAsks.get(sku);
+      if (
+        draft &&
+        Number.isFinite(draft.ask_quantity) &&
+        draft.ask_quantity > 0 &&
+        Number.isFinite(draft.target_days) &&
+        draft.target_days > 0
+      ) {
+        skuAsks.push({
+          sku,
+          ask_quantity: draft.ask_quantity,
+          target_days: draft.target_days,
+        });
+      }
+    }
+    onChange({
+      counterparties: Array.from(cpSet),
+      skus: Array.from(nextSelected),
+      sku_asks: skuAsks,
+    });
+  }
+
+  function applySelection(nextSelected: Set<string>) {
+    emitWith(nextSelected, asks);
+  }
+
+  function updateAsk(sku: string, patch: Partial<AskDraft>) {
+    const current = asks.get(sku) ?? { ask_quantity: Number.NaN, target_days: Number.NaN };
+    const next = new Map(asks);
+    next.set(sku, { ...current, ...patch });
+    setAsks(next);
+    emitWith(selectedSkus, next);
+  }
+
+  // Inline forward-demand ask inputs — rendered only for readiness watchers
+  // (collectAsks) at a currently-selected SKU. Null everywhere else so the
+  // shared audit picker is unchanged.
+  function askInputs(sku: string) {
+    if (!collectAsks || !selectedSkus.has(sku)) return null;
+    const draft = asks.get(sku);
+    const qtyValue = draft && Number.isFinite(draft.ask_quantity) ? String(draft.ask_quantity) : '';
+    const daysValue = draft && Number.isFinite(draft.target_days) ? String(draft.target_days) : '';
+    // "if run today" preview so the rolling window reads as a concrete date
+    // without pinning the stored value to one — the ask stays run_date + N days.
+    const preview = draft && Number.isFinite(draft.target_days) && draft.target_days > 0
+      ? previewTargetDate(draft.target_days)
+      : null;
+    return (
+      <span className="flex items-center gap-1">
+        <input
+          type="number"
+          min={1}
+          aria-label={`Ask quantity for ${sku}`}
+          value={qtyValue}
+          onChange={(e) => updateAsk(sku, { ask_quantity: Number.parseInt(e.target.value, 10) })}
+          placeholder="qty"
+          className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+        />
+        <label className="flex items-center gap-1 text-xs text-slate">
+          <input
+            type="number"
+            min={1}
+            required
+            aria-label={`Target window in calendar days for ${sku}`}
+            value={daysValue}
+            onChange={(e) => updateAsk(sku, { target_days: Number.parseInt(e.target.value, 10) })}
+            placeholder="days"
+            className="w-14 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+          />
+          calendar days
+        </label>
+        {preview && (
+          <span className="text-xs text-slate whitespace-nowrap" aria-hidden>
+            → ~{preview} if run today
+          </span>
+        )}
+      </span>
+    );
   }
 
   function toggleSku(skuId: string) {
@@ -364,9 +484,12 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
                               }
                               label={p.product_name ?? '(unnamed product)'}
                               metaSlot={
-                                <span className="text-xs font-mono text-slate truncate">
-                                  {p.external_product_id}
-                                </span>
+                                <>
+                                  <span className="text-xs font-mono text-slate truncate">
+                                    {p.external_product_id}
+                                  </span>
+                                  {askInputs(p.external_product_id)}
+                                </>
                               }
                             />
                           ))}
@@ -391,6 +514,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange }: Props) {
                               onChange={() => toggleSku(id)}
                             />
                             <span className="font-mono text-slate truncate">{id}</span>
+                            {askInputs(id)}
                           </label>
                         ))}
                       </div>

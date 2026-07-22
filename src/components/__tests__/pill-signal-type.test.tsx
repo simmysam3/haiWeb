@@ -47,4 +47,19 @@ describe('<Pill category="signal_type">', () => {
     expect(screen.getByText('QLT')).toBeInTheDocument();
     expect(tooltipText()).toMatch(/quoted lead time/i);
   });
+
+  // Readiness watcher redesign — the scope picker now offers order_fulfillment_history
+  // (ORD) and soft_quoted_lead_time (SQL). Their abbreviations must resolve a
+  // definition so the pills don't drop to the missing-definition console.warn.
+  it('renders ORD (order-fulfillment history) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="ORD" />);
+    expect(screen.getByText('ORD')).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/order state/i);
+  });
+
+  it('renders SQL (soft-quoted lead time) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="SQL" />);
+    expect(screen.getByText('SQL')).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/soft-quoted/i);
+  });
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuditScopeCoverage } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import type { FormSelections, PartnerSummary } from './types';
+import { DetailChevron } from '@/components/sonar/observations';
 
 interface ProductsState {
   loading: boolean;
@@ -189,14 +190,17 @@ export function CatalogStep({ vendor, selections, onChange, onAdvance, onBack }:
                 <button
                   type="button"
                   onClick={() => onToggleExpand(klass.class_id)}
-                  className="text-xs text-teal hover:text-navy font-medium"
+                  aria-expanded={isExpanded}
+                  aria-label={`${isExpanded ? 'Hide' : 'Show'} products in ${klass.class_name}`}
+                  className="group shrink-0 p-1 -m-1 text-slate hover:text-navy"
                 >
-                  {isExpanded ? 'Hide products' : 'Show products'}
+                  <DetailChevron expanded={isExpanded} />
                 </button>
               </div>
 
               {isExpanded && (
                 <div className="bg-light-gray px-4 py-3 border-t border-slate/10">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate mb-2">Products</p>
                   {productsState?.loading && <p className="text-xs text-slate italic">Loading products…</p>}
                   {productsState?.error && <p className="text-xs text-problem">{productsState.error}</p>}
                   {productsState?.loaded && productsState.products.length === 0 && (
