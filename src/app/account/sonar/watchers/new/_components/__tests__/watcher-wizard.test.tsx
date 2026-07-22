@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { DEFAULT_WATCHER_DRIFT_THRESHOLDS } from '@haiwave/protocol';
 import { WatcherWizard } from '../watcher-wizard';
 
 vi.mock('next/navigation', () => ({
@@ -37,6 +38,13 @@ describe('<WatcherWizard>', () => {
     // …and a fresh watcher defaults its signal_types to include them.
     expect(screen.getByLabelText('ORD')).toBeChecked();
     expect(screen.getByLabelText('SQL')).toBeChecked();
+  });
+
+  it('renders a Drift detection step so thresholds can be set up front', () => {
+    render(<WatcherWizard />);
+    expect(
+      screen.getByRole('heading', { name: /Drift detection/i }),
+    ).toBeInTheDocument();
   });
 
   it('disables submit when name is empty', () => {
@@ -80,5 +88,37 @@ describe('<WatcherWizard>', () => {
     );
     expect(definitionsCall).toBeDefined();
     expect(definitionsCall![1]?.method).toBe('POST');
+  });
+
+  it('seeds default drift_thresholds into the created template scope', async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/account/sonar/watcher/definitions') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ template: { template_id: 'tpl-1' } }),
+        } as Response);
+      }
+      if (url === '/api/account/sonar/watcher/runs') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ run_id: 'run-1' }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ counterparties: [] }),
+      } as Response);
+    });
+
+    render(<WatcherWizard />);
+    await userEvent.type(screen.getByLabelText(/Watcher name/i), 'My Watcher');
+    await userEvent.click(screen.getByRole('button', { name: /^Run now$/i }));
+
+    const definitionsCall = fetchMock.mock.calls.find(
+      (c) => c[0] === '/api/account/sonar/watcher/definitions',
+    );
+    expect(definitionsCall).toBeDefined();
+    const body = JSON.parse(definitionsCall![1]!.body as string);
+    expect(body.scope.drift_thresholds).toEqual(DEFAULT_WATCHER_DRIFT_THRESHOLDS);
   });
 });
