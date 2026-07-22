@@ -117,6 +117,14 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     // with the vendor's own published baseline and a fresh quote for an order today.
     PLT: 'Published lead time — vendor\'s stated/advertised lead time (the contract baseline).',
     QLT: 'Quoted lead time — what the vendor would commit to for a new order placed today.',
+    // Readiness watcher redesign — the scope picker offers order-fulfillment
+    // history (ORD) and the soft-quoted phantom-demand lead time (SQL). Dual-keyed
+    // (full name + abbreviation) so both the scope picker's ORD/SQL chips and any
+    // full-name surface resolve a definition rather than console.warn.
+    order_fulfillment_history: 'Order state — active orders and recent quoted-vs-actual ship dates for this SKU.',
+    ORD: 'Order state — active orders and recent quoted-vs-actual ship dates for this SKU.',
+    soft_quoted_lead_time: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
+    SQL: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
   },
   // Readiness watcher redesign — column headers on the run-detail lead-time
   // history table. Each column is a distinct lead-time provenance for a

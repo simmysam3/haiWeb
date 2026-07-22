@@ -56,7 +56,8 @@ interface Props {
 }
 
 // Per-SKU ask draft held in local state. ask_quantity is NaN until the user
-// types a value; only positive quantities are emitted as sku_asks.
+// types a value; an ask is emitted as a sku_asks entry only once BOTH a
+// positive quantity AND a target date are present.
 interface AskDraft {
   ask_quantity: number;
   target_date: string;
@@ -241,11 +242,18 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
         cpSet.add(cp.counterparty_id);
       }
     }
-    // Emit an ask only for selected SKUs that carry a positive quantity.
+    // Emit an ask only for selected SKUs that carry BOTH a positive quantity
+    // and a non-empty target date. A blank target_date produces an invalid ask
+    // that fails the run, so a quantity-only draft is held locally, not emitted.
     const skuAsks: SkuAsk[] = [];
     for (const sku of nextSelected) {
       const draft = nextAsks.get(sku);
-      if (draft && Number.isFinite(draft.ask_quantity) && draft.ask_quantity > 0) {
+      if (
+        draft &&
+        Number.isFinite(draft.ask_quantity) &&
+        draft.ask_quantity > 0 &&
+        draft.target_date.trim() !== ''
+      ) {
         skuAsks.push({
           sku,
           ask_quantity: draft.ask_quantity,
@@ -292,6 +300,7 @@ export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks 
         />
         <input
           type="date"
+          required
           aria-label={`Target date for ${sku}`}
           value={draft?.target_date ?? ''}
           onChange={(e) => updateAsk(sku, { target_date: e.target.value })}
