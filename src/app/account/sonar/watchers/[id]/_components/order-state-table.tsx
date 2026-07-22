@@ -31,7 +31,7 @@ function shipDelta(quotedShipDate: string, actualShipDate: string): ShipDelta {
   return { label: `+${days}d`, late: true };
 }
 
-const HEADER_ROW = 'text-[10px] uppercase tracking-wider text-slate-500';
+const THEAD = 'bg-slate-50 text-xs uppercase tracking-wider text-slate';
 const SUBHEAD = 'mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600';
 
 interface Props {
@@ -48,24 +48,26 @@ export function OrderStateTable({ payload }: Props) {
         {payload.active_orders.length === 0 ? (
           <p className="italic text-slate">No open orders.</p>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className={HEADER_ROW}>
-                <th className="py-1 pr-3 font-semibold">PO</th>
-                <th className="py-1 pr-3 font-semibold">Qty</th>
-                <th className="py-1 font-semibold">Quoted ship</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payload.active_orders.map((order) => (
-                <tr key={order.po_number} className="border-t border-slate-100">
-                  <td className="py-1 pr-3 font-mono text-charcoal">{order.po_number}</td>
-                  <td className="py-1 pr-3">{order.quantity}</td>
-                  <td className="py-1">{formatDate(order.quoted_ship_date)}</td>
+          <div className="overflow-hidden rounded-md border border-slate-200">
+            <table className="min-w-full text-left">
+              <thead className={THEAD}>
+                <tr>
+                  <th className="px-3 py-2 font-semibold">PO</th>
+                  <th className="px-3 py-2 font-semibold">Qty</th>
+                  <th className="px-3 py-2 font-semibold">Quoted ship</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {payload.active_orders.map((order) => (
+                  <tr key={order.po_number}>
+                    <td className="px-3 py-2 font-mono text-charcoal">{order.po_number}</td>
+                    <td className="px-3 py-2">{order.quantity}</td>
+                    <td className="px-3 py-2">{formatDate(order.quoted_ship_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -74,48 +76,50 @@ export function OrderStateTable({ payload }: Props) {
         {recent.length === 0 ? (
           <p className="italic text-slate">No fulfillment history.</p>
         ) : (
-          <table className="w-full text-left">
-            <thead>
-              <tr className={HEADER_ROW}>
-                <th className="py-1 pr-3 font-semibold">PO</th>
-                <th className="py-1 pr-3 font-semibold">Qty</th>
-                <th className="py-1 pr-3 font-semibold">Quoted ship</th>
-                <th className="py-1 pr-3 font-semibold">Actual ship</th>
-                <th className="py-1 font-semibold">
-                  <Pill category="lead_time_col" value="calibrated">
-                    Ship delta
-                  </Pill>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent.map((fulfillment) => {
-                const delta = shipDelta(
-                  fulfillment.quoted_ship_date,
-                  fulfillment.actual_ship_date,
-                );
-                return (
-                  <tr key={fulfillment.po_number} className="border-t border-slate-100">
-                    <td className="py-1 pr-3 font-mono text-charcoal">{fulfillment.po_number}</td>
-                    <td className="py-1 pr-3">{fulfillment.quantity}</td>
-                    <td className="py-1 pr-3">{formatDate(fulfillment.quoted_ship_date)}</td>
-                    <td className="py-1 pr-3">{formatDate(fulfillment.actual_ship_date)}</td>
-                    <td className="py-1">
-                      <span
-                        className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${
-                          delta.late
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}
-                      >
-                        {delta.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-hidden rounded-md border border-slate-200">
+            <table className="min-w-full text-left">
+              <thead className={THEAD}>
+                <tr>
+                  <th className="px-3 py-2 font-semibold">PO</th>
+                  <th className="px-3 py-2 font-semibold">Qty</th>
+                  <th className="px-3 py-2 font-semibold">Quoted ship</th>
+                  <th className="px-3 py-2 font-semibold">Actual ship</th>
+                  <th className="px-3 py-2 font-semibold">
+                    <Pill category="lead_time_col" value="calibrated">
+                      Ship delta
+                    </Pill>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {recent.map((fulfillment) => {
+                  const delta = shipDelta(
+                    fulfillment.quoted_ship_date,
+                    fulfillment.actual_ship_date,
+                  );
+                  return (
+                    <tr key={fulfillment.po_number}>
+                      <td className="px-3 py-2 font-mono text-charcoal">{fulfillment.po_number}</td>
+                      <td className="px-3 py-2">{fulfillment.quantity}</td>
+                      <td className="px-3 py-2">{formatDate(fulfillment.quoted_ship_date)}</td>
+                      <td className="px-3 py-2">{formatDate(fulfillment.actual_ship_date)}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${
+                            delta.late
+                              ? 'border-amber-200 bg-amber-50 text-amber-800'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          }`}
+                        >
+                          {delta.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className="mt-1 text-[10px] text-slate">
           Calibrated lead time {payload.calibrated.days}d from {payload.calibrated.sample_count}{' '}

@@ -51,62 +51,66 @@ interface Props {
 
 export function LeadTimeHistoryTable({ rows, askQuantity }: Props) {
   return (
-    <table className="w-full text-left text-sm">
-      <thead>
-        <tr className="text-[10px] uppercase tracking-wider text-slate-500">
-          <th className="py-1 pr-3 font-semibold">Run date</th>
-          <th className="py-1 pr-3 font-semibold">
-            <Pill category="lead_time_col" value="published">
-              Published
-            </Pill>
-          </th>
-          <th className="py-1 pr-3 font-semibold">
-            <Pill category="lead_time_col" value="calibrated">
-              Calibrated
-            </Pill>
-          </th>
-          <th className="py-1 pr-3 font-semibold">
-            <span className="inline-flex items-center gap-1">
-              <Pill category="lead_time_col" value="soft_quoted">
-                Soft-quoted
-              </Pill>
-              <Pill category="lead_time_col" value="ask_quantity">
-                qty {askQuantity}
-              </Pill>
-            </span>
-          </th>
-          <th className="py-1 font-semibold">
-            <Pill category="lead_time_col" value="capacity">
-              Available capacity
-            </Pill>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, index) => {
-          const latest = index === 0;
-          return (
-            <tr
-              key={row.run_date}
-              className={`border-t border-slate-100 ${latest ? 'bg-teal/5 font-medium' : ''}`}
-            >
-              <td className="py-1 pr-3 text-charcoal">{formatDate(row.run_date)}</td>
-              <td className="py-1 pr-3 font-mono">{days(row.published)}</td>
-              <td className="py-1 pr-3 font-mono">{days(row.calibrated)}</td>
-              <td className="py-1 pr-3 font-mono">
-                {row.soft_quoted_unavailable ? (
-                  <span className="italic text-slate">not available</span>
-                ) : (
-                  days(row.soft_quoted)
-                )}
-              </td>
-              <td className="py-1">
-                {row.capacity === null ? DASH : CAPACITY_LABEL[row.capacity]}
-              </td>
+    <section>
+      <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+        Lead-time history
+      </h4>
+      <div className="overflow-hidden rounded-md border border-slate-200">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate">
+            <tr>
+              <th className="px-3 py-2 font-semibold">Run date</th>
+              <th className="px-3 py-2 font-semibold">
+                <Pill category="lead_time_col" value="published">
+                  Published
+                </Pill>
+              </th>
+              <th className="px-3 py-2 font-semibold">
+                <Pill category="lead_time_col" value="calibrated">
+                  Calibrated
+                </Pill>
+              </th>
+              <th className="px-3 py-2 font-semibold">
+                <span className="inline-flex items-center gap-1">
+                  <Pill category="lead_time_col" value="soft_quoted">
+                    Soft-quoted
+                  </Pill>
+                  <Pill category="lead_time_col" value="ask_quantity">
+                    qty {askQuantity}
+                  </Pill>
+                </span>
+              </th>
+              <th className="px-3 py-2 font-semibold">
+                <Pill category="lead_time_col" value="capacity">
+                  Available capacity
+                </Pill>
+              </th>
             </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white">
+            {rows.map((row, index) => {
+              const latest = index === 0;
+              return (
+                <tr key={row.run_date} className={latest ? 'bg-teal/5 font-medium' : ''}>
+                  <td className="px-3 py-2 text-charcoal">{formatDate(row.run_date)}</td>
+                  <td className="px-3 py-2 font-mono">{days(row.published)}</td>
+                  <td className="px-3 py-2 font-mono">{days(row.calibrated)}</td>
+                  <td className="px-3 py-2 font-mono">
+                    {row.soft_quoted_unavailable ? (
+                      <span className="italic text-slate">not available</span>
+                    ) : (
+                      days(row.soft_quoted)
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {row.capacity === null ? DASH : CAPACITY_LABEL[row.capacity]}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
