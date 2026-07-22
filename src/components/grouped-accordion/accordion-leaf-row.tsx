@@ -23,7 +23,7 @@ export function AccordionLeafRow({ controlSlot, label, metaSlot, onClick }: Prop
   const content = (
     <>
       {controlSlot}
-      <span className="truncate text-charcoal">{label}</span>
+      <span className="truncate text-sm text-charcoal">{label}</span>
       <span className="ml-auto flex items-center gap-2">{metaSlot}</span>
     </>
   );
