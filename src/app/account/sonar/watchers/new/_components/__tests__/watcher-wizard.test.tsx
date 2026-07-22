@@ -29,6 +29,16 @@ describe('<WatcherWizard>', () => {
     expect(screen.getByRole('heading', { name: /Lifecycle/i })).toBeInTheDocument();
   });
 
+  it('offers readiness signals and defaults a readiness watcher to include them', () => {
+    render(<WatcherWizard />);
+    // The readiness signals are selectable options in the scope picker…
+    expect(screen.getByText('Order state')).toBeInTheDocument();
+    expect(screen.getByText('Soft-quoted')).toBeInTheDocument();
+    // …and a fresh watcher defaults its signal_types to include them.
+    expect(screen.getByLabelText('ORD')).toBeChecked();
+    expect(screen.getByLabelText('SQL')).toBeChecked();
+  });
+
   it('disables submit when name is empty', () => {
     render(<WatcherWizard />);
     // Default cadence is manual_only → submit label is "Run now". A bare

@@ -38,9 +38,15 @@ function emptyScope(): WatcherScope {
     kind: 'watcher',
     authorization_basis: 'bilateral',
     counterparties: [],
-    // Lead time + capacity utilization band cover the two highest-signal
-    // watcher use cases; delivery events are opt-in (noisier surface).
-    signal_types: ['lead_time_distribution', 'capacity_utilization_band'],
+    // Readiness watchers default to the forward-looking signal set: the
+    // published baseline, live capacity band, order-fulfillment history, and
+    // the soft-quoted phantom-demand traversal for the ask quantity.
+    signal_types: [
+      'published_lead_time',
+      'capacity_utilization_band',
+      'order_fulfillment_history',
+      'soft_quoted_lead_time',
+    ],
     skus: [],
     depth_limit: 1,
   };

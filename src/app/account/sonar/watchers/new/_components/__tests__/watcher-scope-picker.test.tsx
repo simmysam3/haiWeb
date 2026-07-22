@@ -12,16 +12,16 @@ const empty: WatcherScope = {
   kind: 'watcher',
   authorization_basis: 'bilateral',
   counterparties: [],
-  signal_types: ['lead_time_distribution'],
+  signal_types: ['published_lead_time'],
   skus: [],
   depth_limit: 1,
 };
 
 describe('<WatcherScopePicker>', () => {
-  it('renders signal-type checkboxes with LT/CAP defaults', () => {
+  it('checks the signal-type checkboxes carried by the scope default', () => {
     const onChange = vi.fn();
     render(<WatcherScopePicker value={empty} onChange={onChange} />);
-    expect(screen.getByLabelText(/LT/i)).toBeChecked();
+    expect(screen.getByLabelText('PLT')).toBeChecked();
   });
 
   it('toggling a signal-type checkbox calls onChange with the updated set', async () => {

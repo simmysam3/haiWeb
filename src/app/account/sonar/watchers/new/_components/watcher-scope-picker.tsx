@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { SignalType, WatcherScope } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
+import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
 import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
@@ -11,10 +12,16 @@ interface Props {
   onChange: (next: WatcherScope) => void;
 }
 
+// Readiness watcher signals — the forward-looking provenance surface (published
+// baseline, live capacity band, order-fulfillment history, and the soft-quoted
+// phantom-demand traversal). Labels come from the shared signal-type-labels
+// source of truth. The legacy lead-time distribution and delivery-event signals
+// are no longer offered here — published/soft-quoted supersede them.
 const SIGNAL_OPTIONS: { value: SignalType; label: string }[] = [
-  { value: 'lead_time_distribution', label: 'Lead time' },
-  { value: 'capacity_utilization_band', label: 'Capacity band' },
-  { value: 'delivery_event', label: 'Delivery events' },
+  { value: 'published_lead_time', label: SIGNAL_TYPE_LABELS.published_lead_time.label },
+  { value: 'capacity_utilization_band', label: SIGNAL_TYPE_LABELS.capacity_utilization_band.label },
+  { value: 'order_fulfillment_history', label: SIGNAL_TYPE_LABELS.order_fulfillment_history.label },
+  { value: 'soft_quoted_lead_time', label: SIGNAL_TYPE_LABELS.soft_quoted_lead_time.label },
 ];
 
 export function WatcherScopePicker({ value, onChange }: Props) {
