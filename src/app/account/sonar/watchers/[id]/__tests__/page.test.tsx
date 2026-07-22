@@ -117,7 +117,13 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     render(await Page({ params: Promise.resolve({ id: RUN_ID }) }));
 
     // ReadinessReport: the SKU heading + its forward-demand ask quantity.
-    expect(screen.getByRole('heading', { name: 'PN-88A' })).toBeInTheDocument();
+    // With no manifest product name the h3 falls back to the SKU, and the
+    // header also renders the SKU in its trailing mono span — so the accessible
+    // name is "PN-88A PN-88A". Match on containment at level 3 (the page h1 is
+    // the template name, which contains the SKU too).
+    expect(
+      screen.getByRole('heading', { level: 3, name: /PN-88A/ }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Ask: 40 units within 30 calendar days/)).toBeInTheDocument();
     // The order-state table (inside ReadinessReport) shows the active PO.
     expect(screen.getByText('PO-4471')).toBeInTheDocument();
