@@ -48,6 +48,11 @@ import { TristateCheckbox } from '@/components/tristate-checkbox';
 
 interface Props {
   skus: string[];
+  // Saved asks to hydrate the per-SKU drafts from (edit flow). Without this,
+  // editing a saved readiness watcher would start from blank drafts and the
+  // next selection change would re-emit sku_asks WITHOUT the saved entries —
+  // silently wiping them on save.
+  skuAsks?: SkuAsk[];
   onChange: (next: { counterparties: string[]; skus: string[]; sku_asks: SkuAsk[] }) => void;
   // Readiness watchers collect a per-SKU forward-demand ask (quantity + target
   // date) inline at each selected SKU. Off by default so the shared audit
@@ -93,11 +98,19 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function BilateralCounterpartiesSkusFields({ skus, onChange, collectAsks = false }: Props) {
+export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, collectAsks = false }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
   // re-selecting restores a typed value; only selected SKUs are emitted.
-  const [asks, setAsks] = useState<Map<string, AskDraft>>(new Map());
+  // Seeded from the saved asks (edit flow) so existing entries render in the
+  // inputs and survive unrelated selection changes.
+  const [asks, setAsks] = useState<Map<string, AskDraft>>(() => {
+    const seeded = new Map<string, AskDraft>();
+    for (const ask of skuAsks ?? []) {
+      seeded.set(ask.sku, { ask_quantity: ask.ask_quantity, target_days: ask.target_days });
+    }
+    return seeded;
+  });
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [expandedCounterparties, setExpandedCounterparties] = useState<Set<string>>(new Set());

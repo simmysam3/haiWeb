@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WatcherScopePicker } from '../watcher-scope-picker';
@@ -8,9 +8,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// Stub the wizard-options + catalog endpoints so a single accepted SKU (PN-88A)
-// renders under Acme's Unclassified class, exposing the inline ask inputs.
-function stubCatalogFetch() {
+// Stub the wizard-options + catalog endpoints so accepted SKUs (PN-88A, and
+// optionally PN-99B) render under Acme's Unclassified class, exposing the
+// inline ask inputs.
+function stubCatalogFetch(skuIds: string[] = ['PN-88A']) {
   const json = (body: unknown) => ({ ok: true, json: async () => body }) as Response;
   vi.stubGlobal(
     'fetch',
@@ -22,7 +23,7 @@ function stubCatalogFetch() {
               {
                 counterparty_id: 'cccccccc-0000-0000-0000-000000000001',
                 counterparty_legal_name: 'Acme',
-                product_ids: ['PN-88A'],
+                product_ids: skuIds,
               },
             ],
           }),
@@ -32,10 +33,12 @@ function stubCatalogFetch() {
       if (url.includes('/catalog/products')) {
         return Promise.resolve(
           json({
-            products: [
-              { external_product_id: 'PN-88A', product_name: 'Widget 88A', primary_class_slug: null },
-            ],
-            total: 1,
+            products: skuIds.map((id) => ({
+              external_product_id: id,
+              product_name: `Widget ${id}`,
+              primary_class_slug: null,
+            })),
+            total: skuIds.length,
           }),
         );
       }
@@ -102,6 +105,40 @@ describe('<WatcherScopePicker>', () => {
         expect.objectContaining({ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }),
       ]),
     );
+  });
+
+  // Edit-flow regression: a saved readiness watcher's asks must survive editing.
+  // The ask drafts hydrate from scope.sku_asks, so the inputs show the saved
+  // values and an unrelated selection change re-emits them rather than wiping
+  // them (which would silently demote the watcher to a non-readiness one).
+  it('hydrates saved sku_asks and preserves them across an unrelated selection change', async () => {
+    stubCatalogFetch(['PN-88A', 'PN-99B']);
+
+    const onChange = vi.fn();
+    const scope: WatcherScope = {
+      ...empty,
+      skus: ['PN-88A', 'PN-99B'],
+      sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }],
+    };
+    render(<WatcherScopePicker value={scope} onChange={onChange} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /expand acme/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /expand unclassified/i }));
+
+    // The saved ask renders in the inline inputs (not blank).
+    const qty = await screen.findByLabelText('Ask quantity for PN-88A');
+    expect(qty).toHaveValue(40);
+    expect(screen.getByLabelText('Target window in calendar days for PN-88A')).toHaveValue(30);
+
+    // Deselect the OTHER SKU — a selection change that never touches PN-88A.
+    // The leaf checkbox has no accessible label of its own; reach it through
+    // its treeitem row.
+    const otherRow = screen.getByText('Widget PN-99B').closest('[role="treeitem"]');
+    expect(otherRow).not.toBeNull();
+    await userEvent.click(within(otherRow as HTMLElement).getByRole('checkbox'));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as WatcherScope;
+    expect(last.sku_asks).toEqual([{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }]);
   });
 
   // A blank target window makes an invalid ask that fails the run — so an ask must

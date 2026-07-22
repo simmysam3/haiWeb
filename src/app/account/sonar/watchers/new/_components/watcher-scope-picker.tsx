@@ -45,6 +45,7 @@ export function WatcherScopePicker({ value, onChange }: Props) {
     <div className="space-y-4">
       <BilateralCounterpartiesSkusFields
         skus={value.skus}
+        skuAsks={value.sku_asks}
         collectAsks
         onChange={({ counterparties, skus, sku_asks }) =>
           onChange({ ...value, counterparties, skus, sku_asks })
