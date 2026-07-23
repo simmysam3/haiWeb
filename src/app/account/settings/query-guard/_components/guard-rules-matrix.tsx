@@ -12,8 +12,9 @@ import type {
   TrustClass,
 } from '@haiwave/protocol';
 import { DEFAULT_QUERY_GUARD_RULES } from '@haiwave/protocol';
-import { Drawer } from '@/components';
+import { Button, Drawer } from '@/components';
 import { RuleDrawerBody, type RuleFormValue } from './rule-drawer-body';
+import { TestDrawer } from './test-drawer';
 
 export const RULE_TYPES = ['sku_repeat', 'sku_breadth', 'ad_hoc_cap', 'excess_volume'] as const;
 export const TRUST_CLASSES = [
@@ -88,6 +89,7 @@ export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRule
   const [open, setOpen] = useState<{ tc: TrustClass | null; rt: QueryGuardRuleType } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
 
   function find(tc: TrustClass | null, rt: QueryGuardRuleType): CellRule {
     if (tc !== null) {
@@ -194,6 +196,11 @@ export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRule
 
   return (
     <div className="mt-6">
+      <div className="mb-4 flex justify-end">
+        <Button variant="secondary" onClick={() => setTestOpen(true)}>
+          Test rules
+        </Button>
+      </div>
       <div
         role="grid"
         className="grid grid-cols-6 gap-px bg-slate/15 border border-slate/15 rounded-md overflow-hidden"
@@ -242,6 +249,8 @@ export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRule
           />
         )}
       </Drawer>
+
+      <TestDrawer open={testOpen} onClose={() => setTestOpen(false)} />
     </div>
   );
 }
