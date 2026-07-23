@@ -167,6 +167,7 @@ const navSections: NavSection[] = [
       { href: "/account/profile", label: "Company Profile", tooltip: "Edit your company's public profile, contact info, and business address." },
       // v.1.58: Settings section dissolved — Trust Posture moved here.
       { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
+      { href: "/account/settings/query-guard", label: "Query Guard", tooltip: "Rate and volume limits that protect your inventory from counterparty probing." },
     ],
   },
   {

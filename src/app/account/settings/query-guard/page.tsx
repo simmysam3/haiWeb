@@ -1,13 +1,17 @@
 import { cookies, headers } from 'next/headers';
 import type {
+  QueryGuardEvent,
   QueryGuardRule,
   QueryGuardSettings,
+  QueryGuardState,
   ResolvedQueryGuardRule,
   TrustClass,
 } from '@haiwave/protocol';
 import { DEFAULT_QUERY_GUARD_RULES } from '@haiwave/protocol';
 import { PageHeader } from '@/components/page-header';
 import { GuardRulesMatrix, RULE_TYPES, TRUST_CLASSES } from './_components/guard-rules-matrix';
+import { EnforcementStates } from './_components/enforcement-states';
+import { TripHistory } from './_components/trip-history';
 
 /**
  * If the BFF fetch fails we still need to display *something* — synthesising
@@ -36,6 +40,8 @@ interface LoadResult {
   matrix: ResolvedQueryGuardRule[];
   rules: QueryGuardRule[];
   defaultAlertEmail: string | null;
+  states: QueryGuardState[];
+  events: QueryGuardEvent[];
   error: string | null;
 }
 
@@ -47,16 +53,32 @@ async function loadQueryGuard(): Promise<LoadResult> {
   const base = `${proto}://${host}`;
   const opts = { headers: { cookie: cookieHeader }, cache: 'no-store' as const };
   try {
-    const [matrixRes, rulesRes, settingsRes] = await Promise.all([
+    const [matrixRes, rulesRes, settingsRes, statesRes, eventsRes] = await Promise.all([
       fetch(`${base}/api/account/query-guard/rules/resolved`, opts),
       fetch(`${base}/api/account/query-guard/rules`, opts),
       fetch(`${base}/api/account/query-guard/settings`, opts),
+      fetch(`${base}/api/account/query-guard/states`, opts),
+      fetch(`${base}/api/account/query-guard/events?limit=100`, opts),
     ]);
+    // States + events are progressive enhancements like rules/settings —
+    // degrade to empty lists if either fetch fails.
+    let states: QueryGuardState[] = [];
+    if (statesRes.ok) {
+      const statesPayload = (await statesRes.json()) as { states?: QueryGuardState[] };
+      if (Array.isArray(statesPayload.states)) states = statesPayload.states;
+    }
+    let events: QueryGuardEvent[] = [];
+    if (eventsRes.ok) {
+      const eventsPayload = (await eventsRes.json()) as { events?: QueryGuardEvent[] };
+      if (Array.isArray(eventsPayload.events)) events = eventsPayload.events;
+    }
     if (!matrixRes.ok) {
       return {
         matrix: synthesizeDefaultMatrix(),
         rules: [],
         defaultAlertEmail: null,
+        states,
+        events,
         error: `Unable to load query-guard rules (status ${matrixRes.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
       };
     }
@@ -77,6 +99,8 @@ async function loadQueryGuard(): Promise<LoadResult> {
       matrix: matrixPayload.matrix ?? synthesizeDefaultMatrix(),
       rules,
       defaultAlertEmail,
+      states,
+      events,
       error: null,
     };
   } catch (err) {
@@ -85,6 +109,8 @@ async function loadQueryGuard(): Promise<LoadResult> {
       matrix: synthesizeDefaultMatrix(),
       rules: [],
       defaultAlertEmail: null,
+      states: [],
+      events: [],
       error:
         'Unable to reach the query-guard service. Showing spec defaults — saves may fail until the backend is reachable.',
     };
@@ -101,7 +127,7 @@ async function loadQueryGuard(): Promise<LoadResult> {
  * requests to /api/auth/login before this component runs.
  */
 export default async function QueryGuardPage() {
-  const { matrix, rules, defaultAlertEmail, error } = await loadQueryGuard();
+  const { matrix, rules, defaultAlertEmail, states, events, error } = await loadQueryGuard();
 
   return (
     <div className="space-y-2">
@@ -122,6 +148,14 @@ export default async function QueryGuardPage() {
         defaultAlertEmail={defaultAlertEmail}
         initialRules={rules}
       />
+      <section className="mt-10">
+        <h2 className="mb-3 text-lg font-semibold text-charcoal">Active enforcement</h2>
+        <EnforcementStates initialStates={states} />
+      </section>
+      <section className="mt-10">
+        <h2 className="mb-3 text-lg font-semibold text-charcoal">Trip history</h2>
+        <TripHistory initialEvents={events} />
+      </section>
     </div>
   );
 }

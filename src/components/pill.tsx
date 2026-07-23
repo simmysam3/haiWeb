@@ -278,6 +278,21 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     internal: 'HAIWAVE-operated agent (demo/internal fleet).',
     external: "Adopter-deployed agent reporting from a customer environment.",
   },
+  // v1.60 Query Guard — active enforcement state against a counterparty.
+  // Tones passed by the component (block=problem, pause=warn, log=neutral);
+  // severity tones only, never orange.
+  query_guard_state: {
+    block: 'This counterparty is blocked from querying you until you restore access.',
+    pause: 'Queries from this counterparty are declined until the pause expires.',
+    log: 'Queries from this counterparty are being logged with elevated detail.',
+  },
+  // v1.60 Query Guard — which guard rule a trip or enforcement state came from.
+  query_guard_rule: {
+    sku_repeat: 'Limits how many times one SKU may be queried in a window.',
+    sku_breadth: 'Limits how many distinct SKUs may be queried in a window.',
+    ad_hoc_cap: 'Limits ad-hoc phantom-demand requests in a window.',
+    excess_volume: 'Flags requested quantities far above the counterparty\'s largest historic order.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
