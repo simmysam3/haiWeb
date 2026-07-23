@@ -556,6 +556,7 @@ export interface HaiwaveClient {
   // ─── Query guard (v1.60) ─────────────────────────────────────────────
   listQueryGuardRules(): Promise<{ rules: QueryGuardRule[] }>;
   upsertQueryGuardRule(rule: QueryGuardRuleUpsert): Promise<QueryGuardRule>;
+  deleteQueryGuardRule(id: string): Promise<void>;
   getQueryGuardMatrix(): Promise<{ matrix: ResolvedQueryGuardRule[] }>;
   testQueryGuardRules(hypothetical: QueryGuardTestRequest): Promise<QueryGuardTestResult>;
   listQueryGuardStates(): Promise<{ states: QueryGuardState[] }>;
@@ -1382,6 +1383,9 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     upsertQueryGuardRule(rule) {
       return request<QueryGuardRule>('PUT', '/query-guard/rules', rule);
+    },
+    async deleteQueryGuardRule(id) {
+      await request<void>('DELETE', `/query-guard/rules/${id}`);
     },
     getQueryGuardMatrix() {
       return request<{ matrix: ResolvedQueryGuardRule[] }>('GET', '/query-guard/rules/resolved');
