@@ -25,9 +25,12 @@ function formatWhen(iso: string | null): string {
 
 /**
  * Active enforcement states (pauses / blocks / elevated logging) against
- * counterparties, with Restore (block) and Clear (pause / log) actions.
- * Rows expand inline (DetailChevron) to lazily fetch the triggering trip
- * from the events BFF route.
+ * counterparties, with Restore (block) and Clear (log) row actions. Pauses
+ * have no action — haiCore's clear endpoint closes only log states, and a
+ * pause lapses on its own `expires_at` (lazy expiry). Rows expand inline
+ * (DetailChevron) to lazily fetch the state's triggering trip — resolved by
+ * `triggering_event_id` against the counterparty's recent events — from the
+ * events BFF route.
  *
  * Hand-rolled table (DataTable styling) because the shared DataTable cannot
  * render a colSpan inline-detail row.
@@ -49,15 +52,26 @@ export function EnforcementStates({ initialStates }: Props) {
     next.add(state.id);
     setExpanded(next);
     if (details[state.id] === undefined) {
+      // A state records the exact event that created it. Never substitute the
+      // counterparty's newest event — later trips of other rules would
+      // masquerade as this state's trigger.
+      if (!state.triggering_event_id) {
+        setDetails((d) => ({ ...d, [state.id]: null }));
+        return;
+      }
       setDetails((d) => ({ ...d, [state.id]: 'loading' }));
       try {
+        // The events API has no by-id lookup; fetch the counterparty's recent
+        // window and pick the triggering event out of it.
         const res = await fetch(
-          `/api/account/query-guard/events?limit=1&counterparty=${encodeURIComponent(state.counterparty_participant_id)}`,
+          `/api/account/query-guard/events?limit=100&counterparty=${encodeURIComponent(state.counterparty_participant_id)}`,
           { cache: 'no-store' },
         );
         if (!res.ok) throw new Error(`status ${res.status}`);
         const payload = (await res.json()) as { events?: QueryGuardEvent[] };
-        setDetails((d) => ({ ...d, [state.id]: payload.events?.[0] ?? null }));
+        const triggering =
+          payload.events?.find((e) => e.id === state.triggering_event_id) ?? null;
+        setDetails((d) => ({ ...d, [state.id]: triggering }));
       } catch {
         setDetails((d) => ({ ...d, [state.id]: null }));
       }
@@ -187,15 +201,18 @@ function StateRow({
         <td className="py-2.5 px-4 whitespace-nowrap">{formatWhen(state.created_at)}</td>
         <td className="py-2.5 px-4 whitespace-nowrap">{formatWhen(state.expires_at)}</td>
         <td className="py-2.5 px-4 text-right">
-          {state.kind === 'block' ? (
+          {state.kind === 'block' && (
             <Button variant="secondary" disabled={busy} onClick={() => onAct('restore')}>
               Restore
             </Button>
-          ) : (
+          )}
+          {state.kind === 'log' && (
             <Button variant="secondary" disabled={busy} onClick={() => onAct('clear')}>
               Clear
             </Button>
           )}
+          {/* pause: no action — haiCore cannot clear a pause; it lapses at expires_at */}
+          {state.kind === 'pause' && <span className="text-slate">&mdash;</span>}
         </td>
       </tr>
       {isOpen && (

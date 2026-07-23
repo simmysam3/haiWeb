@@ -332,7 +332,9 @@ const ACTION_VERB: Record<QueryGuardAction['type'], string> = {
 
 function summarizeRule(rule: ResolvedQueryGuardRule): string {
   if (!rule.enabled) return `${ruleNoun(rule)} off`;
-  const verb = ACTION_VERB[rule.actions[0]?.type ?? 'alert'];
+  // Name every action: an [alert, block] rule summarized as "alert at …"
+  // would read as observe-only while counterparties are actually blocked.
+  const verb = rule.actions.map((a) => ACTION_VERB[a.type]).join(' + ') || 'no action';
   if (rule.rule_type === 'excess_volume') {
     return `${verb} at ${rule.threshold}% over largest historic order`;
   }
