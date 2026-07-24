@@ -7,3 +7,4 @@ export { SkuAutocomplete } from './sku-autocomplete';
 export { BomTreeView } from './bom-tree-view';
 export { BomNodeDetail } from './bom-node-detail';
 export { BomAccordionTree, stockCoverage, isRedacted } from './bom-accordion-tree';
+export { BomNodeBand } from './bom-node-band';
