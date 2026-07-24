@@ -54,8 +54,11 @@ function skuHref(s: SearchSkuHit): string {
   // working list to this product_id; the page itself is responsible for
   // honoring the `sku` query param (deferred — currently the page may not
   // wire this filter yet; route lands the user in the right surface either
-  // way).
-  return `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`;
+  // way). A redacted (chain-owned) hit has a hidden product_id (D-119) — no sku
+  // to filter on, so land on the gaps page unfiltered.
+  return s.product_id
+    ? `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`
+    : '/account/sonar/audit/gaps';
 }
 
 function scopeHref(s: SearchScopeHit): string {
