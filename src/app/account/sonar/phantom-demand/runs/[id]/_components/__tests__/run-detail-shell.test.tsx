@@ -98,6 +98,7 @@ const makeRun = (tree: BomTree | null): PhantomDemandRunDetail =>
     run: {
       run_id: 'r1',
       status: 'complete',
+      readiness_verdict: null,
       completed_at: '2026-05-28T10:00:00Z',
       created_at: '2026-05-28T09:55:00Z',
       initiator_participant_id: 'p1',
