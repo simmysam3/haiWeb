@@ -6,3 +6,4 @@ export { VendorExcludeMultiSelect } from './vendor-exclude-multi-select';
 export { SkuAutocomplete } from './sku-autocomplete';
 export { BomTreeView } from './bom-tree-view';
 export { BomNodeDetail } from './bom-node-detail';
+export { BomAccordionTree, stockCoverage, isRedacted } from './bom-accordion-tree';
