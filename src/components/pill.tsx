@@ -293,6 +293,34 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     ad_hoc_cap: 'Limits ad-hoc phantom-demand requests in a window.',
     excess_volume: 'Flags requested quantities far above the counterparty\'s largest historic order.',
   },
+  // PD drill-in redaction redesign (spec 2026-07-23) — disclosure posture on a
+  // BOM node. undisclosed_verified = a verified network participant whose
+  // identity is withheld across tiers (rendered via VerifiedUndisclosedChip);
+  // not_visible = the tier holder opted out of disclosure (a policy outcome,
+  // not a data failure).
+  disclosure: {
+    undisclosed_verified:
+      'Verified network participant — identity withheld across tiers. The alias is stable within this run only and cannot be matched across runs or by other buyers.',
+    not_visible:
+      'Supply is not visible past this point — the tier holder has not disclosed it (posture, access, or no answer). This is a policy outcome, not a data failure.',
+  },
+  // PD drill-in — stock / raw-material coverage cue on a BOM node. in_stock is
+  // the tree's only solid-fill pill (tone="stock"). raw_* are informational —
+  // they never change the readiness verdict.
+  stock: {
+    in_stock: 'Covered from your on-hand stock — no sourcing required for this run.',
+    partial_stock:
+      'Partially covered from your on-hand stock; sourcing is evaluated for the remainder.',
+    raw_on_hand:
+      'Supplier reports raw material on hand backing this component. Capacity not quantified. Informational — does not change the readiness verdict.',
+    raw_capacity:
+      'Supplier-declared conversion applied to raw material on hand. Informational — does not change the readiness verdict.',
+  },
+  // PD drill-in — provenance of a BOM node that is not sourced from a vendor.
+  source: {
+    internal_mfg: 'Made internally at this facility.',
+    your_bom: 'The root assembly from your own bill of materials.',
+  },
 };
 
 const _warnedKeys = new Set<string>();
@@ -308,7 +336,7 @@ export interface PillProps {
   /** Explicit definition; overrides the map (for one-off pills). */
   definition?: string;
   /** Visual variant. Defaults derived from category+value when omitted. */
-  tone?: 'success' | 'warn' | 'problem' | 'info' | 'neutral';
+  tone?: 'success' | 'warn' | 'problem' | 'info' | 'neutral' | 'stock';
   className?: string;
   children?: React.ReactNode;
 }
@@ -319,6 +347,9 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
   problem: 'bg-problem/10 text-problem',
   info: 'bg-teal/10 text-teal-dark',
   neutral: 'bg-slate/10 text-slate',
+  // PD drill-in — the BOM tree's only solid fill (in-stock cue). Deliberately
+  // opaque so a fully-covered row reads at a glance without a readiness pill.
+  stock: 'bg-success text-white',
 };
 
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {

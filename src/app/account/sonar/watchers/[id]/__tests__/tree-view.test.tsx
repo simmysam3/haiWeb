@@ -22,22 +22,23 @@ describe('TreeView label taxonomy', () => {
     expect(screen.getByText('Great Lakes Hardware')).toBeInTheDocument();
     expect(screen.getByTestId('id-chip')).toBeInTheDocument();
   });
-  it('shows "Vendor Name Not Disclosed" when identity_redacted', () => {
+  it('shows the identity-withheld chip when identity_redacted', () => {
     render(<TreeView node={node({ identity_redacted: true, participant_id: 'p-secret', vendor_legal_name: 'Should Not Appear' })} />);
-    expect(screen.getByText('Vendor Name Not Disclosed')).toBeInTheDocument();
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    expect(screen.queryByText('Vendor Name Not Disclosed')).toBeNull();
     expect(screen.queryByTestId('id-chip')).toBeNull();
   });
-  it('shows "Vendor Name Not Disclosed" for an unauthorized gap node', () => {
+  it('shows the identity-withheld chip for an unauthorized gap node', () => {
     render(<TreeView node={node({ participant_id: 'p2', gap: { kind: 'unauthorized', hint: 'no_trading_pair' } as ObservationNode['gap'] })} />);
-    expect(screen.getByText('Vendor Name Not Disclosed')).toBeInTheDocument();
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
   it('shows "Unknown — no network record" for a non_participant gap leaf', () => {
     render(<TreeView node={node({ gap: { kind: 'non_participant' } as ObservationNode['gap'] })} />);
     expect(screen.getByText('Unknown — no network record')).toBeInTheDocument();
   });
-  it('shows "Vendor Name Not Disclosed" for a participant with no resolvable name', () => {
+  it('shows the identity-withheld chip for a participant with no resolvable name', () => {
     render(<TreeView node={node({ participant_id: 'p5' })} />);
-    expect(screen.getByText('Vendor Name Not Disclosed')).toBeInTheDocument();
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 });
 
