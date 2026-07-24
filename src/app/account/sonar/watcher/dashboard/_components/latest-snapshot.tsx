@@ -9,6 +9,7 @@ import type {
   LeadTimeDistribution,
 } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
+import { VerifiedUndisclosedChip } from '@/components/verified-undisclosed-chip';
 
 interface LatestSnapshotProps {
   runId: string;
@@ -167,7 +168,7 @@ export function LatestSnapshot({ runId, onSelectCounterparty }: LatestSnapshotPr
               </td>
               <td className="px-4 py-2 text-charcoal">
                 {row.hasGap ? (
-                  <span className="text-xs text-amber-600">redacted_gap</span>
+                  <VerifiedUndisclosedChip />
                 ) : (
                   <span className="text-xs text-slate">none</span>
                 )}
