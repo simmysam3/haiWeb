@@ -14,10 +14,9 @@ import { LeadTimeHistoryTable } from './lead-time-history-table';
 
 interface VendorBlockProps {
   vendor: ReadinessVendor;
-  askQuantity: number;
 }
 
-function VendorBlock({ vendor, askQuantity }: VendorBlockProps) {
+function VendorBlock({ vendor }: VendorBlockProps) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -39,7 +38,7 @@ function VendorBlock({ vendor, askQuantity }: VendorBlockProps) {
           ) : (
             <p className="italic text-slate">No order history reported.</p>
           )}
-          <LeadTimeHistoryTable rows={vendor.lead_time_rows} askQuantity={askQuantity} />
+          <LeadTimeHistoryTable rows={vendor.lead_time_rows} />
         </div>
       )}
     </div>
@@ -72,11 +71,7 @@ export function ReadinessReport({ skus }: Props) {
 
           <div className="space-y-3">
             {sku.vendors.map((vendor) => (
-              <VendorBlock
-                key={vendor.vendor_id}
-                vendor={vendor}
-                askQuantity={sku.ask?.ask_quantity ?? 0}
-              />
+              <VendorBlock key={vendor.vendor_id} vendor={vendor} />
             ))}
           </div>
         </section>

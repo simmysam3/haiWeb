@@ -176,7 +176,7 @@ describe('lead_time_col pill category', () => {
     ['published', /officially listed timeline/i],
     ['calibrated', /actual fulfillment history/i],
     ['capacity', /capacity utilization band/i],
-    ['ask_quantity', /forward-demand quantity and target date/i],
+    ['ask_quantity', /forward-demand quantity this run resolved/i],
   ])('%s resolves its definition tooltip', (value, expected) => {
     render(<Pill category="lead_time_col" value={value} />);
     const tip = document.getElementById(

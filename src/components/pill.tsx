@@ -136,7 +136,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     calibrated: "Calibrated: system-computed from the vendor's actual fulfillment history — the quoted-vs-actual ship-date delta over recent orders, outliers removed.",
     soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
     capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
-    ask_quantity: "Ask quantity: the forward-demand quantity and target date you want this SKU to be sourceable for.",
+    ask_quantity: "Ask quantity: the forward-demand quantity this run resolved the soft quote for. Fixed at run time — editing the watcher's ask changes later runs, not this one.",
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
