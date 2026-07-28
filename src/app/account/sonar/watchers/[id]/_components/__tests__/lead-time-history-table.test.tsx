@@ -11,6 +11,7 @@ describe('<LeadTimeHistoryTable>', () => {
       calibrated: 12,
       soft_quoted: 34,
       soft_quoted_unavailable: false,
+      ask_quantity: 25,
       capacity: 'moderate',
     },
     {
@@ -19,6 +20,7 @@ describe('<LeadTimeHistoryTable>', () => {
       calibrated: 13,
       soft_quoted: 31,
       soft_quoted_unavailable: true,
+      ask_quantity: 23,
       capacity: 'low',
     },
     {
@@ -27,6 +29,7 @@ describe('<LeadTimeHistoryTable>', () => {
       calibrated: 14,
       soft_quoted: 30,
       soft_quoted_unavailable: false,
+      ask_quantity: null,
       capacity: 'high',
     },
   ];

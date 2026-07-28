@@ -59,7 +59,7 @@ const results: WatcherResult[] = [
     kind: 'direct',
     days: 30,
     availability: 'available',
-    ask_quantity: 40,
+    ask_quantity: 23,
     resolved_via: 'phantom_demand_bom',
     observed_at: '2026-06-01T00:00:00Z',
   }),
@@ -84,7 +84,7 @@ const results: WatcherResult[] = [
     kind: 'direct',
     days: 34,
     availability: 'available',
-    ask_quantity: 40,
+    ask_quantity: 25,
     resolved_via: 'phantom_demand_bom',
     observed_at: '2026-06-15T00:00:00Z',
   }),
@@ -133,5 +133,24 @@ describe('pivotReadiness', () => {
     expect(older.calibrated).toBe(14);
     expect(older.soft_quoted).toBe(30);
     expect(older.capacity).toBe('high');
+
+    // Per-run quantity, NOT the current config value. skuAsks says 40; these
+    // runs executed at 25 and 23. Regression guard: a single config-derived
+    // scalar would label both rows 40.
+    expect(newest.ask_quantity).toBe(25);
+    expect(older.ask_quantity).toBe(23);
+  });
+
+  it('leaves ask_quantity null for a run with no soft-quote result', () => {
+    const runsOnly: RunRef[] = [{ run_id: RUN_NEW, triggered_at: '2026-06-15T00:00:00Z' }];
+    const published = results.filter(
+      (r) => r.run_id === RUN_NEW && r.signal_type === 'published_lead_time',
+    );
+
+    const skus = pivotReadiness(published, runsOnly, skuAsks);
+
+    const row = skus[0].vendors[0].lead_time_rows[0];
+    expect(row.published).toBe(20);
+    expect(row.ask_quantity).toBeNull();
   });
 });

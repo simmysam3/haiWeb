@@ -13,6 +13,9 @@ export interface LeadTimeHistoryRow {
   calibrated: number | null;
   soft_quoted: number | null;
   soft_quoted_unavailable: boolean;
+  /** Quantity this run resolved the soft quote for. Null when the run had no
+   *  soft-quote result. Per-run, NOT the current configured ask. */
+  ask_quantity: number | null;
   capacity: CapacityBand | null;
 }
 
