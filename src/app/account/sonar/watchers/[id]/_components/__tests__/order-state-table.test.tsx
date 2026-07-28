@@ -3,6 +3,23 @@ import { describe, expect, it } from 'vitest';
 import type { OrderFulfillmentHistoryPayload } from '@haiwave/protocol';
 import { OrderStateTable } from '../order-state-table';
 
+// Module-scope fixture for the header tests below. recent_fulfillments must be
+// non-empty: the Ship delta header only renders inside the recent.length > 0
+// branch (order-state-table.tsx:78-92).
+const headerPayload: OrderFulfillmentHistoryPayload = {
+  kind: 'direct',
+  active_orders: [{ po_number: 'AO-1', quantity: 40, quoted_ship_date: '2026-08-05' }],
+  recent_fulfillments: [
+    {
+      po_number: 'F-1',
+      quantity: 37,
+      quoted_ship_date: '2026-07-15',
+      actual_ship_date: '2026-07-16',
+    },
+  ],
+  calibrated: { days: 1, sample_count: 8 },
+};
+
 describe('<OrderStateTable>', () => {
   it('renders active orders and recent fulfillments with ship dates and a +2d delta chip', () => {
     const payload: OrderFulfillmentHistoryPayload = {
@@ -66,5 +83,21 @@ describe('<OrderStateTable>', () => {
     }
     expect(screen.queryByText('PO-006')).not.toBeInTheDocument();
     expect(screen.queryByText('PO-007')).not.toBeInTheDocument();
+  });
+
+  it('renders no pills in its headers', () => {
+    render(<OrderStateTable payload={headerPayload} />);
+
+    expect(screen.queryAllByTestId('pill')).toHaveLength(0);
+  });
+
+  it('keeps the ship-delta definition on a column header affordance', () => {
+    render(<OrderStateTable payload={headerPayload} />);
+
+    expect(screen.getByText('Ship delta')).toBeInTheDocument();
+    const tips = screen.getAllByTestId('column-header-tip');
+    expect(tips).toHaveLength(1);
+    const describedby = tips[0].getAttribute('aria-describedby');
+    expect(document.getElementById(describedby as string)).toHaveTextContent('fulfillment history');
   });
 });
