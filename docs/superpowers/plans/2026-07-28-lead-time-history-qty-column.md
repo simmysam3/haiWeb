@@ -236,7 +236,14 @@ Replace the entire `return (...)` block of `Pill` (currently `pill.tsx:469-504`)
   );
 ```
 
-`useId` and `useState` are no longer used by `Pill`; remove them from its React import if nothing else in the file needs them.
+`DefinitionTip` now owns the tooltip state, so delete these two lines from the top of the `Pill` function body (`pill.tsx:448-449`) — they are otherwise left behind as dead state:
+
+```tsx
+  const tipId = useId();
+  const [open, setOpen] = useState(false);
+```
+
+Then remove `useId` and `useState` from the file's React import if nothing else in `pill.tsx` references them. (`tsconfig` has no `noUnusedLocals`, so neither `tsc` nor the tests will catch it if you skip this.)
 
 - [ ] **Step 6: Run the new test and the full existing pill suites**
 
@@ -267,7 +274,7 @@ Renders a complete `<th>`. Callers replace their whole `<th>…</th>` with it. T
 
 **Interfaces:**
 - Consumes: `DefinitionTip` and `definitionFor` from Task 1.
-- Produces: `ColumnHeader({ label: string, category?: string, value?: string, definition?: string, className?: string })` from `@/components/column-header`.
+- Produces: `ColumnHeader({ label: string, category?: string, value?: string, className?: string })` from `@/components/column-header`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -317,14 +324,6 @@ describe('<ColumnHeader>', () => {
     expect(screen.queryByTestId('pill')).not.toBeInTheDocument();
     expect(screen.getByTestId('column-header-tip').className).not.toContain('rounded-full');
   });
-
-  it('accepts an explicit definition override', () => {
-    renderHeader(<ColumnHeader label="Custom" definition="Explicit copy." />);
-
-    const tip = screen.getByTestId('column-header-tip');
-    const describedby = tip.getAttribute('aria-describedby');
-    expect(document.getElementById(describedby as string)).toHaveTextContent('Explicit copy.');
-  });
 });
 ```
 
@@ -350,21 +349,12 @@ interface ColumnHeaderProps {
   /** Resolves copy from the shared definition map alongside `value`. */
   category?: string;
   value?: string;
-  /** Explicit definition; overrides the map. */
-  definition?: string;
-  /** Extra classes on the <th> (e.g. text-center, colSpan wrappers). */
+  /** Extra classes on the <th> (e.g. text-center). */
   className?: string;
 }
 
-export function ColumnHeader({
-  label,
-  category,
-  value,
-  definition,
-  className = '',
-}: ColumnHeaderProps) {
-  const resolved =
-    definition ?? (category && value ? definitionFor(category, value) : undefined);
+export function ColumnHeader({ label, category, value, className = '' }: ColumnHeaderProps) {
+  const resolved = category && value ? definitionFor(category, value) : undefined;
 
   return (
     <th className={`px-3 py-2 font-semibold ${className}`.trim()}>
@@ -390,7 +380,7 @@ export function ColumnHeader({
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/__tests__/column-header.test.tsx`
-Expected: PASS — all five tests green.
+Expected: PASS — all four tests green.
 
 - [ ] **Step 5: Type-check**
 
@@ -456,7 +446,9 @@ Add a second test to the `describe('pivotReadiness')` block:
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run 'src/app/account/sonar/watchers/[id]/_lib/__tests__/pivot-readiness.test.ts'`
-Expected: FAIL — `ask_quantity` does not exist on `LeadTimeHistoryRow`.
+Expected: FAIL with `expected undefined to be 25` (and `to be 23`, `toBeNull` on the second test) — the pivot does not yet carry the field.
+
+Note this is a *value* failure, not a type error: vitest transforms via esbuild and does not type-check, so `ask_quantity` being absent from the interface will not surface here. Confirm the red is the assertion above and not a crash or a missing import.
 
 - [ ] **Step 3: Add the field to the row type**
 
@@ -488,38 +480,48 @@ In `foldSignalIntoRow()`, extend the existing `soft_quoted_lead_time` case:
     }
 ```
 
-- [ ] **Step 5: Repair the `readiness-report` fixture**
+- [ ] **Step 5: Repair every other `LeadTimeHistoryRow` literal in the repo**
 
-`ask_quantity` is a required field, so every existing `LeadTimeHistoryRow` literal must supply it. `readiness-report.test.tsx` builds one at lines 22-28 and will fail `tsc` without this.
+`ask_quantity` is required, so **every** literal of this type must supply it or `tsc` fails with TS2741. There are five in the repo. `emptyRow()` was handled in Step 4. The remaining four are in two test files — both must be repaired **in this task**, not a later one, or this task's own type-check gate fails.
 
-In `src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx`, add `ask_quantity` to the row object inside `lead_time_rows` (the one that already sets `soft_quoted: 34`):
+First, `src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx` — one literal inside `lead_time_rows` at lines 23-30 (the one setting `soft_quoted: 34`). Add:
 
 ```ts
           ask_quantity: 40,
 ```
 
-If that file contains more than one row literal, add the field to each. Then confirm no other literal exists anywhere:
+Second, `src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx` — three literals in `const rows: LeadTimeHistoryRow[]` beginning at line 6, with `run_date` at lines 9, 17 and 25. Add one field to each, immediately after its `soft_quoted_unavailable` line:
+
+```ts
+      ask_quantity: 25,   // row starting line 9  (newest)
+      ask_quantity: 23,   // row starting line 17
+      ask_quantity: null, // row starting line 25
+```
+
+Task 4 replaces this file wholesale and its fixture already carries these exact values, so this repair is deliberately forward-compatible rather than throwaway.
+
+Now confirm nothing was missed:
 
 ```bash
 grep -rn "soft_quoted_unavailable" src/ --include='*.tsx' --include='*.ts'
 ```
 
-Every hit must be a row literal that now sets `ask_quantity`, the interface definition, or the `pivot-readiness.ts` fold.
+Expect exactly five hits plus the interface declaration and the `pivot-readiness.ts` fold. Every row literal among them must now set `ask_quantity`.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `npx vitest run 'src/app/account/sonar/watchers/[id]/_lib/__tests__/pivot-readiness.test.ts' 'src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx'`
-Expected: PASS — both files green.
+Run: `npx vitest run 'src/app/account/sonar/watchers/[id]/_lib/__tests__/pivot-readiness.test.ts' 'src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx' 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx'`
+Expected: PASS — all three files green. The lead-time table test still asserts the old pill markup at this point; that is correct, Task 4 rewrites it.
 
 - [ ] **Step 7: Type-check**
 
 Run: `npx tsc --noEmit`
-Expected: no errors. This is the step that catches any row literal still missing `ask_quantity` — `npm run build` would not, because it does not type-check `.test.tsx`.
+Expected: no errors. This is the gate that catches any row literal still missing `ask_quantity` — `npm run build` would not, because it does not type-check `.test.tsx`.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add 'src/app/account/sonar/watchers/[id]/_lib/pivot-readiness.ts' 'src/app/account/sonar/watchers/[id]/_components/lead-time-history-table.tsx' 'src/app/account/sonar/watchers/[id]/_lib/__tests__/pivot-readiness.test.ts' 'src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx'
+git add 'src/app/account/sonar/watchers/[id]/_lib/pivot-readiness.ts' 'src/app/account/sonar/watchers/[id]/_components/lead-time-history-table.tsx' 'src/app/account/sonar/watchers/[id]/_lib/__tests__/pivot-readiness.test.ts' 'src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx' 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx'
 git commit -m "fix(web): carry per-run ask_quantity onto lead-time history rows"
 ```
 
@@ -612,6 +614,26 @@ describe('<LeadTimeHistoryTable>', () => {
     // published, calibrated, soft_quoted, ask_quantity, capacity — five defined
     // columns. Run date has no definition and so no affordance.
     expect(screen.getAllByTestId('column-header-tip')).toHaveLength(5);
+
+    // Assert per-column rather than on the count alone: a bare count passes even
+    // if Run date wrongly gained a tooltip while another column lost one.
+    for (const label of ['Published', 'Calibrated', 'Soft-quoted', 'Qty', 'Available capacity']) {
+      const host = screen.getByText(label).closest('[data-testid="column-header-tip"]');
+      expect(host, `${label} should carry a definition`).not.toBeNull();
+    }
+    expect(
+      screen.getByText('Run date').closest('[data-testid="column-header-tip"]'),
+    ).toBeNull();
+  });
+
+  it('renders the reworded per-run ask-quantity definition on the Qty column', () => {
+    render(<LeadTimeHistoryTable rows={rows} />);
+
+    const host = screen.getByText('Qty').closest('[data-testid="column-header-tip"]');
+    const describedby = host?.getAttribute('aria-describedby');
+    expect(document.getElementById(describedby as string)).toHaveTextContent(
+      /this run resolved the soft quote for/i,
+    );
   });
 
   it('renders lead-time values without a d suffix now the unit is in the group header', () => {
@@ -748,18 +770,28 @@ In `readiness-report.tsx`, change line 42 to:
 
 Remove `askQuantity` from `VendorBlockProps`, from the `VendorBlock` destructure, and delete the `askQuantity={sku.ask?.ask_quantity ?? 0}` prop on `<VendorBlock>` (line 78). Leave the SKU-level `Ask: … units within … calendar days` line at line 68 untouched — it correctly describes the current ask.
 
-- [ ] **Step 5: Reword the `ask_quantity` definition**
+- [ ] **Step 5: Reword the `ask_quantity` definition and update the test that pins it**
 
-In `pill.tsx`, replace the `lead_time_col.ask_quantity` entry:
+In `pill.tsx:139`, replace the `lead_time_col.ask_quantity` entry:
 
 ```tsx
     ask_quantity: "Ask quantity: the forward-demand quantity this run resolved the soft quote for. Fixed at run time — editing the watcher's ask changes later runs, not this one.",
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+`pill.test.tsx:179` pins the **old** wording inside an `it.each` table and will fail on the new copy, because "and target date" is gone. Update that row:
 
-Run: `npx vitest run 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx'`
-Expected: PASS — all seven tests green.
+```ts
+    ['ask_quantity', /forward-demand quantity this run resolved/i],
+```
+
+Leave the other four rows of that table untouched — their copy is unchanged. The adjacent no-warn test still passes, since a definition still resolves for this value.
+
+This is the one place the extraction's "pill tests pass unchanged" rule does not apply: Task 1 was behaviour-preserving, whereas this step deliberately changes content, so its assertion changes with it.
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+Run: `npx vitest run 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx' 'src/app/account/sonar/watchers/[id]/_components/__tests__/readiness-report.test.tsx' src/components/__tests__/pill.test.tsx`
+Expected: PASS — the eight table tests green, `readiness-report` green after the prop removal, and `pill.test.tsx` green with the updated regex.
 
 - [ ] **Step 7: Type-check**
 
@@ -769,7 +801,7 @@ Expected: no errors. In particular `readiness-report.tsx` must not still pass `a
 - [ ] **Step 8: Commit**
 
 ```bash
-git add 'src/app/account/sonar/watchers/[id]/_components/lead-time-history-table.tsx' 'src/app/account/sonar/watchers/[id]/_components/readiness-report.tsx' 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx' src/components/pill.tsx
+git add 'src/app/account/sonar/watchers/[id]/_components/lead-time-history-table.tsx' 'src/app/account/sonar/watchers/[id]/_components/readiness-report.tsx' 'src/app/account/sonar/watchers/[id]/_components/__tests__/lead-time-history-table.test.tsx' src/components/pill.tsx src/components/__tests__/pill.test.tsx
 git commit -m "feat(web): per-run qty column + grouped header on lead-time history"
 ```
 
@@ -789,17 +821,40 @@ git commit -m "feat(web): per-run qty column + grouped header on lead-time histo
 
 - [ ] **Step 1: Write the failing test**
 
-`src/app/account/sonar/watchers/[id]/_components/__tests__/order-state-table.test.tsx` **already exists** with a `describe('<OrderStateTable>')` containing two tests. Do not recreate it — append these two `it` blocks inside that existing `describe`, and reuse whatever payload fixture the file already defines rather than adding a second one.
+`src/app/account/sonar/watchers/[id]/_components/__tests__/order-state-table.test.tsx` **already exists** with a `describe('<OrderStateTable>')` containing two tests. Do not recreate it.
+
+There is **no shared fixture to reuse** — both existing `payload` consts are declared *inside* their own `it` blocks (lines 8 and 55), so a new test referencing `payload` at `describe` scope throws `ReferenceError`. Add a module-scope fixture of your own instead, above the `describe`:
+
+```tsx
+// Module-scope fixture for the header tests below. recent_fulfillments must be
+// non-empty: the Ship delta header only renders inside the recent.length > 0
+// branch (order-state-table.tsx:78-92).
+const headerPayload: OrderFulfillmentHistoryPayload = {
+  kind: 'direct',
+  active_orders: [{ po_number: 'AO-1', quantity: 40, quoted_ship_date: '2026-08-05' }],
+  recent_fulfillments: [
+    {
+      po_number: 'F-1',
+      quantity: 37,
+      quoted_ship_date: '2026-07-15',
+      actual_ship_date: '2026-07-16',
+    },
+  ],
+  calibrated: { days: 1, sample_count: 8 },
+};
+```
+
+Leave the two in-block fixtures exactly as they are. Then append these two `it` blocks inside the existing `describe`:
 
 ```tsx
   it('renders no pills in its headers', () => {
-    render(<OrderStateTable payload={payload} />);
+    render(<OrderStateTable payload={headerPayload} />);
 
     expect(screen.queryAllByTestId('pill')).toHaveLength(0);
   });
 
   it('keeps the ship-delta definition on a column header affordance', () => {
-    render(<OrderStateTable payload={payload} />);
+    render(<OrderStateTable payload={headerPayload} />);
 
     expect(screen.getByText('Ship delta')).toBeInTheDocument();
     const tips = screen.getAllByTestId('column-header-tip');
@@ -809,7 +864,7 @@ git commit -m "feat(web): per-run qty column + grouped header on lead-time histo
   });
 ```
 
-Substitute the file's existing fixture variable name for `payload` if it differs.
+If `OrderFulfillmentHistoryPayload` is not already imported in this file, add it from `@haiwave/protocol`.
 
 Note: the `+Nd` ship-delta chip in the table **body** is a hand-rolled `<span>` using `rounded` (not a `<Pill>`, not `rounded-full`), so the "no pills" assertion holds once the header pill is gone, and the existing `+2d delta chip` test keeps passing. Leave that chip alone — it is out of scope.
 

@@ -43,9 +43,9 @@ Two secondary problems, both raised directly:
 ### 1. Quantity becomes a per-run column
 
 The per-run value already exists in the protocol and needs no new plumbing.
-`SoftQuotedLeadTimePayloadSchema` (`packages/protocol/src/watcher/result.ts:113`)
-carries `ask_quantity: z.number().int().positive()` on every soft-quote result, written
-at run time.
+`SoftQuotedLeadTimePayloadSchema` (`packages/protocol/src/watcher/result.ts:113-120`)
+carries `ask_quantity: z.number().int().positive()` at line 117 on every soft-quote
+result, written at run time.
 
 - `LeadTimeHistoryRow` gains `ask_quantity: number | null`.
 - `pivot-readiness.ts` → `foldSignalIntoRow()` reads `soft.ask_quantity` inside the
@@ -161,8 +161,12 @@ New coverage:
   in **Problem**.
 - `lead-time-history-table.test.tsx` — the `ⓘ` exposes the same definition copy the pill
   did, and `Run date` still has none.
-- `pill.test.tsx` — existing assertions must pass unchanged after the `<DefinitionTip>`
-  extraction.
+- `pill.test.tsx` — every assertion must pass unchanged across the `<DefinitionTip>`
+  extraction, which is behaviour-preserving. This does **not** extend to the §5 copy
+  change: `pill.test.tsx:179` pins the current `ask_quantity` wording with
+  `/forward-demand quantity and target date/i`, and that regex must be updated in the
+  same commit as the copy. Rewording deliberately changes content; the extraction does
+  not.
 
 `npx tsc --noEmit` must be run separately from `npm run build`; Next's build does not
 type-check `.test.tsx`.
