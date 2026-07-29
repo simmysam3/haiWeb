@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { SignalType, SkuAsk } from '@haiwave/protocol';
+import type { SignalType, SkuAsk, WatcherRunStatus } from '@haiwave/protocol';
 import { requestsSoftQuote } from '@/lib/soft-quote';
 
 // A watcher may request soft_quoted_lead_time without per-SKU forward-demand
@@ -17,15 +17,25 @@ interface Props {
   /** undefined = pre-3.54 run, asks never recorded. [] = recorded, none. */
   skuAsks: SkuAsk[] | undefined;
   templateId: string | null;
+  status: WatcherRunStatus;
 }
+
+// A zero soft-quote count only carries meaning once the run has settled. Soft
+// quotes are synthesized after the orchestrator returns (watcher-run-service.ts
+// persists them right after persistResults), so `results` is empty for the whole
+// in-flight window and for any run that threw. Both 'complete' and 'partial'
+// have been through synthesis; the rest have not.
+const SETTLED_STATUSES: readonly WatcherRunStatus[] = ['complete', 'partial'];
 
 export function UnqualifiedWatchBanner({
   signalTypes,
   softQuoteCount,
   skuAsks,
   templateId,
+  status,
 }: Props) {
   if (!requestsSoftQuote(signalTypes)) return null;
+  if (!SETTLED_STATUSES.includes(status)) return null;
   if (softQuoteCount > 0) return null;
 
   const asksExisted = (skuAsks?.length ?? 0) > 0;

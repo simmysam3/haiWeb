@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { SignalType, SkuAsk } from '@haiwave/protocol';
+import type { SignalType, SkuAsk, WatcherRunStatus } from '@haiwave/protocol';
 import { UnqualifiedWatchBanner } from '../unqualified-watch-banner';
 
 const SOFT: [SignalType, ...SignalType[]] = ['soft_quoted_lead_time'];
@@ -10,6 +10,7 @@ function renderBanner(props: {
   signalTypes?: [SignalType, ...SignalType[]];
   softQuoteCount?: number;
   skuAsks?: SkuAsk[] | undefined;
+  status?: WatcherRunStatus;
 }) {
   return render(
     <UnqualifiedWatchBanner
@@ -17,6 +18,7 @@ function renderBanner(props: {
       softQuoteCount={props.softQuoteCount ?? 0}
       skuAsks={props.skuAsks}
       templateId="33333333-3333-3333-3333-333333333333"
+      status={props.status ?? 'complete'}
     />,
   );
 }
@@ -30,6 +32,23 @@ describe('<UnqualifiedWatchBanner>', () => {
   it('renders nothing when soft quotes were produced', () => {
     const { container } = renderBanner({ softQuoteCount: 3, skuAsks: [ASK] });
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // An empty soft-quote count only means something once the run has settled.
+  // Soft quotes are synthesized after the orchestrator returns, so `results` is
+  // empty for the whole in-flight window and for any run that threw — and
+  // failed/cancelled runs already have <RunFailureBanner> naming the real cause.
+  it.each<WatcherRunStatus>(['running', 'throttled', 'failed', 'cancelled'])(
+    'renders nothing for a %s run, whose empty results prove nothing',
+    (status) => {
+      const { container } = renderBanner({ status, skuAsks: [] });
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
+  it('still reports on a partial run, which did reach soft-quote synthesis', () => {
+    renderBanner({ status: 'partial', skuAsks: [] });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
   it('states the cause confidently when asks were recorded as empty', () => {

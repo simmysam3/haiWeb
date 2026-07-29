@@ -175,6 +175,7 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
         softQuoteCount={results.filter((r) => r.signal_type === 'soft_quoted_lead_time').length}
         skuAsks={run.sku_asks}
         templateId={run.template_id ?? null}
+        status={run.status}
       />
 
       {readinessSkus ? (
