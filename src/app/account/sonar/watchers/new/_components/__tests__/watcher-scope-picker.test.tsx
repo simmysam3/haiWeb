@@ -202,6 +202,20 @@ describe('<WatcherScopePicker>', () => {
     expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
   });
 
+  // The wizard seeds the soft-quote signal but never sets a sku_asks key at all,
+  // so the state users actually land in is `undefined`, not `[]`. Covering only
+  // `[]` leaves the nullish default untested: `[].length` is 0 either way, so
+  // only an absent key makes `?? 0` load-bearing.
+  it('warns when the soft-quote signal is selected and sku_asks is absent entirely', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
+  });
+
   it('drops the warning once an ask is defined', () => {
     const scope: WatcherScope = {
       ...empty,
