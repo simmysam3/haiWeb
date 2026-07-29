@@ -5,6 +5,7 @@ import { ThrottleBanner } from '@/components/sonar/throttle-banner';
 import { ResumptionHistoryTable } from '@/components/sonar/resumption-history-table';
 import { CounterpartiesGrid, type EnrichedWatcherResult } from './_components/counterparties-grid';
 import { ReadinessReport } from './_components/readiness-report';
+import { UnqualifiedWatchBanner } from './_components/unqualified-watch-banner';
 import { pivotReadiness, type RunRef } from './_lib/pivot-readiness';
 import { RunControls } from './run-controls';
 import { RunFailureBanner } from './run-failure-banner';
@@ -165,6 +166,16 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
           resultsCount={results.length}
         />
       )}
+
+      {/* Factual, retroactive: keyed on the asks THIS run recorded (run.sku_asks)
+          and the soft quotes THIS run produced — never on `skuAsks` above, which
+          is derived from the template's mutable current scope. */}
+      <UnqualifiedWatchBanner
+        signalTypes={run.signal_types}
+        softQuoteCount={results.filter((r) => r.signal_type === 'soft_quoted_lead_time').length}
+        skuAsks={run.sku_asks}
+        templateId={run.template_id ?? null}
+      />
 
       {readinessSkus ? (
         <section aria-labelledby="readiness-heading" className="space-y-3">
