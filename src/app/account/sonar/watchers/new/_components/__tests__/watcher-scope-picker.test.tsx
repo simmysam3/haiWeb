@@ -187,4 +187,40 @@ describe('<WatcherScopePicker>', () => {
     expect(row).not.toBeNull();
     expect(row).not.toContainElement(qtyLabel);
   });
+
+  // A soft quote is synthesized against an ask quantity, so requesting the
+  // signal with no per-SKU forward-demand ask yields baseline signals only. The
+  // configuration is still valid, so the picker informs rather than blocks.
+  it('warns when a soft quote is requested with no forward-demand ask', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+      sku_asks: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
+  });
+
+  it('drops the warning once an ask is defined', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+      sku_asks: [{ sku: 'SKU-1', ask_quantity: 25, target_days: 18 }],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/not a qualified ask/i)).not.toBeInTheDocument();
+  });
+
+  it('does not warn when the soft-quote signal was never selected', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['published_lead_time'],
+      sku_asks: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/not a qualified ask/i)).not.toBeInTheDocument();
+  });
 });

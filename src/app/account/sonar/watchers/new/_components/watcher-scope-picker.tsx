@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { SignalType, WatcherScope } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
+import { requestsSoftQuote } from '@/lib/soft-quote';
 import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
 import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
@@ -32,6 +33,10 @@ export function WatcherScopePicker({ value, onChange }: Props) {
   useEffect(() => {
     setDepthDraft(String(value.depth_limit));
   }, [value.depth_limit]);
+
+  // The configuration is valid — a baseline watch without a qualified ask is a
+  // legitimate setup — so this informs rather than blocks.
+  const unqualified = requestsSoftQuote(value.signal_types) && (value.sku_asks?.length ?? 0) === 0;
 
   function toggleSignal(sig: SignalType) {
     const next = new Set(value.signal_types);
@@ -72,6 +77,18 @@ export function WatcherScopePicker({ value, onChange }: Props) {
           ))}
         </div>
       </fieldset>
+
+      {unqualified && (
+        <div
+          role="status"
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <span className="font-semibold">Not a qualified ask</span> — A soft-quoted lead time
+          is selected, but no per-SKU forward-demand ask is defined. This watcher will return
+          baseline signals only — published lead time and capacity — with no quote resolved
+          for a quantity.
+        </div>
+      )}
 
       <label className="block text-sm">
         <span className="block mb-1 font-medium text-charcoal">Depth limit</span>
