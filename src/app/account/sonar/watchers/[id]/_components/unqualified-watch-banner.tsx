@@ -41,14 +41,29 @@ export function UnqualifiedWatchBanner({
   const asksExisted = (skuAsks?.length ?? 0) > 0;
   const recorded = skuAsks !== undefined;
 
+  // Every element has to stay three-state. Branching the headline or the CTA on
+  // `!asksExisted` alone lumps `undefined` (never recorded) in with `[]`
+  // (recorded, none) and asserts a cause on the one row that cannot know it —
+  // the same mutable-value-over-immutable-history mistake this feature exists to
+  // prevent, one layer up. A pre-3.54 run may have had asks and failed to
+  // resolve for sourcing reasons, so it gets a neutral outcome and no CTA.
+  const headline = asksExisted
+    ? 'Soft quote unresolved'
+    : recorded
+      ? 'Unqualified watch'
+      : 'No soft quote resolved';
+
+  // Only worth pointing at the asks field when we know for a fact there were
+  // none. Otherwise the link may send the user to a template that already has
+  // the ask configured.
+  const canPointAtTheAsk = recorded && !asksExisted;
+
   return (
     <div
       role="alert"
       className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
     >
-      <p className="font-semibold">
-        {asksExisted ? 'Soft quote unresolved' : 'Unqualified watch'}
-      </p>
+      <p className="font-semibold">{headline}</p>
       {asksExisted ? (
         <p className="mt-1">
           A soft-quoted lead time was requested and a forward-demand ask was defined, but the
@@ -64,7 +79,7 @@ export function UnqualifiedWatchBanner({
           qualified against an ask.
         </p>
       )}
-      {!asksExisted && templateId && (
+      {canPointAtTheAsk && templateId && (
         <Link
           href={`/account/sonar/watchers/definitions/${templateId}`}
           className="mt-2 inline-block font-medium underline"

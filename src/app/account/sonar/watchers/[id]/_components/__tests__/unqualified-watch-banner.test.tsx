@@ -71,6 +71,22 @@ describe('<UnqualifiedWatchBanner>', () => {
     );
   });
 
+  // The hedge has to hold in every element, not just the middle sentence. A
+  // pre-3.54 run may well have had asks — headlining it "Unqualified watch" or
+  // offering "Add a forward-demand ask" asserts the cause the prose declines to
+  // state, and the template it would link to may already carry that ask.
+  it('names no cause in the headline or the CTA when asks were never recorded', () => {
+    renderBanner({ skuAsks: undefined });
+    expect(screen.getByRole('alert')).toHaveTextContent(/no soft quote resolved/i);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/unqualified watch/i);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('does headline an unqualified watch when the run recorded no asks', () => {
+    renderBanner({ skuAsks: [] });
+    expect(screen.getByRole('alert')).toHaveTextContent(/unqualified watch/i);
+  });
+
   it('reports a resolution failure when asks existed but no quote resolved', () => {
     renderBanner({ skuAsks: [ASK] });
     expect(screen.getByRole('alert')).toHaveTextContent(/could not be resolved/i);
