@@ -1,4 +1,4 @@
-import { Pill } from '@/components/pill';
+import { ColumnHeader } from '@/components/column-header';
 
 // Per-run lead-time history for a single (SKU, vendor) on the readiness watcher
 // run-detail page. Each row is one watcher run; columns are the four lead-time
@@ -13,6 +13,9 @@ export interface LeadTimeHistoryRow {
   calibrated: number | null;
   soft_quoted: number | null;
   soft_quoted_unavailable: boolean;
+  /** Quantity this run resolved the soft quote for. Null when the run had no
+   *  soft-quote result. Per-run, NOT the current configured ask. */
+  ask_quantity: number | null;
   capacity: CapacityBand | null;
 }
 
@@ -40,16 +43,17 @@ function formatDate(iso: string): string {
   });
 }
 
+// The "Lead time (days)" group header carries the unit, so cells are bare
+// numbers. Columns outside that group (e.g. ship delta) keep their own suffix.
 function days(value: number | null): string {
-  return value === null ? DASH : `${value}d`;
+  return value === null ? DASH : String(value);
 }
 
 interface Props {
   rows: LeadTimeHistoryRow[];
-  askQuantity: number;
 }
 
-export function LeadTimeHistoryTable({ rows, askQuantity }: Props) {
+export function LeadTimeHistoryTable({ rows }: Props) {
   return (
     <section>
       <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
@@ -57,34 +61,32 @@ export function LeadTimeHistoryTable({ rows, askQuantity }: Props) {
       </h4>
       <div className="overflow-hidden rounded-md border border-slate-200">
         <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate">
-            <tr>
-              <th className="px-3 py-2 font-semibold">Run date</th>
-              <th className="px-3 py-2 font-semibold">
-                <Pill category="lead_time_col" value="published">
-                  Published
-                </Pill>
+          <thead>
+            {/* Group tier: Published/Calibrated/Soft-quoted share a unit; Qty and
+                capacity do not. A plain spanning th — a unit annotation, not a
+                defined term, so no tooltip. */}
+            <tr className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-600">
+              <th />
+              <th
+                colSpan={3}
+                className="border-b border-slate-300 px-3 pb-1 pt-2 text-center font-bold text-teal"
+              >
+                Lead time (days)
               </th>
-              <th className="px-3 py-2 font-semibold">
-                <Pill category="lead_time_col" value="calibrated">
-                  Calibrated
-                </Pill>
-              </th>
-              <th className="px-3 py-2 font-semibold">
-                <span className="inline-flex items-center gap-1">
-                  <Pill category="lead_time_col" value="soft_quoted">
-                    Soft-quoted
-                  </Pill>
-                  <Pill category="lead_time_col" value="ask_quantity">
-                    qty {askQuantity}
-                  </Pill>
-                </span>
-              </th>
-              <th className="px-3 py-2 font-semibold">
-                <Pill category="lead_time_col" value="capacity">
-                  Available capacity
-                </Pill>
-              </th>
+              <th />
+              <th />
+            </tr>
+            <tr className="border-b-2 border-slate-300 bg-slate-50 text-xs uppercase tracking-wider text-slate-600">
+              <ColumnHeader label="Run date" />
+              <ColumnHeader label="Published" category="lead_time_col" value="published" />
+              <ColumnHeader label="Calibrated" category="lead_time_col" value="calibrated" />
+              <ColumnHeader label="Soft-quoted" category="lead_time_col" value="soft_quoted" />
+              <ColumnHeader label="Qty" category="lead_time_col" value="ask_quantity" />
+              <ColumnHeader
+                label="Available capacity"
+                category="lead_time_col"
+                value="capacity"
+              />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -101,6 +103,9 @@ export function LeadTimeHistoryTable({ rows, askQuantity }: Props) {
                     ) : (
                       days(row.soft_quoted)
                     )}
+                  </td>
+                  <td data-testid="qty-cell" className="px-3 py-2 font-mono">
+                    {row.ask_quantity === null ? DASH : row.ask_quantity}
                   </td>
                   <td className="px-3 py-2">
                     {row.capacity === null ? DASH : CAPACITY_LABEL[row.capacity]}

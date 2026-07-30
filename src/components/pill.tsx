@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { DefinitionTip } from './definition-tip';
 
 // ── Embedded definitions. Edit copy here. (category → value → definition) ──
 const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
@@ -136,7 +136,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     calibrated: "Calibrated: system-computed from the vendor's actual fulfillment history — the quoted-vs-actual ship-date delta over recent orders, outliers removed.",
     soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
     capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
-    ask_quantity: "Ask quantity: the forward-demand quantity and target date you want this SKU to be sourceable for.",
+    ask_quantity: "Ask quantity: the forward-demand quantity this run resolved the soft quote for. Fixed at run time — editing the watcher's ask changes later runs, not this one.",
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
@@ -323,6 +323,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   },
 };
 
+/** Resolve definition copy without exposing the map. Used by <ColumnHeader>. */
+export function definitionFor(category: string, value: string): string | undefined {
+  return PILL_DEFINITIONS[category]?.[value];
+}
+
 const _warnedKeys = new Set<string>();
 
 const TITLE_CASE = (v: string) =>
@@ -445,11 +450,8 @@ export function Pill({
   className = '',
   children,
 }: PillProps) {
-  const tipId = useId();
-  const [open, setOpen] = useState(false);
-
   const resolved =
-    definition ?? (category && value ? PILL_DEFINITIONS[category]?.[value] : undefined);
+    definition ?? (category && value ? definitionFor(category, value) : undefined);
 
   if (process.env.NODE_ENV !== 'production' && !resolved) {
     const warnKey = `${category}:${value}`;
@@ -467,38 +469,12 @@ export function Pill({
   const label = children ?? (value ? TITLE_CASE(value) : null);
 
   return (
-    <span
-      data-testid="pill"
-      tabIndex={0}
-      aria-describedby={body ? tipId : undefined}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      // If tooltip content ever becomes interactive (links/buttons), replace this
-      // with a relatedTarget containment check so focus moving into the tooltip
-      // doesn't dismiss it.
-      onBlur={() => setOpen(false)}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') setOpen(false);
-      }}
-      onClick={() => setOpen((o) => !o)}
+    <DefinitionTip
+      body={body}
+      testId="pill"
       className={`relative inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-default ${appliedTone} ${className}`}
     >
       {label}
-      {body && open && (
-        <span
-          role="tooltip"
-          id={tipId}
-          className="absolute left-0 top-full z-50 mt-1 w-max max-w-xs whitespace-pre-line rounded bg-navy px-2 py-1 text-xs font-normal text-white shadow-lg"
-        >
-          {body}
-        </span>
-      )}
-      {body && !open && (
-        <span id={tipId} className="sr-only">
-          {body}
-        </span>
-      )}
-    </span>
+    </DefinitionTip>
   );
 }

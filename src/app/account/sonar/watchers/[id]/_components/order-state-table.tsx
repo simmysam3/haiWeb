@@ -1,5 +1,5 @@
 import type { OrderFulfillmentHistoryPayload } from '@haiwave/protocol';
-import { Pill } from '@/components/pill';
+import { ColumnHeader } from '@/components/column-header';
 
 // Order-state view for a (SKU, vendor) on the readiness watcher run-detail
 // page. Two sub-tables: the vendor's currently open orders, then the most
@@ -84,11 +84,11 @@ export function OrderStateTable({ payload }: Props) {
                   <th className="px-3 py-2 font-semibold">Qty</th>
                   <th className="px-3 py-2 font-semibold">Quoted ship</th>
                   <th className="px-3 py-2 font-semibold">Actual ship</th>
-                  <th className="px-3 py-2 font-semibold">
-                    <Pill category="lead_time_col" value="calibrated">
-                      Ship delta
-                    </Pill>
-                  </th>
+                  <ColumnHeader
+                    label="Ship delta"
+                    category="lead_time_col"
+                    value="calibrated"
+                  />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">

@@ -26,6 +26,7 @@ const sku: ReadinessSku = {
           calibrated: 12,
           soft_quoted: 34,
           soft_quoted_unavailable: false,
+          ask_quantity: 40,
           capacity: 'moderate',
         },
       ],

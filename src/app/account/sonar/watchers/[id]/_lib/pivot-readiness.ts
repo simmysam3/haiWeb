@@ -49,6 +49,7 @@ function emptyRow(runDate: string): LeadTimeHistoryRow {
     calibrated: null,
     soft_quoted: null,
     soft_quoted_unavailable: false,
+    ask_quantity: null,
     capacity: null,
   };
 }
@@ -70,6 +71,7 @@ function foldSignalIntoRow(row: LeadTimeHistoryRow, result: WatcherResult): void
       const soft = payload as SoftQuotedLeadTimePayload;
       row.soft_quoted = soft.days;
       row.soft_quoted_unavailable = soft.availability === 'unavailable';
+      row.ask_quantity = soft.ask_quantity;
       break;
     }
     case 'capacity_utilization_band':
