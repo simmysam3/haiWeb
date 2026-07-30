@@ -79,6 +79,15 @@ describe('AccountNav', () => {
     expect(audit).toHaveLength(0);
   });
 
+  // The pricing-hierarchy surface isn't in use yet, so its nav entry is
+  // suppressed (the route itself still exists). Same treatment as Payments.
+  it('does not surface the Pricing entry under Account Management', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Pricing' })).toBeNull();
+    const hrefs = Array.from(document.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
+    expect(hrefs).not.toContain('/account/pricing');
+  });
+
   it('shows the Agent Software link in the bottom nav section', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     const link = screen.getByRole('link', { name: 'Agent Software' });

@@ -158,7 +158,10 @@ const navSections: NavSection[] = [
       { href: "/account/partners", label: "Trading Partners", tooltip: "Counterparties you have an active bilateral relationship with on HAIWAVE." },
       { href: "/account/partners/blocked", label: "Blocked Companies", indent: true, tooltip: "Counterparties you've blocked from initiating relationships or visibility against you." },
       { href: "/account/manifests", label: "Manifests", tooltip: "Counterparty and pricing manifests that drive your agent's access rules and quoted prices." },
-      { href: "/account/pricing", label: "Pricing", tooltip: "Pricing rules and inheritance configuration applied to your manifests." },
+      // Pricing suppressed — the pricing-hierarchy surface isn't in use yet, so
+      // it stays out of the nav. The route is intact; restore this entry when
+      // the functionality is turned on.
+      // { href: "/account/pricing", label: "Pricing", tooltip: "Pricing rules and inheritance configuration applied to your manifests." },
       { href: "/account/usage", label: "Usage", tooltip: "Request volume and rate-limit headroom against your HAIWAVE plan." },
       // Payments deferred to v2 — restore this entry when payments ships.
       // { href: "/account/payments", label: "Payments" },
