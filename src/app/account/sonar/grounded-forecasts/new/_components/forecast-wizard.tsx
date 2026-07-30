@@ -93,6 +93,11 @@ export function ForecastWizard() {
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  // Latched once the create POST succeeds. A later submit (retry after
+  // "saved but the initial run failed") must NEVER create a second template
+  // for the same intended forecast — it skips straight to the run.
+  const [createdTemplateId, setCreatedTemplateId] = useState<string | null>(null);
+
   /**
    * Pure validation over the current fields. Returns one message per step
    * (first problem wins) plus the cleaned scope — the same pass that gates
@@ -252,41 +257,50 @@ export function ForecastWizard() {
     setSessionExpired(false);
 
     const { errors, scope } = validate();
-    const firstErrored = STEP_ORDER.find(({ id }) => errors[id]);
-    if (firstErrored) {
-      jump(firstErrored.id);
-      return;
+    // On a retry after a successful create, the template already exists —
+    // validation gated the create, and only the run remains to be retried.
+    if (!createdTemplateId) {
+      const firstErrored = STEP_ORDER.find(({ id }) => errors[id]);
+      if (firstErrored) {
+        jump(firstErrored.id);
+        return;
+      }
     }
 
     setBusy(true);
     try {
-      const tplRes = await fetch('/api/account/sonar/grounded-forecasts', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        // observation_class intentionally absent — the BFF forces it.
-        body: JSON.stringify({
-          template_name: name.trim(),
-          scope,
-          cadence: { kind: 'manual_only' },
-          enabled: true,
-          retention_days: DEFAULT_RETENTION_DAYS,
-        }),
-      });
-      if (!tplRes.ok) {
-        const info = await describeApiError(tplRes);
-        setError(info.message);
-        setSessionExpired(info.sessionExpired);
-        return;
-      }
-      const tplPayload = (await tplRes.json().catch(() => null)) as
-        | { template?: { template_id?: string } }
-        | null;
-      const templateId = tplPayload?.template?.template_id;
+      let templateId = createdTemplateId;
       if (!templateId) {
-        setError(
-          'The forecast was created but the server response was malformed. Refresh the list to confirm.',
-        );
-        return;
+        const tplRes = await fetch('/api/account/sonar/grounded-forecasts', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          // observation_class intentionally absent — the BFF forces it.
+          body: JSON.stringify({
+            template_name: name.trim(),
+            scope,
+            cadence: { kind: 'manual_only' },
+            enabled: true,
+            retention_days: DEFAULT_RETENTION_DAYS,
+          }),
+        });
+        if (!tplRes.ok) {
+          const info = await describeApiError(tplRes);
+          setError(info.message);
+          setSessionExpired(info.sessionExpired);
+          return;
+        }
+        const tplPayload = (await tplRes.json().catch(() => null)) as
+          | { template?: { template_id?: string } }
+          | null;
+        const parsedId = tplPayload?.template?.template_id;
+        if (!parsedId) {
+          setError(
+            'The forecast was created but the server response was malformed. Refresh the list to confirm.',
+          );
+          return;
+        }
+        templateId = parsedId;
+        setCreatedTemplateId(parsedId);
       }
 
       if (runNow) {
