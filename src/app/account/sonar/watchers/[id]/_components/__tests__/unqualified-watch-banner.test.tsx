@@ -46,7 +46,11 @@ describe('<UnqualifiedWatchBanner>', () => {
     },
   );
 
-  it('still reports on a partial run, which did reach soft-quote synthesis', () => {
+  // 'partial' is unreachable today — nothing writes it — but it is a declared
+  // protocol status and permitted by the watcher_runs check constraint, so this
+  // guards the parity with the complete|partial pair used elsewhere for watcher
+  // runs. If a writer ever appears, the banner works instead of going dark.
+  it('reports on a partial run, a declared status nothing writes yet', () => {
     renderBanner({ status: 'partial', skuAsks: [] });
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });

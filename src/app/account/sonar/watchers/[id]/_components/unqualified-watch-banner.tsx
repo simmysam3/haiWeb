@@ -29,7 +29,16 @@ interface Props {
 // exception skips synthesis, and that lands as 'failed' too.
 //
 // So the gate is about whether we can honestly attribute a cause:
-//   complete / partial — the walk finished; the count is final. Report.
+//   complete            — the walk finished; the count is final. Report.
+//   partial             — declared in the protocol enum and in the
+//                         watcher_runs status check constraint, but NEVER
+//                         written by any code path today: the orchestrator
+//                         only ever returns complete/throttled/cancelled/
+//                         failed, and nothing assigns 'partial' directly.
+//                         Kept for parity with the complete|partial pair that
+//                         watcher-run-service.ts:409 and watcher-drift-service
+//                         already treat as succeeded, so a future writer lights
+//                         this up rather than silently skipping it.
 //   throttled          — synthesis ran, and resuming never re-synthesizes, so
 //                        the count will never change. Report. (ThrottleBanner
 //                        explains the budget; it does not explain the quote.)
