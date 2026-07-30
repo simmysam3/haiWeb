@@ -216,6 +216,21 @@ describe('<WatcherScopePicker>', () => {
     expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
   });
 
+  // Scoped to the warning's role="status" — the signal checkbox labels also
+  // contain these names, so an unscoped text query would match either.
+  it('names only the baseline signals actually selected', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time', 'order_fulfillment_history'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    const warning = screen.getByRole('status');
+    expect(warning).toHaveTextContent(/order state/i);
+    expect(warning).not.toHaveTextContent(/published lead time/i);
+    expect(warning).not.toHaveTextContent(/capacity/i);
+  });
+
   it('drops the warning once an ask is defined', () => {
     const scope: WatcherScope = {
       ...empty,

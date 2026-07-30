@@ -98,6 +98,26 @@ describe('<UnqualifiedWatchBanner>', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/unqualified watch/i);
   });
 
+  // The copy must describe the signals this watcher actually asked for, not a
+  // hardcoded pair. order_fulfillment_history is equally non-ask-gated.
+  it('names the baseline signals that were actually requested', () => {
+    renderBanner({
+      signalTypes: ['soft_quoted_lead_time', 'order_fulfillment_history'],
+      skuAsks: [],
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/order state/i);
+    expect(alert).not.toHaveTextContent(/published lead time/i);
+    expect(alert).not.toHaveTextContent(/capacity/i);
+  });
+
+  it('drops the baseline clause when the soft quote was the only signal requested', () => {
+    renderBanner({ signalTypes: ['soft_quoted_lead_time'], skuAsks: [] });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/only signal requested/i);
+    expect(alert).not.toHaveTextContent(/baseline only/i);
+  });
+
   it('reports a resolution failure when asks existed but no quote resolved', () => {
     renderBanner({ skuAsks: [ASK] });
     expect(screen.getByRole('alert')).toHaveTextContent(/could not be resolved/i);

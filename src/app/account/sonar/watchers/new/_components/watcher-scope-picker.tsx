@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { SignalType, WatcherScope } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
-import { requestsSoftQuote } from '@/lib/soft-quote';
+import { describeBaselineSignals, requestsSoftQuote } from '@/lib/soft-quote';
 import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
 import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
@@ -37,6 +37,10 @@ export function WatcherScopePicker({ value, onChange }: Props) {
   // The configuration is valid — a baseline watch without a qualified ask is a
   // legitimate setup — so this informs rather than blocks.
   const unqualified = requestsSoftQuote(value.signal_types) && (value.sku_asks?.length ?? 0) === 0;
+
+  // Named from the actual selection — hardcoding a pair misdescribes a watcher
+  // that did not select those signals.
+  const baseline = describeBaselineSignals(value.signal_types);
 
   function toggleSignal(sig: SignalType) {
     const next = new Set(value.signal_types);
@@ -84,9 +88,10 @@ export function WatcherScopePicker({ value, onChange }: Props) {
           className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
         >
           <span className="font-semibold">Not a qualified ask</span> — A soft-quoted lead time
-          is selected, but no per-SKU forward-demand ask is defined. This watcher will return
-          baseline signals only — published lead time and capacity — with no quote resolved
-          for a quantity.
+          is selected, but no per-SKU forward-demand ask is defined.{' '}
+          {baseline
+            ? `This watcher will return baseline signals only — ${baseline} — with no quote resolved for a quantity.`
+            : 'It is the only signal selected, so this watcher will return nothing at all.'}
         </div>
       )}
 

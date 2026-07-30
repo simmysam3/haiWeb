@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { SignalType, SkuAsk, WatcherRunStatus } from '@haiwave/protocol';
-import { requestsSoftQuote } from '@/lib/soft-quote';
+import { describeBaselineSignals, requestsSoftQuote } from '@/lib/soft-quote';
 
 // A watcher may request soft_quoted_lead_time without per-SKU forward-demand
 // asks. That is a valid configuration, but it silently yields no soft quote and
@@ -72,6 +72,14 @@ export function UnqualifiedWatchBanner({
   // the ask configured.
   const canPointAtTheAsk = recorded && !asksExisted;
 
+  // Named from what this run actually requested. A watcher that asked for
+  // neither published lead time nor capacity must not be told those are what
+  // it got, and order-fulfillment history is equally non-ask-gated.
+  const baseline = describeBaselineSignals(signalTypes);
+  const remainder = baseline
+    ? `The signals below are baseline only — ${baseline} — not qualified against an ask.`
+    : 'It was the only signal requested, so this run has no other results to show.';
+
   return (
     <div
       role="alert"
@@ -81,7 +89,7 @@ export function UnqualifiedWatchBanner({
       {asksExisted ? (
         <p className="mt-1">
           A soft-quoted lead time was requested and a forward-demand ask was defined, but the
-          quote could not be resolved for this run. The signals below are baseline only.
+          quote could not be resolved for this run. {remainder}
         </p>
       ) : (
         <p className="mt-1">
@@ -89,8 +97,7 @@ export function UnqualifiedWatchBanner({
           {recorded
             ? 'No per-SKU forward-demand ask was defined for this run.'
             : 'Whether an ask was defined was not recorded for this run.'}{' '}
-          The signals below are baseline only — published lead time and capacity — not
-          qualified against an ask.
+          {remainder}
         </p>
       )}
       {canPointAtTheAsk && templateId && (
