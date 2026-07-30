@@ -32,6 +32,14 @@ import type {
   SharingPolicy,
   SharingPolicyUpdateRequest,
   SharingPolicyUpdateResponse,
+  QueryGuardRule,
+  QueryGuardRuleUpsert,
+  ResolvedQueryGuardRule,
+  QueryGuardTestRequest,
+  QueryGuardTestResult,
+  QueryGuardState,
+  QueryGuardEvent,
+  QueryGuardSettings,
   AuditScope,
   AuditScopeCreationRequest,
   AuditScopeCoverage,
@@ -545,6 +553,22 @@ export interface HaiwaveClient {
   removeInstallation(installationId: string): Promise<ProvenanceKeyInstallation>;
   getSharingPolicy(): Promise<SharingPolicy>;
   upsertSharingPolicy(body: SharingPolicyUpdateRequest): Promise<SharingPolicyUpdateResponse>;
+  // ─── Query guard (v1.60) ─────────────────────────────────────────────
+  listQueryGuardRules(): Promise<{ rules: QueryGuardRule[] }>;
+  upsertQueryGuardRule(rule: QueryGuardRuleUpsert): Promise<QueryGuardRule>;
+  deleteQueryGuardRule(id: string): Promise<void>;
+  getQueryGuardMatrix(): Promise<{ matrix: ResolvedQueryGuardRule[] }>;
+  testQueryGuardRules(hypothetical: QueryGuardTestRequest): Promise<QueryGuardTestResult>;
+  listQueryGuardStates(): Promise<{ states: QueryGuardState[] }>;
+  restoreQueryGuardState(id: string): Promise<QueryGuardState>;
+  clearQueryGuardState(id: string): Promise<QueryGuardState>;
+  listQueryGuardEvents(params: {
+    counterparty?: string;
+    rule_type?: string;
+    limit?: number;
+  }): Promise<{ events: QueryGuardEvent[] }>;
+  getQueryGuardSettings(): Promise<QueryGuardSettings>;
+  putQueryGuardSettings(email: string | null): Promise<QueryGuardSettings>;
   // Catalog (v1.25)
   listCatalogClasses(vendorId: string): Promise<{ classes: CatalogClass[] }>;
   listCatalogProducts(
@@ -1351,6 +1375,48 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     upsertSharingPolicy(body) {
       return request<SharingPolicyUpdateResponse>('PUT', '/sharing-policy/', body);
+    },
+
+    // ─── Query guard (v1.60) ─────────────────────────────────
+    listQueryGuardRules() {
+      return request<{ rules: QueryGuardRule[] }>('GET', '/query-guard/rules');
+    },
+    upsertQueryGuardRule(rule) {
+      return request<QueryGuardRule>('PUT', '/query-guard/rules', rule);
+    },
+    async deleteQueryGuardRule(id) {
+      await request<void>('DELETE', `/query-guard/rules/${id}`);
+    },
+    getQueryGuardMatrix() {
+      return request<{ matrix: ResolvedQueryGuardRule[] }>('GET', '/query-guard/rules/resolved');
+    },
+    testQueryGuardRules(hypothetical) {
+      return request<QueryGuardTestResult>('POST', '/query-guard/test', hypothetical);
+    },
+    listQueryGuardStates() {
+      return request<{ states: QueryGuardState[] }>('GET', '/query-guard/states');
+    },
+    restoreQueryGuardState(id) {
+      return request<QueryGuardState>('POST', `/query-guard/states/${id}/restore`);
+    },
+    clearQueryGuardState(id) {
+      return request<QueryGuardState>('POST', `/query-guard/states/${id}/clear`);
+    },
+    listQueryGuardEvents(params) {
+      const qs = new URLSearchParams();
+      if (params.counterparty) qs.set('counterparty', params.counterparty);
+      if (params.rule_type) qs.set('rule_type', params.rule_type);
+      if (params.limit) qs.set('limit', String(params.limit));
+      const suffix = qs.size ? `?${qs}` : '';
+      return request<{ events: QueryGuardEvent[] }>('GET', `/query-guard/events${suffix}`);
+    },
+    getQueryGuardSettings() {
+      return request<QueryGuardSettings>('GET', '/query-guard/settings');
+    },
+    putQueryGuardSettings(email) {
+      return request<QueryGuardSettings>('PUT', '/query-guard/settings', {
+        default_alert_email: email,
+      });
     },
 
     // ─── Catalog (v1.25) ─────────────────────────────────────
