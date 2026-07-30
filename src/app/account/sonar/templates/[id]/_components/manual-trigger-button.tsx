@@ -9,7 +9,11 @@ import { FormError } from '@/components';
 import { configNoun } from '../../_lib/config-noun';
 import { runDetailHref } from '../../_lib/run-detail-href';
 
-type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+type ObservationClass =
+  | 'audit'
+  | 'watcher'
+  | 'phantom_demand'
+  | 'grounded_forecast';
 
 interface ManualTriggerButtonProps {
   templateId: string;

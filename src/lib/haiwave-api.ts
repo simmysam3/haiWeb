@@ -106,6 +106,8 @@ import type {
   GroupedManifestsResponse,
   ManifestsByClassResponse,
   ManifestSearchResponse,
+  GroundedForecastResult,
+  GroundedForecastBomLine,
 } from '@haiwave/protocol';
 
 import type {
@@ -655,6 +657,22 @@ export interface HaiwaveClient {
     qty_override?: number | null;
     target_date_override?: string | null;
   }): Promise<{ runId: string }>;
+  // ─── Grounded Forecasts (v1.62) ──────────────────────────────────────────
+  // A grounded forecast is a fourth observation class on run_templates, so
+  // create / update / delete / trigger ride the generic run-template methods
+  // below. Only these four reads are specific to the modality.
+  listGroundedForecastTemplates(): Promise<{ templates: RunTemplate[] }>;
+  getGroundedForecastResult(templateId: string): Promise<{
+    result: GroundedForecastResult;
+    run_id: string;
+    last_run_at: string;
+  }>;
+  getGroundedForecastRunStatus(
+    runId: string,
+  ): Promise<{ status: string; cancel_requested_at: string | null }>;
+  getGroundedForecastBomSeed(
+    sku: string,
+  ): Promise<{ lines: GroundedForecastBomLine[] }>;
   // ─── v1.44 — Agent config (scaffold; haiCore route pending) ─────────────
   getAgentConfig(agentId: string): Promise<AgentConfig>;
   patchAgentConfig(
@@ -686,7 +704,12 @@ export interface HaiwaveClient {
   getThrottledRunsCount(): Promise<{ audit: number; watcher: number; total: number }>;
   getThrottleStatus(): Promise<{
     count: number;
-    most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
+    most_recent_modality:
+      | 'audit'
+      | 'watcher'
+      | 'phantom_demand'
+      | 'grounded_forecast'
+      | null;
   }>;
   // ─── v1.30 PR-5: Usage Page surfaces ────────────────────────────────
   getUsageTimeseries(query?: { window_days?: number }): Promise<{
@@ -706,7 +729,11 @@ export interface HaiwaveClient {
   getActiveRuns(): Promise<{
     active_runs: Array<{
       run_id: string;
-      observation_class: 'audit' | 'watcher' | 'phantom_demand';
+      observation_class:
+        | 'audit'
+        | 'watcher'
+        | 'phantom_demand'
+        | 'grounded_forecast';
       status: 'running' | 'throttled';
       hops_consumed: number;
       started_at: string | null;
@@ -716,7 +743,11 @@ export interface HaiwaveClient {
   getThrottleHistory(query?: { days?: number }): Promise<{
     throttle_history: Array<{
       run_id: string;
-      observation_class: 'audit' | 'watcher' | 'phantom_demand';
+      observation_class:
+        | 'audit'
+        | 'watcher'
+        | 'phantom_demand'
+        | 'grounded_forecast';
       throttled_at: string;
       resumption_count: number;
       current_status: string;
@@ -1770,6 +1801,43 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       ).then((r) => r.templates ?? []);
     },
 
+    // ─── Grounded Forecasts (v1.62) ──────────────────────────────────────
+    listGroundedForecastTemplates() {
+      const qs = new URLSearchParams();
+      qs.set('observation_class', 'grounded_forecast');
+      // Unlike listPhantomDemandTemplates this keeps the { templates } envelope
+      // — the BFF list route forwards it verbatim. The ?? [] guard is the same:
+      // haiCore omits the key rather than sending an empty array on some paths.
+      return request<{ templates: RunTemplate[] }>(
+        'GET',
+        `/sonar/templates?${qs.toString()}`,
+      ).then((r) => ({ templates: r.templates ?? [] }));
+    },
+    getGroundedForecastResult(templateId: string) {
+      return request<{
+        result: GroundedForecastResult;
+        run_id: string;
+        last_run_at: string;
+      }>(
+        'GET',
+        `/sonar/grounded-forecasts/templates/${encodeURIComponent(templateId)}/result`,
+      );
+    },
+    getGroundedForecastRunStatus(runId: string) {
+      return request<{ status: string; cancel_requested_at: string | null }>(
+        'GET',
+        `/sonar/grounded-forecasts/runs/${encodeURIComponent(runId)}/status`,
+      );
+    },
+    getGroundedForecastBomSeed(sku: string) {
+      const qs = new URLSearchParams();
+      qs.set('sku', sku);
+      return request<{ lines: GroundedForecastBomLine[] }>(
+        'GET',
+        `/sonar/grounded-forecasts/bom-seed?${qs.toString()}`,
+      );
+    },
+
     // ─── v1.44 — Agent config (scaffold; haiCore route pending) ──────────
     getAgentConfig(agentId: string) {
       return request<AgentConfig>('GET', `/agents/${encodeURIComponent(agentId)}/config`);
@@ -1864,7 +1932,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     getThrottleStatus() {
       return request<{
         count: number;
-        most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
+        most_recent_modality:
+          | 'audit'
+          | 'watcher'
+          | 'phantom_demand'
+          | 'grounded_forecast'
+          | null;
       }>('GET', '/account/throttle-status');
     },
 
@@ -1898,7 +1971,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{
         active_runs: Array<{
           run_id: string;
-          observation_class: 'audit' | 'watcher' | 'phantom_demand';
+          observation_class:
+            | 'audit'
+            | 'watcher'
+            | 'phantom_demand'
+            | 'grounded_forecast';
           status: 'running' | 'throttled';
           hops_consumed: number;
           started_at: string | null;
@@ -1913,7 +1990,11 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<{
         throttle_history: Array<{
           run_id: string;
-          observation_class: 'audit' | 'watcher' | 'phantom_demand';
+          observation_class:
+            | 'audit'
+            | 'watcher'
+            | 'phantom_demand'
+            | 'grounded_forecast';
           throttled_at: string;
           resumption_count: number;
           current_status: string;
