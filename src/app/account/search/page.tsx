@@ -118,14 +118,20 @@ export default async function GlobalSearchPage({
             label="SKUs"
             hits={data.skus}
             emptyMessage={`No SKUs match "${q}".`}
-            href={(s) => `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`}
+            href={(s) =>
+              // Redacted (chain-owned) obligations have a hidden product_id
+              // (D-119) — no sku to deep-link on, so fall back to the gaps page.
+              s.product_id
+                ? `/account/sonar/audit/gaps?sku=${encodeURIComponent(s.product_id)}`
+                : '/account/sonar/audit/gaps'
+            }
             keyOf={(s) => s.obligation_id}
             pillValue={(s) => s.status}
             row={(s) => (
               <>
                 {s.sku_label}
                 <span className="ml-2 text-xs text-slate">
-                  {s.product_id}
+                  {s.product_id ?? 'identity withheld'}
                   {s.responder_legal_name && ` · ${s.responder_legal_name}`}
                 </span>
               </>

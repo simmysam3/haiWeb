@@ -31,6 +31,18 @@ describe('groupNominations', () => {
     expect(result[0].status_mix).toEqual({ outstanding: 1 });
   });
 
+  it('groups redacted nominations (null product_id) by concept label, not collapsed into one null group', () => {
+    const result = groupNominations([
+      row({ obligation_id: 'a', product_id: null, sku_label: 'Vibration monitoring unit' }),
+      row({ obligation_id: 'b', product_id: null, sku_label: 'Hydraulic actuator' }),
+      row({ obligation_id: 'c', product_id: null, sku_label: 'Vibration monitoring unit' }),
+    ]);
+    expect(result).toHaveLength(2); // two distinct concepts, not merged on null
+    const vmu = result.find((g) => g.sku_label === 'Vibration monitoring unit')!;
+    expect(vmu.product_id).toBeNull();
+    expect(vmu.request_count).toBe(2);
+  });
+
   it('groups multiple observers on same SKU', () => {
     const result = groupNominations([
       row({ obligation_id: 'a', observer_display_name: 'Acme', arrival_time: '2026-04-28T10:00:00Z' }),

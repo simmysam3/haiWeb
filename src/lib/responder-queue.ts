@@ -4,15 +4,21 @@ import type { InboundNominationGroup, InboundNominationRow } from './responder-q
 export function groupNominations(
   rows: InboundNominationRow[],
 ): InboundNominationGroup[] {
+  // Disclosed rows group by the real product_id; identity-redacted rows (null
+  // product_id, D-119) have no sku to key on, so they group by concept label —
+  // otherwise every redacted nomination would collapse into one null group. The
+  // key is prefixed so a real product_id can never collide with a concept label.
   const byProduct = new Map<string, InboundNominationRow[]>();
   for (const r of rows) {
-    const list = byProduct.get(r.product_id);
+    const key = r.product_id !== null ? `p:${r.product_id}` : `c:${r.sku_label}`;
+    const list = byProduct.get(key);
     if (list) list.push(r);
-    else byProduct.set(r.product_id, [r]);
+    else byProduct.set(key, [r]);
   }
 
   const groups: InboundNominationGroup[] = [];
-  for (const [product_id, observers] of byProduct) {
+  for (const [, observers] of byProduct) {
+    const product_id = observers[0].product_id;
     observers.sort((a, b) => b.arrival_time.localeCompare(a.arrival_time));
     const status_mix: Partial<Record<SkuObligationStatus, number>> = {};
     let earliest_arrival = observers[0].arrival_time;
