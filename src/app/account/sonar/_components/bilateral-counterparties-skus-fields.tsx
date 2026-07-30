@@ -306,7 +306,9 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
 
   // Inline forward-demand ask inputs — rendered only for readiness watchers
   // (collectAsks) at a currently-selected SKU. Null everywhere else so the
-  // shared audit picker is unchanged.
+  // shared audit picker is unchanged. Rendered on the leaf row's detail line
+  // (AccordionLeafRow detailSlot), which has room for visible labels and the
+  // full predicted-date preview.
   function askInputs(sku: string) {
     if (!collectAsks || !selectedSkus.has(sku)) return null;
     const draft = asks.get(sku);
@@ -318,17 +320,20 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
       ? previewTargetDate(draft.target_days)
       : null;
     return (
-      <span className="flex items-center gap-1">
-        <input
-          type="number"
-          min={1}
-          aria-label={`Ask quantity for ${sku}`}
-          value={qtyValue}
-          onChange={(e) => updateAsk(sku, { ask_quantity: Number.parseInt(e.target.value, 10) })}
-          placeholder="qty"
-          className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
-        />
-        <label className="flex items-center gap-1 text-xs text-slate">
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate">
+        <label className="flex items-center gap-1.5">
+          <span>Quantity</span>
+          <input
+            type="number"
+            min={1}
+            aria-label={`Ask quantity for ${sku}`}
+            value={qtyValue}
+            onChange={(e) => updateAsk(sku, { ask_quantity: Number.parseInt(e.target.value, 10) })}
+            className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+          />
+        </label>
+        <label className="flex items-center gap-1.5">
+          <span>Target window</span>
           <input
             type="number"
             min={1}
@@ -336,13 +341,12 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
             aria-label={`Target window in calendar days for ${sku}`}
             value={daysValue}
             onChange={(e) => updateAsk(sku, { target_days: Number.parseInt(e.target.value, 10) })}
-            placeholder="days"
             className="w-14 rounded border border-slate-300 px-1.5 py-0.5 text-xs"
           />
-          calendar days
+          <span>calendar days</span>
         </label>
         {preview && (
-          <span className="text-xs text-slate whitespace-nowrap" aria-hidden>
+          <span className="whitespace-nowrap" aria-hidden>
             → ~{preview} if run today
           </span>
         )}
@@ -484,13 +488,11 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
                               }
                               label={p.product_name ?? '(unnamed product)'}
                               metaSlot={
-                                <>
-                                  <span className="text-xs font-mono text-slate truncate">
-                                    {p.external_product_id}
-                                  </span>
-                                  {askInputs(p.external_product_id)}
-                                </>
+                                <span className="text-xs font-mono text-slate truncate">
+                                  {p.external_product_id}
+                                </span>
                               }
+                              detailSlot={askInputs(p.external_product_id)}
                             />
                           ))}
                         </AccordionGroupRow>
@@ -506,17 +508,22 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
                         counterparty&apos;s public catalog
                       </summary>
                       <div className="pl-4 mt-1 space-y-0.5">
-                        {catalog.orphanIds.map((id) => (
-                          <label key={id} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedSkus.has(id)}
-                              onChange={() => toggleSku(id)}
-                            />
-                            <span className="font-mono text-slate truncate">{id}</span>
-                            {askInputs(id)}
-                          </label>
-                        ))}
+                        {catalog.orphanIds.map((id) => {
+                          const ask = askInputs(id);
+                          return (
+                            <div key={id}>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSkus.has(id)}
+                                  onChange={() => toggleSku(id)}
+                                />
+                                <span className="font-mono text-slate truncate">{id}</span>
+                              </label>
+                              {ask && <div className="pl-6 pt-0.5">{ask}</div>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </details>
                   )}

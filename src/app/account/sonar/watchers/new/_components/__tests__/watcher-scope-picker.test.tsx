@@ -160,4 +160,31 @@ describe('<WatcherScopePicker>', () => {
     const last = onChange.mock.calls.at(-1)?.[0] as WatcherScope;
     expect(last.sku_asks ?? []).toHaveLength(0);
   });
+
+  // v1.60 layout: the ask cluster moved out of the row's right-aligned meta
+  // slot onto its own detail line beneath the product, with visible labels —
+  // the meta slot could not fit the boxes plus the predicted-date preview.
+  it('renders ask inputs with visible labels on a detail line under the selected SKU', async () => {
+    stubCatalogFetch();
+
+    const scope: WatcherScope = {
+      ...empty,
+      skus: ['PN-88A'],
+      sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }],
+    };
+    render(<WatcherScopePicker value={scope} onChange={vi.fn()} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /expand acme/i }));
+    await userEvent.click(await screen.findByRole('button', { name: /expand unclassified/i }));
+
+    // Visible labels (not just placeholders/aria-labels).
+    const qtyLabel = await screen.findByText('Quantity');
+    expect(screen.getByText('Target window')).toBeInTheDocument();
+    // The predicted-date preview renders (target_days is set).
+    expect(screen.getByText(/if run today/)).toBeInTheDocument();
+    // The cluster lives on the detail line, outside the row's flex line.
+    const row = screen.getByText('Widget PN-88A').closest('[role="treeitem"]');
+    expect(row).not.toBeNull();
+    expect(row).not.toContainElement(qtyLabel);
+  });
 });
