@@ -34,11 +34,11 @@ describe('<UnqualifiedWatchBanner>', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // An empty soft-quote count only means something once the run has settled.
-  // Soft quotes are synthesized after the orchestrator returns, so `results` is
-  // empty for the whole in-flight window and for any run that threw — and
-  // failed/cancelled runs already have <RunFailureBanner> naming the real cause.
-  it.each<WatcherRunStatus>(['running', 'throttled', 'failed', 'cancelled'])(
+  // 'running' — results are still landing. 'failed' — a thrown failure never
+  // reached synthesis while a terminate-driven one did, and we cannot tell which
+  // from here, so we do not claim a cause. 'cancelled' — deliberately stopped.
+  // 'throttled' is deliberately NOT in this list: see the test below.
+  it.each<WatcherRunStatus>(['running', 'failed', 'cancelled'])(
     'renders nothing for a %s run, whose empty results prove nothing',
     (status) => {
       const { container } = renderBanner({ status, skuAsks: [] });
@@ -49,6 +49,17 @@ describe('<UnqualifiedWatchBanner>', () => {
   it('still reports on a partial run, which did reach soft-quote synthesis', () => {
     renderBanner({ status: 'partial', skuAsks: [] });
     expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  // A throttled run has already been through soft-quote synthesis — the
+  // orchestrator returns 'throttled' normally, and synthesis runs after
+  // persistResults and before finalStatus is even read. Resuming does not
+  // re-synthesize, so the count is final and the outcome is knowable.
+  it('reports on a throttled run, which has already been through synthesis', () => {
+    renderBanner({ status: 'throttled', skuAsks: [] });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /no per-SKU forward-demand ask was defined/i,
+    );
   });
 
   it('states the cause confidently when asks were recorded as empty', () => {

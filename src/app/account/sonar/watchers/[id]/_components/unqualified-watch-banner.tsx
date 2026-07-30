@@ -20,12 +20,26 @@ interface Props {
   status: WatcherRunStatus;
 }
 
-// A zero soft-quote count only carries meaning once the run has settled. Soft
-// quotes are synthesized after the orchestrator returns (watcher-run-service.ts
-// persists them right after persistResults), so `results` is empty for the whole
-// in-flight window and for any run that threw. Both 'complete' and 'partial'
-// have been through synthesis; the rest have not.
-const SETTLED_STATUSES: readonly WatcherRunStatus[] = ['complete', 'partial'];
+// A zero soft-quote count only carries meaning once it is final.
+//
+// Synthesis itself is NOT the discriminator: haiCore runs it unconditionally
+// after persistResults and before finalStatus is read, so every status the
+// orchestrator returns normally — complete, throttled, cancelled, and
+// terminate-driven failed — has already been through it. Only a thrown
+// exception skips synthesis, and that lands as 'failed' too.
+//
+// So the gate is about whether we can honestly attribute a cause:
+//   complete / partial — the walk finished; the count is final. Report.
+//   throttled          — synthesis ran, and resuming never re-synthesizes, so
+//                        the count will never change. Report. (ThrottleBanner
+//                        explains the budget; it does not explain the quote.)
+//   running            — results are still landing. Say nothing.
+//   failed             — indistinguishable from here: a thrown failure never
+//                        reached synthesis, a terminate-driven one did. We
+//                        cannot tell, so we do not claim. RunFailureBanner owns it.
+//   cancelled          — deliberately stopped; attributing a configuration or
+//                        resolution cause to an interrupted run over-claims.
+const SETTLED_STATUSES: readonly WatcherRunStatus[] = ['complete', 'partial', 'throttled'];
 
 export function UnqualifiedWatchBanner({
   signalTypes,
