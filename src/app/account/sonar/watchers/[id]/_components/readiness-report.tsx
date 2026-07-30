@@ -62,9 +62,14 @@ export function ReadinessReport({ skus }: Props) {
               {sku.product_name}
               <span className="ml-2 font-mono text-xs font-normal text-slate-500">{sku.sku}</span>
             </h3>
+            {/* The template's ask as configured NOW, not what this run used —
+                the history table's Qty column carries the per-run value. Said
+                plainly as "Current", because on a run that recorded no ask the
+                unqualified wording contradicts <UnqualifiedWatchBanner> above. */}
             {sku.ask && (
               <p className="mt-1 text-sm text-slate">
-                Ask: {sku.ask.ask_quantity} units within {sku.ask.target_days} calendar days
+                Current ask: {sku.ask.ask_quantity} units within {sku.ask.target_days} calendar
+                days
               </p>
             )}
           </header>

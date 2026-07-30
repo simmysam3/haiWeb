@@ -147,7 +147,7 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(
       screen.getByRole('heading', { level: 3, name: /PN-88A/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Ask: 40 units within 30 calendar days/)).toBeInTheDocument();
+    expect(screen.getByText(/Current ask: 40 units within 30 calendar days/)).toBeInTheDocument();
     // The order-state table (inside ReadinessReport) shows the active PO.
     expect(screen.getByText('PO-4471')).toBeInTheDocument();
     // NOT the legacy counterparties grid.
@@ -199,6 +199,12 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
       /no per-SKU forward-demand ask was defined/i,
     );
     expect(screen.getByRole('alert')).not.toHaveTextContent(/could not be resolved/i);
+
+    // The readiness section still renders the template's ask below the banner —
+    // that is intended — but it must be QUALIFIED as the current ask. Bare
+    // "Ask: 40 units..." next to "no ask was defined for this run" reads as a
+    // flat contradiction on the same screen.
+    expect(screen.getByText(/Current ask: 40 units within 30 calendar days/)).toBeInTheDocument();
   });
 
   it('counts soft quotes from this run only, not the trailing history', async () => {
@@ -267,6 +273,6 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(
       screen.getByRole('heading', { name: 'Counterparty observations' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Ask: .* units within/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/current ask: .* units within/i)).not.toBeInTheDocument();
   });
 });
