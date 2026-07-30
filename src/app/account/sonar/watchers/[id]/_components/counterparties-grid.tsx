@@ -13,6 +13,7 @@ import {
   scoreOf,
 } from '@/components/sonar/observations';
 import { Pill } from '@/components/pill';
+import { VerifiedUndisclosedChip } from '@/components/verified-undisclosed-chip';
 import { LeadTimeTriplet, type Numbered, type Distribution } from './lead-time-triplet';
 import { CapacityBandPanel } from './capacity-band-panel';
 import { DeliveryEventLog } from './delivery-event-log';
@@ -46,6 +47,11 @@ interface CounterpartyGroup {
   key: string;
   counterpartyId: string | null;
   counterpartyName: string;
+  // Presentation discriminant: when true the identity cell renders the shared
+  // <VerifiedUndisclosedChip> instead of the placeholder name text. Kept beside
+  // counterpartyName (still used verbatim for sort/filter) so grouping,
+  // scoring, and search behaviour are unchanged.
+  undisclosed: boolean;
   results: WatcherResult[];
   productSubGroups: ProductSubGroup[];
   gapTiers: Map<number, number>;
@@ -59,6 +65,12 @@ function nameOf(r: EnrichedWatcherResult): string {
   // to the canonical "Vendor Name Not Disclosed" framing used elsewhere
   // (e.g. tree-view) rather than exposing a raw UUID slice.
   return r.counterparty_name ?? 'Vendor Name Not Disclosed';
+}
+
+// A counterparty is undisclosed when it's a tier-2+ aggregate (null id) or a
+// tier-1 row with no resolvable name — both render the identity-withheld chip.
+function isUndisclosed(r: EnrichedWatcherResult): boolean {
+  return r.counterparty_participant_id === null || !r.counterparty_name;
 }
 
 function gapTiersFor(results: WatcherResult[]): Map<number, number> {
@@ -189,6 +201,7 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
           key,
           counterpartyId: r.counterparty_participant_id,
           counterpartyName: nameOf(r),
+          undisclosed: isUndisclosed(r),
           results: [],
           productSubGroups: [],
           gapTiers: new Map(),
@@ -297,7 +310,11 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 aria-expanded={isVendorOpen}
                 className="group flex w-full items-center gap-3 text-left"
               >
-                <span className="font-medium text-charcoal">{g.counterpartyName}</span>
+                {g.undisclosed ? (
+                  <VerifiedUndisclosedChip />
+                ) : (
+                  <span className="font-medium text-charcoal">{g.counterpartyName}</span>
+                )}
                 <span className="flex items-center gap-1">
                   {hasPLT && <Pill category="signal_type" value="PLT" />}
                   {hasQLT && <Pill category="signal_type" value="QLT" />}

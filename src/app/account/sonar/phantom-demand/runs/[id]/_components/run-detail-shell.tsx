@@ -1,10 +1,8 @@
 'use client';
-import { useState } from 'react';
 import useSWR from 'swr';
 import type { PhantomDemandRunDetail } from '@/lib/haiwave-api';
-import { BomTreeView, BomNodeDetail } from '@/components/sonar/phantom-demand';
+import { BomAccordionTree, BomNodeBand } from '@/components/sonar/phantom-demand';
 import { Pill } from '@/components/pill';
-import type { BomNode } from '@haiwave/protocol';
 
 interface RunDetailShellProps {
   initialDetail: PhantomDemandRunDetail;
@@ -17,15 +15,6 @@ const fetcher = (url: string) =>
   });
 
 const TERMINAL_STATUSES = new Set(['complete', 'completed', 'failed', 'cancelled']);
-
-function findNode(tree: BomNode, lineId: string): BomNode | null {
-  if (tree.line_id === lineId) return tree;
-  for (const child of tree.subcomponents) {
-    const found = findNode(child, lineId);
-    if (found) return found;
-  }
-  return null;
-}
 
 export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
   const runId = initialDetail.run.run_id;
@@ -53,9 +42,6 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
   const tree = detail.tree;
   const targetDate = (detail.run.scope_snapshot as { target_date?: string } | null)?.target_date ?? '';
 
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
-  const selectedNode = tree && selectedLineId ? findNode(tree, selectedLineId) : null;
-
   if (!tree) {
     return (
       <div className="rounded border border-slate-200 bg-white p-6">
@@ -73,16 +59,16 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
           <Pill category="readiness" value={verdict} />
         </div>
       )}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <BomTreeView tree={tree} selectedLineId={selectedLineId} onSelect={setSelectedLineId} targetDate={targetDate} />
-        {selectedNode ? (
-          <BomNodeDetail node={selectedNode} targetDate={targetDate} />
-        ) : (
-          <div className="rounded border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-            Select a component to see details.
-          </div>
+      {/* Unified accordion drill-in: one full-width tree; clicking a row toggles
+          its detail band and children inline beneath it (replaces the two-pane
+          tree + detail-panel layout). */}
+      <BomAccordionTree
+        tree={tree}
+        targetDate={targetDate}
+        renderBand={(node, lineRef) => (
+          <BomNodeBand node={node} targetDate={targetDate} lineRef={lineRef} />
         )}
-      </div>
+      />
     </div>
   );
 }

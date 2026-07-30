@@ -9,6 +9,7 @@ import type {
 } from '@haiwave/protocol';
 import { IdChip } from '@/components/id-chip';
 import { Pill as SharedPill } from '@/components/pill';
+import { VerifiedUndisclosedChip } from '@/components/verified-undisclosed-chip';
 import {
   DomesticFlagBadge,
   isDomesticOrigin,
@@ -88,24 +89,33 @@ function formatOperational(audit: ReturnType<typeof auditPayload>): string | nul
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
+// Presentation discriminant for the identity cell. 'undisclosed' cases render
+// the shared <VerifiedUndisclosedChip> (the every-redaction-is-a-chip rule);
+// 'name' cases render plain text. Kind (not a bare label string) so the JSX
+// picks chip vs text — the 'Unknown — no network record' and italic 'Component'
+// branches keep their prior text rendering unchanged.
+type NodeDisplay =
+  | { kind: 'undisclosed' }
+  | { kind: 'name'; label: string; italic: boolean };
+
 function nodeDisplayName(
   node: ObservationNode,
   vendorName: string | null,
-): { label: string; italic: boolean } {
+): NodeDisplay {
   if (node.identity_redacted === true) {
-    return { label: 'Vendor Name Not Disclosed', italic: false };
+    return { kind: 'undisclosed' };
   }
-  if (vendorName) return { label: vendorName, italic: false };
+  if (vendorName) return { kind: 'name', label: vendorName, italic: false };
   if (node.gap?.kind === 'unauthorized') {
-    return { label: 'Vendor Name Not Disclosed', italic: false };
+    return { kind: 'undisclosed' };
   }
   if (node.gap?.kind === 'non_participant') {
-    return { label: 'Unknown — no network record', italic: false };
+    return { kind: 'name', label: 'Unknown — no network record', italic: false };
   }
   if (node.participant_id) {
-    return { label: 'Vendor Name Not Disclosed', italic: false };
+    return { kind: 'undisclosed' };
   }
-  return { label: 'Component', italic: true };
+  return { kind: 'name', label: 'Component', italic: true };
 }
 
 type ComplianceTone = 'green' | 'red';
@@ -181,7 +191,7 @@ export function TreeView({
   const tone =
     !open && hasChildren ? subtreeWorstTone(node) : nodeComplianceTone(node);
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
-  const { label: vendorLabel, italic: vendorLabelItalic } = nodeDisplayName(node, vendorName);
+  const vendorDisplay = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
   const plantLabel = formatPlant(audit);
   const operationalLabel = formatOperational(audit);
@@ -213,11 +223,15 @@ export function TreeView({
         {/* Header line: identity + status pills */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <>
-            <span
-              className={`text-sm ${vendorLabelItalic ? 'italic text-slate' : 'font-medium text-charcoal'}`}
-            >
-              {vendorLabel}
-            </span>
+            {vendorDisplay.kind === 'undisclosed' ? (
+              <VerifiedUndisclosedChip />
+            ) : (
+              <span
+                className={`text-sm ${vendorDisplay.italic ? 'italic text-slate' : 'font-medium text-charcoal'}`}
+              >
+                {vendorDisplay.label}
+              </span>
+            )}
             {vendorName && node.participant_id && !node.identity_redacted && (
               <IdChip id={node.participant_id} />
             )}

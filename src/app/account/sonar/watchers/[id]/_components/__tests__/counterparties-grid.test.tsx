@@ -66,6 +66,21 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
+  it('renders the identity-withheld chip for a tier-1 row with no resolvable name', () => {
+    render(
+      <CounterpartiesGrid
+        results={[
+          makeResult({
+            counterparty_participant_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+            counterparty_name: null,
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    expect(screen.queryByText('Vendor Name Not Disclosed')).toBeNull();
+  });
+
   it('reveals product sub-list and signal panels when the vendor is expanded', async () => {
     render(
       <CounterpartiesGrid
