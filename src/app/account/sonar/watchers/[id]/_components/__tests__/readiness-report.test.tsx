@@ -39,7 +39,13 @@ describe('<ReadinessReport>', () => {
     render(<ReadinessReport skus={[sku]} />);
 
     expect(screen.getByText('Compressor Blade')).toBeInTheDocument();
-    expect(screen.getByText(/Ask:\s*40\s*.*within\s*42\s*calendar days/)).toBeInTheDocument();
+    // "Current ask", not a bare "Ask" — this line describes the TEMPLATE's ask
+    // as configured now (PR #142's deliberate choice), while the history table's
+    // Qty column shows what each run used. Unqualified, it reads as this run's
+    // ask and contradicts <UnqualifiedWatchBanner> on a run that had none.
+    expect(
+      screen.getByText(/Current ask:\s*40\s*.*within\s*42\s*calendar days/),
+    ).toBeInTheDocument();
   });
 
   it('renders each vendor with both the order-state and lead-time tables', () => {

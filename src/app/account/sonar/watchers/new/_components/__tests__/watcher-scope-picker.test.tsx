@@ -187,4 +187,69 @@ describe('<WatcherScopePicker>', () => {
     expect(row).not.toBeNull();
     expect(row).not.toContainElement(qtyLabel);
   });
+
+  // A soft quote is synthesized against an ask quantity, so requesting the
+  // signal with no per-SKU forward-demand ask yields baseline signals only. The
+  // configuration is still valid, so the picker informs rather than blocks.
+  it('warns when a soft quote is requested with no forward-demand ask', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+      sku_asks: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
+  });
+
+  // The wizard seeds the soft-quote signal but never sets a sku_asks key at all,
+  // so the state users actually land in is `undefined`, not `[]`. Covering only
+  // `[]` leaves the nullish default untested: `[].length` is 0 either way, so
+  // only an absent key makes `?? 0` load-bearing.
+  it('warns when the soft-quote signal is selected and sku_asks is absent entirely', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
+  });
+
+  // Scoped to the warning's role="status" — the signal checkbox labels also
+  // contain these names, so an unscoped text query would match either.
+  it('names only the baseline signals actually selected', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time', 'order_fulfillment_history'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    const warning = screen.getByRole('status');
+    expect(warning).toHaveTextContent(/order state/i);
+    expect(warning).not.toHaveTextContent(/published lead time/i);
+    expect(warning).not.toHaveTextContent(/capacity/i);
+  });
+
+  it('drops the warning once an ask is defined', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['soft_quoted_lead_time'],
+      sku_asks: [{ sku: 'SKU-1', ask_quantity: 25, target_days: 18 }],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/not a qualified ask/i)).not.toBeInTheDocument();
+  });
+
+  it('does not warn when the soft-quote signal was never selected', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['published_lead_time'],
+      sku_asks: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/not a qualified ask/i)).not.toBeInTheDocument();
+  });
 });

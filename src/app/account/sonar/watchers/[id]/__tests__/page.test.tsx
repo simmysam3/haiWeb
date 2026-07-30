@@ -68,6 +68,29 @@ function orderHistoryResult() {
   };
 }
 
+function softQuoteResult() {
+  return {
+    result_id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    run_id: RUN_ID,
+    counterparty_participant_id: VENDOR_ID,
+    signal_type: 'soft_quoted_lead_time',
+    synthesis_mode: 'direct',
+    payload: {
+      kind: 'direct',
+      days: 34,
+      availability: 'available',
+      ask_quantity: 40,
+      resolved_via: 'phantom_demand_bom',
+      observed_at: '2026-07-21T00:00:00.000Z',
+    },
+    gap_reason: null,
+    observed_at: '2026-07-21T00:00:00.000Z',
+    tier: 1,
+    aggregated_under_tier_1: null,
+    external_product_id: 'PN-88A',
+  };
+}
+
 beforeEach(() => {
   fetchBffJson.mockReset();
   // useRunStatus (SWR) polls the status endpoint via global.fetch; stub it so
@@ -124,11 +147,106 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(
       screen.getByRole('heading', { level: 3, name: /PN-88A/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Ask: 40 units within 30 calendar days/)).toBeInTheDocument();
+    expect(screen.getByText(/Current ask: 40 units within 30 calendar days/)).toBeInTheDocument();
     // The order-state table (inside ReadinessReport) shows the active PO.
     expect(screen.getByText('PO-4471')).toBeInTheDocument();
     // NOT the legacy counterparties grid.
     expect(screen.queryByText('Counterparty observations')).not.toBeInTheDocument();
+  });
+
+  // Both of these pin the <UnqualifiedWatchBanner> WIRING, which type-checks
+  // either way and is therefore invisible to the component's own tests. The
+  // banner must speak for the run, not for the template (whose scope is mutable)
+  // and not for the trailing history (which spans other runs).
+  it('reads the run’s recorded asks, not the template’s current scope', async () => {
+    fetchBffJson
+      // 1. run detail — THIS run recorded no asks
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: { run: { ...baseRun(), sku_asks: [] }, results: [] },
+      })
+      // 2. definition — the template HAS an ask today (added after the run)
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: {
+          template: {
+            template_id: TEMPLATE_ID,
+            template_name: 'Readiness — PN-88A',
+            observation_class: 'watcher',
+            scope: {
+              kind: 'watcher',
+              sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }],
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({ kind: 'ok', data: [] })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: [] } })
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: {
+          runs: [{ run_id: RUN_ID, triggered_at: '2026-07-21T00:00:00.000Z' }],
+          results: [orderHistoryResult()],
+        },
+      });
+
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ id: RUN_ID }) }));
+
+    // Confident wording proves run state was read. Sourcing it from the template
+    // would instead yield the asks-existed copy.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /no per-SKU forward-demand ask was defined/i,
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/could not be resolved/i);
+
+    // The readiness section still renders the template's ask below the banner —
+    // that is intended — but it must be QUALIFIED as the current ask. Bare
+    // "Ask: 40 units..." next to "no ask was defined for this run" reads as a
+    // flat contradiction on the same screen.
+    expect(screen.getByText(/Current ask: 40 units within 30 calendar days/)).toBeInTheDocument();
+  });
+
+  it('counts soft quotes from this run only, not the trailing history', async () => {
+    fetchBffJson
+      // 1. run detail — THIS run produced no soft quote
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: { run: { ...baseRun(), sku_asks: [] }, results: [] },
+      })
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: {
+          template: {
+            template_id: TEMPLATE_ID,
+            template_name: 'Readiness — PN-88A',
+            observation_class: 'watcher',
+            scope: {
+              kind: 'watcher',
+              sku_asks: [{ sku: 'PN-88A', ask_quantity: 40, target_days: 30 }],
+            },
+          },
+        },
+      })
+      .mockResolvedValueOnce({ kind: 'ok', data: [] })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: [] } })
+      // 5. trailing history — an EARLIER run did resolve a soft quote
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: {
+          runs: [{ run_id: RUN_ID, triggered_at: '2026-07-21T00:00:00.000Z' }],
+          results: [orderHistoryResult(), softQuoteResult()],
+        },
+      });
+
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ id: RUN_ID }) }));
+
+    // The banner must still appear: counting over history would suppress it on
+    // the strength of a different run's outcome.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /no per-SKU forward-demand ask was defined/i,
+    );
   });
 
   it('keeps the legacy <CounterpartiesGrid> for a non-readiness watcher (no sku_asks)', async () => {
@@ -155,6 +273,6 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(
       screen.getByRole('heading', { name: 'Counterparty observations' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Ask: .* units within/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/current ask: .* units within/i)).not.toBeInTheDocument();
   });
 });
