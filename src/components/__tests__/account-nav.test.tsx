@@ -68,6 +68,27 @@ describe('AccountNav', () => {
     expect(watcherMgmt.getAttribute('href')).toBe('/account/sonar/watchers');
   });
 
+  // v1.62: grounded forecasts are a fourth observation_class on the same
+  // run-template machinery, so they belong in Sonar Observe next to Phantom
+  // Demand — the modality they probe through. There is no tabbed PD page to
+  // extend, hence a peer nav entry rather than a section within one.
+  it('Sonar Observe carries the Grounded Forecasts entry beside Phantom Demand', () => {
+    const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+
+    const forecasts = screen.getByRole('link', { name: 'Grounded Forecasts' });
+    expect(forecasts.getAttribute('href')).toBe('/account/sonar/grounded-forecasts');
+
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const observe = sections.find((s) => s.textContent?.trimStart().startsWith('Sonar Observe'));
+    expect(observe).toBeTruthy();
+    const hrefs = Array.from(observe!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toContain('/account/sonar/grounded-forecasts');
+    // Directly after Phantom Demand — the two read as one family.
+    expect(hrefs.indexOf('/account/sonar/grounded-forecasts')).toBe(
+      hrefs.indexOf('/account/sonar/observations') + 1,
+    );
+  });
+
   it('Reports link is not present in the nav (dropped in v1.39)', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     expect(screen.queryByRole('link', { name: 'Reports' })).toBeNull();

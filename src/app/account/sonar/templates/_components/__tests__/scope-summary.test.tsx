@@ -113,6 +113,26 @@ describe('ScopeSummary', () => {
     expect(screen.getByText(/full bom/i)).toBeInTheDocument();
   });
 
+  it('grounded_forecast: shows product, analogues, BOM lines, assembly, profile (v1.62)', () => {
+    const scope: RunTemplateScope = {
+      kind: 'grounded_forecast',
+      product_name: 'a2000',
+      analogue_skus: ['A1000-BLK'],
+      bom_lines: [
+        { component_sku: 'SOLE-XR9', product_class_id: 'cpt_sole_compound', qty_per_unit: 2 },
+        { component_sku: 'BLADDER-7', product_class_id: 'cpt_air_bladder', qty_per_unit: 1 },
+      ],
+      assembly_days: 21,
+      profile: { monthly_qty: 100000, start_month: '2027-01', end_month: '2027-12' },
+    };
+    render(<ScopeSummary scope={scope} />);
+    expect(screen.getByText('a2000')).toBeInTheDocument();
+    expect(screen.getByText('A1000-BLK')).toBeInTheDocument();
+    expect(screen.getByText('2 components')).toBeInTheDocument();
+    expect(screen.getByText('21')).toBeInTheDocument();
+    expect(screen.getByText('100,000/mo · 2027-01 → 2027-12')).toBeInTheDocument();
+  });
+
   it('renders an explicit empty state for empty arrays', () => {
     // Cast needed: WatcherScope.signal_types is nonempty() in the protocol schema,
     // but this test intentionally exercises the empty-array UI branch.

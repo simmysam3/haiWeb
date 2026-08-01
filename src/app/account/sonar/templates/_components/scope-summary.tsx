@@ -126,6 +126,28 @@ export function ScopeSummary({ scope }: { scope: RunTemplateScope }) {
       </div>
     );
   }
+  // v1.62 grounded forecast — the BOM is copied into the scope at wizard time
+  // and is self-contained, so the summary reports its size rather than every
+  // line; the working detail lives on the forecast's own result page.
+  if (scope.kind === 'grounded_forecast') {
+    return (
+      <div>
+        <Field label="Product">{scope.product_name}</Field>
+        <Field label="Analogue SKUs">
+          <Ids ids={scope.analogue_skus} />
+        </Field>
+        <Field label="Bill of materials">
+          {scope.bom_lines.length} component
+          {scope.bom_lines.length === 1 ? '' : 's'}
+        </Field>
+        <Field label="Final assembly (days)">{scope.assembly_days}</Field>
+        <Field label="Demand profile">
+          {scope.profile.monthly_qty.toLocaleString('en-US')}/mo ·{' '}
+          {scope.profile.start_month} → {scope.profile.end_month}
+        </Field>
+      </div>
+    );
+  }
   // phantom_demand (legacy) — kept for existing templates that still carry this scope shape.
   return (
     <div>

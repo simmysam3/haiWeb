@@ -1,4 +1,8 @@
-type ObservationClass = 'audit' | 'watcher' | 'phantom_demand';
+type ObservationClass =
+  | 'audit'
+  | 'watcher'
+  | 'phantom_demand'
+  | 'grounded_forecast';
 
 /**
  * User-facing noun for a saved Sonar configuration, per modality.
@@ -17,5 +21,7 @@ export function configNoun(observationClass: ObservationClass): string {
       return 'Watch';
     case 'audit':
       return 'Audit';
+    case 'grounded_forecast':
+      return 'Grounded Forecast';
   }
 }
