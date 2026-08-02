@@ -34,14 +34,15 @@ let sharedContext: { storageState: any } | null = null;
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
-  const res = await page.request.post(`${HAIWEB}/api/auth/login`, {
-    headers: { "Content-Type": "application/json" },
-    data: { email: EMAIL, password: PASSWORD },
-  });
-  if (!res.ok()) {
-    const body = await res.text();
-    throw new Error(`Login failed (${res.status()}): ${body.slice(0, 200)}`);
-  }
+  // OIDC Authorization-Code + PKCE (D-42): GET /api/auth/login redirects to the
+  // Keycloak login page; submit the form and land back on the portal
+  // authenticated. (Replaces the retired POST-credential login endpoint.)
+  await page.goto(`${HAIWEB}/api/auth/login`);
+  await page.waitForLoadState("domcontentloaded");
+  await page.locator('#username, input[name="username"], input[type="email"]').first().fill(EMAIL);
+  await page.locator('#password, input[type="password"]').first().fill(PASSWORD);
+  await page.locator('#kc-login, button[type="submit"], input[type="submit"]').first().click();
+  await page.waitForURL(/\/account(\/|$|\?)/, { timeout: 15_000 });
   sharedContext = { storageState: await page.context().storageState() };
   await page.close();
 });
@@ -80,10 +81,11 @@ test.describe("§15 v.1.39 Sonar Audit IA", () => {
     // Start from the account root so the sidebar is definitely mounted.
     await gotoOk(page, "/account");
 
-    // The sidebar renders an <a href="/account/sonar/audit"> with text "Audits"
-    // inside the "Sonar Audit" section (account-nav.tsx navSections).
+    // The sidebar renders an <a href="/account/sonar/audit"> labelled "Audit
+    // Management" (account-nav.tsx navSections; renamed from "Audits" in the
+    // nav consolidation, #129).
     const auditsLink = page.locator("a[href='/account/sonar/audit']", {
-      hasText: /^Audits$/i,
+      hasText: /^Audit Management$/i,
     });
     await expect(auditsLink).toBeVisible();
     await auditsLink.click();
