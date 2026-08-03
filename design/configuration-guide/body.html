@@ -335,6 +335,7 @@
           <tr><td class="lbl"><code class="ic">ITransactionDatabase</code></td><td>DuckDBTransactionDatabase</td><td>Pricing/inventory/lead-time. <span class="tag">Planned</span> Snowflake impl.</td></tr>
           <tr><td class="lbl"><code class="ic">DataStore</code></td><td>DuckDBDataStore</td><td>The <code class="ic">query</code>/<code class="ic">exec</code>/<code class="ic">close</code> seam under the concretes; swap this to retarget the engine.</td></tr>
           <tr><td class="lbl"><code class="ic">IPricingEngine</code></td><td>PricingEngine</td><td><code class="ic">price_basis</code> is Tier 1; the arithmetic is swappable.</td></tr>
+          <tr><td class="lbl"><code class="ic">ErpConnector</code></td><td>EpicorConnector / mock</td><td>Read path (§5.5). <code class="ic">fulfillQuoteRequest</code> is optional, so a read-only connector is a complete implementation.</td></tr>
           <tr><td class="lbl"><code class="ic">ILeadTimeService</code></td><td>LeadTimeService</td><td>The <code class="ic">FulfillmentClass</code> structure is prescribed.</td></tr>
           <tr><td class="lbl"><code class="ic">IInventoryProvider</code> <span class="bc">ref-only</span></td><td>DuckDBInventoryProvider</td><td>Net-availability reads.</td></tr>
           <tr><td class="lbl"><code class="ic">IRecommendationEngine</code> <span class="bc">ref-only</span></td><td>RecommendationEngine</td><td>N-best recommendation logic (§7.2).</td></tr>
@@ -466,6 +467,7 @@
         <li><b>MCP.</b> The agent delegates the decision to an external gateway at <code class="ic">APPROVAL_GATEWAY__MCP_ENDPOINT</code>. The decision returns asynchronously to <code class="ic">POST /approvals/callback</code>, whose body is verified with an HMAC (Hash-based Message Authentication Code) over the raw request bytes using <code class="ic">APPROVAL_GATEWAY__CALLBACK_SECRET</code> — the PROTO-3 guard the SDK exposes as <code class="ic">verifyCallbackSignature</code>.</li>
       </ul>
       <p class="p">While a request is pending the originating action is staged and resumes on the decision. A pending approval not decided within <code class="ic">APPROVAL_GATEWAY__EXPIRY_MINUTES</code> (default 1440 — 24 hours) is swept (every <code class="ic">__EXPIRY_CHECK_INTERVAL_MINUTES</code>, default 5) and resumed as <b>rejected</b>; the gateway polls decision status every <code class="ic">__POLL_INTERVAL_SECONDS</code> (default 180).</p>
+      <div class="note teal"><p class="p"><span class="k">Currency, for anyone implementing a pricing engine.</span> The protocol no longer supplies a default currency, so your engine must return the currency alongside the price or return neither. A price with the currency field absent is not a partially-populated result the platform will complete for you: it is a price that will be withheld from publication (§7.1a). If your engine cannot denominate a product, say so explicitly rather than emitting a bare number.</p></div>
       <p class="p">The contract is Tier 1: <code class="ic">IApprovalGateway</code> (submit/poll), <code class="ic">IApprovalRepository</code>, and one <code class="ic">IApprovalResumeHandler</code> per approval type — all in <code class="ic">@haiwave/client-sdk</code>. The reference agent supplies the concretes (<code class="ic">NativeApprovalGateway</code> / <code class="ic">McpApprovalGateway</code>, <code class="ic">ApprovalRepository</code>, and the trading-pair / invoice / order-release resume handlers); swap any behind those interfaces.</p>
       <table class="tbl">
         <thead><tr><th>Variable (<code class="ic">APPROVAL_GATEWAY__</code>…)</th><th>Default</th><th>Purpose</th></tr></thead>
@@ -479,6 +481,34 @@
           <tr><td class="lbl"><code class="ic">POLL_INTERVAL_SECONDS</code></td><td class="mono center">180</td><td>Decision-poll cadence.</td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 6e ============================ -->
+<section class="page" data-screen-label="6e">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">6.9</span>Query Guard</div>
+      <p class="p">Managed Access (§6.1) decides <b>whether</b> a counterparty may ask you something. The query guard decides <b>how much</b> any one of them may ask over time. It exists for a specific abuse: a counterparty legitimately entitled to query you, using that entitlement to map your catalog, your pricing curve or your inventory position by asking many small permitted questions.</p>
+      <p class="p">Configured entirely in the console; there is no agent-side setting. Four rule types, each settable globally and overridable per trust class: <code class="ic">sku_repeat</code> (the same SKU queried repeatedly), <code class="ic">sku_breadth</code> (how much of your catalog one counterparty touches), <code class="ic">ad_hoc_cap</code> (volume of one-off queries) and <code class="ic">excess_volume</code> (query volume out of proportion to that counterparty's actual order history). Precedence is trust class, then global, then platform default, resolved independently per rule type. Shipped defaults are <b>alert-only</b>: out of the box the guard reports what it sees and changes nothing about what your agent answers.</p>
+      <p class="p"><b>A trip is silent.</b> When a rule pauses a counterparty or elevates their logging, the decline they receive is byte-identical to an ordinary access-posture decline. They cannot tell the difference, so they cannot discover your thresholds by probing for the boundary. Only the block action notifies them, deliberately: blocking is a relationship decision you want known.</p>
+      <p class="p"><b>It fails open.</b> A guard defect or database outage must never become an outage for the counterparties you do want to serve. If the guard cannot evaluate, your agent answers normally. A missed detection is recoverable; a self-inflicted denial of service to your own trading partners is not.</p>
+      <p class="p"><b>It layers under the platform limit.</b> HAIWAVE enforces a per-responder hourly probe ceiling that nobody can configure. The query guard sits beneath it, where you decide what is reasonable for your business. It cannot raise the platform ceiling.</p>
+      <div class="note"><p class="p"><span class="k">Caveat.</span> <code class="ic">excess_volume</code> is evaluated at your agent, after the response, because the order truth it compares against lives with you rather than at Central. An agent on a protocol older than 3.51 silently does not enforce it, and the console marks the rule accordingly.</p></div>
+      <div class="h3"><span class="n">6.10</span>The Work Queue And Who May Act</div>
+      <p class="p">The agent does not execute commercial decisions on its own. It surfaces them, and a person acts. The work queue is where that happens, and it lives <b>in your agent's own interface</b>, not in the HAIWAVE console.</p>
+      <p class="p">That split is deliberate. The console is an elevated-privilege configuration environment, where someone with administrative authority configures your network presence. Working an inbound quote request is not an administrative act, it is a day-to-day commercial one, and the people who do it should not need console privileges to do their jobs.</p>
+      <p class="p">What lands there: inbound quote requests and solicitation invites (§7.5), quote opportunities identified from observed price history, chase items where something promised has not arrived, and order-collaboration proposals awaiting a response.</p>
+      <table class="tbl"><thead><tr><th>Grant</th><th>May</th></tr></thead><tbody>
+        <tr><td class="lbl">Reviewer</td><td>See queue items and comment; cannot commit.</td></tr>
+        <tr><td class="lbl">Quote owner</td><td>Act on quotes for the products they own.</td></tr>
+        <tr><td class="lbl">Owner</td><td>Act on anything, and grant to others.</td></tr>
+      </tbody></table>
+      <p class="p"><b>The agent itself holds a Reviewer grant.</b> It can propose, evaluate and recommend; it cannot commit. This is how autonomy is intended to grow: when you are ready for the agent to do more, you grant it more, and nothing about the architecture changes. There is no separate autonomous mode to switch on, and no rewrite between the agent suggesting and the agent acting.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -537,6 +567,27 @@
   </div>
 </section>
 
+<!-- ============================ 7c ============================ -->
+<section class="page" data-screen-label="7c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.5</span>Solicitations: Being Invited To Quote</div>
+      <p class="p">A solicitation is a buyer asking several vendors to quote the same requirement. The mechanism that matters to you is the <b>invite</b>: it substitutes for the trading-relationship gate that would normally have to exist before that buyer could reach you. Being invited makes you reachable for that one solicitation and nothing more. It creates no standing relationship and does not outlive the solicitation.</p>
+      <p class="p">When an invite arrives, your agent files an actionable item in its work queue (§6.10). From there a person can quote it, or <b>decline</b> it. Declining is a first-class outcome rather than an absence: a buyer receiving four quotes and one decline knows where they stand, whereas a buyer receiving four quotes and silence cannot tell whether the fifth vendor is slow, uninterested, or never received the request.</p>
+      <p class="p">Two things about pricing here. Your configured price floor is <b>re-read at the moment of use</b>, not captured when the solicitation arrived, so a floor you change while a solicitation is open applies to the quote you send. And quotes are <b>two-tier</b>: the reply records the basis it was priced on, so a quote derived from a list price and one derived from a negotiated or ERP-resolved price stay distinguishable downstream instead of arriving as indistinguishable numbers.</p>
+      <div class="note teal"><p class="p"><span class="k">Requires configuration.</span> Quote delivery needs a registered quote endpoint <b>and</b> the paired webhook secret. Self-registration deliberately does not transmit the secret, so an endpoint can be registered and active while still refusing delivery. A 503 means the secret is unset on your side; a 401 means it does not match. Confirm delivery end to end before relying on solicitations, because an undelivered invite is counted as sent.</p></div>
+      <div class="h3"><span class="n">7.6</span>Order Collaboration</div>
+      <p class="p">An order does not always survive first contact with reality. Order collaboration is the channel for changing one after it exists without cancelling and re-placing it: a party proposes a change, the other responds, and the order carries the outcome.</p>
+      <p class="p">The division of responsibility determines what HAIWAVE can and cannot see. <b>Central holds the lifecycle only</b>, meaning the states a proposal passes through and the fact that it was proposed, accepted or closed. <b>The promises and envelopes stay at the agents</b>, so the commercial substance of what was offered and agreed never leaves your side. The roll-up a counterparty sees is state, not content.</p>
+      <p class="p">Proposal events are <b>append-only</b>. A proposal is superseded or closed, never edited and never deleted, so the sequence of what was proposed and when stays reconstructible. That is what makes a disputed change auditable rather than a matter of recollection.</p>
+      <p class="p">Per-line <b>ship-to</b> is supported: different lines on one order can go to different delivery points. A ship-to is stripped before anything is written centrally. It identifies a specific delivery point for a specific deal, which is exactly the kind of detail that should not accumulate in a shared system, so it stays with the transacting parties.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
 <!-- ============================ 08 · MONITORING (phantom demand) ============================ -->
 <section class="page" data-screen-label="8">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
@@ -570,6 +621,30 @@
       <div class="planned"><p class="p"><span class="tag">Planned</span><b>Demo-data signals.</b> <code class="ic">published_lead_time</code> / <code class="ic">quoted_lead_time</code> are synthetic and <code class="ic">capacity_utilization_band</code> falls back to a fixed value when its seed table is absent; the drift-to-change-feed pipeline itself is live.</p></div>
       <div class="h3"><span class="n">8.3</span>Compliance Data Capture</div>
       <p class="p">Each completed audit run produces a Compliance Snapshot (the traversal plus per-(vendor, product) attribute samples), diffed across runs into typed Change Events. Two attribute kinds are sampled today: <code class="ic">lead_time_days</code> (from your local lead-time intelligence) and <code class="ic">certification_status</code> (<code class="ic">valid</code> / <code class="ic">not_held</code>, read from the product's <code class="ic">certifications</code> array). As a responder, answer the <code class="ic">get_compliance_attributes</code> MCP call (wired automatically; no console setting). Cadence follows your audit-run template (<span class="bc"><b>Sonar Audit › Audit Management</b></span>, <code class="ic">/account/sonar/audit</code>); daily for high-change supply chains, weekly for stable ones.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 8c ============================ -->
+<section class="page" data-screen-label="8c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">8 · Monitoring Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">8.2a</span>Readiness Watchers</div>
+      <p class="p">A readiness watcher asks a forward-looking question per SKU rather than reporting a trailing signal: <i>can each counterparty supply this quantity within this many days?</i> You configure it by attaching a <b>per-SKU ask</b> to the watcher scope, giving a quantity and a window in days.</p>
+      <p class="p">The window is a <b>rolling offset from each run's date</b>, not a fixed calendar date. This matters for scheduled watchers: a fixed date would give a shrinking window run after run until the question stopped being meaningful, so the ask is re-anchored every time the watcher runs.</p>
+      <p class="p">Central answers from two signals. Your own delivery record supplies the order-state half. The other half is synthesized centrally: for each SKU it probes the watched counterparty and the interchangeable trading-pair vendors reachable from it, reducing each response to available, partial or unavailable. The result is a SKU-to-vendor report rather than the flat signal grid a conventional watcher produces.</p>
+      <p class="p">A watcher requesting the soft-quoted signal with <b>no</b> asks is valid, and the console says so plainly rather than treating it as a misconfiguration: it simply cannot answer a readiness question, because none was asked. Lead-time history shows the quantity <b>each run actually asked for</b>, not the template's current ask projected backwards; the "current ask" line in the header is template state and is labelled as such.</p>
+      <div class="h3"><span class="n">8.4</span>Grounded Forecasting</div>
+      <p class="p">Grounded forecasting answers a question the other monitoring modes cannot: what can the network actually deliver for a product that <b>does not exist yet</b>?</p>
+      <p class="p">You name the new product, nominate one to three existing products as <b>analogues</b>, edit a bill of materials seeded from the primary analogue, enter your final assembly time and set a monthly demand profile. A run simulates the production history the product would generate, probes the network per component through phantom demand to derive current lead times from quoted timelines, pulls your own observed delivery history as aggregates, and computes the critical path per component class:</p>
+      <div class="code">last_commit(class, month) = delivery_date − assembly_days − lead_days(class)</div>
+      <p class="p">The classes with the earliest last-commit dates are the <b>pacers</b>: the components that decide whether the schedule is achievable at all.</p>
+      <p class="p">The primary output is a <b>commitment schedule</b>, a standalone plain-text artifact written for the brand you supply. It leads with the pacers and carries evidence inline for each: current quoted lead time, the observed minimum and maximum from your own history, and a confidence level. It exists to be handed to a customer as the basis for asking them to commit financially to a projection, so it is deliberately readable on its own without console access.</p>
+      <div class="note"><p class="p"><span class="k">Two caveats.</span> The forecast is grounded in <b>analogues</b>, so answer quality follows the products you nominate; a poorly chosen analogue produces a confident number about the wrong supply chain. And lead times come from live probes, so a run reflects the network on the day it ran, not a standing guarantee.</p></div>
+      <p class="p">Your agent needs no new configuration. It answers the phantom-demand probes it already answers and supplies delivery-history aggregates through two MCP tools.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
