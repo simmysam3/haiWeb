@@ -350,6 +350,23 @@
   </div>
 </section>
 
+<!-- ============================ 05d · EXTEND (ERP connectivity) ============================ -->
+<section class="page" data-screen-label="5d">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">5.5</span>ERP Connectivity</div>
+      <p class="p">The agent reads from your ERP through an <code class="ic">ErpConnector</code>, selected at boot. A mock connector backed by local fixtures is the default, so the agent runs with no ERP attached.</p>
+      <p class="p">An <b>Epicor Kinetic</b> read-path connector ships with the reference agent. It is <b>read-only by deliberate choice</b>: nothing in it issues a POST, PATCH or DELETE, so a misconfiguration cannot modify your ERP data. This is a property of our implementation rather than a restriction Kinetic imposes, and one we intend to keep until a write path has been designed and reviewed with you.</p>
+      <p class="p">The connector is <b>mapping-driven</b>. Endpoints, authentication headers, composite-key types, field maps and price-per divisors are supplied as data in a mapping file you mount, not as code. That is what makes one implementation portable across installations that differ in configuration, and it means adapting it to your instance is a configuration exercise rather than a code change.</p>
+      <p class="p">What it reads today is list prices and quote requests. Two limits are worth stating plainly rather than leaving you to find them. <b>Quantity breaks are not yet carried through</b>, so a tiered price in your ERP publishes flat at its base tier; raise this before relying on published prices if your pricing is materially tiered. And <b>a resolved sell price is not reachable on the OData surface</b>: real sell price in Kinetic resolves customer, then price list, then quantity break, then discount, inside business logic the OData half does not expose. What the connector reads is a list price, and it should be treated as one.</p>
+      <div class="note teal"><p class="p"><span class="k">Before first use.</span> The connector has not yet been exercised against a live Kinetic instance, so every assumption it makes about your installation comes from published API definitions rather than from observation. Treat the first connection as a test: run the boot probe alone first, which confirms base URL, company segment and credentials in one call; then one collection read; then one keyed row read, the first step that exercises composite-key rendering. Only then wire the connector into the agent. <code class="ic">connector/epicor/CAPTURE.md</code> in the agent distribution sets this out step by step, with what to capture while you are connected.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
 <!-- ============================ 06 · SECURITY (model + tiers + profile) ============================ -->
 <section class="page" data-screen-label="6">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
@@ -477,6 +494,25 @@
       <div class="h3"><span class="n">7.1</span>Pricing Disclosure</div>
       <p class="p">Configured under <code class="ic">pricing_disclosure</code> in your vendor manifest; layered on top of Managed Access (§6.3 decides whether a pricing intent reaches you; this decides how much detail appears). Disclosure levels: <code class="ic">full</code>, <code class="ic">range</code> (a <code class="ic">price_range {min,max,currency}</code> band), <code class="ic">rank_only</code> (ranked, no price), <code class="ic">hidden</code>.</p>
       <p class="p">A <b>network trust floor</b> applies first over a three-level grouping (<code class="ic">low</code> → <code class="ic">hidden</code>; <code class="ic">medium</code> / <code class="ic">premier</code> → no restriction); the <b>more restrictive of (floor, your config) wins</b> — you can tighten but never loosen. The shape is a company-level <code class="ic">default</code>, an optional per-trust-grouping override map, and optional per-product-line overrides. The <code class="ic">price_basis</code> label is Tier 1 (verified by the confirmation handler); only the arithmetic is swappable (§5.3). <b>Console:</b> <span class="bc"><b>Account Management › Manifests</b></span> (<code class="ic">/account/manifests</code>).</p>
+      <div class="h3"><span class="n">7.1a</span>A Price With No Currency Does Not Publish</div>
+      <div class="note teal"><p class="p"><span class="k">Read before upgrading to v1.65.</span> This changes what your catalog publishes. A price is only meaningful alongside the currency it is denominated in. Earlier releases supplied <code class="ic">USD</code> as a default wherever a currency was missing, so a partly configured row still went to the network carrying a denomination nobody had chosen. From v1.65 the platform does not invent one: where a currency is absent, the price is withheld rather than published with a guess.</p></div>
+      <p class="p">The rule applies uniformly across every outbound surface. <b>Catalog publication</b> sends price and currency together or neither, so a priced row with no currency publishes as an unpriced row; it stays discoverable, it simply carries no price. <b>Discovery</b> withholds an offering the agent cannot denominate rather than returning it with an assumed currency. <b>Quotes</b> require a currency on both lines and totals, and a quote whose lines span two currencies is refused, because a total across mixed denominations has no meaning; a quote the agent is unable to price states your configured currency beside zero totals so the reply stays legible. <b>ERP-sourced prices</b> arriving without a currency are skipped rather than stamped with a default.</p>
+      <p class="p"><b>What to do before you upgrade.</b> Confirm your pricing manifest declares a currency and that priced rows in your catalog carry one. Rows that do not will publish without prices after the upgrade. That is intended, and recoverable at any time by setting the currency, but it is better known in advance than discovered as a gap. The agent applies a one-time migration on first boot which removes the old default from the pricing store: prices already stored keep the currency they have, and nothing is rewritten or deleted.</p>
+      <p class="p"><b>Where currency belongs.</b> Currency attaches to the price and to the legal entity that transacts, never to a physical site. A facility makes and holds goods; it does not denominate them. If you operate in more than one currency, express that with a pricing manifest scoped to the relevant location (§7.1b), the direct analogue of a currency-denominated price list in an ERP. Do not expect to set a currency on a plant or warehouse record.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 07a · MANIFEST (location scope + n-best) ============================ -->
+<section class="page" data-screen-label="7a">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.1b</span>Location-Scoped Pricing</div>
+      <p class="p">A pricing manifest can be scoped to a <code class="ic">location</code> as well as to a company or a product line. A location-scoped manifest is how you express that a given site prices differently from the rest of the company, including in a different currency. Scope a manifest with <code class="ic">location_code</code>; a manifest with no location scope continues to apply company-wide, which is the existing behaviour and the default.</p>
+      <div class="note"><p class="p"><span class="k">Planned.</span> There is no console screen for creating locations yet; they are created through the API today. A plants overview inside manifest configuration, with per-plant currency display and an auditable plant-to-part mapping, is the next release line.</p></div>
       <div class="h3"><span class="n">7.2</span>N-Best Recommendations</div>
       <p class="p">Opt-in, configured under <code class="ic">narrowing_and_recommendations</code> (<code class="ic">enable_recommendations</code>, <code class="ic">max_recommendations_per_response</code> default 3, <code class="ic">recommendation_types</code> from <code class="ic">upgrade</code> / <code class="ic">alternative</code> / <code class="ic">accessory</code> / <code class="ic">bundle</code>). The reference engine is swappable via <code class="ic">IRecommendationEngine</code> (§5.3). The buyer agent caps displayed recommendations at <b>5 total</b> across all vendors per query (fixed). The <code class="ic">recommendations</code> field schema is in <code class="ic">@haiwave/protocol</code>.</p>
     </div>
