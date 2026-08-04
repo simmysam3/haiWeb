@@ -31,9 +31,9 @@ export function QuoteVolumePanel() {
   return (
     <div className="mb-8">
       <div className="grid grid-cols-4 gap-6 mb-6">
-        <StatCard label="Incoming Today" value={val(data?.incoming.day)} />
-        <StatCard label="Incoming This Week" value={val(data?.incoming.week)} />
-        <StatCard label="Incoming This Month" value={val(data?.incoming.month)} />
+        <StatCard label="Incoming Today" value={val(data?.incoming?.day)} />
+        <StatCard label="Incoming This Week" value={val(data?.incoming?.week)} />
+        <StatCard label="Incoming This Month" value={val(data?.incoming?.month)} />
         <StatCard label="Responded Today" value={val(data?.responded_today)} />
       </div>
 
@@ -42,9 +42,9 @@ export function QuoteVolumePanel() {
           itself, which is the point of surfacing both. */}
       <div className="grid grid-cols-4 gap-6">
         <StatCard label="Outstanding in Queue" value={val(data?.outstanding)} color="text-teal" />
-        <StatCard label="Under 2 Days" value={val(data?.aging.under_2d)} />
-        <StatCard label="2 – 5 Days" value={val(data?.aging.d2_5)} />
-        <StatCard label="5+ Days" value={val(data?.aging.d5_plus)} />
+        <StatCard label="Under 2 Days" value={val(data?.aging?.under_2d)} />
+        <StatCard label="2 – 5 Days" value={val(data?.aging?.d2_5)} />
+        <StatCard label="5+ Days" value={val(data?.aging?.d5_plus)} />
       </div>
       <p className="mt-2 mb-6 text-xs text-slate">
         Under 2 Days + 2 – 5 Days + 5+ Days sums to Outstanding in Queue.

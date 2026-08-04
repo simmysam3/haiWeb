@@ -65,4 +65,22 @@ describe('QuoteVolumePanel', () => {
     render(<QuoteVolumePanel />);
     expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
   });
+
+  // Defends the same failure mode throttle-header-indicator.test.tsx covers
+  // ("renders nothing when data is an error payload"): if SWR ever hands the
+  // component a non-QuoteMetrics `data` (e.g. a route change that starts
+  // 2xx-ing an error envelope), reading `data.incoming.day` would throw and
+  // take the dashboard region down with it. Nested fields must stay
+  // optional-chained, not just the top-level `data`.
+  it('does not throw and renders Not Available when data is a malformed payload', () => {
+    mockedUseSWR.mockReturnValue({
+      data: { error: { code: 'INTERNAL_ERROR' } },
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: vi.fn(),
+    } as never);
+    expect(() => render(<QuoteVolumePanel />)).not.toThrow();
+    expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
+  });
 });
