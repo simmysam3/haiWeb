@@ -109,6 +109,17 @@ describe('AccountNav', () => {
     expect(hrefs).not.toContain('/account/pricing');
   });
 
+  // Order and quote management is buyer/seller work that belongs in the
+  // agent's own queue. The console is administrative and should not offer a
+  // second, weaker path into the same workflow. Route stays reachable by URL.
+  it('does not surface Orders in the nav', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Orders' })).toBeNull();
+    const orderLinks = screen.getAllByRole('link')
+      .filter((a) => a.getAttribute('href') === '/account/orders');
+    expect(orderLinks).toHaveLength(0);
+  });
+
   it('shows the Agent Software link in the bottom nav section', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     const link = screen.getByRole('link', { name: 'Agent Software' });

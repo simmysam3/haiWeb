@@ -1,6 +1,6 @@
 <!--
   HAIWAVE Configuration Guide — design-system content pages (the body slot).
-  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.1.md (canonical)
+  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.3.md (canonical)
   per the authoring contract in template.html. One page section per printed page;
   .pagenum + toc__pg are auto-filled by the template script. Pages were authored
   without a render; verify each .page <= 1056px on first real render and split/trim
@@ -545,6 +545,24 @@
       <div class="note"><p class="p"><span class="k">Planned.</span> There is no console screen for creating locations yet; they are created through the API today. A plants overview inside manifest configuration, with per-plant currency display and an auditable plant-to-part mapping, is the next release line.</p></div>
       <div class="h3"><span class="n">7.2</span>N-Best Recommendations</div>
       <p class="p">Opt-in, configured under <code class="ic">narrowing_and_recommendations</code> (<code class="ic">enable_recommendations</code>, <code class="ic">max_recommendations_per_response</code> default 3, <code class="ic">recommendation_types</code> from <code class="ic">upgrade</code> / <code class="ic">alternative</code> / <code class="ic">accessory</code> / <code class="ic">bundle</code>). The reference engine is swappable via <code class="ic">IRecommendationEngine</code> (§5.3). The buyer agent caps displayed recommendations at <b>5 total</b> across all vendors per query (fixed). The <code class="ic">recommendations</code> field schema is in <code class="ic">@haiwave/protocol</code>.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 07a2 · MANIFEST (quote validity) ============================ -->
+<section class="page" data-screen-label="7a2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.1c</span>Quote Validity: Two Windows, Not One</div>
+      <p class="p">A quote's expiry is governed by two independent windows. Conflating them will leave you wrong about one of them.</p>
+      <p class="p"><b>The request window</b> is how long an open quote request stays live before HAIWAVE Central expires it. When a request omits <code class="ic">valid_for_hours</code>, Central defaults to 240 hours (10 days). This is the number that governs how long a buyer can leave a request outstanding.</p>
+      <p class="p"><b>The price hold</b> is how long the price a vendor quotes back actually stands, counted from when the vendor responds, not from when the request was opened. When the inbound request omits <code class="ic">valid_for_hours</code>, the vendor's agent applies its own default of 48 hours. A request that sat open for a week before the vendor answered still only holds that vendor's price for 48 hours past the answer.</p>
+      <p class="p">These defaults belong to different sides of the exchange, and nothing keeps them in sync unless the field is set explicitly.</p>
+      <div class="note teal"><p class="p"><span class="k">An explicit <code class="ic">valid_for_hours</code> on the request overrides both.</span> Set it on the outgoing request and it carries through untouched: Central uses it as the request window, and the vendor's quote reports the same figure as its price hold.</p></div>
+      <p class="p">A <b>solicitation</b> (§7.5) always supplies its own value, calculated from the solicitation's deadline, so neither default applies there. A ten-day solicitation stays open for the full ten days regardless of what a plain quote request would otherwise default to.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>

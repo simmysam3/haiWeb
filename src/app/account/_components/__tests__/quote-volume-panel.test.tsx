@@ -1,0 +1,108 @@
+import '@testing-library/jest-dom/vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import useSWR from 'swr';
+import { QuoteVolumePanel } from '../quote-volume-panel';
+import type { QuoteMetrics } from '@/lib/haiwave-api';
+
+// Real SWR-mocking pattern for this project (see throttle-header-indicator.test.tsx):
+// auto-mock the module, then drive it per test with mockReturnValue. The
+// brief's vi.doMock-mid-test approach doesn't work here — vi.mock is hoisted
+// and the component's static `import useSWR from 'swr'` is already resolved
+// by the time a test body runs, so a later vi.doMock never reaches it.
+vi.mock('swr');
+const mockedUseSWR = vi.mocked(useSWR);
+
+const METRICS: QuoteMetrics = {
+  incoming: { day: 12, week: 63, month: 240 },
+  responded_today: 9,
+  outstanding: 47,
+  aging: { under_2d: 28, d2_5: 11, d5_plus: 8 },
+  expired_30d: 16,
+};
+
+function mockMetrics(data: QuoteMetrics | undefined) {
+  mockedUseSWR.mockReturnValue({
+    data,
+    error: undefined,
+    isLoading: data === undefined,
+    isValidating: false,
+    mutate: vi.fn(),
+  } as never);
+}
+
+describe('QuoteVolumePanel', () => {
+  beforeEach(() => {
+    mockedUseSWR.mockReset();
+  });
+
+  it('renders the volume counts', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('47')).toBeInTheDocument();
+    expect(screen.getByText('9')).toBeInTheDocument();
+  });
+
+  it('renders aging buckets that sum to outstanding, with the trailing 30-day figure kept separate', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    const { under_2d, d2_5, d5_plus } = METRICS.aging;
+    // The reconciliation itself: this is the feature's self-check, not
+    // incidental — a viewer can verify the panel against itself.
+    expect(under_2d + d2_5 + d5_plus).toBe(METRICS.outstanding);
+    expect(screen.getByText('28')).toBeInTheDocument();
+    expect(screen.getByText('11')).toBeInTheDocument();
+    expect(screen.getByText('8')).toBeInTheDocument();
+    // expired_30d is a trailing 30-day count, not a point-in-time bucket —
+    // it must render but must not be folded into the sum above.
+    expect(screen.getByText('16')).toBeInTheDocument();
+    expect(screen.getByText('Expired (30d)')).toBeInTheDocument();
+  });
+
+  it('renders Not Available rather than fabricated zeros before data arrives', () => {
+    mockMetrics(undefined);
+    render(<QuoteVolumePanel />);
+    expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
+  });
+
+  // Defends the same failure mode throttle-header-indicator.test.tsx covers
+  // ("renders nothing when data is an error payload"): if SWR ever hands the
+  // component a non-QuoteMetrics `data` (e.g. a route change that starts
+  // 2xx-ing an error envelope), reading `data.incoming.day` would throw and
+  // take the dashboard region down with it. Nested fields must stay
+  // optional-chained, not just the top-level `data`.
+  it('does not throw and renders Not Available when data is a malformed payload', () => {
+    mockedUseSWR.mockReturnValue({
+      data: { error: { code: 'INTERNAL_ERROR' } },
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: vi.fn(),
+    } as never);
+    expect(() => render(<QuoteVolumePanel />)).not.toThrow();
+    expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
+  });
+
+  // The quote tiles sit directly under the account tiles (Account Status,
+  // Trading Pairs, Agents Online, Behavioral Score) on the System Dashboard.
+  // Without a heading of their own they read as one continuous run of stat
+  // cards, and nothing on screen says the second and third rows changed
+  // subject. The heading is what makes it a section.
+  it('renders a Quote Management section heading', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    const heading = screen.getByRole('heading', { name: 'Quote Management' });
+    expect(heading).toBeInTheDocument();
+  });
+
+  // WCAG 2.1 AA regression guard: text-teal (#29B0C3) on white is ~2.60:1,
+  // below the 3:1 minimum even for large bold text. StatCard's default
+  // (text-navy, #1A1F36 on white, ~16.2:1) clears AA comfortably.
+  it('does not render the Outstanding value in text-teal (fails AA contrast)', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    const outstanding = screen.getByText('47');
+    expect(outstanding.className).not.toContain('text-teal');
+  });
+});
