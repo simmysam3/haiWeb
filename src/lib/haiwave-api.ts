@@ -136,6 +136,16 @@ export interface CatalogClass {
 
 // Agent credential types — not exported from @haiwave/protocol (haiWeb declares
 // its own snake_case interfaces to match the haiCore route response shapes).
+/**
+ * NOTE (v1.66): `GET /participants/me/agents` is readable by any member of the
+ * participant, but haiCore redacts the credential-shaped fields — `client_id`,
+ * `agent_endpoint` and the four `auth_*`/`api_base_url` endpoints — for callers
+ * without the `account_admin` realm role (D-141). They are typed as present
+ * because every consumer that READS them (the Agents page) goes through a BFF
+ * route that is itself account_admin-gated; the dashboard's fleet-count lane
+ * touches only `status`. Anything new that reads a credential field from a
+ * non-admin context must narrow first.
+ */
 export interface AgentSummary {
   id: string;
   name: string | null;
@@ -242,6 +252,15 @@ export interface ParticipantProfile {
   id: string;
   company_name: string;
   [key: string]: unknown;
+}
+
+/** GET /participants/me — the caller's own record. `status` is the account's
+ *  standing (`active`, `pending`, `suspended`), which the public company
+ *  profile deliberately withholds. */
+export interface SelfParticipant {
+  participant_id: string;
+  legal_name: string;
+  status: string;
 }
 
 export interface ConnectionRecord {
@@ -414,6 +433,10 @@ export interface HaiwaveClient {
   requestConnection(targetId: string, opts?: { message?: string }): Promise<ConnectionRecord>;
   listPendingRequests(): Promise<ConnectionRecord[]>;
   listActiveConnections(): Promise<ConnectionRecord[]>;
+  /** The caller's OWN participant record, including account `status`. The
+   *  public company profile deliberately omits status, so this is the only
+   *  way an account can learn it has been suspended. */
+  getSelfParticipant(): Promise<SelfParticipant>;
   approveRequest(requestId: string): Promise<ConnectionRecord>;
   denyRequest(requestId: string): Promise<ConnectionRecord>;
   updateInvite(connectionId: string, invite: boolean): Promise<ConnectionRecord>;
@@ -963,6 +986,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         "/connections/active",
       );
       return envelope.connections ?? [];
+    },
+
+    getSelfParticipant() {
+      return request<SelfParticipant>("GET", "/participants/me");
     },
 
     approveRequest(requestId) {
