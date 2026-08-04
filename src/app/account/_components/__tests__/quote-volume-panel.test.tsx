@@ -84,6 +84,18 @@ describe('QuoteVolumePanel', () => {
     expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
   });
 
+  // The quote tiles sit directly under the account tiles (Account Status,
+  // Trading Pairs, Agents Online, Behavioral Score) on the System Dashboard.
+  // Without a heading of their own they read as one continuous run of stat
+  // cards, and nothing on screen says the second and third rows changed
+  // subject. The heading is what makes it a section.
+  it('renders a Quote Management section heading', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    const heading = screen.getByRole('heading', { name: 'Quote Management' });
+    expect(heading).toBeInTheDocument();
+  });
+
   // WCAG 2.1 AA regression guard: text-teal (#29B0C3) on white is ~2.60:1,
   // below the 3:1 minimum even for large bold text. StatCard's default
   // (text-navy, #1A1F36 on white, ~16.2:1) clears AA comfortably.

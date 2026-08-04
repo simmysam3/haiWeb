@@ -30,6 +30,20 @@ export function QuoteVolumePanel() {
 
   return (
     <div className="mb-8">
+      {/* These tiles follow the account tiles (Account Status, Trading Pairs,
+          Agents Online, Behavioral Score) directly. Without a heading the two
+          groups read as one continuous run of stat cards and nothing says the
+          subject changed. mt-10 is the brand's 40px between-sections step. */}
+      <div className="mt-10 mb-4 border-t border-slate/10 pt-6">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-navy">
+          Quote Management
+        </h2>
+        <p className="mt-1 text-sm text-slate">
+          Inbound quote requests where you are the vendor — what arrived, what
+          you answered, and what is still waiting on you.
+        </p>
+      </div>
+
       <div className="grid grid-cols-4 gap-6 mb-6">
         <StatCard label="Incoming Today" value={val(data?.incoming?.day)} />
         <StatCard label="Incoming This Week" value={val(data?.incoming?.week)} />
