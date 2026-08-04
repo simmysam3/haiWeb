@@ -1,6 +1,12 @@
 interface DashboardAlertBarProps {
-  /** Count of agents whose haiCore status is `active`. `null` = not known. */
-  agentsOnline: number | null;
+  /**
+   * Fleet counts. `jailed` is haiCore's own agent status — the state its
+   * heartbeat machine moves an agent into after 3 consecutive failed probes,
+   * and recovers from through `probation`. Using it rather than a freshness
+   * window defined here means this alert agrees with the Agents page and with
+   * the state machine that owns the question. `null` = not known.
+   */
+  agents: { total: number; jailed: number } | null;
   /** The account's own participant status. `null` = not known. */
   accountStatus: string | null;
 }
@@ -33,7 +39,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
  * or the fleet being down; both of those are specific accusations, and making
  * one falsely is worse than staying quiet.
  */
-export function DashboardAlertBar({ agentsOnline, accountStatus }: DashboardAlertBarProps) {
+export function DashboardAlertBar({ agents, accountStatus }: DashboardAlertBarProps) {
   const alerts: Alert[] = [];
 
   if (accountStatus === "suspended") {
@@ -45,13 +51,26 @@ export function DashboardAlertBar({ agentsOnline, accountStatus }: DashboardAler
     });
   }
 
-  if (agentsOnline === 0) {
-    alerts.push({
-      severity: "degraded",
-      headline: "No agents online",
-      detail:
-        "Inbound quote requests cannot be answered while every agent is offline. Check agent health under Agent Management.",
-    });
+  // Only a JAILED agent is a fault. An account with no agents at all is mid
+  // setup, not broken, and interrupting it would be noise — which is why this
+  // keys off `jailed` rather than "nothing is active".
+  if (agents && agents.jailed > 0) {
+    const everyAgent = agents.jailed === agents.total;
+    alerts.push(
+      everyAgent
+        ? {
+            severity: "blocking",
+            headline: "No agents are reachable",
+            detail:
+              "Every agent has stopped answering heartbeats, so no inbound quote request can be answered. Check agent health under Agent Management.",
+          }
+        : {
+            severity: "degraded",
+            headline: `${agents.jailed} of ${agents.total} agents unreachable`,
+            detail:
+              "An agent stopped answering heartbeats and has been jailed. It returns to service automatically once it answers again.",
+          },
+    );
   }
 
   if (alerts.length === 0) return null;

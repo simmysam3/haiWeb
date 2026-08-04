@@ -13,31 +13,53 @@ import { DashboardAlertBar } from '../dashboard-alert-bar';
 describe('DashboardAlertBar', () => {
   it('renders nothing when there is no active issue', () => {
     const { container } = render(
-      <DashboardAlertBar agentsOnline={3} accountStatus="active" />,
+      <DashboardAlertBar agents={{ total: 3, jailed: 0 }} accountStatus="active" />,
     );
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('alerts when no agents are online', () => {
-    render(<DashboardAlertBar agentsOnline={0} accountStatus="active" />);
-    expect(screen.getByRole('alert')).toHaveTextContent(/no agents online/i);
+  // "Down" is haiCore's own `jailed` status — the state its heartbeat machine
+  // puts an agent in after 3 consecutive failed probes — not a freshness
+  // window invented here. Reusing it means the alert agrees with what the
+  // Agents page shows, and with the state the probation path recovers from.
+  it('alerts when an agent is jailed', () => {
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus="active" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/1 of 3/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/unreachable/i);
+  });
+
+  // Every agent jailed is the fleet being down: nothing can answer an RFQ.
+  // That is blocking, not degraded.
+  it('escalates when every agent is jailed', () => {
+    render(<DashboardAlertBar agents={{ total: 2, jailed: 2 }} accountStatus="active" />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/no agents are reachable/i);
+  });
+
+  // An account that has not provisioned an agent yet is in a SETUP state, not
+  // a fault state. The previous rule (alert when the active count is zero)
+  // could not tell those apart and would have interrupted every new account.
+  it('says nothing when the account simply has no agents yet', () => {
+    const { container } = render(
+      <DashboardAlertBar agents={{ total: 0, jailed: 0 }} accountStatus="active" />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('alerts when the account is suspended', () => {
-    render(<DashboardAlertBar agentsOnline={3} accountStatus="suspended" />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 0 }} accountStatus="suspended" />);
     expect(screen.getByRole('alert')).toHaveTextContent(/suspended/i);
   });
 
   it('shows both conditions at once, most severe first', () => {
-    render(<DashboardAlertBar agentsOnline={0} accountStatus="suspended" />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus="suspended" />);
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent(/suspended/i);
-    expect(alert).toHaveTextContent(/no agents online/i);
-    // A suspended account is blocking; no agents online is degraded. The
-    // blocking one must read first.
     const text = alert.textContent ?? '';
-    expect(text.search(/suspended/i)).toBeLessThan(text.search(/no agents online/i));
+    expect(text).toMatch(/suspended/i);
+    expect(text).toMatch(/unreachable/i);
+    // A suspended account is blocking; one jailed agent of several is
+    // degraded. The blocking one must read first.
+    expect(text.search(/suspended/i)).toBeLessThan(text.search(/unreachable/i));
   });
 
   // The honesty rule this whole dashboard is built on: null means "we could
@@ -45,16 +67,12 @@ describe('DashboardAlertBar', () => {
   // unreachable must never masquerade as the account being suspended or the
   // fleet being down — those are specific accusations.
   it('stays silent when the inputs are unknown', () => {
-    const { container } = render(
-      <DashboardAlertBar agentsOnline={null} accountStatus={null} />,
-    );
+    const { container } = render(<DashboardAlertBar agents={null} accountStatus={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  // A count we DO know to be zero is a real problem worth interrupting for,
-  // even while the account status is unknown.
-  it('still alerts on a known zero when the other input is unknown', () => {
-    render(<DashboardAlertBar agentsOnline={0} accountStatus={null} />);
-    expect(screen.getByRole('alert')).toHaveTextContent(/no agents online/i);
+  it('still alerts on a known jailed agent when the other input is unknown', () => {
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus={null} />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/unreachable/i);
   });
 });

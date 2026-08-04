@@ -48,14 +48,20 @@ export default async function DashboardPage() {
       }, null)
     : null;
 
-  // "Online" is the agent's own status, not a heartbeat freshness window
-  // invented here: haiCore jails an agent after 3 consecutive failed
-  // heartbeats (heartbeat-scheduler.ts:14), so `active` already means
-  // "answering". `jailed`, `probation` and `revoked` are all not-online.
-  const agentsOnline: number | null = session
+  // One call, both fleet numbers. `active` drives the tile; `jailed` drives
+  // the alert — jailed being haiCore's own status for an agent that failed 3
+  // consecutive heartbeat probes (heartbeat-scheduler.ts:14), recovered from
+  // via `probation`. The alert deliberately keys off jailed rather than
+  // "active === 0": an account that has provisioned no agents yet is in setup,
+  // not in fault, and the two are indistinguishable by a zero count.
+  const fleet: { total: number; active: number; jailed: number } | null = session
     ? await fetchFromApi(async (client) => {
         const { agents } = await client.listAgents();
-        return agents.filter((a) => a.status === "active").length;
+        return {
+          total: agents.length,
+          active: agents.filter((a) => a.status === "active").length,
+          jailed: agents.filter((a) => a.status === "jailed").length,
+        };
       }, null)
     : null;
 
@@ -85,7 +91,10 @@ export default async function DashboardPage() {
           status from haiCore, NOT `session.participant.status`, which is the
           literal "active" hard-coded in auth.ts:145 and would report every
           account healthy including a suspended one. */}
-      <DashboardAlertBar agentsOnline={agentsOnline} accountStatus={accountStatus} />
+      <DashboardAlertBar
+        agents={fleet && { total: fleet.total, jailed: fleet.jailed }}
+        accountStatus={accountStatus}
+      />
 
       {/* The event inbox, directly under the interrupts. These are two
           different jobs: the bar above is live derived state that clears
@@ -109,7 +118,7 @@ export default async function DashboardPage() {
         />
         <StatCard
           label="Agents Online"
-          value={agentsOnline != null ? String(agentsOnline) : null}
+          value={fleet != null ? String(fleet.active) : null}
         />
         <StatCard
           label="Behavioral Score"
