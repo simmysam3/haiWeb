@@ -36,7 +36,7 @@ export default async function DashboardPage() {
         description="Account overview, agent status, and pending actions."
       />
       <PageIntro>
-        Your at-a-glance view of inbound activity across the HAIWAVE network — recent orders, behavioral signals, compliance flags, and agent health. Use it to triage anomalies and drop into the section that owns the decision (Compliance, Behavioral Scores, Provenance, Agent Health) when something needs attention.
+        Your at-a-glance view of inbound activity across the HAIWAVE network — quote volume, behavioral signals, compliance flags, and agent health. Use it to triage anomalies and drop into the section that owns the decision (Compliance, Behavioral Scores, Provenance, Agent Health) when something needs attention.
       </PageIntro>
 
       {/* Row 1: Stat Cards. Values with no real data source render "Not
