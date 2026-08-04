@@ -396,6 +396,18 @@ export interface TrustBypassActivationResponse {
   } | null;
 }
 
+// Quote volume metrics (v1.66 console dashboard) — not exported from
+// @haiwave/protocol; declared locally to match the haiCore route response
+// shape (apps/core/src/services/quote-metrics-service.ts). The three aging
+// buckets sum to `outstanding` exactly.
+export interface QuoteMetrics {
+  incoming: { day: number; week: number; month: number };
+  responded_today: number;
+  outstanding: number;
+  aging: { under_2d: number; d2_5: number; d5_plus: number };
+  expired_30d: number;
+}
+
 export interface HaiwaveClient {
   searchParticipants(query: string, options?: { limit?: number }): Promise<ParticipantProfile[]>;
   getCompanyProfile(id: string): Promise<ParticipantProfile>;
@@ -781,6 +793,8 @@ export interface HaiwaveClient {
     events_count: number;
     oldest_age_days: number | null;
   }>;
+  // ─── Quote volume metrics (v1.66 console dashboard) ──────────────────
+  getQuoteMetrics(tz: string): Promise<QuoteMetrics>;
   // ─── Coverage (v1.34 P6) ─────────────────────────────────────────────
   getCoverageCurrent(): Promise<CoverageCurrentResponse>;
   getCoverageTrend(windowDays?: number): Promise<CoverageTrend>;
@@ -2048,6 +2062,15 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         'GET', '/sonar/compliance/changes/count',
       ).then((d) => {
         if (d == null) throw new Error('getComplianceChangesCount: haiCore returned no/non-JSON body');
+        return d;
+      });
+    },
+
+    getQuoteMetrics(tz: string) {
+      return request<QuoteMetrics>(
+        'GET', `/quotes/metrics?tz=${encodeURIComponent(tz)}`,
+      ).then((d) => {
+        if (d == null) throw new Error('getQuoteMetrics: haiCore returned no/non-JSON body');
         return d;
       });
     },
