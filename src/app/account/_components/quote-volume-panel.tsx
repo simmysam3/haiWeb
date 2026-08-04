@@ -41,7 +41,10 @@ export function QuoteVolumePanel() {
           Outstanding exactly — a viewer can verify the panel against
           itself, which is the point of surfacing both. */}
       <div className="grid grid-cols-4 gap-6">
-        <StatCard label="Outstanding in Queue" value={val(data?.outstanding)} color="text-teal" />
+        {/* No color override: StatCard defaults to text-navy (#1A1F36 on
+            white, ~16.2:1) — text-teal (#29B0C3, ~2.60:1) fails WCAG AA even
+            at large-bold size. */}
+        <StatCard label="Outstanding in Queue" value={val(data?.outstanding)} />
         <StatCard label="Under 2 Days" value={val(data?.aging?.under_2d)} />
         <StatCard label="2 – 5 Days" value={val(data?.aging?.d2_5)} />
         <StatCard label="5+ Days" value={val(data?.aging?.d5_plus)} />

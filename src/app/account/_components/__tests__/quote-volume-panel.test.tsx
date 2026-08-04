@@ -83,4 +83,14 @@ describe('QuoteVolumePanel', () => {
     expect(() => render(<QuoteVolumePanel />)).not.toThrow();
     expect(screen.getAllByText('Not Available').length).toBeGreaterThan(0);
   });
+
+  // WCAG 2.1 AA regression guard: text-teal (#29B0C3) on white is ~2.60:1,
+  // below the 3:1 minimum even for large bold text. StatCard's default
+  // (text-navy, #1A1F36 on white, ~16.2:1) clears AA comfortably.
+  it('does not render the Outstanding value in text-teal (fails AA contrast)', () => {
+    mockMetrics(METRICS);
+    render(<QuoteVolumePanel />);
+    const outstanding = screen.getByText('47');
+    expect(outstanding.className).not.toContain('text-teal');
+  });
 });
