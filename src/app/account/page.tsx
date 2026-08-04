@@ -3,6 +3,7 @@ import { Card } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 import { PageIntro } from "@/components/page-intro";
 import { NotificationsPanel } from "./_components/notifications-panel";
+import { QuoteVolumePanel } from "./_components/quote-volume-panel";
 import { fetchFromApi } from "@/lib/server-haiwave-client";
 import { getSession } from "@/lib/auth";
 
@@ -51,6 +52,8 @@ export default async function DashboardPage() {
           color={scoreData != null && scoreData >= 90 ? "text-success" : "text-teal"}
         />
       </div>
+
+      <QuoteVolumePanel />
 
       {/* Row 2: Pending & Billing */}
       <div className="grid grid-cols-2 gap-6 mb-8">
