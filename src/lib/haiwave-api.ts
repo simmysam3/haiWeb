@@ -140,7 +140,7 @@ export interface CatalogClass {
  * NOTE (v1.66): `GET /participants/me/agents` is readable by any member of the
  * participant, but haiCore redacts the credential-shaped fields — `client_id`,
  * `agent_endpoint` and the four `auth_*`/`api_base_url` endpoints — for callers
- * without the `account_admin` realm role (D-141). They are typed as present
+ * without the `account_admin` realm role (D-144). They are typed as present
  * because every consumer that READS them (the Agents page) goes through a BFF
  * route that is itself account_admin-gated; the dashboard's fleet-count lane
  * touches only `status`. Anything new that reads a credential field from a
