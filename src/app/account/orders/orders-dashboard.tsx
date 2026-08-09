@@ -13,8 +13,6 @@ interface SellSideOrder {
   vendor_participant_id: string;
   buyer_participant_id: string;
   status: string;
-  erp_platform: string | null;
-  erp_order_reference: string | null;
   po_number: string | null;
   order_total: number | null;
   currency: string;
@@ -39,7 +37,6 @@ const STATUS_FILTERS = [
   { key: "pending", label: "Pending" },
   { key: "processed", label: "Processed" },
   { key: "completed", label: "Completed" },
-  { key: "failed", label: "Failed" },
 ];
 
 const FALLBACK: OrdersApiResponse = {
@@ -128,11 +125,6 @@ export function OrdersDashboard() {
                       </p>
                       {order.po_number && (
                         <p className="text-xs text-slate">PO: {order.po_number}</p>
-                      )}
-                      {order.erp_order_reference && (
-                        <p className="text-xs text-teal-dark">
-                          ERP Ref: {order.erp_order_reference}
-                        </p>
                       )}
                       <p className="text-xs text-slate">
                         Created {new Date(order.created_at).toLocaleDateString()}
