@@ -550,7 +550,7 @@ export interface HaiwaveClient {
   // Orders (v1.15)
   getSellSideOrders(statusFilter?: string): Promise<Record<string, unknown>[]>;
   acceptInvoice(orderId: string, invoiceId: string): Promise<Record<string, unknown>>;
-  processOrder(sellSideOrderId: string): Promise<{ status: string; erp_order_reference?: string }>;
+  processOrder(sellSideOrderId: string): Promise<{ status: string }>;
   completeOrder(sellSideOrderId: string): Promise<{ status: string }>;
   // Provenance (v1.15)
   getOriginManifests(): Promise<Record<string, unknown>>;
@@ -1306,7 +1306,7 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       return request<Record<string, unknown>>("POST", `/orders/${orderId}/invoice/accept`, { invoice_id: invoiceId });
     },
     processOrder(sellSideOrderId: string) {
-      return request<{ status: string; erp_order_reference?: string }>("POST", `/orders/sell-side/${sellSideOrderId}/process`);
+      return request<{ status: string }>("POST", `/orders/sell-side/${sellSideOrderId}/process`);
     },
     completeOrder(sellSideOrderId: string) {
       return request<{ status: string }>("POST", `/orders/sell-side/${sellSideOrderId}/complete`);
