@@ -20,10 +20,8 @@ function toRaw(v: WatcherDriftThresholds): RawState {
     noise_floor_days: String(v.noise_floor_days),
     severity_warning_pct: String(v.severity_warning_pct),
     severity_critical_pct: String(v.severity_critical_pct),
-    // v1.69 slice D — WatcherDriftThresholds gained these two fields
-    // (promise-slip severity, read server-side by the drift evaluator).
-    // Not yet exposed as inputs below; keeping RawState exhaustive so the
-    // type stays honest about every field the value can carry.
+    // v1.69 slice D — promise-slip severity, in DAYS a committed line's
+    // completion date moved (read server-side by the drift evaluator).
     promise_slip_warning_days: String(v.promise_slip_warning_days),
     promise_slip_critical_days: String(v.promise_slip_critical_days),
   };
@@ -103,16 +101,37 @@ function DriftSummary({ value }: { value: WatcherDriftThresholds }) {
           Improvements and smaller slips remain informational.
         </span>
       </li>
+      <li className="flex gap-2">
+        <span aria-hidden className="select-none text-slate">
+          •
+        </span>
+        <span>
+          <span className="font-semibold">Promise dates.</span> A committed
+          order line whose completion date slips{' '}
+          <span className="font-semibold text-amber-700">
+            {value.promise_slip_warning_days} days
+          </span>{' '}
+          is raised to <span className="font-medium">Warning</span>;{' '}
+          <span className="font-semibold text-rose-700">
+            {value.promise_slip_critical_days} days
+          </span>{' '}
+          is raised to <span className="font-medium">Critical</span>. There is
+          no noise floor here — a promise is a commitment, not a measurement —
+          so any change to a promised schedule is at least recorded as info.
+        </span>
+      </li>
     </ul>
   );
 }
 
 export function DriftThresholdsFields({ value, onChange, locked }: Props) {
   const invalid = value.severity_critical_pct <= value.severity_warning_pct;
+  const slipInvalid =
+    value.promise_slip_critical_days <= value.promise_slip_warning_days;
   // Collapsed by default — the summary above tells the whole story and most
   // watchers ride the defaults. Auto-open only when the saved values are
   // invalid, so the inline error can't hide behind a collapsed section.
-  const [expanded, setExpanded] = useState(invalid);
+  const [expanded, setExpanded] = useState(invalid || slipInvalid);
   // Raw input state mirrors the parent value but allows the user to clear an
   // input mid-edit without immediately snapping back. We forward a numeric
   // onChange the moment the string parses to a finite number.
@@ -267,10 +286,51 @@ export function DriftThresholdsFields({ value, onChange, locked }: Props) {
                 to Critical.
               </span>
             </label>
+            <label className="text-sm text-charcoal">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-slate">
+                Promise slip warning (days)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={raw.promise_slip_warning_days}
+                onChange={handle('promise_slip_warning_days')}
+                aria-label="Promise slip warning (days)"
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              />
+              <span className="mt-1 block text-[10px] text-slate">
+                How many days a committed order line&apos;s completion date has
+                to slip before it&apos;s raised to a Warning. Smaller slips are
+                still recorded as info.
+              </span>
+            </label>
+            <label className="text-sm text-charcoal">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-slate">
+                Promise slip critical (days)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={raw.promise_slip_critical_days}
+                onChange={handle('promise_slip_critical_days')}
+                aria-label="Promise slip critical (days)"
+                className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              />
+              <span className="mt-1 block text-[10px] text-slate">
+                A slip of this many days or more is raised to Critical.
+              </span>
+            </label>
           </div>
           {invalid && (
             <p role="alert" className="text-xs text-rose-700">
               Critical % must exceed Warning %.
+            </p>
+          )}
+          {slipInvalid && (
+            <p role="alert" className="text-xs text-rose-700">
+              Promise slip critical must exceed promise slip warning.
             </p>
           )}
         </div>
