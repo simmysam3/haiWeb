@@ -133,15 +133,23 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   },
   // Readiness watcher redesign — column headers on the run-detail lead-time
   // history table. Each column is a distinct lead-time provenance for a
-  // (SKU, vendor): published (ERP baseline), calibrated (from fulfillment
-  // history), soft_quoted (live phantom-demand traversal for the ask qty),
-  // plus available-capacity band and the ask-quantity target.
+  // (SKU, vendor): published (ERP baseline), calibrated (from the vendor's
+  // order-experience history), soft_quoted (live phantom-demand traversal
+  // for the ask qty), plus available-capacity band and the ask-quantity
+  // target.
+  //
+  // v1.69 slice E follow-up (owner ruling 6) — `calibrated` used to double as
+  // the order-state table's per-order ship-delta column. That table's delta
+  // is a genuinely different figure (single-order quoted-vs-actual gap, not
+  // a lead time), so it now has its own `ship_delta` entry below rather than
+  // sharing this key.
   lead_time_col: {
     published: "Published lead time: the vendor's officially listed timeline, typically ERP-set. May not reflect current performance.",
-    calibrated: "Calibrated: system-computed from the vendor's actual fulfillment history — the quoted-vs-actual ship-date delta over recent orders, outliers removed.",
+    calibrated: "Calibrated: the vendor's absolute order-to-ship lead time — the median across the vendor's own order-experience rows over a 180-day lookback (minimum 3 observations). Anomalous rows are discarded, not clamped.",
     soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
     capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
     ask_quantity: "Ask quantity: the forward-demand quantity this run resolved the soft quote for. Fixed at run time — editing the watcher's ask changes later runs, not this one.",
+    ship_delta: "Ship delta: how many days late this order shipped versus its quoted ship date — on time if it shipped on or before that date. The quoted-vs-actual gap for that order alone, not a lead-time estimate.",
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',

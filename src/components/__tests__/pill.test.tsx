@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Pill } from '../pill';
+import { Pill, definitionFor } from '../pill';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -174,7 +174,8 @@ describe('lead_time_col pill category', () => {
   it.each([
     ['soft_quoted', /phantom-demand traversal/i],
     ['published', /officially listed timeline/i],
-    ['calibrated', /actual fulfillment history/i],
+    ['calibrated', /median.*order-experience/i],
+    ['ship_delta', /quoted-vs-actual/i],
     ['capacity', /capacity utilization band/i],
     ['ask_quantity', /forward-demand quantity this run resolved/i],
   ])('%s resolves its definition tooltip', (value, expected) => {
@@ -183,6 +184,31 @@ describe('lead_time_col pill category', () => {
       screen.getByTestId('pill').getAttribute('aria-describedby') as string,
     );
     expect(tip?.textContent).toMatch(expected);
+  });
+
+  it('pins the calibrated ruling: 180-day lookback, minimum 3 observations, anomalies discarded not clamped', () => {
+    render(<Pill category="lead_time_col" value="calibrated" />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip?.textContent).toMatch(/180-day lookback/i);
+    expect(tip?.textContent).toMatch(/minimum 3 observations/i);
+    expect(tip?.textContent).toMatch(/discarded, not clamped/i);
+    // Guards against the split regressing: calibrated must not silently pick
+    // back up the ship_delta wording it was carved out of.
+    expect(tip?.textContent).not.toMatch(/quoted-vs-actual/i);
+  });
+
+  it('ship_delta has a PILL_DEFINITIONS entry (retry-immune — independent of the console.warn dedup Set)', () => {
+    // The warn test below renders every key and asserts console.warn was
+    // never called. It is retry-poisoned under vitest.config's retry: 2: a
+    // missing definition still fires console.warn AND permanently adds the
+    // category:value pair to pill.tsx's module-scope `_warnedKeys` Set on
+    // attempt 1, so a rerun on attempt 2 finds the key already "warned" and
+    // silently skips the warn — attempt 2 passes even though the definition
+    // is still missing. Asserting on the pure `definitionFor` lookup here
+    // has no such statefulness, so it fails the same way on every retry.
+    expect(definitionFor('lead_time_col', 'ship_delta')).toBeDefined();
   });
 
   it('renders every lead_time_col value without a missing-definition warn', () => {
@@ -194,6 +220,7 @@ describe('lead_time_col pill category', () => {
         <Pill category="lead_time_col" value="soft_quoted" />
         <Pill category="lead_time_col" value="capacity" />
         <Pill category="lead_time_col" value="ask_quantity" />
+        <Pill category="lead_time_col" value="ship_delta" />
       </>,
     );
     expect(warn).not.toHaveBeenCalled();

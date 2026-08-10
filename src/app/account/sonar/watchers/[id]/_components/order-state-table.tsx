@@ -3,9 +3,12 @@ import { ColumnHeader } from '@/components/column-header';
 
 // Order-state view for a (SKU, vendor) on the readiness watcher run-detail
 // page. Two sub-tables: the vendor's currently open orders, then the most
-// recent fulfillments with the quoted-vs-actual ship-date slip that the
-// calibrated lead time is derived from. Purely presentational — the payload
-// is the direct OrderFulfillmentHistoryPayload signal.
+// recent fulfillments with their own quoted-vs-actual ship-date delta (a
+// per-order slip figure — see "ship delta" below). The calibrated lead time
+// shown underneath is a separate figure, computed from the vendor's
+// order-experience history rather than from this fulfillments table.
+// Purely presentational — the payload is the direct
+// OrderFulfillmentHistoryPayload signal.
 
 const DAY_MS = 86_400_000;
 
@@ -87,7 +90,7 @@ export function OrderStateTable({ payload }: Props) {
                   <ColumnHeader
                     label="Ship delta"
                     category="lead_time_col"
-                    value="calibrated"
+                    value="ship_delta"
                   />
                 </tr>
               </thead>
@@ -105,6 +108,7 @@ export function OrderStateTable({ payload }: Props) {
                       <td className="px-3 py-2">{formatDate(fulfillment.actual_ship_date)}</td>
                       <td className="px-3 py-2">
                         <span
+                          data-testid="ship-delta-chip"
                           className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${
                             delta.late
                               ? 'border-amber-200 bg-amber-50 text-amber-800'
@@ -121,9 +125,9 @@ export function OrderStateTable({ payload }: Props) {
             </table>
           </div>
         )}
-        <p className="mt-1 text-[10px] text-slate">
-          Calibrated lead time {payload.calibrated.days}d from {payload.calibrated.sample_count}{' '}
-          orders.
+        <p className="mt-1 text-[10px] text-slate" data-testid="calibrated-provenance">
+          Calibrated lead time {payload.calibrated.days}d, from {payload.calibrated.sample_count}{' '}
+          orders in the vendor order-experience history — not the fulfillments shown above.
         </p>
       </section>
     </div>
