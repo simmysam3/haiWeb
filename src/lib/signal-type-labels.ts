@@ -34,4 +34,9 @@ export const SIGNAL_TYPE_LABELS: Record<SignalType, SignalTypeLabel> = {
     label: 'Soft-quoted',
     tooltip: 'Live best-effort lead time for the ask quantity, from a phantom-demand traversal.',
   },
+  // v1.69 slice D (3.63.0): agent-reported promised-vs-current order schedule.
+  order_promise_schedule: {
+    label: 'Order Promise Schedule',
+    tooltip: 'Promised order-line dates compared against the vendor ERP’s current post-MRP schedule.',
+  },
 };

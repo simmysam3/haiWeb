@@ -62,4 +62,19 @@ describe('<Pill category="signal_type">', () => {
     expect(screen.getByText('SQL')).toBeInTheDocument();
     expect(tooltipText()).toMatch(/soft-quoted/i);
   });
+
+  // v1.69 slice D — order_promise_schedule (OPS): MRP promise drift. Dual-keyed
+  // (full name + abbreviation), unlike PLT/QLT which only have the
+  // abbreviation — that gap is a pre-existing quirk, not one to copy.
+  it('renders order_promise_schedule (full name) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="order_promise_schedule" />);
+    expect(screen.getByText(/order promise schedule/i)).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/post-mrp schedule/i);
+  });
+
+  it('renders OPS (order promise schedule abbreviation) with its definition tooltip', () => {
+    render(<Pill category="signal_type" value="OPS" />);
+    expect(screen.getByText('OPS')).toBeInTheDocument();
+    expect(tooltipText()).toMatch(/post-mrp schedule/i);
+  });
 });

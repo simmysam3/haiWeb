@@ -14,12 +14,14 @@ import type { EmittedChangeKind } from '@haiwave/protocol';
 //   - lead_time_degraded / lead_time_improved (v.1.43) — these are
 //     watcher/monitoring signals, not audit-data changes; they belong on
 //     the Watcher Backlog surface, not the Event Backlog.
+//   - promise_date_slipped / promise_date_improved (v1.69 slice D) — same
+//     reasoning: watcher-emitted MRP promise drift, Watcher Backlog only.
 // Turbopack cannot value-import the CJS @haiwave/protocol package through
 // the file: symlink on Windows; a direct value-import will fail at runtime.
 // Keep this list verbatim in sync with the subset above. Do NOT replace
 // with a value import.
 export const EVENT_KIND_PILLS: ReadonlyArray<
-  Exclude<EmittedChangeKind, 'gap_added' | 'gap_resolved' | 'lead_time_degraded' | 'lead_time_improved'>
+  Exclude<EmittedChangeKind, 'gap_added' | 'gap_resolved' | 'lead_time_degraded' | 'lead_time_improved' | 'promise_date_slipped' | 'promise_date_improved'>
 > = [
   'origin_shifted_country',
   'origin_shifted_plant',

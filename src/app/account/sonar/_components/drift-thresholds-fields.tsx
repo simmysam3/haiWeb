@@ -20,6 +20,12 @@ function toRaw(v: WatcherDriftThresholds): RawState {
     noise_floor_days: String(v.noise_floor_days),
     severity_warning_pct: String(v.severity_warning_pct),
     severity_critical_pct: String(v.severity_critical_pct),
+    // v1.69 slice D — WatcherDriftThresholds gained these two fields
+    // (promise-slip severity, read server-side by the drift evaluator).
+    // Not yet exposed as inputs below; keeping RawState exhaustive so the
+    // type stays honest about every field the value can carry.
+    promise_slip_warning_days: String(v.promise_slip_warning_days),
+    promise_slip_critical_days: String(v.promise_slip_critical_days),
   };
 }
 
@@ -31,15 +37,21 @@ function isDefault(v: WatcherDriftThresholds): boolean {
     v.severity_warning_pct ===
       DEFAULT_WATCHER_DRIFT_THRESHOLDS.severity_warning_pct &&
     v.severity_critical_pct ===
-      DEFAULT_WATCHER_DRIFT_THRESHOLDS.severity_critical_pct
+      DEFAULT_WATCHER_DRIFT_THRESHOLDS.severity_critical_pct &&
+    v.promise_slip_warning_days ===
+      DEFAULT_WATCHER_DRIFT_THRESHOLDS.promise_slip_warning_days &&
+    v.promise_slip_critical_days ===
+      DEFAULT_WATCHER_DRIFT_THRESHOLDS.promise_slip_critical_days
   );
 }
 
 /**
  * Plain-English restatement of what the current thresholds actually cause the
  * watcher to fire on. Always visible (collapsed or expanded) so the operator
- * can read the *behavior* rather than reverse-engineer it from four numbers —
- * and so it updates live while the knobs are open.
+ * can read the *behavior* rather than reverse-engineer it from six numbers —
+ * the original four plus the v1.69 slice D promise_slip_warning_days /
+ * promise_slip_critical_days pair — and so it updates live while the knobs
+ * are open.
  */
 function DriftSummary({ value }: { value: WatcherDriftThresholds }) {
   return (

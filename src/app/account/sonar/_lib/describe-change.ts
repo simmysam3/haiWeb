@@ -51,6 +51,23 @@ function pickNum(obj: unknown, keys: readonly string[]): number | undefined {
   return undefined;
 }
 
+// v1.69 slice D — the max date across an order-promise-schedule signal's
+// portions is its completion date. jsonb — never trust it typed: guard
+// every layer (not an array, not an object, a malformed date string).
+function maxPortionDate(obj: unknown): string | undefined {
+  if (obj == null || typeof obj !== 'object') return undefined;
+  const portions = (obj as Record<string, unknown>).portions;
+  if (!Array.isArray(portions)) return undefined;
+  let max: string | undefined;
+  for (const p of portions) {
+    if (p == null || typeof p !== 'object') continue;
+    const date = (p as Record<string, unknown>).date;
+    if (typeof date !== 'string') continue;
+    if (max === undefined || date > max) max = date;
+  }
+  return max;
+}
+
 // ─── describeChange ────────────────────────────────────────────────────────
 
 export function describeChange(change: ComplianceChange): string {
@@ -97,6 +114,22 @@ export function describeChange(change: ComplianceChange): string {
       const p = pickNum(prior, ['max_depth']) ?? MISSING;
       const c = pickNum(current, ['max_depth']) ?? MISSING;
       return `Maximum traversal depth increased from ${p} to ${c}.`;
+    }
+    case 'promise_date_slipped':
+    case 'promise_date_improved': {
+      const ref = change.component_ref || MISSING;
+      const priorDate = maxPortionDate(prior) ?? MISSING;
+      const currentDate = maxPortionDate(current) ?? MISSING;
+      const delta = pickNum(current, ['completion_delta_days']);
+      if (delta == null) {
+        return `${ref} completion moved from ${priorDate} to ${currentDate}`;
+      }
+      if (delta === 0) {
+        return `${ref} re-split without moving completion (still ${currentDate})`;
+      }
+      const direction = delta > 0 ? 'later' : 'earlier';
+      const days = Math.abs(delta);
+      return `${ref} completes ${days} day${days === 1 ? '' : 's'} ${direction} than promised (${priorDate} → ${currentDate})`;
     }
     default:
       // dev-only warn so new kinds that land in the protocol surface immediately

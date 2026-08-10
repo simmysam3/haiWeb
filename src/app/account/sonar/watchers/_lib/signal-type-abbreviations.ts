@@ -14,4 +14,5 @@ export const SIGNAL_TYPE_ABBREVIATIONS: Record<SignalType, string> = {
   quoted_lead_time: 'QLT',
   order_fulfillment_history: 'ORD',
   soft_quoted_lead_time: 'SQL',
+  order_promise_schedule: 'OPS',
 };

@@ -256,6 +256,50 @@ describe('ChangeDetailCompare', () => {
     expect(screen.queryByRole('link', { name: /view source audit run/i })).not.toBeInTheDocument();
   });
 
+  it('renders per-line promised/current portion sets (dates + quantities) for a promise_date_slipped change (spec §8)', () => {
+    // prior_value/current_value on the change itself feed describeChange /
+    // summarizeChange; prior_cell/current_cell are the raw observation
+    // samples this component already renders generically via JSON.stringify.
+    // This pins that the promise-drift portion shape survives that existing
+    // generic renderer without any component change.
+    render(
+      <ChangeDetailCompare
+        detail={detail({
+          change: {
+            ...base.change,
+            change_kind: 'promise_date_slipped',
+            component_ref: '4711#L1',
+            prior_value: { portions: [{ date: '2026-08-25', quantity: 60 }], signal_type: 'order_promise_schedule' },
+            current_value: { portions: [{ date: '2026-08-28', quantity: 60 }], signal_type: 'order_promise_schedule', completion_delta_days: 3 },
+          },
+          prior_cell: {
+            tree: null,
+            samples: [{
+              attribute_kind: 'order_promise_schedule',
+              value_json: { portions: [{ date: '2026-08-25', quantity: 60 }] },
+            }],
+          },
+          current_cell: {
+            tree: null,
+            samples: [{
+              attribute_kind: 'order_promise_schedule',
+              value_json: { portions: [{ date: '2026-08-28', quantity: 60 }] },
+            }],
+          },
+        })}
+      />,
+    );
+    // Scoped to the sample list items (not the whole document) because
+    // describeChange's own sentence also mentions both dates now.
+    const items = screen.getAllByRole('listitem');
+    const priorItem = items.find((el) => el.textContent?.includes('2026-08-25'));
+    const currentItem = items.find((el) => el.textContent?.includes('2026-08-28'));
+    expect(priorItem).toBeTruthy();
+    expect(currentItem).toBeTruthy();
+    expect(priorItem?.textContent).toMatch(/"quantity":\s*60/);
+    expect(currentItem?.textContent).toMatch(/"quantity":\s*60/);
+  });
+
   it('omits the configure-watcher link when source_template_id is null', () => {
     render(
       <ChangeDetailCompare

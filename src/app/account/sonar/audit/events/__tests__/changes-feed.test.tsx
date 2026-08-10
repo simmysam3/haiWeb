@@ -143,14 +143,18 @@ describe('ChangesFeed', () => {
 
   it('filter-pills EVENT_KIND_PILLS = EMITTED_CHANGE_KINDS minus gap lifecycle AND lead-time kinds (v.1.43 Event Backlog)', () => {
     // Gap lifecycle (gap_added / gap_resolved) belongs on the Gaps tab;
-    // lead-time kinds (lead_time_degraded / lead_time_improved) are
-    // watcher/monitoring signals, not audit-compliance changes, and were
-    // dropped from the Event Backlog when it moved under Sonar Audit.
+    // lead-time kinds (lead_time_degraded / lead_time_improved) and the
+    // v1.69 slice D promise-drift kinds (promise_date_slipped /
+    // promise_date_improved) are watcher/monitoring signals, not
+    // audit-compliance changes, and were dropped from the Event Backlog
+    // when it moved under Sonar Audit.
     const EXCLUDED = [
       'gap_added',
       'gap_resolved',
       'lead_time_degraded',
       'lead_time_improved',
+      'promise_date_slipped',
+      'promise_date_improved',
     ];
     const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
       .filter((k) => !EXCLUDED.includes(k))

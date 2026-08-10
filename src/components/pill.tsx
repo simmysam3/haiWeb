@@ -125,6 +125,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     ORD: 'Order state — active orders and recent quoted-vs-actual ship dates for this SKU.',
     soft_quoted_lead_time: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
     SQL: 'Soft-quoted — live best-effort lead time for your ask quantity, from a phantom-demand traversal.',
+    // v1.69 slice D — MRP promise drift. Dual-keyed (full name + OPS
+    // abbreviation) per the ORD/SQL precedent above; PLT/QLT's abbreviation-
+    // only entries are a pre-existing gap, not a pattern to copy.
+    order_promise_schedule: 'Promised order-line dates compared against the vendor ERP’s current post-MRP schedule.',
+    OPS: 'Promised order-line dates compared against the vendor ERP’s current post-MRP schedule.',
   },
   // Readiness watcher redesign — column headers on the run-detail lead-time
   // history table. Each column is a distinct lead-time provenance for a
@@ -154,6 +159,13 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     certification_renewed: 'Certification status returned to valid.',
     depth_reduced: 'Maximum traversal depth decreased for this product.',
     depth_increased: 'Maximum traversal depth increased for this product.',
+    // v1.69 slice D — same hand-mirror constraint as the block comment above
+    // (no value-import of the CJS protocol package). Keep verbatim in sync
+    // with CHANGE_KIND_DEFINITION.promise_date_slipped/improved in
+    // packages/protocol/src/audit/compliance-changes.ts, including the
+    // typographic apostrophe in "ERP’s".
+    promise_date_slipped: 'The ERP’s post-MRP schedule for a booked order line completes later than the promised date.',
+    promise_date_improved: 'The ERP’s post-MRP schedule for a booked order line completes earlier than promised, or re-splits without moving completion.',
   },
   severity: {
     info: 'Informational change; no immediate action required.',
