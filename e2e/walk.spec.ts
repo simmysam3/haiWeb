@@ -766,3 +766,93 @@ test.describe("§15 v1.60 Query Guard", () => {
     await expect(drawer).not.toBeVisible();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §16 3.63.0 landing — surfaces with no prior e2e coverage
+// (regression plan §27.3.15/.17/.18 + §5.3.2/§5.3.2a; read-only, no seeds)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("§16 3.63.0 landing surfaces", () => {
+  test("16.1 watcher scope picker offers Order Promise Schedule (aria-label OPS)", async ({
+    browser,
+  }) => {
+    const page = await loggedInPage(browser);
+    await gotoOk(page, "/account/sonar/watchers/new");
+    // fieldset+legend surfaces as role=group named "Signals"
+    const signals = page.getByRole("group", { name: "Signals" });
+    await expect(signals.getByRole("checkbox")).toHaveCount(5);
+    for (const label of [
+      "Published lead time",
+      "Capacity utilization band",
+      "Order state",
+      "Soft-quoted",
+      "Order Promise Schedule",
+    ]) {
+      // exact:true — each checkbox also carries an sr-only tooltip span that
+      // begins with the same words, which trips strict mode on a bare match.
+      await expect(signals.getByText(label, { exact: true })).toBeVisible();
+    }
+    // Locator trap pinned deliberately (plan §27.3.15): the checkbox's
+    // accessible name is the abbreviation "OPS", NOT the visible sibling text.
+    // If someone fixes the aria-label, this fails and the plan row must move.
+    await expect(signals.getByRole("checkbox", { name: "Order Promise Schedule" })).toHaveCount(0);
+    const ops = signals.getByRole("checkbox", { name: "OPS", exact: true });
+    await expect(ops).toBeVisible();
+    await ops.check();
+    await expect(ops).toBeChecked();
+  });
+
+  test("16.2 Watcher Backlog renders 4 lowercase kind pills; toggle works", async ({
+    browser,
+  }) => {
+    const page = await loggedInPage(browser);
+    await gotoOk(page, "/account/sonar/posture/changes");
+    await expect(page.locator("h1", { hasText: "Watcher Backlog" })).toBeVisible();
+    // §27.3.21 — copy widened beyond lead-time-only
+    await expect(page.getByText(/order-promise/i).first()).toBeVisible();
+    // §27.3.17 — pills are static (EVENT_KIND_PILLS), so they render even on an
+    // empty feed. Button text is lowercase (kind.replace, no CSS transform);
+    // exact:true makes the name match case-sensitive and pins that casing.
+    const pillNames = [
+      "lead time degraded",
+      "lead time improved",
+      "promise date slipped",
+      "promise date improved",
+    ];
+    for (const name of pillNames) {
+      await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+    }
+    const slipped = page.getByRole("button", { name: "promise date slipped", exact: true });
+    await slipped.click();
+    await expect(slipped).toHaveAttribute("aria-pressed", "true");
+    await slipped.click();
+    await expect(slipped).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("16.3 Event Backlog stays disjoint from the watcher kinds", async ({ browser }) => {
+    const page = await loggedInPage(browser);
+    await gotoOk(page, "/account/sonar/audit/events");
+    await expect(page.locator("h1", { hasText: "Event Backlog" })).toBeVisible();
+    // §27.3.18 — the two backlogs' pill sets are strictly disjoint by kind.
+    await expect(page.getByRole("button", { name: "promise date slipped", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "lead time degraded", exact: true })).toHaveCount(0);
+  });
+
+  test("16.4 Orders dashboard: live by URL, #146 removals hold, no nav link", async ({
+    browser,
+  }) => {
+    const page = await loggedInPage(browser);
+    // §5.3.2 — reachable only by typed URL; the sidebar entry was removed.
+    await gotoOk(page, "/account/orders");
+    for (const filter of ["All", "Pending", "Processed", "Completed"]) {
+      await expect(page.getByRole("button", { name: filter, exact: true })).toBeVisible();
+    }
+    // §5.3.2a — the three #146 removals are correct, not regressions.
+    await expect(page.getByRole("button", { name: "Failed", exact: true })).toHaveCount(0);
+    await expect(page.getByText("ERP Ref:")).toHaveCount(0);
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Orders", exact: true })).toHaveCount(0);
+    // Filter interaction is client-side only — no writes.
+    await page.getByRole("button", { name: "Pending", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Pending", exact: true })).toBeVisible();
+  });
+});
