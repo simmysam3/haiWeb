@@ -14,6 +14,7 @@ import { StepCard } from '../../../_components/step-card';
 import { NameField } from '../../../_components/name-field';
 import { WatcherScopePicker } from './watcher-scope-picker';
 import { buildWatcherRunBody } from '../../_lib/build-watcher-run-body';
+import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
 /**
  * Four-step wizard for creating a new Watcher (v.1.43 Plan 2, Task 17).
@@ -70,6 +71,40 @@ export function computeSubmitLabel(cadence: Cadence, runNow: boolean): string {
   if (cadence.kind === 'manual_only') return 'Run now';
   if (runNow) return 'Schedule & run now';
   return 'Schedule';
+}
+
+/**
+ * One line stating what submit will actually create — signals by their pill
+ * abbreviations, then the cadence in plain words.
+ *
+ * Exists because of the 3.63.0-landing walk: a watcher went out with
+ * pure-default signals and manual cadence while its owner believed OPS +
+ * Daily were set. The steps live behind scrolling and a hidden-until-Cadence
+ * frequency picker, so nothing at the button contradicted that belief. The
+ * bar is the last thing read before committing — it must say what the form
+ * holds, not "Ready".
+ */
+export function describeSubmission(scope: WatcherScope, cadence: Cadence): string {
+  const signals = scope.signal_types
+    .map((s) => SIGNAL_TYPE_ABBREVIATIONS[s] ?? s)
+    .join(', ');
+  const cadenceText =
+    cadence.kind === 'manual_only'
+      ? 'manual — runs only when you trigger it'
+      : cadence.kind === 'daily'
+        ? `daily at ${cadence.time_of_day} UTC`
+        : cadence.kind === 'weekly'
+          ? `weekly (${cadence.day_of_week}) at ${cadence.time_of_day} UTC`
+          : cadence.kind === 'monthly'
+            ? `monthly (day ${cadence.day_of_month}) at ${cadence.time_of_day} UTC`
+            : // event_triggered — not offered by this wizard's SchedulePicker,
+              // but the Cadence union carries it.
+              `on event (${cadence.event_type})`;
+  const scopeText =
+    scope.counterparties.length > 0
+      ? `${scope.counterparties.length} counterpart${scope.counterparties.length === 1 ? 'y' : 'ies'}`
+      : 'all direct partners';
+  return `${signals} · ${scopeText} · ${cadenceText}`;
 }
 
 export function WatcherWizard() {
@@ -214,9 +249,9 @@ export function WatcherWizard() {
 
         {error && <FormError message={error} sessionExpired={sessionExpired} />}
 
-        <div className="sticky bottom-0 mt-4 bg-navy text-white rounded-xl px-4 py-3 flex items-center justify-between">
-          <span className="text-sm">
-            {name.trim() ? 'Ready' : 'Name the watcher to continue'}
+        <div className="sticky bottom-0 mt-4 bg-navy text-white rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+          <span className="text-sm min-w-0" data-testid="submit-summary">
+            {name.trim() ? describeSubmission(scope, cadence) : 'Name the watcher to continue'}
           </span>
           <button
             type="button"
