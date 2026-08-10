@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Pill } from '../pill';
+import { Pill, definitionFor } from '../pill';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -194,6 +194,21 @@ describe('lead_time_col pill category', () => {
     expect(tip?.textContent).toMatch(/180-day lookback/i);
     expect(tip?.textContent).toMatch(/minimum 3 observations/i);
     expect(tip?.textContent).toMatch(/discarded, not clamped/i);
+    // Guards against the split regressing: calibrated must not silently pick
+    // back up the ship_delta wording it was carved out of.
+    expect(tip?.textContent).not.toMatch(/quoted-vs-actual/i);
+  });
+
+  it('ship_delta has a PILL_DEFINITIONS entry (retry-immune — independent of the console.warn dedup Set)', () => {
+    // The warn test below renders every key and asserts console.warn was
+    // never called. It is retry-poisoned under vitest.config's retry: 2: a
+    // missing definition still fires console.warn AND permanently adds the
+    // category:value pair to pill.tsx's module-scope `_warnedKeys` Set on
+    // attempt 1, so a rerun on attempt 2 finds the key already "warned" and
+    // silently skips the warn — attempt 2 passes even though the definition
+    // is still missing. Asserting on the pure `definitionFor` lookup here
+    // has no such statefulness, so it fails the same way on every retry.
+    expect(definitionFor('lead_time_col', 'ship_delta')).toBeDefined();
   });
 
   it('renders every lead_time_col value without a missing-definition warn', () => {

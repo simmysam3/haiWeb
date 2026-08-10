@@ -108,6 +108,7 @@ export function OrderStateTable({ payload }: Props) {
                       <td className="px-3 py-2">{formatDate(fulfillment.actual_ship_date)}</td>
                       <td className="px-3 py-2">
                         <span
+                          data-testid="ship-delta-chip"
                           className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${
                             delta.late
                               ? 'border-amber-200 bg-amber-50 text-amber-800'

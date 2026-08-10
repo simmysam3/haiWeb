@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { OrderFulfillmentHistoryPayload } from '@haiwave/protocol';
 import { OrderStateTable } from '../order-state-table';
@@ -57,9 +57,15 @@ describe('<OrderStateTable>', () => {
     expect(screen.getByText(/Aug 1, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Jun 3, 2026/)).toBeInTheDocument();
 
-    // delta chips
-    expect(screen.getByText('+2d')).toBeInTheDocument();
-    expect(screen.getByText(/on time/i)).toBeInTheDocument();
+    // delta chips — scoped to each row's chip testid, not a page-wide text
+    // query: the ship-delta column header's own tooltip body ("on time"
+    // never appears there, but the column's copy legitimately says things
+    // like "quoted ship date", so a bare getByText risks matching the
+    // hidden tooltip node instead of the visible chip.
+    const lateRow = screen.getByText('PO-501').closest('tr') as HTMLElement;
+    const onTimeRow = screen.getByText('PO-502').closest('tr') as HTMLElement;
+    expect(within(lateRow).getByTestId('ship-delta-chip')).toHaveTextContent('+2d');
+    expect(within(onTimeRow).getByTestId('ship-delta-chip')).toHaveTextContent(/on time/i);
   });
 
   it('renders only the most recent 5 of 7 fulfillments', () => {
@@ -112,7 +118,7 @@ describe('<OrderStateTable>', () => {
     // hidden-content trap: DOM text matches even when not the visible node
     // under test).
     expect(screen.getByTestId('calibrated-provenance')).toHaveTextContent(
-      /order-experience history.*not the fulfillments (shown|listed) above/i,
+      /order-experience history.*not the fulfillments shown above/i,
     );
   });
 });

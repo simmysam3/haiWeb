@@ -149,7 +149,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     soft_quoted: "Soft-quoted: a live best-effort lead time for your ask quantity, resolved by a point-in-time phantom-demand traversal across the supporting chain. Not a human-validated quote.",
     capacity: "Available capacity: the vendor's current capacity utilization band (ample → at capacity).",
     ask_quantity: "Ask quantity: the forward-demand quantity this run resolved the soft quote for. Fixed at run time — editing the watcher's ask changes later runs, not this one.",
-    ship_delta: "Ship delta: how many days late this order shipped versus its quoted ship date; ships on or before that date show no lateness — the quoted-vs-actual gap for that order alone, not a lead-time estimate.",
+    ship_delta: "Ship delta: how many days late this order shipped versus its quoted ship date — on time if it shipped on or before that date. The quoted-vs-actual gap for that order alone, not a lead-time estimate.",
   },
   config_provenance: {
     fixed_at_creation: 'Set when the configuration was created and immutable thereafter; only schedule and lifecycle fields can be edited.',
