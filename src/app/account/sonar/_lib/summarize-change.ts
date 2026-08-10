@@ -59,6 +59,28 @@ function pickNum(obj: unknown, keys: readonly string[]): number | undefined {
   return undefined;
 }
 
+// v1.69 slice D — the max date across an order-promise-schedule signal's
+// portions is its completion date. jsonb — never trust it typed.
+function maxPortionDate(obj: unknown): string | undefined {
+  if (obj == null || typeof obj !== 'object') return undefined;
+  const portions = (obj as Record<string, unknown>).portions;
+  if (!Array.isArray(portions)) return undefined;
+  let max: string | undefined;
+  for (const p of portions) {
+    if (p == null || typeof p !== 'object') continue;
+    const date = (p as Record<string, unknown>).date;
+    if (typeof date !== 'string') continue;
+    if (max === undefined || date > max) max = date;
+  }
+  return max;
+}
+
+function portionCount(obj: unknown): number {
+  if (obj == null || typeof obj !== 'object') return 0;
+  const portions = (obj as Record<string, unknown>).portions;
+  return Array.isArray(portions) ? portions.length : 0;
+}
+
 function formatVendors(raw: unknown): string {
   if (!Array.isArray(raw) || raw.length === 0) return '(none)';
   // The diff service emits redacted vendors as the sentinel '<null>' — those
@@ -242,6 +264,26 @@ export function summarizeChange(change: ComplianceChange): ChangeSummary {
         fields,
         consider:
           'A prior gap has been resolved. Confirm the responder-supplied state is acceptable; if so, the item can be cleared from the working list.',
+      };
+    }
+
+    case 'promise_date_slipped':
+    case 'promise_date_improved': {
+      const priorDate = maxPortionDate(prior) ?? MISSING;
+      const currentDate = maxPortionDate(current) ?? MISSING;
+      const delta = pickNum(current, ['completion_delta_days']);
+      const changeValue = delta == null ? MISSING : `${delta > 0 ? '+' : ''}${delta} days`;
+      return {
+        fields: [
+          { label: 'Promised completion', newValue: priorDate },
+          { label: 'Current completion', newValue: currentDate },
+          { label: 'Change', newValue: changeValue },
+          { label: 'Portions', newValue: `${portionCount(prior)} → ${portionCount(current)}` },
+        ],
+        consider:
+          kind === 'promise_date_slipped'
+            ? 'Confirm your downstream commitments still hold at the new completion date. Consider chasing the vendor for a firmer date or adjusting your own promise to the buyer.'
+            : 'Earlier completion, or a re-split that held the date — typically no action needed. Verify the new schedule before pulling any dependent commitments forward.',
       };
     }
 

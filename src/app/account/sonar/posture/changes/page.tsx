@@ -75,11 +75,11 @@ export default async function ChangesPage({ searchParams }: PageProps) {
     <div>
       <PageHeader
         title="Watcher Backlog"
-        description="Lead-time drift events from your scheduled watcher configurations — default window is 14 days."
+        description="Lead-time and order-promise drift events from your scheduled watcher configurations — default window is 14 days."
         actions={<RefreshButton />}
       />
       <PageIntro>
-        Lead-time drift events emitted by your scheduled watcher configurations: degradations when a vendor&apos;s lead time grows past the warning/critical threshold, improvements when it recovers. Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Every drift event is shown regardless of severity. Process an event to record an outcome and drop it from the active backlog — switch the Showing dropdown to <em>Processed</em> to review actioned items.
+        Drift events emitted by your scheduled watcher configurations: lead-time degradations when a vendor&apos;s lead time grows past the warning/critical threshold (improvements when it recovers), and order-promise slips when a booked order line&apos;s post-MRP schedule moves later than promised (improvements when it moves earlier, or holds on a re-split). Audit-data changes (origin shifts, certification status, vendor substitutions, depth changes) live on the <em>Event Backlog</em> under Sonar Audit. Every drift event is shown regardless of severity. Process an event to record an outcome and drop it from the active backlog — switch the Showing dropdown to <em>Processed</em> to review actioned items.
       </PageIntro>
 
       <FilterPills />

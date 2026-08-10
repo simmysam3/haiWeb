@@ -23,6 +23,9 @@ const SIGNAL_OPTIONS: { value: SignalType; label: string }[] = [
   { value: 'capacity_utilization_band', label: SIGNAL_TYPE_LABELS.capacity_utilization_band.label },
   { value: 'order_fulfillment_history', label: SIGNAL_TYPE_LABELS.order_fulfillment_history.label },
   { value: 'soft_quoted_lead_time', label: SIGNAL_TYPE_LABELS.soft_quoted_lead_time.label },
+  // v1.69 slice D — MRP promise drift. Without this option no operator can
+  // create a watcher template that asks for it from the console.
+  { value: 'order_promise_schedule', label: SIGNAL_TYPE_LABELS.order_promise_schedule.label },
 ];
 
 export function WatcherScopePicker({ value, onChange }: Props) {

@@ -140,15 +140,21 @@ describe('ChangesFeed', () => {
     expect(within(desc).getByText(/new compliance gap/i)).toBeInTheDocument();
   });
 
-  it('Watcher Backlog EVENT_KIND_PILLS is the LT-only 2-kind set (v.1.43 dual-surface partition)', () => {
+  it('Watcher Backlog EVENT_KIND_PILLS is the LT + promise-drift set (v.1.43 dual-surface partition, v1.69 slice D)', () => {
     // v.1.43 split the old Backlog into two single-purpose surfaces:
-    //   - Watcher Backlog (this page) — LT drift events only.
+    //   - Watcher Backlog (this page) — LT drift events, now joined by the
+    //     v1.69 slice D promise-drift kinds (also watcher/monitoring signals).
     //   - Event Backlog (sonar/audit/events) — the 7 audit-data kinds.
     // The two surfaces filter the same compliance_changes feed by
     // change_kind allowlist (not by source_kind). This test guards
-    // against the LT-only restriction silently regressing.
+    // against the watcher-only restriction silently regressing.
     const actual = [...EVENT_KIND_PILLS].sort();
-    expect(actual).toEqual(['lead_time_degraded', 'lead_time_improved']);
+    expect(actual).toEqual([
+      'lead_time_degraded',
+      'lead_time_improved',
+      'promise_date_improved',
+      'promise_date_slipped',
+    ]);
     // Negative-shape: audit-data kinds + gap lifecycle must NOT appear here.
     const FORBIDDEN = [
       'gap_added',
@@ -162,6 +168,20 @@ describe('ChangesFeed', () => {
       'depth_increased',
     ];
     FORBIDDEN.forEach((k) => expect(actual).not.toContain(k));
+  });
+
+  it('renders a promise_date_slipped row with the order-line ref and day delta', () => {
+    render(<ChangesFeed changes={[change({
+      change_kind: 'promise_date_slipped',
+      severity: 'warning',
+      component_ref: '4711#L1',
+      prior_value: { portions: [{ date: '2026-08-25', quantity: 60 }], signal_type: 'order_promise_schedule' },
+      current_value: { portions: [{ date: '2026-08-28', quantity: 60 }], signal_type: 'order_promise_schedule', completion_delta_days: 3 },
+    })]} />);
+    expect(screen.getByText(/promise date slipped/i)).toBeInTheDocument();
+    const desc = screen.getByTestId('change-description');
+    expect(within(desc).getByText(/4711#L1/)).toBeInTheDocument();
+    expect(within(desc).getByText(/\+3d|3 day/i)).toBeInTheDocument();
   });
 
   it('renders pager when total exceeds pageSize', () => {

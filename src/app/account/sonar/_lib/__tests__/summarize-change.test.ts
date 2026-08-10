@@ -213,6 +213,61 @@ describe('summarizeChange', () => {
     expect(s.fields).toEqual([{ label: 'Status', newValue: 'Gap closed' }]);
   });
 
+  // ─── v1.69 slice D: MRP promise drift ────────────────────────────────────
+
+  it('promise_date_slipped surfaces promised/current completion and the day delta', () => {
+    const s = summarizeChange(
+      c({
+        change_kind: 'promise_date_slipped',
+        component_ref: '4711#L1',
+        prior_value: { portions: [{ date: '2026-08-25', quantity: 60 }], signal_type: 'order_promise_schedule' },
+        current_value: { portions: [{ date: '2026-08-28', quantity: 60 }], signal_type: 'order_promise_schedule', completion_delta_days: 3 },
+      }),
+    );
+    expect(s.fields).toEqual([
+      { label: 'Promised completion', newValue: '2026-08-25' },
+      { label: 'Current completion', newValue: '2026-08-28' },
+      { label: 'Change', newValue: '+3 days' },
+      { label: 'Portions', newValue: '1 → 1' },
+    ]);
+    expect(s.consider).toBeTruthy();
+  });
+
+  it('promise_date_improved surfaces an earlier completion as a negative-days change', () => {
+    const s = summarizeChange(
+      c({
+        change_kind: 'promise_date_improved',
+        component_ref: '4711#L2',
+        prior_value: {
+          portions: [{ date: '2026-08-25', quantity: 40 }, { date: '2026-08-30', quantity: 20 }],
+          signal_type: 'order_promise_schedule',
+        },
+        current_value: {
+          portions: [{ date: '2026-08-22', quantity: 60 }],
+          signal_type: 'order_promise_schedule',
+          completion_delta_days: -8,
+        },
+      }),
+    );
+    expect(s.fields).toEqual([
+      { label: 'Promised completion', newValue: '2026-08-30' },
+      { label: 'Current completion', newValue: '2026-08-22' },
+      { label: 'Change', newValue: '-8 days' },
+      { label: 'Portions', newValue: '2 → 1' },
+    ]);
+    expect(s.consider).toBeTruthy();
+  });
+
+  it('promise_date_slipped does not crash and still returns a consider line when prior/current are null', () => {
+    // jsonb — never trust it typed. A row with unresolvable portions must not
+    // throw, and the "Going forward" panel must not silently vanish (its
+    // `default` case returns `{fields: []}` with no warning).
+    const s = summarizeChange(
+      c({ change_kind: 'promise_date_slipped', prior_value: null, current_value: null }),
+    );
+    expect(s.consider).toBeTruthy();
+  });
+
   // ─── defensive: missing data doesn't crash ───────────────────────────────
 
   it('renders an em-dash newValue when the current_value is null', () => {
@@ -250,6 +305,8 @@ describe('summarizeChange', () => {
       'depth_increased',
       'gap_added',
       'gap_resolved',
+      'promise_date_slipped',
+      'promise_date_improved',
     ] as const;
     for (const kind of kinds) {
       const s = summarizeChange(c({ change_kind: kind, prior_value: null, current_value: null }));
