@@ -855,4 +855,21 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     await page.getByRole("button", { name: "Pending", exact: true }).click();
     await expect(page.getByRole("button", { name: "Pending", exact: true })).toBeVisible();
   });
+
+  test("16.5 clicking a signal pill toggles its checkbox (label activation not swallowed)", async ({
+    browser,
+  }) => {
+    // 3.63.0-landing walk bug B2: the pill chip sits inside the checkbox's
+    // <label>; while it renders as an interactive element (tabindex + click
+    // handler for its tooltip), the browser suppresses label→control
+    // activation for clicks landing on it, so ticking "by the pill" silently
+    // does nothing — the exact gesture that lost the owner's OPS selection.
+    const page = await loggedInPage(browser);
+    await gotoOk(page, "/account/sonar/watchers/new");
+    const signals = page.getByRole("group", { name: "Signals" });
+    const ops = signals.getByRole("checkbox", { name: "OPS", exact: true });
+    await expect(ops).not.toBeChecked();
+    await signals.locator('label:has(input[aria-label="OPS"]) [data-testid="pill"]').click();
+    await expect(ops).toBeChecked();
+  });
 });

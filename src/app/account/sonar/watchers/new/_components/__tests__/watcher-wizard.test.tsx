@@ -90,6 +90,33 @@ describe('<WatcherWizard>', () => {
     expect(definitionsCall![1]?.method).toBe('POST');
   });
 
+  // 3.63.0-landing walk bug B2: a watcher was created with pure-default
+  // signals and manual cadence while its owner believed they had configured
+  // OPS + Daily. Every state handler proved correct — the loss came from the
+  // form silently submitting defaults with nothing at the submit button
+  // stating what was about to be created. The sticky bar must therefore
+  // describe the actual submission (signals + cadence) and track edits live.
+  it('submit bar summarises the signals and cadence that will be created', async () => {
+    render(<WatcherWizard />);
+    await userEvent.type(screen.getByLabelText(/Watcher name/i), 'My Watcher');
+
+    // Default state: four readiness signals, manual cadence — spelled out,
+    // not "Ready".
+    const bar = screen.getByTestId('submit-summary');
+    expect(bar).toHaveTextContent(/PLT, CAP, ORD, SQL/);
+    expect(bar).toHaveTextContent(/manual/i);
+    expect(bar).not.toHaveTextContent(/^Ready$/);
+
+    // Ticking OPS shows up immediately in the summary…
+    await userEvent.click(screen.getByLabelText('OPS'));
+    expect(bar).toHaveTextContent(/OPS/);
+
+    // …and switching to a daily cadence replaces the manual wording.
+    await userEvent.click(screen.getByRole('radio', { name: /Cadence/i }));
+    expect(bar).toHaveTextContent(/daily at \d{2}:\d{2} UTC/i);
+    expect(bar).not.toHaveTextContent(/manual/i);
+  });
+
   it('seeds default drift_thresholds into the created template scope', async () => {
     fetchMock.mockImplementation((url: string) => {
       if (url === '/api/account/sonar/watcher/definitions') {
