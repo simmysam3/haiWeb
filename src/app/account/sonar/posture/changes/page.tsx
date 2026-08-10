@@ -26,11 +26,12 @@ interface SearchParams {
 
 async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
-  // v.1.43: Watcher Backlog is LT-only. If the user picked specific kinds,
-  // honor them but drop anything outside the LT allowlist (in case an
-  // audit-side kind arrives via a stale URL). If no kind filter at all,
-  // default to the LT pill set so audit-data rows never bleed into this
-  // watcher-side surface.
+  // v.1.43: Watcher Backlog requests the full watcher-side pill set
+  // (lead-time AND, since v1.69 slice D, promise-drift kinds). If the user
+  // picked specific kinds, honor them but drop anything outside that
+  // allowlist (in case an audit-side kind arrives via a stale URL). If no
+  // kind filter at all, default to the full watcher-side pill set so
+  // audit-data rows never bleed into this watcher-side surface.
   const rawKinds = searchParams.kind;
   const requested: string[] = Array.isArray(rawKinds)
     ? rawKinds

@@ -48,8 +48,10 @@ function isDefault(v: WatcherDriftThresholds): boolean {
 /**
  * Plain-English restatement of what the current thresholds actually cause the
  * watcher to fire on. Always visible (collapsed or expanded) so the operator
- * can read the *behavior* rather than reverse-engineer it from four numbers —
- * and so it updates live while the knobs are open.
+ * can read the *behavior* rather than reverse-engineer it from six numbers —
+ * the original four plus the v1.69 slice D promise_slip_warning_days /
+ * promise_slip_critical_days pair — and so it updates live while the knobs
+ * are open.
  */
 function DriftSummary({ value }: { value: WatcherDriftThresholds }) {
   return (
