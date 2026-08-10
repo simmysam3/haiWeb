@@ -98,6 +98,21 @@ describe('<OrderStateTable>', () => {
     const tips = screen.getAllByTestId('column-header-tip');
     expect(tips).toHaveLength(1);
     const describedby = tips[0].getAttribute('aria-describedby');
-    expect(document.getElementById(describedby as string)).toHaveTextContent('fulfillment history');
+    expect(document.getElementById(describedby as string)).toHaveTextContent(
+      /quoted-vs-actual gap for that order alone/i,
+    );
+  });
+
+  it('states the calibrated figure comes from order-experience history, not the fulfillments table above', () => {
+    render(<OrderStateTable payload={headerPayload} />);
+
+    // Scoped to the provenance paragraph itself — the ship-delta column
+    // header's own tooltip text also happens to contain unrelated words, so
+    // a page-wide getByText could pass on the wrong element (the jsdom
+    // hidden-content trap: DOM text matches even when not the visible node
+    // under test).
+    expect(screen.getByTestId('calibrated-provenance')).toHaveTextContent(
+      /order-experience history.*not the fulfillments (shown|listed) above/i,
+    );
   });
 });

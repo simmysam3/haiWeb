@@ -174,7 +174,8 @@ describe('lead_time_col pill category', () => {
   it.each([
     ['soft_quoted', /phantom-demand traversal/i],
     ['published', /officially listed timeline/i],
-    ['calibrated', /actual fulfillment history/i],
+    ['calibrated', /median.*order-experience/i],
+    ['ship_delta', /quoted-vs-actual/i],
     ['capacity', /capacity utilization band/i],
     ['ask_quantity', /forward-demand quantity this run resolved/i],
   ])('%s resolves its definition tooltip', (value, expected) => {
@@ -183,6 +184,16 @@ describe('lead_time_col pill category', () => {
       screen.getByTestId('pill').getAttribute('aria-describedby') as string,
     );
     expect(tip?.textContent).toMatch(expected);
+  });
+
+  it('pins the calibrated ruling: 180-day lookback, minimum 3 observations, anomalies discarded not clamped', () => {
+    render(<Pill category="lead_time_col" value="calibrated" />);
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip?.textContent).toMatch(/180-day lookback/i);
+    expect(tip?.textContent).toMatch(/minimum 3 observations/i);
+    expect(tip?.textContent).toMatch(/discarded, not clamped/i);
   });
 
   it('renders every lead_time_col value without a missing-definition warn', () => {
@@ -194,6 +205,7 @@ describe('lead_time_col pill category', () => {
         <Pill category="lead_time_col" value="soft_quoted" />
         <Pill category="lead_time_col" value="capacity" />
         <Pill category="lead_time_col" value="ask_quantity" />
+        <Pill category="lead_time_col" value="ship_delta" />
       </>,
     );
     expect(warn).not.toHaveBeenCalled();
