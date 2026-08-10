@@ -15,6 +15,10 @@ const EMAIL = process.env.USER_EMAIL!;
 const PASSWORD = process.env.USER_PASSWORD!;
 const HAIWEB = process.env.HAIWEB_BASE_URL ?? "http://localhost:3001";
 const HAICORE = process.env.HAICORE_BASE_URL ?? "http://localhost:3000";
+// "3.0.0" is deliberate, not stale: haiCore's version gate rejects only major
+// mismatches and accepts any 3.x minor, so pinning the major floor keeps this
+// spec evergreen. Do NOT "fix" it to the current minor — that goes stale every
+// release without making the gate any stricter.
 const PROTOCOL_VERSION = process.env.HAIWAVE_PROTOCOL_VERSION ?? "3.0.0";
 const HAICORE_HEADERS = { "x-haiwave-protocol-version": PROTOCOL_VERSION };
 
