@@ -94,19 +94,23 @@ test.beforeAll(async ({ browser }) => {
 
   const page = await browser.newPage();
   try {
-    const res = await page.request.post(`${HAIWEB}/api/auth/login`, {
-      headers: { 'Content-Type': 'application/json' },
-      data: { email: EMAIL, password: PASSWORD },
-    });
-    if (!res.ok()) {
-      const body = await res.text();
-      console.info(
-        `[refined-pd] Login failed (${res.status()}) — stack-dependent tests will be skipped: ${body.slice(0, 200)}`,
-      );
-      stackAvailable = false;
-    } else {
-      sharedContext = { storageState: await page.context().storageState() };
-    }
+    // OIDC Authorization-Code + PKCE (D-42), same flow as walk.spec.ts: the
+    // POST-credential login endpoint is retired (GET-only route → 405), which
+    // used to make this block silently skip all three tests while blaming
+    // missing env vars.
+    await page.goto(`${HAIWEB}/api/auth/login`);
+    await page.waitForLoadState('domcontentloaded');
+    await page
+      .locator('#username, input[name="username"], input[type="email"]')
+      .first()
+      .fill(EMAIL);
+    await page.locator('#password, input[type="password"]').first().fill(PASSWORD);
+    await page
+      .locator('#kc-login, button[type="submit"], input[type="submit"]')
+      .first()
+      .click();
+    await page.waitForURL(/\/account(\/|$|\?)/, { timeout: 15_000 });
+    sharedContext = { storageState: await page.context().storageState() };
   } catch (err) {
     console.info(
       `[refined-pd] Stack unreachable — stack-dependent tests will be skipped: ${String(err).slice(0, 200)}`,
