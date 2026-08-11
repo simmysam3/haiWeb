@@ -27,4 +27,10 @@ describe('watcher-run-status traits', () => {
       expect(isUsableRun(s)).toBe(false);
     }
   });
+  it('failure banner set = terminal AND not usable (failed/cancelled exactly)', () => {
+    const bannerSet = WatcherRunStatusSchema.options.filter(
+      (s) => isTerminal(s) && !isUsableRun(s),
+    );
+    expect(bannerSet.sort()).toEqual(['cancelled', 'failed']);
+  });
 });

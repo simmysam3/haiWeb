@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WatcherRun, WatcherRunStatus } from '@haiwave/protocol';
-import { useRunStatus, TERMINAL } from './use-run-status';
+import { useRunStatus } from './use-run-status';
+import { isTerminal } from '@/app/account/sonar/_lib/watcher-run-status';
 import { Pill } from '@/components/pill';
 
 interface RunControlsProps {
@@ -31,21 +32,21 @@ export function RunControls({ run }: RunControlsProps) {
   // the counterparties grid (parent SSR) re-fetches its results. Guarded by
   // `wasNonTerminal` so an SSR mount of an already-terminal run doesn't fire
   // a wasted RSC round-trip.
-  const isTerminal = TERMINAL.includes(effectiveStatus);
-  const wasNonTerminal = useRef(!TERMINAL.includes(run.status));
+  const runIsTerminal = isTerminal(effectiveStatus);
+  const wasNonTerminal = useRef(!isTerminal(run.status));
   useEffect(() => {
-    if (isTerminal && wasNonTerminal.current) {
+    if (runIsTerminal && wasNonTerminal.current) {
       wasNonTerminal.current = false;
       router.refresh();
     }
-  }, [isTerminal, router]);
+  }, [runIsTerminal, router]);
 
   // Clear the local cancelling indicator once the worker reports terminal.
   useEffect(() => {
-    if (cancelling && isTerminal) {
+    if (cancelling && runIsTerminal) {
       setCancelling(false);
     }
-  }, [cancelling, isTerminal]);
+  }, [cancelling, runIsTerminal]);
 
   async function handleCancel() {
     setCancelling(true);

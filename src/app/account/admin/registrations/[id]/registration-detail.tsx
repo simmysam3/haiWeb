@@ -10,6 +10,7 @@ import type {
   RegistrationStatus,
 } from '@/lib/registration-types';
 import { BLOCKED_REQUIRES_OVERRIDE } from '@/lib/registration-types';
+import { REGISTRATION_TERMINAL } from './registration-terminal';
 
 interface Props {
   detail: Detail;
@@ -44,7 +45,7 @@ export function RegistrationDetail({ detail }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const isBlocked = detail.risk_tier === 'blocked';
-  const terminal = status !== 'pending_approval';
+  const terminal = REGISTRATION_TERMINAL[status];
 
   function openModal(kind: Exclude<ModalKind, null>) {
     setReason('');
