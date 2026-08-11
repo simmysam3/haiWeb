@@ -32,4 +32,17 @@ describe('WatcherSignalsCard', () => {
     expect(screen.queryByText(/no runs yet/i)).not.toBeInTheDocument();
     expect(screen.getByText(/1 low · 2 mod · 0 high · 3 at-cap/)).toBeInTheDocument();
   });
+
+  it('View details links to the Watchers list, not the retired orphan dashboard', () => {
+    render(
+      <WatcherSignalsCard
+        capacityBandCounts={{ low: 1, moderate: 0, high: 0, at_capacity: 0 }}
+        medianLeadTimeP90={4}
+      />,
+    );
+    expect(screen.getByRole('link', { name: /view details/i })).toHaveAttribute(
+      'href',
+      '/account/sonar/watchers',
+    );
+  });
 });
