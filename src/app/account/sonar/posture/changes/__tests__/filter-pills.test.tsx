@@ -44,12 +44,18 @@ describe('Watcher Backlog FilterPills (v1.73 layout)', () => {
     const showingRow = screen.getByText('Showing:').closest('div');
     expect(kindRow).not.toBe(showingRow);
   });
-  it('kind toggles render through <Pill> (house rule) and keep aria-pressed', async () => {
+  it('kind toggles are plain buttons (audit-side pattern), not <Pill> nested in a button', async () => {
+    // v1.73 WP4 fix wave: <Pill> renders its label through DefinitionTip, a
+    // `<span tabIndex={0}>` with its own click handler and an sr-only copy of
+    // the tooltip body. Nesting that inside a <button> pollutes the button's
+    // accessible name (becomes "lead time degraded <tooltip body>") and adds
+    // a redundant tab stop. `exact: true` here pins the clean name — it fails
+    // against the old <button><Pill/></button> construct and passes once the
+    // toggle matches audit/events/filter-pills.tsx's plain-button idiom.
     const user = userEvent.setup();
     render(<FilterPills />);
-    const pill = await screen.findByRole('button', { name: /lead time degraded/i });
+    const pill = await screen.findByRole('button', { name: 'lead time degraded', exact: true });
     expect(pill).toHaveAttribute('aria-pressed', 'false');
-    expect(pill.querySelector('[data-testid="pill"]')).not.toBeNull();
     await user.click(pill);
     expect(push).toHaveBeenCalledWith(expect.stringContaining('kind=lead_time_degraded'));
   });

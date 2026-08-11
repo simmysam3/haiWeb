@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { EVENT_KIND_PILLS, KIND_TOOLTIPS } from './_lib/event-kind-pills';
-import { Pill } from '@/components/pill';
 
 /**
  * "Showing" dropdown for the Watcher Backlog feed.
@@ -147,23 +146,29 @@ export function FilterPills() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="self-center text-xs uppercase tracking-wider text-slate">Kind:</span>
+        {/* v1.73 WP4 fix wave: plain <button> toggles, matching the audit-side
+            pattern (audit/events/filter-pills.tsx) — NOT <Pill>. <Pill> renders
+            its label through DefinitionTip, a `<span tabIndex={0}>` with its
+            own click handler and an sr-only tooltip copy; nested in a
+            <button> that doubles the tab stops, double-fires on click, and
+            folds the tooltip body into the button's accessible name (breaks
+            e2e 16.2's exact-name matcher on every pill). These are filter
+            toggles, not status pills — same exemption audit-side already
+            documents for its own Kind row. */}
         {EVENT_KIND_PILLS.map((kind) => (
           <button
             key={kind}
             type="button"
             aria-pressed={isKindActive(kind)}
+            title={KIND_TOOLTIPS[kind]}
             onClick={() => toggleKind(kind)}
-            className="group"
+            className={`rounded-full border px-3 py-1 text-xs ${
+              isKindActive(kind)
+                ? 'border-teal bg-teal/10 text-navy'
+                : 'border-slate/30 text-slate hover:border-slate'
+            }`}
           >
-            <Pill
-              category="change_kind"
-              value={kind}
-              definition={KIND_TOOLTIPS[kind]}
-              tone={isKindActive(kind) ? 'info' : 'neutral'}
-              className={isKindActive(kind) ? 'ring-1 ring-teal' : 'group-hover:ring-1 group-hover:ring-slate/40'}
-            >
-              {kind.replace(/_/g, ' ')}
-            </Pill>
+            {kind.replace(/_/g, ' ')}
           </button>
         ))}
       </div>
