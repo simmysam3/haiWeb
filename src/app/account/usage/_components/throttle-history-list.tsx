@@ -2,14 +2,9 @@
 
 import Link from 'next/link';
 import type { ThrottleHistoryRow } from './types';
+import { runDetailHref } from '@/app/account/sonar/templates/_lib/run-detail-href';
 
 interface Props { rows: ThrottleHistoryRow[]; }
-
-const RUN_HREF: Record<ThrottleHistoryRow['observation_class'], (id: string) => string> = {
-  audit: (id) => `/account/sonar/watchers/${id}`,
-  watcher: (id) => `/account/sonar/templates/${id}`,
-  phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,
-};
 
 export function ThrottleHistoryList({ rows }: Props) {
   return (
@@ -32,7 +27,7 @@ export function ThrottleHistoryList({ rows }: Props) {
             {rows.map((r) => (
               <tr key={r.run_id} className="border-b border-slate-100">
                 <td className="py-2">
-                  <Link href={RUN_HREF[r.observation_class](r.run_id)} className="text-teal hover:underline">
+                  <Link href={runDetailHref(r.observation_class, r.run_id)} className="text-teal hover:underline">
                     {r.observation_class} {r.run_id.slice(0, 8)}…
                   </Link>
                 </td>

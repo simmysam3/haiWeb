@@ -2,14 +2,9 @@
 
 import Link from 'next/link';
 import type { ActiveRunRow } from './types';
+import { runDetailHref } from '@/app/account/sonar/templates/_lib/run-detail-href';
 
 interface Props { rows: ActiveRunRow[]; }
-
-const RUN_HREF: Record<ActiveRunRow['observation_class'], (id: string) => string> = {
-  audit: (id) => `/account/sonar/watchers/${id}`,
-  watcher: (id) => `/account/sonar/templates/${id}`,
-  phantom_demand: (id) => `/account/sonar/phantom-demand/runs/${id}`,
-};
 
 export function ActiveRunsList({ rows }: Props) {
   return (
@@ -21,7 +16,7 @@ export function ActiveRunsList({ rows }: Props) {
         <ul className="mt-2 space-y-1">
           {rows.map((r) => (
             <li key={r.run_id} className="flex items-center justify-between py-1 border-b border-slate-100 last:border-0">
-              <Link href={RUN_HREF[r.observation_class](r.run_id)} className="text-teal hover:underline text-sm">
+              <Link href={runDetailHref(r.observation_class, r.run_id)} className="text-teal hover:underline text-sm">
                 {r.observation_class} {r.run_id.slice(0, 8)}…
               </Link>
               <span className={`text-xs px-2 py-0.5 rounded ${r.status === 'throttled' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
