@@ -66,19 +66,21 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
-  it('renders the identity-withheld chip for a tier-1 row with no resolvable name', () => {
+  it('a known id with no resolvable name renders unresolved — truncated id, never the redaction chip', () => {
     render(
       <CounterpartiesGrid
-        results={[
-          makeResult({
-            counterparty_participant_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-            counterparty_name: null,
-          }),
-        ]}
+        results={[makeResult({ counterparty_name: null })]}
       />,
     );
-    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    // aaaaaaaa is the fixture id's first 8 chars.
+    expect(screen.getByText(/aaaaaaaa/)).toBeInTheDocument();
+    expect(screen.getByText(/name unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText('Identity withheld')).toBeNull();
     expect(screen.queryByText('Vendor Name Not Disclosed')).toBeNull();
+  });
+  it('null participant id (wire redaction) still renders the chip', () => {
+    render(<CounterpartiesGrid results={[makeResult({ counterparty_participant_id: null })]} />);
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
   it('reveals product sub-list and signal panels when the vendor is expanded', async () => {

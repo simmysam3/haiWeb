@@ -46,31 +46,43 @@ interface ProductSubGroup {
 interface CounterpartyGroup {
   key: string;
   counterpartyId: string | null;
+  // Sort/search key only — never rendered directly and never a redaction
+  // signal. See identity for the presentation discriminant.
   counterpartyName: string;
-  // Presentation discriminant: when true the identity cell renders the shared
-  // <VerifiedUndisclosedChip> instead of the placeholder name text. Kept beside
-  // counterpartyName (still used verbatim for sort/filter) so grouping,
-  // scoring, and search behaviour are unchanged.
-  undisclosed: boolean;
+  identity: IdentityDisplay;
   results: WatcherResult[];
   productSubGroups: ProductSubGroup[];
   gapTiers: Map<number, number>;
   score: number;
 }
 
-function nameOf(r: EnrichedWatcherResult): string {
-  // Sub-tier aggregate rows: identity is intentionally null (tier-2+ rollups).
-  if (r.counterparty_participant_id === null) return 'Identity withheld';
-  // Direct tier-1 rows: prefer the page-enriched counterparty_name; fall back
-  // to the canonical "Vendor Name Not Disclosed" framing used elsewhere
-  // (e.g. tree-view) rather than exposing a raw UUID slice.
-  return r.counterparty_name ?? 'Vendor Name Not Disclosed';
+// v1.73 WP4 three-state identity (converges on tree-view's NodeDisplay model):
+//   undisclosed — the WIRE says redacted (null participant id = tier-2+
+//                 aggregate). Only this state renders the chip; redaction is
+//                 never inferred from a lookup miss.
+//   unresolved  — id known, name lookup failed (haiCore partner list gap or
+//                 outage). Truncated id + "name unavailable" — an honest gap,
+//                 not an accusation of withholding.
+//   name        — resolved display name.
+type IdentityDisplay =
+  | { kind: 'undisclosed' }
+  | { kind: 'unresolved'; id: string }
+  | { kind: 'name'; label: string };
+
+function identityOf(r: EnrichedWatcherResult): IdentityDisplay {
+  if (r.counterparty_participant_id === null) return { kind: 'undisclosed' };
+  // `!name` (not `?? `): an empty-string name is as unresolved as a missing one.
+  if (!r.counterparty_name) return { kind: 'unresolved', id: r.counterparty_participant_id };
+  return { kind: 'name', label: r.counterparty_name };
 }
 
-// A counterparty is undisclosed when it's a tier-2+ aggregate (null id) or a
-// tier-1 row with no resolvable name — both render the identity-withheld chip.
-function isUndisclosed(r: EnrichedWatcherResult): boolean {
-  return r.counterparty_participant_id === null || !r.counterparty_name;
+// Sort/search key only — never a rendered string and never a redaction signal.
+function sortKeyOf(d: IdentityDisplay): string {
+  switch (d.kind) {
+    case 'name': return d.label;
+    case 'unresolved': return d.id;
+    case 'undisclosed': return '￿'; // sorts last among equals
+  }
 }
 
 function gapTiersFor(results: WatcherResult[]): Map<number, number> {
@@ -197,11 +209,12 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
       const key = r.counterparty_participant_id ?? '__identity_withheld__';
       let g = byKey.get(key);
       if (!g) {
+        const identity = identityOf(r);
         g = {
           key,
           counterpartyId: r.counterparty_participant_id,
-          counterpartyName: nameOf(r),
-          undisclosed: isUndisclosed(r),
+          counterpartyName: sortKeyOf(identity),
+          identity,
           results: [],
           productSubGroups: [],
           gapTiers: new Map(),
@@ -262,6 +275,9 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
+    // counterpartyName is sortKeyOf(identity): for 'unresolved' rows that's
+    // the raw id, so an unresolved counterparty is still findable by typing
+    // an id prefix into the search box, even though no name ever resolved.
     return groups.filter((g) => g.counterpartyName.toLowerCase().includes(q));
   }, [groups, query]);
 
@@ -310,10 +326,15 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 aria-expanded={isVendorOpen}
                 className="group flex w-full items-center gap-3 text-left"
               >
-                {g.undisclosed ? (
+                {g.identity.kind === 'undisclosed' ? (
                   <VerifiedUndisclosedChip />
+                ) : g.identity.kind === 'unresolved' ? (
+                  <span className="flex items-baseline gap-1">
+                    <span className="font-mono text-xs text-charcoal">{g.identity.id.slice(0, 8)}…</span>
+                    <span className="text-xs italic text-slate">name unavailable</span>
+                  </span>
                 ) : (
-                  <span className="font-medium text-charcoal">{g.counterpartyName}</span>
+                  <span className="font-medium text-charcoal">{g.identity.label}</span>
                 )}
                 <span className="flex items-center gap-1">
                   {hasPLT && <Pill category="signal_type" value="PLT" />}
