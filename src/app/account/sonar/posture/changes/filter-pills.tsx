@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { EVENT_KIND_PILLS, KIND_TOOLTIPS } from './_lib/event-kind-pills';
+import { Pill } from '@/components/pill';
 
 /**
  * "Showing" dropdown for the Watcher Backlog feed.
@@ -21,6 +23,22 @@ export function FilterPills() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const [partners, setPartners] = useState<Array<{ id: string; company_name: string }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/account/partners');
+        if (!res.ok) return; // degraded: the select still offers "All partners"
+        const body = (await res.json()) as Array<{ id: string; company_name: string }>;
+        if (!cancelled) setPartners(body);
+      } catch {
+        /* degraded lane: no options beyond All partners; URL param still honored */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   function toggleKind(kind: string) {
     const sp = new URLSearchParams(searchParams.toString());
@@ -75,66 +93,80 @@ export function FilterPills() {
   const showing = isProcessedView ? 'processed' : 'active';
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2">
-      <span className="self-center text-xs uppercase tracking-wider text-slate">Showing:</span>
-      <select
-        value={showing}
-        onChange={(e) => setShowing(e.target.value)}
-        title="Toggle between the active backlog and rows you've already processed. All drift events are shown regardless of severity."
-        className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-      >
-        {SHOWING_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Kind:</span>
-      {EVENT_KIND_PILLS.map((kind) => (
-        <button
-          key={kind}
-          type="button"
-          aria-pressed={isKindActive(kind)}
-          title={KIND_TOOLTIPS[kind]}
-          onClick={() => toggleKind(kind)}
-          className={`rounded-full border px-3 py-1 text-xs ${
-            isKindActive(kind)
-              ? 'border-teal bg-teal/10 text-navy'
-              : 'border-slate/30 text-slate hover:border-slate'
-          }`}
+    <div className="mb-6 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="self-center text-xs uppercase tracking-wider text-slate">Showing:</span>
+        <select
+          value={showing}
+          onChange={(e) => setShowing(e.target.value)}
+          title="Toggle between the active backlog and rows you've already processed. All drift events are shown regardless of severity."
+          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
         >
-          {kind.replace(/_/g, ' ')}
-        </button>
-      ))}
+          {SHOWING_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
 
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Partner:</span>
-      <input
-        type="text"
-        value={partner}
-        onChange={(e) => setParam('partner', e.target.value)}
-        placeholder="vendor ID"
-        title="Filter the feed to changes involving a specific counterparty (paste a vendor UUID)."
-        className="w-32 rounded-md border border-slate/30 px-2 py-1 text-xs"
-      />
+        <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">From:</span>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => setParam('from', e.target.value)}
+          title="Hide changes that occurred before this date."
+          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
+        />
 
-      <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">From:</span>
-      <input
-        type="date"
-        value={from}
-        onChange={(e) => setParam('from', e.target.value)}
-        title="Hide changes that occurred before this date."
-        className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-      />
+        <span className="self-center pl-2 text-xs uppercase tracking-wider text-slate">To:</span>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => setParam('to', e.target.value)}
+          title="Hide changes that occurred after this date."
+          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
+        />
 
-      <span className="self-center pl-2 text-xs uppercase tracking-wider text-slate">To:</span>
-      <input
-        type="date"
-        value={to}
-        onChange={(e) => setParam('to', e.target.value)}
-        title="Hide changes that occurred after this date."
-        className="rounded-md border border-slate/30 px-2 py-1 text-xs"
-      />
+        <span className="self-center pl-4 text-xs uppercase tracking-wider text-slate">Partner:</span>
+        <select
+          value={partner}
+          onChange={(e) => setParam('partner', e.target.value)}
+          title="Filter the feed to changes involving a specific counterparty."
+          className="rounded-md border border-slate/30 px-2 py-1 text-xs"
+        >
+          <option value="">All partners</option>
+          {partners.map((p) => (
+            <option key={p.id} value={p.id}>{p.company_name}</option>
+          ))}
+          {/* A partner already pinned in the URL but absent from the list
+              (e.g. haiCore degraded) stays selectable so the filter is honest. */}
+          {partner && !partners.some((p) => p.id === partner) && (
+            <option value={partner}>{partner.slice(0, 8)}… (unresolved)</option>
+          )}
+        </select>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="self-center text-xs uppercase tracking-wider text-slate">Kind:</span>
+        {EVENT_KIND_PILLS.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            aria-pressed={isKindActive(kind)}
+            onClick={() => toggleKind(kind)}
+            className="group"
+          >
+            <Pill
+              category="change_kind"
+              value={kind}
+              definition={KIND_TOOLTIPS[kind]}
+              tone={isKindActive(kind) ? 'info' : 'neutral'}
+              className={isKindActive(kind) ? 'ring-1 ring-teal' : 'group-hover:ring-1 group-hover:ring-slate/40'}
+            >
+              {kind.replace(/_/g, ' ')}
+            </Pill>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
