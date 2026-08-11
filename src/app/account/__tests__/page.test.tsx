@@ -48,7 +48,7 @@ const SESSION = {
 function queueLanes(opts: {
   score?: number | null;
   connections?: { total: number; pairs: number } | null;
-  fleet?: { total: number; active: number; jailed: number } | null;
+  fleet?: { total: number; active: number; jailed: number; jailedNames: string[] } | null;
   accountStatus?: string | null;
 }) {
   fetchFromApi
@@ -67,7 +67,7 @@ describe('System Dashboard tiles', () => {
   });
 
   it('renders the trading-pair count from haiCore', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -80,7 +80,7 @@ describe('System Dashboard tiles', () => {
   // as the subset that actually transacts, so the pair of tiles reads
   // "9 connections, 7 of them trading".
   it('renders the total connection count alongside trading pairs', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -89,7 +89,7 @@ describe('System Dashboard tiles', () => {
   });
 
   it('renders the online-agent count from haiCore', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -101,7 +101,7 @@ describe('System Dashboard tiles', () => {
   // be laundered into "Not Available", which claims the opposite (that we do
   // not know). The null-vs-zero distinction is the whole point of the tile.
   it('renders a real zero rather than Not Available', async () => {
-    queueLanes({ connections: { total: 0, pairs: 0 }, fleet: { total: 0, active: 0, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 0, pairs: 0 }, fleet: { total: 0, active: 0, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -124,7 +124,7 @@ describe('System Dashboard tiles', () => {
   // the header comment. It is now an alert-bar condition instead: you are told
   // when the account is suspended, and told nothing when it is fine.
   it('does not render an Account Status tile', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -132,7 +132,7 @@ describe('System Dashboard tiles', () => {
   });
 
   it('shows no alert bar when nothing is wrong', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -144,7 +144,7 @@ describe('System Dashboard tiles', () => {
   it('raises the alert bar when every agent is jailed', async () => {
     queueLanes({
       connections: { total: 9, pairs: 7 },
-      fleet: { total: 2, active: 0, jailed: 2 },
+      fleet: { total: 2, active: 0, jailed: 2, jailedNames: ['Agent1', 'Agent2'] },
       accountStatus: 'active',
     });
     const { default: Page } = await import('../page');
@@ -157,7 +157,7 @@ describe('System Dashboard tiles', () => {
   it('does not alert when the account has no agents at all', async () => {
     queueLanes({
       connections: { total: 0, pairs: 0 },
-      fleet: { total: 0, active: 0, jailed: 0 },
+      fleet: { total: 0, active: 0, jailed: 0, jailedNames: [] },
       accountStatus: 'active',
     });
     const { default: Page } = await import('../page');
@@ -172,7 +172,7 @@ describe('System Dashboard tiles', () => {
   it('raises the alert bar when the account is suspended', async () => {
     queueLanes({
       connections: { total: 9, pairs: 7 },
-      fleet: { total: 3, active: 2, jailed: 0 },
+      fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] },
       accountStatus: 'suspended',
     });
     const { default: Page } = await import('../page');
@@ -185,7 +185,7 @@ describe('System Dashboard tiles', () => {
   // reading. It belongs above the tiles, not buried under billing at the foot
   // of the page where nobody scrolls to it.
   it('places the notifications panel above the stat tiles', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: 'active' });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: 'active' });
     const { default: Page } = await import('../page');
     render(await Page());
 
@@ -198,7 +198,7 @@ describe('System Dashboard tiles', () => {
   });
 
   it('stays silent when the account status cannot be read', async () => {
-    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0 }, accountStatus: null });
+    queueLanes({ connections: { total: 9, pairs: 7 }, fleet: { total: 3, active: 2, jailed: 0, jailedNames: [] }, accountStatus: null });
     const { default: Page } = await import('../page');
     render(await Page());
 
