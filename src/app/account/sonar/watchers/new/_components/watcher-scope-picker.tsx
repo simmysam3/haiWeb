@@ -71,6 +71,7 @@ export function WatcherScopePicker({ value, onChange }: Props) {
         skus={value.skus}
         skuAsks={value.sku_asks}
         collectAsks
+        universe="bilateral_connections"
         onChange={({ counterparties, skus, sku_asks }) =>
           onChange({ ...value, counterparties, skus, sku_asks })
         }

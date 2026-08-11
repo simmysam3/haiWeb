@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { AuditWizardOptionsResponse, SkuAsk } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import {
@@ -58,6 +59,17 @@ interface Props {
   // date) inline at each selected SKU. Off by default so the shared audit
   // picker keeps its plain SKU-selection surface — audit ignores sku_asks.
   collectAsks?: boolean;
+  /**
+   * Which counterparty universe the picker offers (v1.73 WP4, walk #22).
+   * 'accepted_audit_scopes' (default) — the audit wizard's accepted+active
+   *   audit scopes via /api/account/sonar/audit/wizard-options; SKUs are the
+   *   accepted intersection of the counterparty's catalog, orphans listed.
+   * 'bilateral_connections' — active trading pairs via /api/account/partners
+   *   (the trust tier the watcher signal gate actually enforces); SKUs are
+   *   the counterparty's public catalog, no accepted-scope intersection, no
+   *   orphan section. Watcher scope needs no audit ceremony.
+   */
+  universe?: 'accepted_audit_scopes' | 'bilateral_connections';
 }
 
 // Per-SKU ask draft held in local state. Both fields are NaN until the user
@@ -98,7 +110,13 @@ interface CatalogState {
 
 const UNCLASSIFIED_SLUG = '__unclassified__';
 
-export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, collectAsks = false }: Props) {
+export function BilateralCounterpartiesSkusFields({
+  skus,
+  skuAsks,
+  onChange,
+  collectAsks = false,
+  universe = 'accepted_audit_scopes',
+}: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
   // re-selecting restores a typed value; only selected SKUs are emitted.
@@ -117,17 +135,45 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
   const [catalogs, setCatalogs] = useState<Map<string, CatalogState>>(new Map());
 
-  // Fetch the authoritative accepted-scopes universe once on mount.
+  // Fetch the authoritative counterparty universe once on mount — accepted
+  // audit scopes, or active trading pairs, per `universe`.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/account/sonar/audit/wizard-options');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as WizardOptions;
-        if (!cancelled) setOptions(body);
+        if (universe === 'bilateral_connections') {
+          const res = await fetch('/api/account/partners');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const partners = (await res.json()) as Array<{
+            id: string;
+            company_name: string;
+            status: string;
+          }>;
+          const body: WizardOptions = {
+            counterparties: partners
+              .filter((p) => p.status === 'trading_pair')
+              .map((p) => ({
+                counterparty_id: p.id,
+                counterparty_legal_name: p.company_name,
+                // Populated lazily as each catalog loads — the catalog IS the
+                // SKU universe under this basis (no accepted-scope set exists).
+                product_ids: [],
+              })),
+          };
+          if (!cancelled) setOptions(body);
+        } else {
+          const res = await fetch('/api/account/sonar/audit/wizard-options');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const body = (await res.json()) as WizardOptions;
+          if (!cancelled) setOptions(body);
+        }
       } catch {
-        if (!cancelled) setOptionsError("Couldn't load accepted counterparties. Try again in a moment.");
+        if (!cancelled)
+          setOptionsError(
+            universe === 'bilateral_connections'
+              ? "Couldn't load trading partners. Try again in a moment."
+              : "Couldn't load accepted counterparties. Try again in a moment.",
+          );
       } finally {
         if (!cancelled) setOptionsLoading(false);
       }
@@ -135,7 +181,7 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [universe]);
 
   // Selected SKUs as a Set for O(1) checks; derived counterparties below.
   const selectedSkus = useMemo(() => new Set(skus), [skus]);
@@ -171,7 +217,10 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
           total: number;
         };
 
-        const accepted = new Set(cp.product_ids);
+        // Audit universe: only accepted-scope SKUs are selectable (intersection).
+        // Bilateral universe: the whole public catalog is selectable.
+        const accepted =
+          universe === 'bilateral_connections' ? null : new Set(cp.product_ids);
         const classNames = new Map<string, string>();
         for (const c of classesBody.classes ?? []) {
           classNames.set(c.class_slug, c.class_name);
@@ -181,7 +230,7 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
         const byClass = new Map<string, CatalogProduct[]>();
         const seen = new Set<string>();
         for (const p of productsBody.products ?? []) {
-          if (!accepted.has(p.external_product_id)) continue;
+          if (accepted && !accepted.has(p.external_product_id)) continue;
           seen.add(p.external_product_id);
           const slug = p.primary_class_slug ?? UNCLASSIFIED_SLUG;
           let bucket = byClass.get(slug);
@@ -201,8 +250,23 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
           });
         }
         // Accepted SKUs the catalog endpoint didn't return — keep selectable
-        // so the picker doesn't silently drop them.
-        const orphanIds = cp.product_ids.filter((id) => !seen.has(id)).sort();
+        // so the picker doesn't silently drop them. Bilateral universe has no
+        // accepted-scope set to diff against, so there are no orphans.
+        const orphanIds = accepted ? cp.product_ids.filter((id) => !seen.has(id)).sort() : [];
+
+        if (!accepted) {
+          // Fold the catalog's ids into options so emitWith's counterparty
+          // derivation and the selection counter keep reading cp.product_ids.
+          setOptions((prev) =>
+            prev && {
+              counterparties: prev.counterparties.map((c) =>
+                c.counterparty_id === cp.counterparty_id
+                  ? { ...c, product_ids: Array.from(seen).sort() }
+                  : c,
+              ),
+            },
+          );
+        }
 
         setCatalogs((prev) => {
           const next = new Map(prev);
@@ -230,7 +294,7 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
         });
       }
     },
-    [catalogs],
+    [catalogs, universe],
   );
 
   function toggleCounterpartyExpanded(cp: CounterpartyOption) {
@@ -397,6 +461,18 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
     );
   }
   if (!options || options.counterparties.length === 0) {
+    if (universe === 'bilateral_connections') {
+      return (
+        <div className="rounded border border-slate/20 bg-slate/5 px-3 py-3 text-sm text-charcoal">
+          No active trading pairs yet. Watchers observe your established trading
+          partners — connect with one under{' '}
+          <Link className="text-teal underline" href="/account/partners">
+            Partners
+          </Link>{' '}
+          and the pair&apos;s catalog will appear here.
+        </div>
+      );
+    }
     return (
       <div className="rounded border border-slate/20 bg-slate/5 px-3 py-3 text-sm text-charcoal">
         No counterparties have accepted a nomination yet. Send a nomination from{' '}
@@ -415,8 +491,10 @@ export function BilateralCounterpartiesSkusFields({ skus, skuAsks, onChange, col
     <div className="space-y-2">
       <p className="text-xs text-slate">
         {totalSelected} of {totalAvailable} SKU{totalAvailable === 1 ? '' : 's'} selected
-        across {options.counterparties.length} counterpart
-        {options.counterparties.length === 1 ? 'y' : 'ies'} with accepted scopes.
+        across {options.counterparties.length}{' '}
+        {universe === 'bilateral_connections'
+          ? 'active trading pairs.'
+          : `counterpart${options.counterparties.length === 1 ? 'y' : 'ies'} with accepted scopes.`}
       </p>
 
       <GroupedAccordion>

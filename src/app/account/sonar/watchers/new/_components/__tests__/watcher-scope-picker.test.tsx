@@ -16,6 +16,23 @@ function stubCatalogFetch(skuIds: string[] = ['PN-88A']) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
+      // WatcherScopePicker mounts the shared picker with
+      // universe="bilateral_connections" (v1.73 WP4 #22) — it draws its
+      // counterparty universe from /api/account/partners, not the audit
+      // wizard-options endpoint. Same counterparty_id as the wizard-options
+      // stub below so the /catalog/* branches (matched by URL substring, not
+      // by which universe produced the id) still resolve identically.
+      if (url === '/api/account/partners') {
+        return Promise.resolve(
+          json([
+            {
+              id: 'cccccccc-0000-0000-0000-000000000001',
+              company_name: 'Acme',
+              status: 'trading_pair',
+            },
+          ]),
+        );
+      }
       if (url.includes('/audit/wizard-options')) {
         return Promise.resolve(
           json({
