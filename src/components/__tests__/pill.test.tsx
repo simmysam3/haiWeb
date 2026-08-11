@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { WatcherRunStatusSchema } from '@haiwave/protocol';
 import { Pill, definitionFor } from '../pill';
 
 afterEach(() => vi.restoreAllMocks());
@@ -167,6 +168,12 @@ describe('Pill', () => {
       const tip = document.getElementById(pill.getAttribute('aria-describedby') as string);
       expect(tip?.textContent).toBeTruthy();
     });
+  });
+
+  it('run_status has a definition for every WatcherRunStatus member (retry-immune)', () => {
+    for (const s of WatcherRunStatusSchema.options) {
+      expect(definitionFor('run_status', s), `missing run_status definition: ${s}`).toBeDefined();
+    }
   });
 });
 

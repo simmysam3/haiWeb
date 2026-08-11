@@ -1,7 +1,20 @@
 'use client';
+import type { WatcherRunStatus } from '@haiwave/protocol';
 import { DefinitionTip } from './definition-tip';
 
 // ── Embedded definitions. Edit copy here. (category → value → definition) ──
+
+// Exhaustive against the protocol union: a 7th WatcherRunStatus member fails
+// the BUILD here (v1.73 WP4 §3.6). satisfies keeps the literal string values.
+const RUN_STATUS_DEFINITIONS = {
+  running: 'The run is in progress.',
+  complete: 'The run finished and all targets were observed.',
+  partial: 'The run finished but some targets could not be observed.',
+  failed: 'The run stopped before completing. See the reason for the specific failure.',
+  cancelled: 'The run was cancelled by an operator before completing.',
+  throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
+} satisfies Record<WatcherRunStatus, string>;
+
 const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   attestation_kind: {
     first_party_self_declared:
@@ -15,14 +28,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     unsubstantiated_gap:
       'No attestation is available; this node is declared as a known unverified gap.',
   },
-  run_status: {
-    running: 'The run is in progress.',
-    complete: 'The run finished and all targets were observed.',
-    partial: 'The run finished but some targets could not be observed.',
-    failed: 'The run stopped before completing. See the reason for the specific failure.',
-    cancelled: 'The run was cancelled by an operator before completing.',
-    throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
-  },
+  run_status: RUN_STATUS_DEFINITIONS,
   run_origin: {
     ad_hoc: 'Triggered manually with no associated run template.',
     template_manual: 'Triggered manually from a saved run template.',
