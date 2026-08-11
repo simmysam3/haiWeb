@@ -78,19 +78,41 @@ type IdentityDisplay =
   | { kind: 'unresolved'; id: string }
   | { kind: 'name'; label: string };
 
-function identityOf(r: EnrichedWatcherResult): IdentityDisplay {
-  if (r.counterparty_participant_id === null) return { kind: 'undisclosed' };
+// Sole constructor for IdentityDisplay — the undisclosed branch takes the
+// tier-1 name index so a redacted cluster carries its parent's name from the
+// one place identities are built. (Previously a second inline construction
+// path lived at the group-building call site, which made this function's own
+// undisclosed branch unreachable there — folded back into one place here.)
+function identityOf(
+  r: EnrichedWatcherResult,
+  tier1NameByResultId: Map<string, string | null>,
+): IdentityDisplay {
+  if (r.counterparty_participant_id === null) {
+    return {
+      kind: 'undisclosed',
+      parentName: r.aggregated_under_tier_1
+        ? tier1NameByResultId.get(r.aggregated_under_tier_1) ?? null
+        : null,
+      alias: null, // wire supplier_alias joins with protocol 3.67.0 (Phase 2)
+    };
+  }
   // `!name` (not `?? `): an empty-string name is as unresolved as a missing one.
   if (!r.counterparty_name) return { kind: 'unresolved', id: r.counterparty_participant_id };
   return { kind: 'name', label: r.counterparty_name };
 }
 
-// Sort/search key only — never a rendered string and never a redaction signal.
+// Sort/search key only — never a rendered string and never a redaction
+// signal (see identity for the presentation discriminant). An undisclosed
+// cluster with a known tier-1 parent sorts and searches by that parent's
+// name — e.g. "Acme Industrial + Identity withheld" must be findable by
+// typing "Acme" — so only an unrooted cluster (no known parent) falls back to
+// the sentinel. `||`, not `??`: an empty-string parentName (tier-1 name
+// itself unresolved) is as unrooted as a missing one.
 function sortKeyOf(d: IdentityDisplay): string {
   switch (d.kind) {
     case 'name': return d.label;
     case 'unresolved': return d.id;
-    case 'undisclosed': return '￿'; // sorts last among equals
+    case 'undisclosed': return d.parentName || '￿'; // sorts last among equals
   }
 }
 
@@ -228,16 +250,7 @@ export function CounterpartiesGrid({ results, productNameByExtId, defaultExpande
         `withheld:${r.aggregated_under_tier_1 ?? 'unrooted'}`;
       let g = byKey.get(key);
       if (!g) {
-        const identity: IdentityDisplay =
-          r.counterparty_participant_id === null
-            ? {
-                kind: 'undisclosed' as const,
-                parentName: r.aggregated_under_tier_1
-                  ? tier1NameByResultId.get(r.aggregated_under_tier_1) ?? null
-                  : null,
-                alias: null, // wire supplier_alias joins with protocol 3.67.0 (Phase 2)
-              }
-            : identityOf(r);
+        const identity: IdentityDisplay = identityOf(r, tier1NameByResultId);
         g = {
           key,
           counterpartyId: r.counterparty_participant_id,
@@ -310,6 +323,8 @@ export function CounterpartiesGrid({ results, productNameByExtId, defaultExpande
     // counterpartyName is sortKeyOf(identity): for 'unresolved' rows that's
     // the raw id, so an unresolved counterparty is still findable by typing
     // an id prefix into the search box, even though no name ever resolved.
+    // For 'undisclosed' rows with a known tier-1 parent, it's the parent's
+    // name — a redacted cluster is findable by typing its parent's name too.
     return groups.filter((g) => g.counterpartyName.toLowerCase().includes(q));
   }, [groups, query]);
 

@@ -81,6 +81,34 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText(/Mekong Supply \+/)).toBeInTheDocument();
   });
 
+  it('a redacted cluster is findable by typing its parent tier-1 name (fix wave)', async () => {
+    const tier1 = makeResult({
+      result_id: 'a1111111-1111-1111-1111-111111111111',
+      counterparty_name: 'Arno Industrial',
+    });
+    const sub = makeResult({
+      counterparty_participant_id: null,
+      tier: 2,
+      aggregated_under_tier_1: 'a1111111-1111-1111-1111-111111111111',
+    });
+    const other = makeResult({
+      counterparty_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      counterparty_name: 'Brass Co',
+    });
+    render(<CounterpartiesGrid results={[tier1, sub, other]} />);
+    // Three distinct groups (tier1's own row, the redacted sub-tier cluster
+    // attributed to it, and the unrelated named vendor) before any filtering.
+    expect(screen.getByText('3 of 3 counterparties')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText(/search/i), 'Arno');
+    // The redacted cluster's search/sort key must incorporate parentName, not
+    // just the '￿' sentinel — otherwise typing the parent's name can
+    // never surface it, and it silently drops out of the "N of M" count.
+    expect(screen.getByText(/Arno Industrial \+/)).toBeInTheDocument();
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    expect(screen.queryByText('Brass Co')).toBeNull();
+    expect(screen.getByText('2 of 3 counterparties')).toBeInTheDocument();
+  });
+
   it('reveals product sub-list and signal panels when the vendor is expanded', async () => {
     render(
       <CounterpartiesGrid
