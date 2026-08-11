@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 // protocol package (pill.tsx:157 comment). Tests CAN — so the test is where
 // the two copies meet.
 import { CHANGE_KIND_DEFINITION } from '@haiwave/protocol';
-import { definitionFor } from '../pill';
+import { definitionFor, changeKindMirrorKeys } from '../pill';
 
 describe('pill.tsx change_kind mirror ↔ protocol CHANGE_KIND_DEFINITION', () => {
   it('mirrors every protocol kind byte-for-byte', () => {
@@ -16,5 +16,12 @@ describe('pill.tsx change_kind mirror ↔ protocol CHANGE_KIND_DEFINITION', () =
     for (const [kind, definition] of Object.entries(CHANGE_KIND_DEFINITION)) {
       expect(definitionFor('change_kind', kind), `mirror missing: ${kind}`).toBe(definition);
     }
+  });
+
+  it('mirror extras beyond the installed protocol are exactly the declared forward-carries', () => {
+    const protocolKinds = new Set(Object.keys(CHANGE_KIND_DEFINITION));
+    const extras = changeKindMirrorKeys().filter((k) => !protocolKinds.has(k));
+    // At 3.64.0/3.65.0 this is ['upstream_risk_reported']; from 3.66.0 it is [].
+    expect(extras.every((k) => k === 'upstream_risk_reported')).toBe(true);
   });
 });

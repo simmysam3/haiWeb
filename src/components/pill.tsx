@@ -180,6 +180,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     // typographic apostrophe in "ERP’s".
     promise_date_slipped: 'The ERP’s post-MRP schedule for a booked order line completes later than the promised date.',
     promise_date_improved: 'The ERP’s post-MRP schedule for a booked order line completes earlier than promised, or re-splits without moving completion.',
+    // v1.73 WP4 forward-carry — lands in protocol CHANGE_KIND_DEFINITION with
+    // 3.66.0 (WP3). Same hand-mirror constraint as the block comment above;
+    // keep verbatim in sync the day WP3 merges (the mirror pin test enforces).
+    upstream_risk_reported:
+      'The vendor reports risk to this order from its own upstream supply chain. The vendor\'s promise is unchanged; the flag is advance warning.',
   },
   severity: {
     info: 'Informational change; no immediate action required.',
@@ -352,6 +357,15 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
 /** Resolve definition copy without exposing the map. Used by <ColumnHeader>. */
 export function definitionFor(category: string, value: string): string | undefined {
   return PILL_DEFINITIONS[category]?.[value];
+}
+
+/**
+ * change_kind mirror keys, for tests only. A function export (not the const
+ * itself) so it stays safe across the RSC client-reference boundary — see
+ * the Turbopack comment on PILL_DEFINITIONS.change_kind above.
+ */
+export function changeKindMirrorKeys(): string[] {
+  return Object.keys(PILL_DEFINITIONS.change_kind);
 }
 
 const _warnedKeys = new Set<string>();

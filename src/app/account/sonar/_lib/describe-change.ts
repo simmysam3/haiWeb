@@ -68,6 +68,16 @@ function maxPortionDate(obj: unknown): string | undefined {
   return max;
 }
 
+// v1.73 WP4 — authored labels for kinds carried ahead of the installed
+// protocol version. String-keyed map, deliberately NOT switch cases: a case
+// label that is not yet a ComplianceChangeKind member fails to compile
+// against 3.64.0. Checked before the titlecase fallback so the feed never
+// shows raw snake_case for a kind we already know how to describe.
+const AUTHORED_DESCRIPTIONS: Record<string, string> = {
+  upstream_risk_reported:
+    'The vendor reports risk to this order from its own upstream supply chain — its promise is unchanged; treat this as advance warning.',
+};
+
 // ─── describeChange ────────────────────────────────────────────────────────
 
 export function describeChange(change: ComplianceChange): string {
@@ -131,12 +141,15 @@ export function describeChange(change: ComplianceChange): string {
       const days = Math.abs(delta);
       return `${ref} completes ${days} day${days === 1 ? '' : 's'} ${direction} than promised (${priorDate} → ${currentDate})`;
     }
-    default:
+    default: {
+      const authored = AUTHORED_DESCRIPTIONS[kind];
+      if (authored) return authored;
       // dev-only warn so new kinds that land in the protocol surface immediately
       // in the development environment rather than silently emitting raw snake_case.
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[describeChange] no description for kind:', kind);
       }
       return kindLabel(kind);
+    }
   }
 }

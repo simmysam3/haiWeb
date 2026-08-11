@@ -15,13 +15,28 @@ import type { EmittedChangeKind } from '@haiwave/protocol';
 // events from your scheduled watcher configurations") matches what users
 // see. v1.69 slice D adds the MRP promise-drift kinds here too — they are
 // watcher-emitted (watcher-drift-service.ts), same as the lead-time pair.
-export const EVENT_KIND_PILLS: ReadonlyArray<
-  Extract<EmittedChangeKind, 'lead_time_degraded' | 'lead_time_improved' | 'promise_date_slipped' | 'promise_date_improved'>
-> = ['lead_time_degraded', 'lead_time_improved', 'promise_date_slipped', 'promise_date_improved'] as const;
+// v1.73 WP4: upstream_risk_reported is carried ahead of its protocol mint
+// (3.66.0, WP3). The literal union keeps this compiling against 3.64.0 —
+// Extract<> would drop a not-yet-existing member and the array literal would
+// fail. haiCore ignores unknown kinds on the wire (safeParse filter), so the
+// entry is dormant until 3.66.0 deploys, then visible with zero further change.
+// Post-WP3 cleanup: fold the literal back into the Extract<> union.
+type WatcherBacklogKind =
+  | Extract<EmittedChangeKind, 'lead_time_degraded' | 'lead_time_improved' | 'promise_date_slipped' | 'promise_date_improved'>
+  | 'upstream_risk_reported';
+
+export const EVENT_KIND_PILLS: ReadonlyArray<WatcherBacklogKind> = [
+  'lead_time_degraded',
+  'lead_time_improved',
+  'promise_date_slipped',
+  'promise_date_improved',
+  'upstream_risk_reported',
+] as const;
 
 export const KIND_TOOLTIPS: Record<(typeof EVENT_KIND_PILLS)[number], string> = {
   lead_time_degraded: 'Lead time increased beyond the degradation threshold. Click to filter the feed to lead-time-degraded events only.',
   lead_time_improved: 'Lead time decreased beyond the degradation threshold. Click to filter the feed to lead-time-improved events only.',
   promise_date_slipped: 'The ERP’s post-MRP schedule for a booked order line completes later than the promised date. Click to filter the feed to promise-slipped events only.',
   promise_date_improved: 'The ERP’s post-MRP schedule for a booked order line completes earlier than promised, or re-splits without moving completion. Click to filter the feed to promise-improved events only.',
+  upstream_risk_reported: 'The vendor reports risk to this order from its own upstream supply chain — its promise is unchanged. Click to filter the feed to upstream-risk events only.',
 };

@@ -811,7 +811,7 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     await expect(ops).toBeChecked();
   });
 
-  test("16.2 Watcher Backlog renders 4 lowercase kind pills; toggle works", async ({
+  test("16.2 Watcher Backlog renders 5 lowercase kind pills (incl. dormant upstream risk, v1.73); toggle works", async ({
     browser,
   }) => {
     const page = await loggedInPage(browser);
@@ -822,11 +822,15 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     // §27.3.17 — pills are static (EVENT_KIND_PILLS), so they render even on an
     // empty feed. Button text is lowercase (kind.replace, no CSS transform);
     // exact:true makes the name match case-sensitive and pins that casing.
+    // v1.73 WP4 — upstream_risk_reported is forward-carried ahead of its
+    // protocol mint (3.66.0); dormant on the wire today but the pill itself
+    // renders now (EVENT_KIND_PILLS is a static client-side list).
     const pillNames = [
       "lead time degraded",
       "lead time improved",
       "promise date slipped",
       "promise date improved",
+      "upstream risk reported",
     ];
     for (const name of pillNames) {
       await expect(page.getByRole("button", { name, exact: true })).toBeVisible();

@@ -155,6 +155,7 @@ describe('ChangesFeed', () => {
       'lead_time_improved',
       'promise_date_slipped',
       'promise_date_improved',
+      'upstream_risk_reported',
     ];
     const expected = [...PROTOCOL_EMITTED_CHANGE_KINDS]
       .filter((k) => !EXCLUDED.includes(k))
