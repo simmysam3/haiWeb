@@ -13,7 +13,7 @@ import { DashboardAlertBar } from '../dashboard-alert-bar';
 describe('DashboardAlertBar', () => {
   it('renders nothing when there is no active issue', () => {
     const { container } = render(
-      <DashboardAlertBar agents={{ total: 3, jailed: 0 }} accountStatus="active" />,
+      <DashboardAlertBar agents={{ total: 3, jailed: 0, jailedNames: [] }} accountStatus="active" />,
     );
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -24,7 +24,7 @@ describe('DashboardAlertBar', () => {
   // window invented here. Reusing it means the alert agrees with what the
   // Agents page shows, and with the state the probation path recovers from.
   it('alerts when an agent is jailed', () => {
-    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus="active" />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1, jailedNames: ['Agent1'] }} accountStatus="active" />);
     expect(screen.getByRole('alert')).toHaveTextContent(/1 of 3/i);
     expect(screen.getByRole('alert')).toHaveTextContent(/unreachable/i);
   });
@@ -32,7 +32,7 @@ describe('DashboardAlertBar', () => {
   // Every agent jailed is the fleet being down: nothing can answer an RFQ.
   // That is blocking, not degraded.
   it('escalates when every agent is jailed', () => {
-    render(<DashboardAlertBar agents={{ total: 2, jailed: 2 }} accountStatus="active" />);
+    render(<DashboardAlertBar agents={{ total: 2, jailed: 2, jailedNames: ['Agent1', 'Agent2'] }} accountStatus="active" />);
     expect(screen.getByRole('alert')).toHaveTextContent(/no agents are reachable/i);
   });
 
@@ -41,18 +41,18 @@ describe('DashboardAlertBar', () => {
   // could not tell those apart and would have interrupted every new account.
   it('says nothing when the account simply has no agents yet', () => {
     const { container } = render(
-      <DashboardAlertBar agents={{ total: 0, jailed: 0 }} accountStatus="active" />,
+      <DashboardAlertBar agents={{ total: 0, jailed: 0, jailedNames: [] }} accountStatus="active" />,
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('alerts when the account is suspended', () => {
-    render(<DashboardAlertBar agents={{ total: 3, jailed: 0 }} accountStatus="suspended" />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 0, jailedNames: [] }} accountStatus="suspended" />);
     expect(screen.getByRole('alert')).toHaveTextContent(/suspended/i);
   });
 
   it('shows both conditions at once, most severe first', () => {
-    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus="suspended" />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1, jailedNames: ['Agent1'] }} accountStatus="suspended" />);
     const alert = screen.getByRole('alert');
     const text = alert.textContent ?? '';
     expect(text).toMatch(/suspended/i);
@@ -72,7 +72,48 @@ describe('DashboardAlertBar', () => {
   });
 
   it('still alerts on a known jailed agent when the other input is unknown', () => {
-    render(<DashboardAlertBar agents={{ total: 3, jailed: 1 }} accountStatus={null} />);
+    render(<DashboardAlertBar agents={{ total: 3, jailed: 1, jailedNames: ['Agent1'] }} accountStatus={null} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/unreachable/i);
+  });
+});
+
+describe('DashboardAlertBar heartbeat alert', () => {
+  it('names the jailed agents and links to the Agents page', () => {
+    render(
+      <DashboardAlertBar
+        agents={{ total: 5, jailed: 2, jailedNames: ['Arno', 'Mekong'] }}
+        accountStatus="active"
+      />,
+    );
+    expect(screen.getByText(/2 of 5 agents unreachable/)).toBeInTheDocument();
+    expect(screen.getByText(/Unreachable: Arno, Mekong/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /check agent health/i })).toHaveAttribute(
+      'href',
+      '/account/agents',
+    );
+    expect(screen.queryByText(/Agent Management/)).toBeNull();
+  });
+  it('caps the name list at two and counts the rest', () => {
+    render(
+      <DashboardAlertBar
+        agents={{ total: 6, jailed: 4, jailedNames: ['Arno', 'Mekong', 'Vomero', 'Apex'] }}
+        accountStatus="active"
+      />,
+    );
+    expect(screen.getByText(/Unreachable: Arno, Mekong \+2 more/)).toBeInTheDocument();
+  });
+  it('all-jailed stays blocking and still names agents', () => {
+    render(
+      <DashboardAlertBar
+        agents={{ total: 2, jailed: 2, jailedNames: ['Arno', 'Mekong'] }}
+        accountStatus="active"
+      />,
+    );
+    expect(screen.getByText('No agents are reachable')).toBeInTheDocument();
+    expect(screen.getByText(/Arno, Mekong/)).toBeInTheDocument();
+  });
+  it('null fleet stays silent — unknown is never an accusation', () => {
+    const { container } = render(<DashboardAlertBar agents={null} accountStatus="active" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
