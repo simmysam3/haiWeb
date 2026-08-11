@@ -102,7 +102,7 @@ describe('AccountNav', () => {
   // between Phantom Demand and Grounded Forecasts (Dashboard now leads the
   // section), so the two probe entries are section-mates, not neighbors —
   // Grounded Forecasts now sits directly after Watcher Backlog instead.
-  it('Sonar Observe carries the Grounded Forecasts entry beside Phantom Demand', () => {
+  it('Sonar Observe carries the Grounded Forecasts entry beside Watcher Backlog', () => {
     const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const forecasts = screen.getByRole('link', { name: 'Grounded Forecasts' });

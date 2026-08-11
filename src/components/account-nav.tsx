@@ -111,7 +111,7 @@ const navSections: NavSection[] = [
     // kinds — origin shifts, vendor sub, cert status, depth). The
     // dual-surface partition is by kind, not source. The watcher-side kinds
     // are the LT pair (lead_time_degraded / lead_time_improved) + the
-    // promise-drift pair (order_promise_degraded / order_promise_improved),
+    // promise-drift pair (promise_date_slipped / promise_date_improved),
     // plus upstream_risk_reported once 3.66.0 lands (Task 12).
     // v1.73 WP4: two-surface Sonar nav — Dashboard moved in from Account
     // Management; nav says nothing about surface 3 — the agent console —
