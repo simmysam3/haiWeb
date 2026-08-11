@@ -164,6 +164,21 @@ describe('RegistrationDetail', () => {
     await waitFor(() => expect(screen.getByText('Rejected')).toBeInTheDocument());
   });
 
+  it('an out-of-union wire status fails CLOSED: approve/reject controls stay hidden', () => {
+    // Deliberate cast simulating wire data from a newer core (a 4th
+    // RegistrationStatus this build's union has never heard of) — not sloppy
+    // typing. The old `status !== 'pending_approval'` chain would have shown
+    // this as non-terminal (fail OPEN, expose admin controls); the fix must
+    // treat an unrecognized status as terminal instead.
+    render(
+      <RegistrationDetail
+        detail={makeDetail({ status: 'under_review' as unknown as Detail['status'] })}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^reject$/i })).not.toBeInTheDocument();
+  });
+
   it('standard approve does not force an override reason and omits override', async () => {
     const user = userEvent.setup();
     stubFetch(200, { ok: true, participant_id: 'p-1', status: 'approved' });
