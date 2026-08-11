@@ -216,8 +216,10 @@ describe('<WatcherScopePicker>', () => {
     expect(screen.getByText(/not a qualified ask/i)).toBeInTheDocument();
   });
 
-  // Scoped to the warning's role="status" — the signal checkbox labels also
-  // contain these names, so an unscoped text query would match either.
+  // Scoped to the qualified-ask warning's status region — the signal checkbox
+  // labels also contain these names, and this scope (order state, no SKUs)
+  // legitimately raises the per-SKU-scope warning alongside, so the query
+  // targets the one status carrying the qualified-ask text.
   it('names only the baseline signals actually selected', () => {
     const scope: WatcherScope = {
       ...empty,
@@ -225,7 +227,10 @@ describe('<WatcherScopePicker>', () => {
     };
     render(<WatcherScopePicker value={scope} onChange={() => {}} />);
 
-    const warning = screen.getByRole('status');
+    const warning = screen
+      .getAllByRole('status')
+      .find((el) => /not a qualified ask/i.test(el.textContent ?? ''));
+    expect(warning).toBeDefined();
     expect(warning).toHaveTextContent(/order state/i);
     expect(warning).not.toHaveTextContent(/published lead time/i);
     expect(warning).not.toHaveTextContent(/capacity/i);
@@ -251,5 +256,57 @@ describe('<WatcherScopePicker>', () => {
     render(<WatcherScopePicker value={scope} onChange={() => {}} />);
 
     expect(screen.queryByText(/not a qualified ask/i)).not.toBeInTheDocument();
+  });
+
+  // W2 (owner ruling 2026-08-10): order_fulfillment_history and
+  // lead_time_distribution answer per SKU only — the agent gaps a SKU-less ask
+  // as sku_scope_required. An unscoped template subscribing them goes dark for
+  // those signals, so the picker says so. Informs, never blocks, same as the
+  // qualified-ask warning above.
+  it('warns when a per-SKU-only signal is selected with no SKU scope', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['order_fulfillment_history'],
+      skus: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/needs sku scope/i)).toBeInTheDocument();
+  });
+
+  it('drops the per-SKU warning once a SKU is scoped', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['order_fulfillment_history'],
+      skus: ['PN-88A'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/needs sku scope/i)).not.toBeInTheDocument();
+  });
+
+  it('does not raise the per-SKU warning for aggregate-capable signals alone', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['published_lead_time', 'capacity_utilization_band'],
+      skus: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.queryByText(/needs sku scope/i)).not.toBeInTheDocument();
+  });
+
+  // lead_time_distribution is no longer offered by this picker, but templates
+  // created over the API can still subscribe it and land here through the
+  // editor — the warning keys off the scope, not the checkbox list.
+  it('warns for an API-created template carrying lead_time_distribution with no SKUs', () => {
+    const scope: WatcherScope = {
+      ...empty,
+      signal_types: ['lead_time_distribution'],
+      skus: [],
+    };
+    render(<WatcherScopePicker value={scope} onChange={() => {}} />);
+
+    expect(screen.getByText(/needs sku scope/i)).toBeInTheDocument();
   });
 });
