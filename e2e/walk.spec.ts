@@ -122,7 +122,13 @@ test.describe("§1 v1.29 Phase 2", () => {
   });
 
   test("1.6 legacy watcher dashboard permanently redirects to the Watchers list", async ({ playwright }) => {
-    const req = await playwright.request.newContext({ baseURL: HAIWEB });
+    // Authenticated on purpose: proxy.ts checks the session BEFORE the page
+    // renders, so an anonymous request 307s to /api/auth/login and never
+    // reaches the page's permanentRedirect(). The 308 is what we're pinning.
+    const req = await playwright.request.newContext({
+      baseURL: HAIWEB,
+      storageState: sharedContext!.storageState,
+    });
     const res = await req.get("/account/sonar/watcher/dashboard", { maxRedirects: 0 });
     expect(res.status(), "expected 308").toBe(308);
     expect(res.headers()["location"]).toContain("/account/sonar/watchers");
