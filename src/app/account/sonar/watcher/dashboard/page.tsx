@@ -1,31 +1,12 @@
-import { PageHeader } from '@/components/page-header';
-import { PageIntro } from '@/components/page-intro';
-import { WatcherDashboard } from './_components/watcher-dashboard';
-import { ThrottledRunsPanel } from '@/components/sonar/throttled-runs-panel';
-import { loadThrottledCounts } from '../../_lib/throttled-counts';
+import { permanentRedirect } from 'next/navigation';
 
 /**
- * v1.28 Phase 5 — Watcher (continuous observation) dashboard surface.
- *
- * Shows the caller's run history, the latest snapshot per counterparty
- * (lead time / capacity / delivery), and a button to trigger a new sweep.
- * Spec §8.6.
- *
- * v1.29: ThrottledRunsPanel added to surface any throttled runs.
+ * v1.73 WP4: the singular "Watcher — Continuous observation" dashboard is
+ * retired. Its run-history role is served by the Watchers list's history
+ * column pack; per-counterparty snapshots live on each run's detail page.
+ * Permanent (308) so bookmarks and any external links converge on the live
+ * surface. The plural /account/sonar/watchers family is the only watcher home.
  */
-export default async function WatcherDashboardPage() {
-  const throttledCounts = await loadThrottledCounts();
-  return (
-    <div>
-      <ThrottledRunsPanel counts={throttledCounts} />
-      <PageHeader
-        title="Watcher — Continuous observation"
-        description="Lead time, capacity, and delivery signals across your tier-1 trading partners."
-      />
-      <PageIntro>
-        Watcher is continuous observation of your tier-1 trading partners — lead time distribution, capacity utilization band, and recent delivery events — the supply-chain equivalent of a real-time health check. Trigger a sweep, review per-counterparty snapshots, and watch trend lines emerge as your network&apos;s signals refresh.
-      </PageIntro>
-      <WatcherDashboard />
-    </div>
-  );
+export default function LegacyWatcherDashboardRedirect() {
+  permanentRedirect('/account/sonar/watchers');
 }

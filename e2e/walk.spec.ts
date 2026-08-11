@@ -121,10 +121,12 @@ test.describe("§1 v1.29 Phase 2", () => {
     }
   });
 
-  test("1.6 watcher dashboard page loads (throttled-runs panel host)", async ({ browser }) => {
-    const page = await loggedInPage(browser);
-    await gotoOk(page, "/account/sonar/watcher/dashboard");
-    await expect(page.locator("body")).toContainText(/Watcher/i);
+  test("1.6 legacy watcher dashboard permanently redirects to the Watchers list", async ({ playwright }) => {
+    const req = await playwright.request.newContext({ baseURL: HAIWEB });
+    const res = await req.get("/account/sonar/watcher/dashboard", { maxRedirects: 0 });
+    expect(res.status(), "expected 308").toBe(308);
+    expect(res.headers()["location"]).toContain("/account/sonar/watchers");
+    await req.dispose();
   });
 });
 
@@ -219,9 +221,10 @@ test.describe("§5 Unified Sonar Dashboard", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("§6 Watcher rename", () => {
-  test("6.1 /account/sonar/watcher/dashboard is the live URL", async ({ browser }) => {
+  test("6.1 /account/sonar/watcher/dashboard redirects to /account/sonar/watchers (v1.73 WP4)", async ({ browser }) => {
     const page = await loggedInPage(browser);
-    await gotoOk(page, "/account/sonar/watcher/dashboard");
+    await gotoOk(page, "/account/sonar/watcher/dashboard"); // follows the 308
+    await expect(page.locator("h1", { hasText: "Watchers" })).toBeVisible();
   });
 
   test("6.1b /account/sonar/type2/dashboard is gone or redirects", async ({ browser }) => {
