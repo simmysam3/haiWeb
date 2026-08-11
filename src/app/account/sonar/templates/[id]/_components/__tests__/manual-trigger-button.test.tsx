@@ -95,7 +95,7 @@ describe('ManualTriggerButton', () => {
     const openLink = screen.getByRole('link', { name: /open/i });
     expect(openLink).toHaveAttribute(
       'href',
-      '/account/sonar/watchers/run-abc-123',
+      '/account/sonar/audit/run-abc-123',
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
