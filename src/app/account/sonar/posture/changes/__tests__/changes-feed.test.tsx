@@ -154,7 +154,6 @@ describe('ChangesFeed', () => {
       'lead_time_improved',
       'promise_date_improved',
       'promise_date_slipped',
-      'upstream_risk_reported',
     ]);
     // Negative-shape: audit-data kinds + gap lifecycle must NOT appear here.
     const FORBIDDEN = [

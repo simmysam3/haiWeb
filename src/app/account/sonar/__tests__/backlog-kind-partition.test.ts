@@ -8,8 +8,14 @@ describe('Watcher Backlog ↔ Event Backlog kind partition', () => {
     const overlap = WATCHER_KINDS.filter((k) => audit.has(k));
     expect(overlap).toEqual([]);
   });
-  it('upstream_risk_reported is watcher-side only', () => {
-    expect(WATCHER_KINDS).toContain('upstream_risk_reported');
+  it('upstream_risk_reported is in NEITHER array today (withheld until 3.66.0)', () => {
+    // v1.73 WP4 fix wave: the kind is deliberately absent from BOTH pill
+    // arrays until protocol 3.66.0 (WP3) mints it — EVENT_KIND_PILLS doubles
+    // as the wire filter allowlist, and carrying an unminted literal there
+    // made haiCore treat an all-unknown `kind` filter as no filter at all
+    // (see event-kind-pills.ts's comment). Do NOT "fix" this back to
+    // `toContain` before 3.66.0 lands.
+    expect(WATCHER_KINDS).not.toContain('upstream_risk_reported');
     expect(AUDIT_KINDS).not.toContain('upstream_risk_reported');
   });
 });
