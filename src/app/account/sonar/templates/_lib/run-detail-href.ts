@@ -7,21 +7,21 @@ type ObservationClass =
 /**
  * Where a "run detail" link for a triggered run should point, per modality.
  *
- * Audit runs currently render on the watcher run-detail route (no dedicated
- * audit run page exists yet) — that mapping is intentional, not a typo.
- * Watcher has no per-run detail page, so it lands on the watcher dashboard.
- * Grounded forecasts store only the latest result and key it by template, not
- * by run, so there is nothing to address per run: the link lands on the
- * forecast list, from which the caller opens the template's result.
+ * v1.73 WP4: audit and watcher runs each route to their OWN detail page —
+ * /account/sonar/audit/[run_id] and /account/sonar/watchers/[id] both exist.
+ * (This file's previous comment claimed neither did; that was stale, and the
+ * audit→watchers mapping it justified sent users to the wrong run.)
+ * Grounded forecasts store only the latest result keyed by template, not by
+ * run, so there is nothing to address per run: the link lands on the list.
  */
 export function runDetailHref(klass: ObservationClass, runId: string): string {
   switch (klass) {
     case 'audit':
-      return `/account/sonar/watchers/${runId}`;
+      return `/account/sonar/audit/${runId}`;
     case 'phantom_demand':
       return `/account/sonar/phantom-demand/runs/${runId}`;
     case 'watcher':
-      return `/account/sonar/watcher/dashboard`;
+      return `/account/sonar/watchers/${runId}`;
     case 'grounded_forecast':
       return `/account/sonar/grounded-forecasts`;
   }
