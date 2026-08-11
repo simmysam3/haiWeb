@@ -65,7 +65,7 @@ interface CounterpartyGroup {
 //                 not an accusation of withholding.
 //   name        — resolved display name.
 type IdentityDisplay =
-  | { kind: 'undisclosed' }
+  | { kind: 'undisclosed'; parentName?: string | null; alias?: string | null }
   | { kind: 'unresolved'; id: string }
   | { kind: 'name'; label: string };
 
@@ -204,12 +204,32 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
   const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
+    // Tier-1 rows indexed by result_id so sub-tier clusters can name their
+    // parent. aggregated_under_tier_1 is the tier-1 path root result_id.
+    const tier1NameByResultId = new Map<string, string | null>();
+    for (const r of results) {
+      if (r.counterparty_participant_id !== null) {
+        tier1NameByResultId.set(r.result_id, r.counterparty_name ?? null);
+      }
+    }
+
     const byKey = new Map<string, CounterpartyGroup>();
     for (const r of results) {
-      const key = r.counterparty_participant_id ?? '__identity_withheld__';
+      const key =
+        r.counterparty_participant_id ??
+        `withheld:${r.aggregated_under_tier_1 ?? 'unrooted'}`;
       let g = byKey.get(key);
       if (!g) {
-        const identity = identityOf(r);
+        const identity: IdentityDisplay =
+          r.counterparty_participant_id === null
+            ? {
+                kind: 'undisclosed' as const,
+                parentName: r.aggregated_under_tier_1
+                  ? tier1NameByResultId.get(r.aggregated_under_tier_1) ?? null
+                  : null,
+                alias: null, // wire supplier_alias joins with protocol 3.67.0 (Phase 2)
+              }
+            : identityOf(r);
         g = {
           key,
           counterpartyId: r.counterparty_participant_id,
@@ -327,7 +347,12 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 className="group flex w-full items-center gap-3 text-left"
               >
                 {g.identity.kind === 'undisclosed' ? (
-                  <VerifiedUndisclosedChip />
+                  <span className="flex items-baseline gap-1.5">
+                    {g.identity.parentName && (
+                      <span className="text-sm text-charcoal">{g.identity.parentName} +</span>
+                    )}
+                    <VerifiedUndisclosedChip alias={g.identity.alias} />
+                  </span>
                 ) : g.identity.kind === 'unresolved' ? (
                   <span className="flex items-baseline gap-1">
                     <span className="font-mono text-xs text-charcoal">{g.identity.id.slice(0, 8)}…</span>

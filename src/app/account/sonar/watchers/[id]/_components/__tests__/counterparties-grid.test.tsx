@@ -83,6 +83,28 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
+  it('undisclosed rows group per sub-tier cluster with the tier-1 parent named (Ruling 4)', () => {
+    const tier1A = makeResult({ result_id: 'a1111111-1111-1111-1111-111111111111', counterparty_name: 'Arno Industrial' });
+    const tier1B = makeResult({
+      result_id: 'b2222222-2222-2222-2222-222222222222',
+      counterparty_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      counterparty_name: 'Mekong Supply',
+    });
+    const subA = makeResult({
+      counterparty_participant_id: null, tier: 2,
+      aggregated_under_tier_1: 'a1111111-1111-1111-1111-111111111111',
+    });
+    const subB = makeResult({
+      counterparty_participant_id: null, tier: 2,
+      aggregated_under_tier_1: 'b2222222-2222-2222-2222-222222222222',
+    });
+    render(<CounterpartiesGrid results={[tier1A, tier1B, subA, subB]} />);
+    // Two distinct undisclosed groups, each attributed to its parent.
+    expect(screen.getAllByText('Identity withheld')).toHaveLength(2);
+    expect(screen.getByText(/Arno Industrial \+/)).toBeInTheDocument();
+    expect(screen.getByText(/Mekong Supply \+/)).toBeInTheDocument();
+  });
+
   it('reveals product sub-list and signal panels when the vendor is expanded', async () => {
     render(
       <CounterpartiesGrid
