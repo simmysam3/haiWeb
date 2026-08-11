@@ -1,0 +1,30 @@
+import { describe, it, expect } from 'vitest';
+// TEST files may value-import the protocol package (client components may not).
+import { WatcherRunStatusSchema } from '@haiwave/protocol';
+import { isTerminal, isUsableRun, STATUS_TRAITS } from '../watcher-run-status';
+
+describe('watcher-run-status traits', () => {
+  it('covers every protocol WatcherRunStatus member (exhaustiveness gate)', () => {
+    // Named mutation: add a 7th member to WatcherRunStatusSchema without a
+    // traits row → the Record fails the BUILD; this test additionally fails
+    // at runtime if the schemas drift the other way.
+    expect(Object.keys(STATUS_TRAITS).sort()).toEqual(
+      [...WatcherRunStatusSchema.options].sort(),
+    );
+  });
+  it('terminal = complete/partial/failed/cancelled', () => {
+    expect(isTerminal('complete')).toBe(true);
+    expect(isTerminal('partial')).toBe(true);
+    expect(isTerminal('failed')).toBe(true);
+    expect(isTerminal('cancelled')).toBe(true);
+    expect(isTerminal('running')).toBe(false);
+    expect(isTerminal('throttled')).toBe(false);
+  });
+  it('usable = complete/partial only', () => {
+    expect(isUsableRun('complete')).toBe(true);
+    expect(isUsableRun('partial')).toBe(true);
+    for (const s of ['running', 'throttled', 'failed', 'cancelled'] as const) {
+      expect(isUsableRun(s)).toBe(false);
+    }
+  });
+});
