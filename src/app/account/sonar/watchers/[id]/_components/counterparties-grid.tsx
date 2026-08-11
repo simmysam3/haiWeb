@@ -17,6 +17,9 @@ import { VerifiedUndisclosedChip } from '@/components/verified-undisclosed-chip'
 import { LeadTimeTriplet, type Numbered, type Distribution } from './lead-time-triplet';
 import { CapacityBandPanel } from './capacity-band-panel';
 import { DeliveryEventLog } from './delivery-event-log';
+import { OrderPromiseSchedulePanel } from './order-promise-schedule-panel';
+import { OrderFulfillmentHistoryPanel } from './order-fulfillment-history-panel';
+import { SoftQuotedLeadTimePanel } from './soft-quoted-lead-time-panel';
 
 // Page-enriched shape — watchers/[id]/page.tsx joins in counterparty_name
 // client-side (WatcherResult only carries the participant id) before handing
@@ -32,6 +35,12 @@ interface Props {
    * the canonical "Vendor-aggregate" placeholder.
    */
   productNameByExtId?: Record<string, string>;
+  /**
+   * Test-only: seeds vendorExpanded with every group key on mount, so
+   * coverage tests can assert per-product panel content without simulating
+   * a click on every vendor row.
+   */
+  defaultExpanded?: boolean;
 }
 
 const VENDOR_AGGREGATE_KEY = '__vendor_aggregate__';
@@ -199,9 +208,8 @@ function signalRow<P extends { synthesisMode: WatcherSynthesisMode; payload: unk
   return { synthesisMode: r.synthesis_mode, payload: r.payload } as P;
 }
 
-export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
+export function CounterpartiesGrid({ results, productNameByExtId, defaultExpanded }: Props) {
   const [query, setQuery] = useState('');
-  const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
     // Tier-1 rows indexed by result_id so sub-tier clusters can name their
@@ -292,6 +300,10 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
     return list;
   }, [results, productNameByExtId]);
 
+  const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(
+    () => (defaultExpanded ? new Set(groups.map((g) => g.key)) : new Set()),
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
@@ -338,6 +350,9 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
             (r) => r.signal_type === 'capacity_utilization_band',
           );
           const hasDEL = g.results.some((r) => r.signal_type === 'delivery_event');
+          const hasOPS = g.results.some((r) => r.signal_type === 'order_promise_schedule');
+          const hasORD = g.results.some((r) => r.signal_type === 'order_fulfillment_history');
+          const hasSQL = g.results.some((r) => r.signal_type === 'soft_quoted_lead_time');
           return (
             <li key={g.key} className="px-3 py-2">
               <button
@@ -367,6 +382,9 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                   {hasLT && <Pill category="signal_type" value="LT" />}
                   {hasCAP && <Pill category="signal_type" value="CAP" />}
                   {hasDEL && <Pill category="signal_type" value="DEL" />}
+                  {hasOPS && <Pill category="signal_type" value="OPS" />}
+                  {hasORD && <Pill category="signal_type" value="ORD" />}
+                  {hasSQL && <Pill category="signal_type" value="SQL" />}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   {g.gapTiers.size > 0 ? (
@@ -405,6 +423,12 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                       'capacity_utilization_band',
                     ]);
                     const delGap = gapContribution(sub.results, ['delivery_event']);
+                    const ops = sub.results.find((r) => r.signal_type === 'order_promise_schedule');
+                    const ord = sub.results.find((r) => r.signal_type === 'order_fulfillment_history');
+                    const sql = sub.results.find((r) => r.signal_type === 'soft_quoted_lead_time');
+                    const opsGap = gapContribution(sub.results, ['order_promise_schedule']);
+                    const ordGap = gapContribution(sub.results, ['order_fulfillment_history']);
+                    const sqlGap = gapContribution(sub.results, ['soft_quoted_lead_time']);
                     // Products are always shown under an expanded vendor — the
                     // company row is the only collapse level. Each product is a
                     // compact label followed by its three signal panels laid out
@@ -444,6 +468,39 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                               {...signalRow<Parameters<typeof DeliveryEventLog>[0]>(del)}
                             />
                           </div>
+                          {ops && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Order promises
+                                {opsGap && <GapChip tier={opsGap.tier} points={opsGap.points} />}
+                              </h4>
+                              <OrderPromiseSchedulePanel
+                                {...signalRow<Parameters<typeof OrderPromiseSchedulePanel>[0]>(ops)}
+                              />
+                            </div>
+                          )}
+                          {ord && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Order fulfilment
+                                {ordGap && <GapChip tier={ordGap.tier} points={ordGap.points} />}
+                              </h4>
+                              <OrderFulfillmentHistoryPanel
+                                {...signalRow<Parameters<typeof OrderFulfillmentHistoryPanel>[0]>(ord)}
+                              />
+                            </div>
+                          )}
+                          {sql && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Soft-quoted lead time
+                                {sqlGap && <GapChip tier={sqlGap.tier} points={sqlGap.points} />}
+                              </h4>
+                              <SoftQuotedLeadTimePanel
+                                {...signalRow<Parameters<typeof SoftQuotedLeadTimePanel>[0]>(sql)}
+                              />
+                            </div>
+                          )}
                         </div>
                       </li>
                     );
