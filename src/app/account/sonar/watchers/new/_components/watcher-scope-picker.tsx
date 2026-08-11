@@ -41,6 +41,18 @@ export function WatcherScopePicker({ value, onChange }: Props) {
   // legitimate setup — so this informs rather than blocks.
   const unqualified = requestsSoftQuote(value.signal_types) && (value.sku_asks?.length ?? 0) === 0;
 
+  // W2 (owner ruling 2026-08-10): these signals answer per SKU only — the
+  // agent gaps a SKU-less ask as `sku_scope_required`, so an unscoped template
+  // subscribing them returns no signal at all for them. Keyed off the scope,
+  // not SIGNAL_OPTIONS: lead_time_distribution is no longer offered here but
+  // API-created templates still carry it into the editor. Informs, never
+  // blocks, same posture as the qualified-ask warning below.
+  const PER_SKU_ONLY: ReadonlyArray<SignalType> = ['order_fulfillment_history', 'lead_time_distribution'];
+  const unscopedPerSku =
+    value.skus.length === 0
+      ? value.signal_types.filter((s) => PER_SKU_ONLY.includes(s))
+      : [];
+
   // Named from the actual selection — hardcoding a pair misdescribes a watcher
   // that did not select those signals.
   const baseline = describeBaselineSignals(value.signal_types);
@@ -84,6 +96,21 @@ export function WatcherScopePicker({ value, onChange }: Props) {
           ))}
         </div>
       </fieldset>
+
+      {unscopedPerSku.length > 0 && (
+        <div
+          role="status"
+          className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <span className="font-semibold">
+            {unscopedPerSku.length > 1 ? 'Signals need' : 'Signal needs'} SKU scope
+          </span>{' '}
+          — {unscopedPerSku.map((s) => SIGNAL_TYPE_LABELS[s].label).join(' and ')}{' '}
+          {unscopedPerSku.length > 1 ? 'report' : 'reports'} per SKU only. With no SKUs
+          scoped, every counterparty answers a <span className="font-mono">sku_scope_required</span>{' '}
+          gap for {unscopedPerSku.length > 1 ? 'these signals' : 'this signal'} — no data at all.
+        </div>
+      )}
 
       {unqualified && (
         <div
