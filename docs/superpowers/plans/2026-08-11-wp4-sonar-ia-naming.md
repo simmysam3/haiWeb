@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-11-wp4-sonar-ia-naming-design.md` (approved; master `a3ddb1e`).
 
+**Status:** PLAN APPROVED by owner 2026-08-11 — including the six-item deviations ledger below (its resolutions are ratified; do not re-ask them). Execution mode ruled: subagent-driven (superpowers:subagent-driven-development), fresh agent6 lane, the WP1/WP3 pattern. Phase 2 remains gated per Task 21 regardless.
+
 ## Global Constraints
 
 - Lane **v1.73**. haiWeb default branch is **`master`**; the master-holder worktree is `~/dev/hw/haiWeb-v169-mrp` (plain `~/dev/hw/haiWeb` is PARKED at v1.66 — never work there).
