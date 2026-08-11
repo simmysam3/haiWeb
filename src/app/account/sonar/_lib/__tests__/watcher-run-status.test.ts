@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // TEST files may value-import the protocol package (client components may not).
-import { WatcherRunStatusSchema } from '@haiwave/protocol';
+import { WatcherRunStatusSchema, type WatcherRunStatus } from '@haiwave/protocol';
 import { isTerminal, isUsableRun, STATUS_TRAITS } from '../watcher-run-status';
 
 describe('watcher-run-status traits', () => {
@@ -32,5 +32,13 @@ describe('watcher-run-status traits', () => {
       (s) => isTerminal(s) && !isUsableRun(s),
     );
     expect(bannerSet.sort()).toEqual(['cancelled', 'failed']);
+  });
+  it('degrades to false (not-terminal, not-usable) on a wire status outside the current union, instead of throwing', () => {
+    // Deliberate cast simulating wire data from a newer core (e.g. a 3.65.0/
+    // 3.66.0 haiCore serving a 7th WatcherRunStatus member this 3.64.0-symlinked
+    // haiWeb build has never heard of) — not sloppy typing.
+    const wireSurprise = 'upstream_paused' as unknown as WatcherRunStatus;
+    expect(isTerminal(wireSurprise)).toBe(false);
+    expect(isUsableRun(wireSurprise)).toBe(false);
   });
 });
