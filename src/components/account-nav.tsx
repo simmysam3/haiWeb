@@ -105,18 +105,24 @@ interface NavSection {
 const navSections: NavSection[] = [
   {
     // v.1.43: Sonar Observe carries Watcher Backlog — the drift-events
-    // surface (lead_time_degraded / lead_time_improved). It filters the
-    // same /sonar/compliance/changes feed by change_kind allowlist (NOT
-    // by source_kind); the audit-side Event Backlog under Sonar Audit
-    // applies the inverse allowlist (the 7 audit kinds — origin shifts,
-    // vendor sub, cert status, depth). The dual-surface partition is by
-    // kind, not source.
+    // surface. It filters the same /sonar/compliance/changes feed by
+    // change_kind allowlist (NOT by source_kind); the audit-side Event
+    // Backlog under Sonar Audit applies the inverse allowlist (the 7 audit
+    // kinds — origin shifts, vendor sub, cert status, depth). The
+    // dual-surface partition is by kind, not source. The watcher-side kinds
+    // are the LT pair (lead_time_degraded / lead_time_improved) + the
+    // promise-drift pair (order_promise_degraded / order_promise_improved),
+    // plus upstream_risk_reported once 3.66.0 lands (Task 12).
+    // v1.73 WP4: two-surface Sonar nav — Dashboard moved in from Account
+    // Management; nav says nothing about surface 3 — the agent console —
+    // per Ruling 2, 2026-08-10.
     label: "Sonar Observe",
     subhead: "Supply Chain Monitoring",
     items: [
-      { href: "/account/sonar/watchers", label: "Watcher Management", tooltip: "Standing watchers that fire when counterparty signals change." },
-      { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time degradations and improvements detected across the supplier network." },
+      { href: "/account/sonar/dashboard", label: "Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
       { href: "/account/sonar/observations", label: "Phantom Demand", tooltip: "Synthetic-demand probes that test counterparty capacity and lead times without committing to an order." },
+      { href: "/account/sonar/watchers", label: "Watchers", tooltip: "Standing watchers that fire when counterparty signals change." },
+      { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time and order-promise degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/grounded-forecasts", label: "Grounded Forecasts", tooltip: "Turn a demand projection for an unbuilt product into a dated commitment schedule, grounded in network quotes and your own delivery history." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
     ],
@@ -150,10 +156,11 @@ const navSections: NavSection[] = [
     // ex–Sonar Observe "Sonar Dashboard" lead Account Management. The two
     // dashboards sit first (System then Sonar) so the high-level overviews
     // are the entry points to this section.
+    // v1.73 WP4: "Sonar Dashboard" moved back out to Sonar Observe (as
+    // "Dashboard") — Account Management keeps only System Dashboard.
     label: "Account Management",
     items: [
       { href: "/account", label: "System Dashboard", tooltip: "Snapshot of recent activity, alerts, and agent health across your HAIWAVE network." },
-      { href: "/account/sonar/dashboard", label: "Sonar Dashboard", tooltip: "Unified view across audits, watchers, phantom demand, and templates." },
       // v1.66: Orders suppressed — order and quote management is buyer/seller
       // work that happens in the agent's own work queue, and the console is an
       // administrative surface. The route is intact; restore this entry if the
