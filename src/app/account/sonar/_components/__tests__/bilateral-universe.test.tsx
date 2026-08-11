@@ -129,4 +129,86 @@ describe('BilateralCounterpartiesSkusFields — universe prop', () => {
       expect(last.counterparties).toContain(counterpartyId);
     });
   });
+
+  // Fix round 1 (coordinator review, Critical): the watcher EDIT route
+  // (watcher-definition-detail.tsx → WatcherScopePicker) seeds the picker
+  // from a PERSISTED scope whose counterparties are already selected but not
+  // yet expanded in the UI. Under bilateral_connections a counterparty's
+  // product_ids stays [] until THAT counterparty is individually expanded
+  // (loadCatalog's fold-back) — audit doesn't have this problem because
+  // wizard-options populates every counterparty's product_ids at mount.
+  // Editing one counterparty's selection therefore must not silently drop a
+  // DIFFERENT, un-expanded counterparty whose SKUs are still selected — that
+  // narrows the saved watcher's scope without the user touching it.
+  it('keeps an un-expanded counterparty in the emitted scope when a different counterparty is edited (bilateral edit-route asymmetry)', async () => {
+    const cpA = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+    const cpB = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === '/api/account/partners') {
+        return new Response(
+          JSON.stringify([
+            { id: cpA, company_name: 'Northgate Fasteners', status: 'trading_pair' },
+            { id: cpB, company_name: 'Southline Plastics', status: 'trading_pair' },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (url.includes(`/api/account/partners/${cpA}/catalog/classes`)) {
+        return new Response(JSON.stringify({ classes: [] }), { status: 200 });
+      }
+      if (url.includes(`/api/account/partners/${cpA}/catalog/products`)) {
+        return new Response(
+          JSON.stringify({
+            products: [
+              { external_product_id: 'SKU-A1', product_name: 'Widget A1', primary_class_slug: null },
+              { external_product_id: 'SKU-A2', product_name: 'Widget A2', primary_class_slug: null },
+            ],
+            total: 2,
+          }),
+          { status: 200 },
+        );
+      }
+      // cpB's catalog is intentionally never stubbed — it must stay
+      // un-expanded for this test to reproduce (and then prove closed) the
+      // bug. A fetch to it would mean something eagerly fanned out to every
+      // scoped counterparty's catalog on mount, which this test also guards
+      // against.
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const onChange = vi.fn();
+    render(
+      <BilateralCounterpartiesSkusFields
+        skus={['SKU-A1', 'SKU-B1']}
+        counterparties={[cpA, cpB]}
+        onChange={onChange}
+        universe="bilateral_connections"
+      />,
+    );
+
+    // Expand ONLY cpA — cpB is never expanded, mirroring the edit route where
+    // a saved scope's counterparties aren't all opened before a save.
+    await userEvent.click(
+      await screen.findByRole('button', { name: /expand northgate fasteners/i }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /expand unclassified/i }));
+
+    const skuRow = (await screen.findByText('Widget A2')).closest('[role="treeitem"]');
+    expect(skuRow).not.toBeNull();
+    const checkbox = skuRow!.querySelector('input[type="checkbox"]');
+    expect(checkbox).not.toBeNull();
+    await userEvent.click(checkbox as HTMLInputElement);
+
+    await waitFor(() => {
+      const last = onChange.mock.calls.at(-1)?.[0] as {
+        counterparties: string[];
+        skus: string[];
+      };
+      // SKU-B1 stays selected throughout (never touched) — its counterparty
+      // (cpB, never expanded) must not be silently dropped.
+      expect(last.skus).toEqual(expect.arrayContaining(['SKU-A1', 'SKU-A2', 'SKU-B1']));
+      expect(last.counterparties).toEqual(expect.arrayContaining([cpA, cpB]));
+    });
+  });
 });

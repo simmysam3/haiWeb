@@ -70,6 +70,23 @@ interface Props {
    *   orphan section. Watcher scope needs no audit ceremony.
    */
   universe?: 'accepted_audit_scopes' | 'bilateral_connections';
+  /**
+   * The incoming scope's already-selected counterparty ids (edit flow —
+   * value.counterparties on the watcher scope being edited). Bilateral-
+   * universe-only asymmetry (v1.73 WP4 fix round 1, walk #22 follow-up):
+   * under 'accepted_audit_scopes' every counterparty's product_ids arrives
+   * fully populated at mount (wizard-options), so emitWith's ownership check
+   * is always accurate. Under 'bilateral_connections' each counterparty
+   * starts with product_ids: [] and only gets filled in once THAT
+   * counterparty is individually expanded (loadCatalog's fold-back) — so on
+   * the edit route, editing one counterparty's selection would otherwise
+   * read every other, un-expanded counterparty's product_ids as `[]` and
+   * silently drop it from the emitted scope even though its SKUs are still
+   * selected. Passed through so emitWith can keep an already-scoped,
+   * not-yet-disproven counterparty rather than narrow the scope on a guess.
+   * Unused (and unnecessary) under 'accepted_audit_scopes'.
+   */
+  counterparties?: string[];
 }
 
 // Per-SKU ask draft held in local state. Both fields are NaN until the user
@@ -116,6 +133,7 @@ export function BilateralCounterpartiesSkusFields({
   onChange,
   collectAsks = false,
   universe = 'accepted_audit_scopes',
+  counterparties: scopedCounterparties,
 }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
@@ -323,9 +341,18 @@ export function BilateralCounterpartiesSkusFields({
   function emitWith(nextSelected: Set<string>, nextAsks: Map<string, AskDraft>) {
     if (!options) return;
     // Derive counterparties from which counterparty owns any selected SKU.
+    // Bilateral-universe asymmetry (see the `counterparties` prop doc): a
+    // counterparty whose catalog hasn't loaded yet still reads
+    // product_ids: [], so `.some()` alone can't tell "doesn't own any
+    // selected SKU" apart from "haven't checked yet". For an already-scoped
+    // counterparty we haven't disproven, keep it rather than narrow the
+    // scope on a guess — once its catalog loads, the real check takes over.
     const cpSet = new Set<string>();
     for (const cp of options.counterparties) {
-      if (cp.product_ids.some((p) => nextSelected.has(p))) {
+      const ownsSelected = cp.product_ids.some((p) => nextSelected.has(p));
+      const catalogLoaded = catalogs.get(cp.counterparty_id)?.loaded ?? false;
+      const unproven = !catalogLoaded && (scopedCounterparties?.includes(cp.counterparty_id) ?? false);
+      if (ownsSelected || unproven) {
         cpSet.add(cp.counterparty_id);
       }
     }

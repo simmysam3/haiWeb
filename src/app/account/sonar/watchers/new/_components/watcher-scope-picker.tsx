@@ -72,6 +72,11 @@ export function WatcherScopePicker({ value, onChange }: Props) {
         skuAsks={value.sku_asks}
         collectAsks
         universe="bilateral_connections"
+        // Edit-route asymmetry fix (v1.73 WP4 fix round 1) — the incoming
+        // scope's already-selected counterparties, so an un-expanded
+        // counterparty isn't silently dropped when a different one is
+        // edited. See the prop's doc on BilateralCounterpartiesSkusFields.
+        counterparties={value.counterparties}
         onChange={({ counterparties, skus, sku_asks }) =>
           onChange({ ...value, counterparties, skus, sku_asks })
         }
