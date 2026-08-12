@@ -93,7 +93,13 @@ function identityOf(
       parentName: r.aggregated_under_tier_1
         ? tier1NameByResultId.get(r.aggregated_under_tier_1) ?? null
         : null,
-      alias: null, // wire supplier_alias joins with protocol 3.67.0 (Phase 2)
+      // Run-scoped letter minted by haiCore at serve time (protocol 3.67.0),
+      // keyed on the VENDOR behind the tier-1 root rather than the cluster —
+      // so one supplier reads as one letter across all of its clusters. The
+      // field is optional on the wire, and a row whose tier-1 root is absent
+      // from the page carries no alias at all: that stays `null` here and
+      // renders as "Identity withheld" rather than an invented letter.
+      alias: r.supplier_alias ?? null,
     };
   }
   // `!name` (not `?? `): an empty-string name is as unresolved as a missing one.

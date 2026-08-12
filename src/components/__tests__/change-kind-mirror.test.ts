@@ -18,10 +18,17 @@ describe('pill.tsx change_kind mirror ↔ protocol CHANGE_KIND_DEFINITION', () =
     }
   });
 
-  it('mirror extras beyond the installed protocol are exactly the declared forward-carries', () => {
+  it('mirror carries NO kinds beyond the installed protocol (3.66.0+: the forward-carry is over)', () => {
     const protocolKinds = new Set(Object.keys(CHANGE_KIND_DEFINITION));
     const extras = changeKindMirrorKeys().filter((k) => !protocolKinds.has(k));
-    // At 3.64.0/3.65.0 this is ['upstream_risk_reported']; from 3.66.0 it is [].
-    expect(extras.every((k) => k === 'upstream_risk_reported')).toBe(true);
+    // ⚠ This assertion was VACUOUS from the moment 3.66.0 merged. It read
+    //   `expect(extras.every((k) => k === 'upstream_risk_reported')).toBe(true)`
+    // and `[].every(...)` is true for ANY predicate — so once the protocol
+    // absorbed the forward-carried kind, `extras` emptied and the test could no
+    // longer fail, whatever the mirror did. It was also the declared tripwire
+    // for re-adding the EVENT_KIND_PILLS entry, so going quietly vacuous
+    // cancelled the very reminder it existed to give.
+    // Assert a KNOWN VALUE, never a predicate over a set that can empty.
+    expect(extras).toEqual([]);
   });
 });

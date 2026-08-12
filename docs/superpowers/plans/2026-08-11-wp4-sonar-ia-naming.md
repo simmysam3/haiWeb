@@ -2121,7 +2121,7 @@ If protocol is NOT 3.66.0: STOP, report to the orchestrator (agent1) — if it i
 
 **Files (haiCore worktree; all pins RE-GREPPED at dispatch — WP3 moved them):**
 - Modify: `packages/protocol/src/watcher/result.ts` (`WatcherResultSchema`), `packages/protocol/src/version.ts` (`PROTOCOL_VERSION` + changelog block), `packages/protocol/package.json` (version), `docs/regression-test-plan.md` (current-version line)
-- Modify: every test pinning the previous version literal — enumerate with `git grep -n "3\.66\.0" -- packages/protocol` (at plan time the 3.64.0 pin surface was 17 literals across 10 test files + package.json + version.ts; WP3 will have moved the same set to 3.66.0)
+- Modify: every test pinning the previous version literal — enumerate with `git grep -n "3\.66\.0" -- packages/protocol` (at plan time the 3.64.0 pin surface was 17 literals across 10 test files + package.json + version.ts; WP3 will have moved the same set to 3.66.0). **As built: the real surface was 23 hits across 15 files, not ~17/10 — the plan's count was stale by the time it ran. Re-grep and classify A/B/C; the residue after the mint must equal exactly the class-C history lines (it did: 5).**
 - Test: `packages/protocol/src/watcher/__tests__/supplier-alias.test.ts` (new)
 
 **Three-category mint enumeration (WP1 discipline, carried):**
@@ -2131,32 +2131,64 @@ If protocol is NOT 3.66.0: STOP, report to the orchestrator (agent1) — if it i
 
 - [ ] **Step 1: Failing test**
 
+> **Backported to as-built (Phase 2).** The snippet first written here declared FOUR
+> constraints (`string`, `min(1)`, `max(4)`, `optional`) and mutated only TWO, so an alias
+> of `''` or of arbitrary length would have shipped accepted. What follows is the test as
+> it actually shipped in `08695aa3` — every declared constraint now carries a mutation.
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { PROTOCOL_VERSION } from '../../version.js';
 import { WatcherResultSchema } from '../result.js';
 
-describe('3.67.0 — WatcherResult.supplier_alias (v1.73 WP4)', () => {
+// A sub-tier aggregate row: identity redacted (counterparty_participant_id null),
+// rolled up under a tier-1 path root. Built from the REAL schema in result.ts,
+// not from the plan snippet.
+const subTierRow = {
+  result_id: '11111111-1111-1111-1111-111111111111',
+  run_id: '22222222-2222-2222-2222-222222222222',
+  counterparty_participant_id: null,
+  signal_type: 'lead_time_distribution',
+  synthesis_mode: 'aggregated_derivative',
+  payload: { kind: 'aggregated', median_p50: 4, median_p90: 9, source_responder_count: 2 },
+  gap_reason: null,
+  observed_at: '2026-08-01T00:00:00.000Z',
+  tier: 2,
+  aggregated_under_tier_1: '33333333-3333-3333-3333-333333333333',
+  external_product_id: null,
+};
+
+describe('3.67.0 — WatcherResult.supplier_alias (v1.73 WP4 Phase 2)', () => {
   it('protocol is 3.67.0', () => {
     expect(PROTOCOL_VERSION).toBe('3.67.0');
   });
-  it('accepts an optional run-scoped alias on sub-tier rows', () => {
-    const base = {
-      result_id: '11111111-1111-1111-1111-111111111111',
-      run_id: '22222222-2222-2222-2222-222222222222',
-      counterparty_participant_id: null,
-      signal_type: 'lead_time_distribution',
-      synthesis_mode: 'aggregated_derivative',
-      payload: { kind: 'aggregated', median_p50: 4, median_p90: 9, source_responder_count: 2 },
-      gap_reason: null,
-      observed_at: '2026-08-01T00:00:00.000Z',
-      tier: 2,
-      aggregated_under_tier_1: '33333333-3333-3333-3333-333333333333',
-      external_product_id: null,
-    };
-    expect(WatcherResultSchema.parse({ ...base, supplier_alias: 'A' }).supplier_alias).toBe('A');
-    // Backward compatible: absent stays absent (every pre-3.67 row parses).
-    expect(WatcherResultSchema.parse(base).supplier_alias).toBeUndefined();
+
+  it('accepts a run-scoped alias on a sub-tier row', () => {
+    expect(WatcherResultSchema.parse({ ...subTierRow, supplier_alias: 'A' }).supplier_alias).toBe('A');
+  });
+
+  it('is optional — every pre-3.67 row still parses, and absence stays absent', () => {
+    expect(WatcherResultSchema.parse(subTierRow).supplier_alias).toBeUndefined();
+  });
+
+  // The schema declares FOUR constraints (string, min(1), max(4), optional).
+  // The two below had no mutation in the plan's test snippet, so an alias of ''
+  // or of arbitrary length would have shipped accepted. Every declared
+  // constraint gets a mutation or an explicit waiver.
+  it('rejects an empty alias — min(1)', () => {
+    const r = WatcherResultSchema.safeParse({ ...subTierRow, supplier_alias: '' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects an over-long alias — max(4), the AA/AB rollover ceiling', () => {
+    const r = WatcherResultSchema.safeParse({ ...subTierRow, supplier_alias: 'ABCDE' });
+    expect(r.success).toBe(false);
+  });
+
+  it('accepts the rollover width the mint actually produces (AA at 26 clusters)', () => {
+    expect(
+      WatcherResultSchema.parse({ ...subTierRow, supplier_alias: 'AA' }).supplier_alias,
+    ).toBe('AA');
   });
 });
 ```
@@ -2164,13 +2196,22 @@ describe('3.67.0 — WatcherResult.supplier_alias (v1.73 WP4)', () => {
 - [ ] **Step 2: Run red** (from the protocol package; version pin + unknown key strictness as applicable).
 - [ ] **Step 3: Implement** — in `WatcherResultSchema` after `aggregated_under_tier_1`:
 
+> **Backported to as-built (Phase 2).** The comment first written here minted "per
+> `aggregated_under_tier_1` cluster" — the grain the owner ruled a DEFECT on 2026-08-12,
+> because `aggregated_under_tier_1` is a result_id and one vendor emits one row per signal
+> type per cluster, so a single supplier reads as several. As shipped in `08695aa3`:
+
 ```ts
   // 3.67.0 (v1.73 WP4): run-scoped display alias (A, B, …) for sub-tier
   // aggregate rows, mirroring VendorLine.supplier_alias (bom/bom-tree.ts).
-  // Minted centrally at serve time per aggregated_under_tier_1 cluster —
-  // stable within this run only, never matchable across runs or by other
-  // buyers (the VerifiedUndisclosedChip tooltip's exact promise). Absent on
-  // direct rows and on rows served by pre-3.67 cores.
+  // GRAIN IS THE SUPPLIER, NOT THE OBSERVATION CLUSTER (owner ruling
+  // 2026-08-12): all of one vendor's sub-tier rows share ONE letter even when
+  // they arrive as several clusters, so the mint must consolidate by the
+  // tier-1 vendor rather than by aggregated_under_tier_1, which is a
+  // result_id and over-counts. Minted centrally at serve time — stable within
+  // a run only, never matchable across runs or by other buyers (the exact
+  // promise VerifiedUndisclosedChip's tooltip makes). Absent on direct rows
+  // and on rows served by pre-3.67 cores.
   supplier_alias: z.string().min(1).max(4).optional(),
 ```
 
@@ -2187,7 +2228,23 @@ Bump `PROTOCOL_VERSION`/package.json to `3.67.0`; add the version.ts changelog b
 - Test: beside the modified service (`__tests__`), following its existing test idiom
 
 **Interfaces:**
-- Produces: every served sub-tier row (`counterparty_participant_id === null`) carries `supplier_alias`; rows in the same `aggregated_under_tier_1` cluster share one letter; letters follow first-encounter order over rows sorted by `(observed_at, result_id)` — the sort makes the mint deterministic across reads, which is what makes a serve-time alias "stable within this run" without persisting anything (zero migrations).
+> 🚨 **PLAN DEFECT, superseded by owner ruling 2026-08-12 — read before writing any test below.**
+> Everything in this Task 23 block originally keyed the mint on `aggregated_under_tier_1`.
+> That is the **observation cluster**, and it is a `result_id`: rows are unique per
+> `(run_id, aggregated_under_tier_1, signal_type)`, so ONE vendor emits one row per signal
+> type per cluster and reads out as several suppliers. **The grain is the SUPPLIER** — a
+> vendor's sub-tier rows share ONE letter across all of its clusters, resolved through the
+> tier-1 root to that tier-1 row's participant id.
+>
+> The danger is in the **test list**, not only the prose: "two clusters ⇒ A then B" is
+> exactly the forbidden behavior when both clusters are the same vendor, and a
+> cluster-grained mint makes it pass GREEN. A test written from the list below would have
+> pinned the defect. As shipped (`48bcaafe`), the discriminating pair is *same vendor across
+> two clusters ⇒ ONE letter* **and** *two different vendors ⇒ two letters* — neither alone
+> discriminates, since a mint that always returns 'A' passes the first and a cluster-grained
+> mint passes the second. Corrected text follows.
+
+- Produces: every served sub-tier row (`counterparty_participant_id === null`) carries `supplier_alias`; **all sub-tier rows belonging to the same VENDOR share one letter, even across several `aggregated_under_tier_1` clusters** (resolve the cluster's tier-1 root result_id to its `counterparty_participant_id`, and key on that); letters follow first-encounter order over rows sorted by `(observed_at, result_id)` — the sort makes the mint deterministic across reads, which is what makes a serve-time alias "stable within this run" without persisting anything (zero migrations). Scope the alias map **per `run_id`**: `getTrailingHistory` returns rows spanning several runs, and one shared map across them would let a buyer correlate the same withheld supplier between runs — the one thing the chip's tooltip promises cannot happen. A sub-tier row whose tier-1 root is absent from the page gets **no alias**, never an invented one.
 - Mint helper shape (from redact-tree, now shared):
 
 ```ts
@@ -2195,23 +2252,69 @@ export function nextAlias(n: number): string; // 0→A … 25→Z, 26→AA
 export function aliasFor(aliases: Map<string, string>, key: string): string;
 ```
 
-- [ ] **Step 1: Failing test** — same cluster ⇒ same letter; two clusters ⇒ A then B; direct rows ⇒ undefined; two consecutive reads ⇒ identical aliases.
+- [ ] **Step 1: Failing test** — ~~same cluster ⇒ same letter; two clusters ⇒ A then B~~ **(superseded — "two clusters ⇒ A then B" pins the defect; see the ruling box above).** As shipped: **one vendor across TWO clusters ⇒ ONE letter**; **two different vendors ⇒ two letters** (the pair is what discriminates — neither alone does); direct rows ⇒ undefined; reversed input order ⇒ identical aliases (determinism from the sort, not arrival order); the same vendor in two different runs ⇒ letters restart per run.
 - [ ] **Step 2: Run red.**
 - [ ] **Step 3: Implement** in the results-serving method:
 
+As shipped in `apps/core/src/services/run-scoped-alias.ts` (`48bcaafe`, separator corrected
+in `bbb1d0f9`) — note the run-scoped key, which the original snippet lacked entirely:
+
 ```ts
-    // 3.67.0 (v1.73 WP4): run-scoped supplier aliases for sub-tier rows.
-    // Serve-time, deterministic — sort fixes first-encounter order, the map
-    // keys on the tier-1 path cluster, nothing is persisted (zero-migration).
-    const sorted = [...rows].sort(
-      (a, b) => a.observedAt.localeCompare(b.observedAt) || a.resultId.localeCompare(b.resultId),
-    );
-    const aliases = new Map<string, string>();
-    for (const row of sorted) {
-      if (row.counterpartyParticipantId !== null) continue;
-      row.supplierAlias = aliasFor(aliases, row.aggregatedUnderTier1 ?? row.resultId);
+export function assignSupplierAliases(rows: WatcherResult[]): WatcherResult[] {
+  // tier-1 result_id → that vendor's participant id, per run.
+  const vendorOf = new Map<string, string>();
+  for (const r of rows) {
+    if (r.counterparty_participant_id !== null) {
+      vendorOf.set(`${r.run_id}:${r.result_id}`, r.counterparty_participant_id);
     }
+  }
+
+  const ordered = [...rows].sort((a, b) =>
+    a.observed_at === b.observed_at
+      ? a.result_id.localeCompare(b.result_id)
+      : a.observed_at.localeCompare(b.observed_at),
+  );
+
+  const perRun = new Map<string, Map<string, string>>();
+  const aliasByResultId = new Map<string, string>();
+  for (const r of ordered) {
+    if (r.counterparty_participant_id !== null) continue; // direct row: identity already disclosed
+    if (r.aggregated_under_tier_1 === null) continue; // no path root ⇒ no resolvable supplier
+    const vendorId = vendorOf.get(`${r.run_id}:${r.aggregated_under_tier_1}`);
+    if (vendorId === undefined) continue; // tier-1 row absent from this page: leave absent, never guess
+    let aliases = perRun.get(r.run_id);
+    if (!aliases) {
+      aliases = new Map<string, string>();
+      perRun.set(r.run_id, aliases);
+    }
+    aliasByResultId.set(r.result_id, aliasFor(aliases, vendorId));
+  }
+
+  return rows.map((r) => {
+    const alias = aliasByResultId.get(r.result_id);
+    return alias === undefined ? r : { ...r, supplier_alias: alias };
+  });
+}
 ```
+
+> **Defect found and FIXED in `bbb1d0f9` -- recorded here because the failure mode is
+> invisible and worth carrying.** As first shipped (`48bcaafe`), the composite map keys used a
+> raw NUL byte as the separator rather than the `:` shown above. Two NULs in a 4452-byte file
+> put it inside **git's binary heuristic, which scans the first 8000 bytes**, so `git show` and
+> `git diff` rendered the whole 101-line module as *"Binary files ... differ"*, `git grep`
+> returned *"Binary file matches"* with no line numbers, and plain `grep` found nothing --
+> which is how it surfaced. **Task 23's central module would otherwise have reached the Phase 2
+> PR with zero reviewable diff.**
+>
+> Fixed to `:` -- neither half can contain it (both are UUIDs), so the key space is unchanged
+> and no behaviour moves. haiCore re-gated: protocol 100 files / 1156 tests, apps/core 443 /
+> 3567, root build exit 0, sweep clean both sides.
+>
+> **Judge such a fix by the MERGE-BASE diff.** `git diff HEAD~` reports **0 insertions /
+> 0 deletions** for the fix commit, because the *old* blob is the binary one -- it reads as an
+> empty commit while being correct. `git diff --numstat 8177ed3f -- <path>` showed 106 added
+> lines, which is what the PR actually renders. **At PR-open, check that no file in the diff
+> renders as binary** -- and prove your NUL scanner can detect a NUL before trusting it.
 
 (Adapt field casing/assembly to the service's actual row mapping at dispatch — the snippet states the algorithm; the service's own row-to-API mapping carries it into `supplier_alias`.)
 

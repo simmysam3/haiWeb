@@ -49,12 +49,22 @@ describe('Watcher Backlog FilterPills (v1.73 layout)', () => {
     // `<span tabIndex={0}>` with its own click handler and an sr-only copy of
     // the tooltip body. Nesting that inside a <button> pollutes the button's
     // accessible name (becomes "lead time degraded <tooltip body>") and adds
-    // a redundant tab stop. `exact: true` here pins the clean name — it fails
-    // against the old <button><Pill/></button> construct and passes once the
-    // toggle matches audit/events/filter-pills.tsx's plain-button idiom.
+    // a redundant tab stop. The exact accessible name below is what pins the
+    // clean construct: it fails against the old <button><Pill/></button> and
+    // passes once the toggle matches audit/events/filter-pills.tsx's
+    // plain-button idiom.
+    // ⚠ HOW it pins, corrected 2026-08-12: a STRING `name` in `ByRole` is
+    // matched EXACTLY BY DEFAULT (full string, whitespace-normalised). This
+    // previously passed `exact: true`, which is NOT a member of ByRoleOptions —
+    // silently ignored at runtime, and a TS2769 that haiWeb's `npm run build`
+    // never surfaced (only `tsc --noEmit` does). The option was removed; the
+    // protection is unchanged and was re-proved by mutation after removal.
+    // 🚫 Do NOT "simplify" this to a regex or substring matcher to quieten a
+    // future type complaint — a non-exact matcher would accept the polluted
+    // name "lead time degraded <tooltip body>" and silently retire this guard.
     const user = userEvent.setup();
     render(<FilterPills />);
-    const pill = await screen.findByRole('button', { name: 'lead time degraded', exact: true });
+    const pill = await screen.findByRole('button', { name: 'lead time degraded' });
     expect(pill).toHaveAttribute('aria-pressed', 'false');
     await user.click(pill);
     expect(push).toHaveBeenCalledWith(expect.stringContaining('kind=lead_time_degraded'));
