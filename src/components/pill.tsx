@@ -1,7 +1,20 @@
 'use client';
+import type { WatcherRunStatus } from '@haiwave/protocol';
 import { DefinitionTip } from './definition-tip';
 
 // ── Embedded definitions. Edit copy here. (category → value → definition) ──
+
+// Exhaustive against the protocol union: a 7th WatcherRunStatus member fails
+// the BUILD here (v1.73 WP4 §3.6). satisfies keeps the literal string values.
+const RUN_STATUS_DEFINITIONS = {
+  running: 'The run is in progress.',
+  complete: 'The run finished and all targets were observed.',
+  partial: 'The run finished but some targets could not be observed.',
+  failed: 'The run stopped before completing. See the reason for the specific failure.',
+  cancelled: 'The run was cancelled by an operator before completing.',
+  throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
+} satisfies Record<WatcherRunStatus, string>;
+
 const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   attestation_kind: {
     first_party_self_declared:
@@ -15,14 +28,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     unsubstantiated_gap:
       'No attestation is available; this node is declared as a known unverified gap.',
   },
-  run_status: {
-    running: 'The run is in progress.',
-    complete: 'The run finished and all targets were observed.',
-    partial: 'The run finished but some targets could not be observed.',
-    failed: 'The run stopped before completing. See the reason for the specific failure.',
-    cancelled: 'The run was cancelled by an operator before completing.',
-    throttled: 'The run paused because its hop budget was exhausted; it will resume automatically.',
-  },
+  run_status: RUN_STATUS_DEFINITIONS,
   run_origin: {
     ad_hoc: 'Triggered manually with no associated run template.',
     template_manual: 'Triggered manually from a saved run template.',
@@ -174,6 +180,11 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     // typographic apostrophe in "ERP’s".
     promise_date_slipped: 'The ERP’s post-MRP schedule for a booked order line completes later than the promised date.',
     promise_date_improved: 'The ERP’s post-MRP schedule for a booked order line completes earlier than promised, or re-splits without moving completion.',
+    // v1.73 WP4 forward-carry — lands in protocol CHANGE_KIND_DEFINITION with
+    // 3.66.0 (WP3). Same hand-mirror constraint as the block comment above;
+    // keep verbatim in sync the day WP3 merges (the mirror pin test enforces).
+    upstream_risk_reported:
+      'The vendor reports risk to this order from its own upstream supply chain. The vendor\'s promise is unchanged; the flag is advance warning.',
   },
   severity: {
     info: 'Informational change; no immediate action required.',
@@ -346,6 +357,15 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
 /** Resolve definition copy without exposing the map. Used by <ColumnHeader>. */
 export function definitionFor(category: string, value: string): string | undefined {
   return PILL_DEFINITIONS[category]?.[value];
+}
+
+/**
+ * change_kind mirror keys, for tests only. A function export (not the const
+ * itself) so it stays safe across the RSC client-reference boundary — see
+ * the Turbopack comment on PILL_DEFINITIONS.change_kind above.
+ */
+export function changeKindMirrorKeys(): string[] {
+  return Object.keys(PILL_DEFINITIONS.change_kind);
 }
 
 const _warnedKeys = new Set<string>();

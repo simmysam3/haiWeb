@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { AuditRun, RunTemplate, WatcherRun } from '@haiwave/protocol';
 import type { PhantomDemandRun } from '@/lib/haiwave-api';
 import { withHaiCore } from '@/lib/with-hai-core';
+import { runDetailHref } from '@/app/account/sonar/templates/_lib/run-detail-href';
 
 type Modality = 'audit' | 'watcher' | 'phantom_demand';
 
@@ -152,7 +153,7 @@ export const GET = withHaiCore(async ({ client }) => {
       completed_at: completedAt,
       duration_seconds: durationSeconds(r.triggered_at, completedAt),
       run_origin: (r as { run_origin?: string }).run_origin ?? 'ad_hoc',
-      detail_href: `/account/sonar/watchers/${r.run_id}`,
+      detail_href: runDetailHref('audit', r.run_id),
     };
   });
 
@@ -171,7 +172,7 @@ export const GET = withHaiCore(async ({ client }) => {
       completed_at: completedAt,
       duration_seconds: durationSeconds(r.triggered_at, completedAt),
       run_origin: (r as { run_origin?: string }).run_origin ?? 'ad_hoc',
-      detail_href: `/account/sonar/watcher/dashboard`,
+      detail_href: runDetailHref('watcher', r.run_id),
     };
   });
 
@@ -193,7 +194,7 @@ export const GET = withHaiCore(async ({ client }) => {
       completed_at: r.completed_at ?? null,
       duration_seconds: durationSeconds(r.created_at, r.completed_at),
       run_origin: r.run_origin ?? 'ad_hoc',
-      detail_href: `/account/sonar/phantom-demand/runs/${r.run_id}`,
+      detail_href: runDetailHref('phantom_demand', r.run_id),
     };
   });
 

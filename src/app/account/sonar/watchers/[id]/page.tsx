@@ -9,6 +9,7 @@ import { UnqualifiedWatchBanner } from './_components/unqualified-watch-banner';
 import { pivotReadiness, type RunRef } from './_lib/pivot-readiness';
 import { RunControls } from './run-controls';
 import { RunFailureBanner } from './run-failure-banner';
+import { isTerminal, isUsableRun } from '@/app/account/sonar/_lib/watcher-run-status';
 import type { RunTemplate, SkuAsk, WatcherRun, WatcherResult } from '@haiwave/protocol';
 
 interface WatcherRunDetailResponse {
@@ -159,7 +160,7 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
         </>
       )}
 
-      {(run.status === 'failed' || run.status === 'cancelled') && (
+      {isTerminal(run.status) && !isUsableRun(run.status) && (
         <RunFailureBanner
           status={run.status}
           errorMessage={null}

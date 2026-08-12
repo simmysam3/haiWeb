@@ -16,6 +16,23 @@ function stubCatalogFetch(skuIds: string[] = ['PN-88A']) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
+      // WatcherScopePicker mounts the shared picker with
+      // universe="bilateral_connections" (v1.73 WP4 #22) — it draws its
+      // counterparty universe from /api/account/partners, not the audit
+      // wizard-options endpoint. Same counterparty_id as the wizard-options
+      // stub below so the /catalog/* branches (matched by URL substring, not
+      // by which universe produced the id) still resolve identically.
+      if (url === '/api/account/partners') {
+        return Promise.resolve(
+          json([
+            {
+              id: 'cccccccc-0000-0000-0000-000000000001',
+              company_name: 'Acme',
+              status: 'trading_pair',
+            },
+          ]),
+        );
+      }
       if (url.includes('/audit/wizard-options')) {
         return Promise.resolve(
           json({
@@ -308,5 +325,76 @@ describe('<WatcherScopePicker>', () => {
     render(<WatcherScopePicker value={scope} onChange={() => {}} />);
 
     expect(screen.getByText(/needs sku scope/i)).toBeInTheDocument();
+  });
+
+  // Fix round 2 (coordinator review): fix round 1's Critical fix (keeping an
+  // un-expanded counterparty in the emitted scope) depends on WatcherScopePicker
+  // actually forwarding `value.counterparties` down to the shared picker's
+  // `counterparties` prop. Nothing else in this file asserts on emitted
+  // `counterparties`, so deleting that one line of wiring would make the
+  // Critical fix inert on the real edit route with every other test here
+  // still green. This test pins the wiring itself, end to end through
+  // WatcherScopePicker (not the shared component directly): a persisted
+  // scope spanning two counterparties, only one of them expanded and edited,
+  // must still emit both.
+  it('forwards persisted value.counterparties so an un-expanded counterparty is not dropped when editing another (wiring pin)', async () => {
+    const cpA = 'aaaaaaaa-1111-1111-1111-111111111111';
+    const cpB = 'bbbbbbbb-2222-2222-2222-222222222222';
+    const json = (body: unknown) => Promise.resolve({ ok: true, json: async () => body }) as Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url === '/api/account/partners') {
+          return json([
+            { id: cpA, company_name: 'Northgate Fasteners', status: 'trading_pair' },
+            { id: cpB, company_name: 'Southline Plastics', status: 'trading_pair' },
+          ]);
+        }
+        if (url.includes(`/api/account/partners/${cpA}/catalog/classes`)) {
+          return json({ classes: [] });
+        }
+        if (url.includes(`/api/account/partners/${cpA}/catalog/products`)) {
+          return json({
+            products: [
+              { external_product_id: 'SKU-A1', product_name: 'Widget A1', primary_class_slug: null },
+              { external_product_id: 'SKU-A2', product_name: 'Widget A2', primary_class_slug: null },
+            ],
+            total: 2,
+          });
+        }
+        // cpB's catalog is deliberately never stubbed — it must stay
+        // un-expanded, and a fetch to it here would itself be a bug (fan-out
+        // on mount).
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const onChange = vi.fn();
+    // The persisted scope: both counterparties already selected, one SKU
+    // each. This mirrors watcher-definition-detail.tsx seeding
+    // useState<WatcherScope>(template.scope) from a saved template.
+    const scope: WatcherScope = {
+      ...empty,
+      counterparties: [cpA, cpB],
+      skus: ['SKU-A1', 'SKU-B1'],
+    };
+    render(<WatcherScopePicker value={scope} onChange={onChange} />);
+
+    // Expand and edit ONLY cpA — cpB stays collapsed throughout.
+    await userEvent.click(
+      await screen.findByRole('button', { name: /expand northgate fasteners/i }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /expand unclassified/i }));
+
+    const skuRow = (await screen.findByText('Widget A2')).closest('[role="treeitem"]');
+    expect(skuRow).not.toBeNull();
+    await userEvent.click(within(skuRow as HTMLElement).getByRole('checkbox'));
+
+    const last = onChange.mock.calls.at(-1)?.[0] as WatcherScope;
+    // cpB's SKU (SKU-B1) was never touched and stays selected — its
+    // counterparty must not be silently dropped just because it was never
+    // expanded.
+    expect(last.counterparties).toEqual(expect.arrayContaining([cpA, cpB]));
+    expect(last.skus).toEqual(expect.arrayContaining(['SKU-A1', 'SKU-A2', 'SKU-B1']));
   });
 });

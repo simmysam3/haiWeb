@@ -17,7 +17,7 @@ export function WatcherSignalsCard({ capacityBandCounts, medianLeadTimeP90 }: Pr
     <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-charcoal">Watcher signals</h2>
-        <Link href="/account/sonar/watcher/dashboard" className="text-xs text-teal hover:underline">
+        <Link href="/account/sonar/watchers" className="text-xs text-teal hover:underline">
           View details →
         </Link>
       </div>

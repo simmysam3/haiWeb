@@ -121,10 +121,18 @@ test.describe("§1 v1.29 Phase 2", () => {
     }
   });
 
-  test("1.6 watcher dashboard page loads (throttled-runs panel host)", async ({ browser }) => {
-    const page = await loggedInPage(browser);
-    await gotoOk(page, "/account/sonar/watcher/dashboard");
-    await expect(page.locator("body")).toContainText(/Watcher/i);
+  test("1.6 legacy watcher dashboard permanently redirects to the Watchers list", async ({ playwright }) => {
+    // Authenticated on purpose: proxy.ts checks the session BEFORE the page
+    // renders, so an anonymous request 307s to /api/auth/login and never
+    // reaches the page's permanentRedirect(). The 308 is what we're pinning.
+    const req = await playwright.request.newContext({
+      baseURL: HAIWEB,
+      storageState: sharedContext!.storageState,
+    });
+    const res = await req.get("/account/sonar/watcher/dashboard", { maxRedirects: 0 });
+    expect(res.status(), "expected 308").toBe(308);
+    expect(res.headers()["location"]).toContain("/account/sonar/watchers");
+    await req.dispose();
   });
 });
 
@@ -219,9 +227,10 @@ test.describe("§5 Unified Sonar Dashboard", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("§6 Watcher rename", () => {
-  test("6.1 /account/sonar/watcher/dashboard is the live URL", async ({ browser }) => {
+  test("6.1 /account/sonar/watcher/dashboard redirects to /account/sonar/watchers (v1.73 WP4)", async ({ browser }) => {
     const page = await loggedInPage(browser);
-    await gotoOk(page, "/account/sonar/watcher/dashboard");
+    await gotoOk(page, "/account/sonar/watcher/dashboard"); // follows the 308
+    await expect(page.locator("h1", { hasText: "Watchers" })).toBeVisible();
   });
 
   test("6.1b /account/sonar/type2/dashboard is gone or redirects", async ({ browser }) => {
@@ -802,7 +811,7 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     await expect(ops).toBeChecked();
   });
 
-  test("16.2 Watcher Backlog renders 4 lowercase kind pills; toggle works", async ({
+  test("16.2 Watcher Backlog renders 4 lowercase kind pills (upstream risk withheld until 3.66.0); toggle works", async ({
     browser,
   }) => {
     const page = await loggedInPage(browser);
@@ -813,6 +822,12 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     // §27.3.17 — pills are static (EVENT_KIND_PILLS), so they render even on an
     // empty feed. Button text is lowercase (kind.replace, no CSS transform);
     // exact:true makes the name match case-sensitive and pins that casing.
+    // v1.73 WP4 fix wave: upstream_risk_reported is deliberately withheld from
+    // EVENT_KIND_PILLS until protocol 3.66.0 (WP3) mints it — that array also
+    // serves as the wire filter allowlist, and haiCore treats an all-unknown
+    // `kind` filter as no filter at all, so carrying the unminted kind here
+    // silently returned the entire feed (all 7 audit-side kinds included) the
+    // moment someone clicked it alone. Only four pills render today.
     const pillNames = [
       "lead time degraded",
       "lead time improved",

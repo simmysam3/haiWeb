@@ -43,9 +43,6 @@ describe('AccountNav', () => {
   it('Sonar Observe section carries Watcher Backlog (drift events) alongside the watcher / phantom / requests entries', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
-    const dashboard = screen.getByRole('link', { name: 'Sonar Dashboard' });
-    expect(dashboard.getAttribute('href')).toBe('/account/sonar/dashboard');
-
     const requests = screen.getByRole('link', { name: 'Request Management' });
     expect(requests.getAttribute('href')).toBe('/account/sonar/requests');
 
@@ -63,16 +60,49 @@ describe('AccountNav', () => {
     expect(phantomDemand.getAttribute('href')).toBe('/account/sonar/observations');
 
     expect(screen.queryByRole('link', { name: 'Configurations' })).toBeNull();
+  });
 
-    const watcherMgmt = screen.getByRole('link', { name: 'Watcher Management' });
-    expect(watcherMgmt.getAttribute('href')).toBe('/account/sonar/watchers');
+  it('Sonar section: Dashboard · Phantom Demand · Watchers · Watcher Backlog · Grounded Forecasts · Request Management', () => {
+    const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.getByRole('link', { name: 'Watchers' })).toHaveAttribute(
+      'href',
+      '/account/sonar/watchers',
+    );
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
+      'href',
+      '/account/sonar/dashboard',
+    );
+    // One name family: "Watcher Management" is gone.
+    expect(screen.queryByRole('link', { name: 'Watcher Management' })).toBeNull();
+    // Sonar Dashboard no longer lives in Account Management under that label.
+    expect(screen.queryByRole('link', { name: 'Sonar Dashboard' })).toBeNull();
+    // System Dashboard stays put.
+    expect(screen.getByRole('link', { name: 'System Dashboard' })).toHaveAttribute('href', '/account');
+
+    // Pin the full six-item order end to end — the point of this task.
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const observe = sections.find((s) => s.textContent?.trimStart().startsWith('Sonar Observe'));
+    expect(observe).toBeTruthy();
+    const hrefs = Array.from(observe!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual([
+      '/account/sonar/dashboard',
+      '/account/sonar/observations',
+      '/account/sonar/watchers',
+      '/account/sonar/posture/changes',
+      '/account/sonar/grounded-forecasts',
+      '/account/sonar/requests',
+    ]);
   });
 
   // v1.62: grounded forecasts are a fourth observation_class on the same
-  // run-template machinery, so they belong in Sonar Observe next to Phantom
+  // run-template machinery, so they belong in Sonar Observe alongside Phantom
   // Demand — the modality they probe through. There is no tabbed PD page to
   // extend, hence a peer nav entry rather than a section within one.
-  it('Sonar Observe carries the Grounded Forecasts entry beside Phantom Demand', () => {
+  // v1.73 WP4: the two-surface reorder interposes Watchers + Watcher Backlog
+  // between Phantom Demand and Grounded Forecasts (Dashboard now leads the
+  // section), so the two probe entries are section-mates, not neighbors —
+  // Grounded Forecasts now sits directly after Watcher Backlog instead.
+  it('Sonar Observe carries the Grounded Forecasts entry beside Watcher Backlog', () => {
     const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
 
     const forecasts = screen.getByRole('link', { name: 'Grounded Forecasts' });
@@ -83,9 +113,9 @@ describe('AccountNav', () => {
     expect(observe).toBeTruthy();
     const hrefs = Array.from(observe!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
     expect(hrefs).toContain('/account/sonar/grounded-forecasts');
-    // Directly after Phantom Demand — the two read as one family.
+    // Directly after Watcher Backlog, per the v1.73 reorder.
     expect(hrefs.indexOf('/account/sonar/grounded-forecasts')).toBe(
-      hrefs.indexOf('/account/sonar/observations') + 1,
+      hrefs.indexOf('/account/sonar/posture/changes') + 1,
     );
   });
 

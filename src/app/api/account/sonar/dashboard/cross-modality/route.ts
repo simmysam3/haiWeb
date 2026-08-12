@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import type { AuditRun, AuditRunResult, WatcherResult } from '@haiwave/protocol';
+import type { AuditRun, AuditRunResult, WatcherResult, WatcherRunStatus } from '@haiwave/protocol';
 import { withHaiCore } from '@/lib/with-hai-core';
+import { isUsableRun } from '@/app/account/sonar/_lib/watcher-run-status';
 import { computeRiskScore } from '@/app/account/sonar/dashboard/_lib/risk-score';
 import { buildPerPartnerAuditWeights, type PartnerAuditWeight } from '@/app/account/sonar/dashboard/_lib/audit-weights';
 
@@ -50,7 +51,7 @@ async function loadAudit(client: {
 }
 
 async function loadWatcher(client: {
-  listWatcherRuns: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: string; triggered_at: string }> }>;
+  listWatcherRuns: (opts?: { limit?: number }) => Promise<{ runs: Array<{ run_id: string; status: WatcherRunStatus; triggered_at: string }> }>;
   getWatcherRun: (runId: string) => Promise<{ run: unknown; results: WatcherResult[] }>;
 }): Promise<{ data: Map<string, WatcherPerPartner>; degraded: boolean }> {
   const { runs } = await client.listWatcherRuns({ limit: 5 });
@@ -59,9 +60,7 @@ async function loadWatcher(client: {
   // recent value *per signal type* — a later run that emitted only
   // lead_time_distribution must not erase capacity-band context from a
   // slightly older run that did include it.
-  const usable = runs.filter(
-    (r) => r.status === 'complete' || r.status === 'partial',
-  );
+  const usable = runs.filter((r) => isUsableRun(r.status));
   if (usable.length === 0) return { data: new Map(), degraded: false };
 
   // Fetch details in parallel; a single failing run must not blank the card.

@@ -10,6 +10,7 @@ import type {
   RegistrationStatus,
 } from '@/lib/registration-types';
 import { BLOCKED_REQUIRES_OVERRIDE } from '@/lib/registration-types';
+import { REGISTRATION_TERMINAL } from './registration-terminal';
 
 interface Props {
   detail: Detail;
@@ -44,7 +45,16 @@ export function RegistrationDetail({ detail }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const isBlocked = detail.risk_tier === 'blocked';
-  const terminal = status !== 'pending_approval';
+  // Unknown statuses fail CLOSED: an unrecognized status from a newer core is
+  // treated as terminal so the approve/reject controls stay hidden. The
+  // Record type, not this fallback, is what enforces exhaustiveness at build
+  // time. This is the deliberate mirror image of the watcher-run-status
+  // helpers (`?? false`, in `_lib/watcher-run-status.ts`): there, an unknown
+  // status is safe to treat as non-terminal because the worst case is a
+  // banner that never renders and polling that continues; here, the worst
+  // case of treating an unknown status as non-terminal is exposing an admin
+  // authorization surface, so the safe default flips to terminal.
+  const terminal = REGISTRATION_TERMINAL[status] ?? true;
 
   function openModal(kind: Exclude<ModalKind, null>) {
     setReason('');

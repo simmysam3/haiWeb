@@ -3,8 +3,7 @@
 import useSWR from 'swr';
 import type { WatcherRunStatus } from '@haiwave/protocol';
 import { jsonFetcher } from '@/lib/swr-fetcher';
-
-export const TERMINAL: WatcherRunStatus[] = ['complete', 'partial', 'failed', 'cancelled'];
+import { isTerminal } from '@/app/account/sonar/_lib/watcher-run-status';
 
 interface WatcherRunStatusResponse {
   status: WatcherRunStatus;
@@ -32,7 +31,7 @@ export function useRunStatus(runId: string): UseRunStatusReturn {
     jsonFetcher,
     {
       refreshInterval: (latest) =>
-        latest && TERMINAL.includes(latest.status) ? 0 : 10_000,
+        latest && isTerminal(latest.status) ? 0 : 10_000,
       revalidateOnFocus: true,
       dedupingInterval: 5_000,
     },

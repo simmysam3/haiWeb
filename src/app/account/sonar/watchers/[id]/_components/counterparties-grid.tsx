@@ -17,6 +17,9 @@ import { VerifiedUndisclosedChip } from '@/components/verified-undisclosed-chip'
 import { LeadTimeTriplet, type Numbered, type Distribution } from './lead-time-triplet';
 import { CapacityBandPanel } from './capacity-band-panel';
 import { DeliveryEventLog } from './delivery-event-log';
+import { OrderPromiseSchedulePanel } from './order-promise-schedule-panel';
+import { OrderFulfillmentHistoryPanel } from './order-fulfillment-history-panel';
+import { SoftQuotedLeadTimePanel } from './soft-quoted-lead-time-panel';
 
 // Page-enriched shape — watchers/[id]/page.tsx joins in counterparty_name
 // client-side (WatcherResult only carries the participant id) before handing
@@ -32,6 +35,12 @@ interface Props {
    * the canonical "Vendor-aggregate" placeholder.
    */
   productNameByExtId?: Record<string, string>;
+  /**
+   * Test-only: seeds vendorExpanded with every group key on mount, so
+   * coverage tests can assert per-product panel content without simulating
+   * a click on every vendor row.
+   */
+  defaultExpanded?: boolean;
 }
 
 const VENDOR_AGGREGATE_KEY = '__vendor_aggregate__';
@@ -46,31 +55,65 @@ interface ProductSubGroup {
 interface CounterpartyGroup {
   key: string;
   counterpartyId: string | null;
+  // Sort/search key only — never rendered directly and never a redaction
+  // signal. See identity for the presentation discriminant.
   counterpartyName: string;
-  // Presentation discriminant: when true the identity cell renders the shared
-  // <VerifiedUndisclosedChip> instead of the placeholder name text. Kept beside
-  // counterpartyName (still used verbatim for sort/filter) so grouping,
-  // scoring, and search behaviour are unchanged.
-  undisclosed: boolean;
+  identity: IdentityDisplay;
   results: WatcherResult[];
   productSubGroups: ProductSubGroup[];
   gapTiers: Map<number, number>;
   score: number;
 }
 
-function nameOf(r: EnrichedWatcherResult): string {
-  // Sub-tier aggregate rows: identity is intentionally null (tier-2+ rollups).
-  if (r.counterparty_participant_id === null) return 'Identity withheld';
-  // Direct tier-1 rows: prefer the page-enriched counterparty_name; fall back
-  // to the canonical "Vendor Name Not Disclosed" framing used elsewhere
-  // (e.g. tree-view) rather than exposing a raw UUID slice.
-  return r.counterparty_name ?? 'Vendor Name Not Disclosed';
+// v1.73 WP4 three-state identity (converges on tree-view's NodeDisplay model):
+//   undisclosed — the WIRE says redacted (null participant id = tier-2+
+//                 aggregate). Only this state renders the chip; redaction is
+//                 never inferred from a lookup miss.
+//   unresolved  — id known, name lookup failed (haiCore partner list gap or
+//                 outage). Truncated id + "name unavailable" — an honest gap,
+//                 not an accusation of withholding.
+//   name        — resolved display name.
+type IdentityDisplay =
+  | { kind: 'undisclosed'; parentName?: string | null; alias?: string | null }
+  | { kind: 'unresolved'; id: string }
+  | { kind: 'name'; label: string };
+
+// Sole constructor for IdentityDisplay — the undisclosed branch takes the
+// tier-1 name index so a redacted cluster carries its parent's name from the
+// one place identities are built. (Previously a second inline construction
+// path lived at the group-building call site, which made this function's own
+// undisclosed branch unreachable there — folded back into one place here.)
+function identityOf(
+  r: EnrichedWatcherResult,
+  tier1NameByResultId: Map<string, string | null>,
+): IdentityDisplay {
+  if (r.counterparty_participant_id === null) {
+    return {
+      kind: 'undisclosed',
+      parentName: r.aggregated_under_tier_1
+        ? tier1NameByResultId.get(r.aggregated_under_tier_1) ?? null
+        : null,
+      alias: null, // wire supplier_alias joins with protocol 3.67.0 (Phase 2)
+    };
+  }
+  // `!name` (not `?? `): an empty-string name is as unresolved as a missing one.
+  if (!r.counterparty_name) return { kind: 'unresolved', id: r.counterparty_participant_id };
+  return { kind: 'name', label: r.counterparty_name };
 }
 
-// A counterparty is undisclosed when it's a tier-2+ aggregate (null id) or a
-// tier-1 row with no resolvable name — both render the identity-withheld chip.
-function isUndisclosed(r: EnrichedWatcherResult): boolean {
-  return r.counterparty_participant_id === null || !r.counterparty_name;
+// Sort/search key only — never a rendered string and never a redaction
+// signal (see identity for the presentation discriminant). An undisclosed
+// cluster with a known tier-1 parent sorts and searches by that parent's
+// name — e.g. "Acme Industrial + Identity withheld" must be findable by
+// typing "Acme" — so only an unrooted cluster (no known parent) falls back to
+// the sentinel. `||`, not `??`: an empty-string parentName (tier-1 name
+// itself unresolved) is as unrooted as a missing one.
+function sortKeyOf(d: IdentityDisplay): string {
+  switch (d.kind) {
+    case 'name': return d.label;
+    case 'unresolved': return d.id;
+    case 'undisclosed': return d.parentName || '￿'; // sorts last among equals
+  }
 }
 
 function gapTiersFor(results: WatcherResult[]): Map<number, number> {
@@ -187,21 +230,32 @@ function signalRow<P extends { synthesisMode: WatcherSynthesisMode; payload: unk
   return { synthesisMode: r.synthesis_mode, payload: r.payload } as P;
 }
 
-export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
+export function CounterpartiesGrid({ results, productNameByExtId, defaultExpanded }: Props) {
   const [query, setQuery] = useState('');
-  const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(new Set());
 
   const groups: CounterpartyGroup[] = useMemo(() => {
+    // Tier-1 rows indexed by result_id so sub-tier clusters can name their
+    // parent. aggregated_under_tier_1 is the tier-1 path root result_id.
+    const tier1NameByResultId = new Map<string, string | null>();
+    for (const r of results) {
+      if (r.counterparty_participant_id !== null) {
+        tier1NameByResultId.set(r.result_id, r.counterparty_name ?? null);
+      }
+    }
+
     const byKey = new Map<string, CounterpartyGroup>();
     for (const r of results) {
-      const key = r.counterparty_participant_id ?? '__identity_withheld__';
+      const key =
+        r.counterparty_participant_id ??
+        `withheld:${r.aggregated_under_tier_1 ?? 'unrooted'}`;
       let g = byKey.get(key);
       if (!g) {
+        const identity: IdentityDisplay = identityOf(r, tier1NameByResultId);
         g = {
           key,
           counterpartyId: r.counterparty_participant_id,
-          counterpartyName: nameOf(r),
-          undisclosed: isUndisclosed(r),
+          counterpartyName: sortKeyOf(identity),
+          identity,
           results: [],
           productSubGroups: [],
           gapTiers: new Map(),
@@ -259,9 +313,18 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
     return list;
   }, [results, productNameByExtId]);
 
+  const [vendorExpanded, setVendorExpanded] = useState<Set<string>>(
+    () => (defaultExpanded ? new Set(groups.map((g) => g.key)) : new Set()),
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
+    // counterpartyName is sortKeyOf(identity): for 'unresolved' rows that's
+    // the raw id, so an unresolved counterparty is still findable by typing
+    // an id prefix into the search box, even though no name ever resolved.
+    // For 'undisclosed' rows with a known tier-1 parent, it's the parent's
+    // name — a redacted cluster is findable by typing its parent's name too.
     return groups.filter((g) => g.counterpartyName.toLowerCase().includes(q));
   }, [groups, query]);
 
@@ -302,6 +365,9 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
             (r) => r.signal_type === 'capacity_utilization_band',
           );
           const hasDEL = g.results.some((r) => r.signal_type === 'delivery_event');
+          const hasOPS = g.results.some((r) => r.signal_type === 'order_promise_schedule');
+          const hasORD = g.results.some((r) => r.signal_type === 'order_fulfillment_history');
+          const hasSQL = g.results.some((r) => r.signal_type === 'soft_quoted_lead_time');
           return (
             <li key={g.key} className="px-3 py-2">
               <button
@@ -310,10 +376,20 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                 aria-expanded={isVendorOpen}
                 className="group flex w-full items-center gap-3 text-left"
               >
-                {g.undisclosed ? (
-                  <VerifiedUndisclosedChip />
+                {g.identity.kind === 'undisclosed' ? (
+                  <span className="flex items-baseline gap-1.5">
+                    {g.identity.parentName && (
+                      <span className="text-sm text-charcoal">{g.identity.parentName} +</span>
+                    )}
+                    <VerifiedUndisclosedChip alias={g.identity.alias} />
+                  </span>
+                ) : g.identity.kind === 'unresolved' ? (
+                  <span className="flex items-baseline gap-1">
+                    <span className="font-mono text-xs text-charcoal">{g.identity.id.slice(0, 8)}…</span>
+                    <span className="text-xs italic text-slate">name unavailable</span>
+                  </span>
                 ) : (
-                  <span className="font-medium text-charcoal">{g.counterpartyName}</span>
+                  <span className="font-medium text-charcoal">{g.identity.label}</span>
                 )}
                 <span className="flex items-center gap-1">
                   {hasPLT && <Pill category="signal_type" value="PLT" />}
@@ -321,6 +397,9 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                   {hasLT && <Pill category="signal_type" value="LT" />}
                   {hasCAP && <Pill category="signal_type" value="CAP" />}
                   {hasDEL && <Pill category="signal_type" value="DEL" />}
+                  {hasOPS && <Pill category="signal_type" value="OPS" />}
+                  {hasORD && <Pill category="signal_type" value="ORD" />}
+                  {hasSQL && <Pill category="signal_type" value="SQL" />}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   {g.gapTiers.size > 0 ? (
@@ -359,6 +438,12 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                       'capacity_utilization_band',
                     ]);
                     const delGap = gapContribution(sub.results, ['delivery_event']);
+                    const ops = sub.results.find((r) => r.signal_type === 'order_promise_schedule');
+                    const ord = sub.results.find((r) => r.signal_type === 'order_fulfillment_history');
+                    const sql = sub.results.find((r) => r.signal_type === 'soft_quoted_lead_time');
+                    const opsGap = gapContribution(sub.results, ['order_promise_schedule']);
+                    const ordGap = gapContribution(sub.results, ['order_fulfillment_history']);
+                    const sqlGap = gapContribution(sub.results, ['soft_quoted_lead_time']);
                     // Products are always shown under an expanded vendor — the
                     // company row is the only collapse level. Each product is a
                     // compact label followed by its three signal panels laid out
@@ -398,6 +483,39 @@ export function CounterpartiesGrid({ results, productNameByExtId }: Props) {
                               {...signalRow<Parameters<typeof DeliveryEventLog>[0]>(del)}
                             />
                           </div>
+                          {ops && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Order promises
+                                {opsGap && <GapChip tier={opsGap.tier} points={opsGap.points} />}
+                              </h4>
+                              <OrderPromiseSchedulePanel
+                                {...signalRow<Parameters<typeof OrderPromiseSchedulePanel>[0]>(ops)}
+                              />
+                            </div>
+                          )}
+                          {ord && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Order fulfilment
+                                {ordGap && <GapChip tier={ordGap.tier} points={ordGap.points} />}
+                              </h4>
+                              <OrderFulfillmentHistoryPanel
+                                {...signalRow<Parameters<typeof OrderFulfillmentHistoryPanel>[0]>(ord)}
+                              />
+                            </div>
+                          )}
+                          {sql && (
+                            <div>
+                              <h4 className="mb-0.5 flex items-center text-[10px] uppercase tracking-wider text-teal-dark font-semibold">
+                                Soft-quoted lead time
+                                {sqlGap && <GapChip tier={sqlGap.tier} points={sqlGap.points} />}
+                              </h4>
+                              <SoftQuotedLeadTimePanel
+                                {...signalRow<Parameters<typeof SoftQuotedLeadTimePanel>[0]>(sql)}
+                              />
+                            </div>
+                          )}
                         </div>
                       </li>
                     );

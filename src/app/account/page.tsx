@@ -54,13 +54,16 @@ export default async function DashboardPage() {
   // via `probation`. The alert deliberately keys off jailed rather than
   // "active === 0": an account that has provisioned no agents yet is in setup,
   // not in fault, and the two are indistinguishable by a zero count.
-  const fleet: { total: number; active: number; jailed: number } | null = session
+  const fleet: { total: number; active: number; jailed: number; jailedNames: string[] } | null = session
     ? await fetchFromApi(async (client) => {
         const { agents } = await client.listAgents();
         return {
           total: agents.length,
           active: agents.filter((a) => a.status === "active").length,
           jailed: agents.filter((a) => a.status === "jailed").length,
+          jailedNames: agents
+            .filter((a) => a.status === "jailed")
+            .map((a) => a.name ?? a.id.slice(0, 8)),
         };
       }, null)
     : null;
@@ -92,7 +95,7 @@ export default async function DashboardPage() {
           literal "active" hard-coded in auth.ts:145 and would report every
           account healthy including a suspended one. */}
       <DashboardAlertBar
-        agents={fleet && { total: fleet.total, jailed: fleet.jailed }}
+        agents={fleet && { total: fleet.total, jailed: fleet.jailed, jailedNames: fleet.jailedNames }}
         accountStatus={accountStatus}
       />
 

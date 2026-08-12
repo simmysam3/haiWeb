@@ -1,32 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { CounterpartiesGrid, type EnrichedWatcherResult } from '../counterparties-grid';
-import type { WatcherResult } from '@haiwave/protocol';
-
-function makeResult(
-  overrides: Partial<WatcherResult> & { counterparty_name?: string | null } = {},
-): EnrichedWatcherResult {
-  return {
-    result_id: crypto.randomUUID(),
-    run_id: 'run-1',
-    counterparty_participant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    signal_type: 'lead_time_distribution',
-    synthesis_mode: 'direct',
-    payload: {
-      kind: 'direct',
-      window_days: 90,
-      percentiles: { p50: 5, p75: 7, p90: 12, p95: 15, p99: 22 },
-      sample_count: 48,
-    },
-    gap_reason: null,
-    observed_at: '2026-05-27T10:00:00Z',
-    tier: 1,
-    aggregated_under_tier_1: null,
-    external_product_id: null,
-    ...overrides,
-  } as EnrichedWatcherResult;
-}
+import { CounterpartiesGrid } from '../counterparties-grid';
+import { makeResult } from './counterparties-grid.test-fixtures';
 
 describe('<CounterpartiesGrid>', () => {
   it('groups results by counterparty and renders summary rows', () => {
@@ -66,19 +42,71 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText('Identity withheld')).toBeInTheDocument();
   });
 
-  it('renders the identity-withheld chip for a tier-1 row with no resolvable name', () => {
+  it('a known id with no resolvable name renders unresolved — truncated id, never the redaction chip', () => {
     render(
       <CounterpartiesGrid
-        results={[
-          makeResult({
-            counterparty_participant_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-            counterparty_name: null,
-          }),
-        ]}
+        results={[makeResult({ counterparty_name: null })]}
       />,
     );
-    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    // aaaaaaaa is the fixture id's first 8 chars.
+    expect(screen.getByText(/aaaaaaaa/)).toBeInTheDocument();
+    expect(screen.getByText(/name unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText('Identity withheld')).toBeNull();
     expect(screen.queryByText('Vendor Name Not Disclosed')).toBeNull();
+  });
+  it('null participant id (wire redaction) still renders the chip', () => {
+    render(<CounterpartiesGrid results={[makeResult({ counterparty_participant_id: null })]} />);
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+  });
+
+  it('undisclosed rows group per sub-tier cluster with the tier-1 parent named (Ruling 4)', () => {
+    const tier1A = makeResult({ result_id: 'a1111111-1111-1111-1111-111111111111', counterparty_name: 'Arno Industrial' });
+    const tier1B = makeResult({
+      result_id: 'b2222222-2222-2222-2222-222222222222',
+      counterparty_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      counterparty_name: 'Mekong Supply',
+    });
+    const subA = makeResult({
+      counterparty_participant_id: null, tier: 2,
+      aggregated_under_tier_1: 'a1111111-1111-1111-1111-111111111111',
+    });
+    const subB = makeResult({
+      counterparty_participant_id: null, tier: 2,
+      aggregated_under_tier_1: 'b2222222-2222-2222-2222-222222222222',
+    });
+    render(<CounterpartiesGrid results={[tier1A, tier1B, subA, subB]} />);
+    // Two distinct undisclosed groups, each attributed to its parent.
+    expect(screen.getAllByText('Identity withheld')).toHaveLength(2);
+    expect(screen.getByText(/Arno Industrial \+/)).toBeInTheDocument();
+    expect(screen.getByText(/Mekong Supply \+/)).toBeInTheDocument();
+  });
+
+  it('a redacted cluster is findable by typing its parent tier-1 name (fix wave)', async () => {
+    const tier1 = makeResult({
+      result_id: 'a1111111-1111-1111-1111-111111111111',
+      counterparty_name: 'Arno Industrial',
+    });
+    const sub = makeResult({
+      counterparty_participant_id: null,
+      tier: 2,
+      aggregated_under_tier_1: 'a1111111-1111-1111-1111-111111111111',
+    });
+    const other = makeResult({
+      counterparty_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      counterparty_name: 'Brass Co',
+    });
+    render(<CounterpartiesGrid results={[tier1, sub, other]} />);
+    // Three distinct groups (tier1's own row, the redacted sub-tier cluster
+    // attributed to it, and the unrelated named vendor) before any filtering.
+    expect(screen.getByText('3 of 3 counterparties')).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText(/search/i), 'Arno');
+    // The redacted cluster's search/sort key must incorporate parentName, not
+    // just the '￿' sentinel — otherwise typing the parent's name can
+    // never surface it, and it silently drops out of the "N of M" count.
+    expect(screen.getByText(/Arno Industrial \+/)).toBeInTheDocument();
+    expect(screen.getByText('Identity withheld')).toBeInTheDocument();
+    expect(screen.queryByText('Brass Co')).toBeNull();
+    expect(screen.getByText('2 of 3 counterparties')).toBeInTheDocument();
   });
 
   it('reveals product sub-list and signal panels when the vendor is expanded', async () => {

@@ -59,9 +59,9 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     const body = await res.json();
     expect(body.events.map((e: any) => e.run_id)).toEqual(['a1', 't1', 'a2']);
     expect(body.events[0].modality).toBe('audit');
-    expect(body.events[0].detail_href).toBe('/account/sonar/watchers/a1');
+    expect(body.events[0].detail_href).toBe('/account/sonar/audit/a1');
     expect(body.events[1].modality).toBe('watcher');
-    expect(body.events[1].detail_href).toBe('/account/sonar/watcher/dashboard');
+    expect(body.events[1].detail_href).toBe('/account/sonar/watchers/t1');
   });
 
   it('caps output at 30 events', async () => {

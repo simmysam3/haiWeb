@@ -1,12 +1,15 @@
+import Link from "next/link";
+
 interface DashboardAlertBarProps {
   /**
    * Fleet counts. `jailed` is haiCore's own agent status — the state its
    * heartbeat machine moves an agent into after 3 consecutive failed probes,
    * and recovers from through `probation`. Using it rather than a freshness
    * window defined here means this alert agrees with the Agents page and with
-   * the state machine that owns the question. `null` = not known.
+   * the state machine that owns the question. `jailedNames` are haiCore's own
+   * agent names, with id-slice fallback resolved by the caller. `null` = not known.
    */
-  agents: { total: number; jailed: number } | null;
+  agents: { total: number; jailed: number; jailedNames: string[] } | null;
   /** The account's own participant status. `null` = not known. */
   accountStatus: string | null;
 }
@@ -17,6 +20,8 @@ interface Alert {
   severity: Severity;
   headline: string;
   detail: string;
+  href?: string;
+  hrefLabel?: string;
 }
 
 /** Blocking reads before degraded: one stops you trading, the other slows you. */
@@ -26,6 +31,12 @@ const SEVERITY_STYLE: Record<Severity, string> = {
   blocking: "border-problem/20 bg-problem/5 text-problem",
   degraded: "border-warning/30 bg-warning/10 text-navy",
 };
+
+/** "Arno, Mekong" or "Arno, Mekong +2 more" — two names, then a count. */
+function nameList(names: string[]): string {
+  if (names.length <= 2) return names.join(", ");
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
+}
 
 /**
  * Interrupt bar for the System Dashboard.
@@ -56,19 +67,22 @@ export function DashboardAlertBar({ agents, accountStatus }: DashboardAlertBarPr
   // keys off `jailed` rather than "nothing is active".
   if (agents && agents.jailed > 0) {
     const everyAgent = agents.jailed === agents.total;
+    const names = nameList(agents.jailedNames);
     alerts.push(
       everyAgent
         ? {
             severity: "blocking",
             headline: "No agents are reachable",
-            detail:
-              "Every agent has stopped answering heartbeats, so no inbound quote request can be answered. Check agent health under Agent Management.",
+            detail: `Every agent has stopped answering heartbeats (${names}), so no inbound quote request can be answered.`,
+            href: "/account/agents",
+            hrefLabel: "Check agent health under Agents.",
           }
         : {
             severity: "degraded",
             headline: `${agents.jailed} of ${agents.total} agents unreachable`,
-            detail:
-              "An agent stopped answering heartbeats and has been jailed. It returns to service automatically once it answers again.",
+            detail: `Unreachable: ${names}. A jailed agent returns to service automatically once it answers heartbeats again.`,
+            href: "/account/agents",
+            hrefLabel: "Check agent health under Agents.",
           },
     );
   }
@@ -86,6 +100,11 @@ export function DashboardAlertBar({ agents, accountStatus }: DashboardAlertBarPr
         >
           <span className="font-semibold">{alert.headline}</span>
           <span className="ml-2 text-slate">{alert.detail}</span>
+          {alert.href && (
+            <Link href={alert.href} className="ml-2 underline decoration-dotted hover:decoration-solid">
+              {alert.hrefLabel}
+            </Link>
+          )}
         </div>
       ))}
     </div>
