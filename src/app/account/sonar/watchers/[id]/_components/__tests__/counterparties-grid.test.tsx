@@ -81,6 +81,73 @@ describe('<CounterpartiesGrid>', () => {
     expect(screen.getByText(/Mekong Supply \+/)).toBeInTheDocument();
   });
 
+  // Grain is the SUPPLIER, not the observation cluster (owner ruling 2026-08-12).
+  // haiCore mints the letter at serve time (protocol 3.67.0); the grid's only job
+  // is to render each cluster's OWN alias. The fixture is run ff880a61's real
+  // shape: one vendor with two tier-1 rows, hence two sub-tier clusters, which
+  // before the vendor-grain mint drew two different letters. A fixture with a
+  // single cluster per vendor cannot over-count and would prove nothing, and the
+  // second vendor is what stops a hardcoded 'A' from passing.
+  it("renders each undisclosed cluster's own supplier_alias — one vendor's two clusters share a letter, a second vendor gets its own", () => {
+    const arnoParticipant = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const arnoCluster1 = 'a1111111-1111-1111-1111-111111111111';
+    const arnoCluster2 = 'a2222222-2222-2222-2222-222222222222';
+    const mekongCluster = 'b1111111-1111-1111-1111-111111111111';
+
+    // Same vendor, two tier-1 path roots — this is what makes two clusters.
+    const tier1Arno1 = makeResult({
+      result_id: arnoCluster1,
+      counterparty_participant_id: arnoParticipant,
+      counterparty_name: 'Arno Industrial',
+    });
+    const tier1Arno2 = makeResult({
+      result_id: arnoCluster2,
+      counterparty_participant_id: arnoParticipant,
+      counterparty_name: 'Arno Industrial',
+    });
+    const tier1Mekong = makeResult({
+      result_id: mekongCluster,
+      counterparty_participant_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      counterparty_name: 'Mekong Supply',
+    });
+
+    // Sub-tier rows as haiCore serves them: both of Arno's clusters carry the
+    // SAME letter because the mint keys on the vendor behind the tier-1 root.
+    const subArno1 = makeResult({
+      counterparty_participant_id: null,
+      tier: 2,
+      aggregated_under_tier_1: arnoCluster1,
+      supplier_alias: 'A',
+    });
+    const subArno2 = makeResult({
+      counterparty_participant_id: null,
+      tier: 2,
+      aggregated_under_tier_1: arnoCluster2,
+      supplier_alias: 'A',
+    });
+    const subMekong = makeResult({
+      counterparty_participant_id: null,
+      tier: 2,
+      aggregated_under_tier_1: mekongCluster,
+      supplier_alias: 'B',
+    });
+
+    render(
+      <CounterpartiesGrid
+        results={[tier1Arno1, tier1Arno2, tier1Mekong, subArno1, subArno2, subMekong]}
+      />,
+    );
+
+    // One vendor, one letter — on BOTH of its clusters.
+    expect(screen.getAllByText('Supplier A')).toHaveLength(2);
+    // A different vendor keeps its own letter: the grid reads each row's alias
+    // rather than a constant or the first row's.
+    expect(screen.getByText('Supplier B')).toBeInTheDocument();
+    // Every undisclosed cluster here has an alias, so the generic fallback —
+    // what the hardcoded `alias: null` produced — must be gone entirely.
+    expect(screen.queryByText('Identity withheld')).toBeNull();
+  });
+
   it('a redacted cluster is findable by typing its parent tier-1 name (fix wave)', async () => {
     const tier1 = makeResult({
       result_id: 'a1111111-1111-1111-1111-111111111111',
