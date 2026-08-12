@@ -148,12 +148,16 @@ describe('ChangesFeed', () => {
     // The two surfaces filter the same compliance_changes feed by
     // change_kind allowlist (not by source_kind). This test guards
     // against the watcher-only restriction silently regressing.
+    // v1.73 WP4 Phase 2: protocol 3.66.0 (WP3) has landed and minted
+    // upstream_risk_reported, so the deliberate Phase-1 withholding is over and
+    // the pill re-joins this array — which doubles as the wire filter allowlist.
     const actual = [...EVENT_KIND_PILLS].sort();
     expect(actual).toEqual([
       'lead_time_degraded',
       'lead_time_improved',
       'promise_date_improved',
       'promise_date_slipped',
+      'upstream_risk_reported',
     ]);
     // Negative-shape: audit-data kinds + gap lifecycle must NOT appear here.
     const FORBIDDEN = [

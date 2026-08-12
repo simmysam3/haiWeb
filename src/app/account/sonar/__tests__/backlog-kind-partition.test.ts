@@ -8,14 +8,20 @@ describe('Watcher Backlog ↔ Event Backlog kind partition', () => {
     const overlap = WATCHER_KINDS.filter((k) => audit.has(k));
     expect(overlap).toEqual([]);
   });
-  it('upstream_risk_reported is in NEITHER array today (withheld until 3.66.0)', () => {
-    // v1.73 WP4 fix wave: the kind is deliberately absent from BOTH pill
-    // arrays until protocol 3.66.0 (WP3) mints it — EVENT_KIND_PILLS doubles
-    // as the wire filter allowlist, and carrying an unminted literal there
-    // made haiCore treat an all-unknown `kind` filter as no filter at all
-    // (see event-kind-pills.ts's comment). Do NOT "fix" this back to
-    // `toContain` before 3.66.0 lands.
-    expect(WATCHER_KINDS).not.toContain('upstream_risk_reported');
+  it('upstream_risk_reported is on the WATCHER side only (3.66.0 landed; withholding over)', () => {
+    // History, because the reason is not obvious from the assertion:
+    // through Phase 1 this kind was deliberately absent from BOTH arrays until
+    // protocol 3.66.0 (WP3) minted it. EVENT_KIND_PILLS doubles as the wire
+    // filter allowlist, and carrying an UNMINTED literal there made haiCore
+    // treat an all-unknown `kind` filter as no filter at all — returning the
+    // entire compliance_changes feed, audit kinds included, on a watcher-only
+    // surface (see event-kind-pills.ts's comment).
+    // 3.66.0 landed 2026-08-12 (haiCore `8177ed3f`), so the literal is now
+    // minted and belongs on the watcher side — it is a watcher-emitted signal,
+    // exactly like the lead-time and promise-drift kinds.
+    expect(WATCHER_KINDS).toContain('upstream_risk_reported');
+    // Still excluded audit-side: that Exclude<> was a no-op while the kind was
+    // unminted and is LOAD-BEARING now the union contains it.
     expect(AUDIT_KINDS).not.toContain('upstream_risk_reported');
   });
 });

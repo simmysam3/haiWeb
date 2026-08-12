@@ -811,7 +811,7 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     await expect(ops).toBeChecked();
   });
 
-  test("16.2 Watcher Backlog renders 4 lowercase kind pills (upstream risk withheld until 3.66.0); toggle works", async ({
+  test("16.2 Watcher Backlog renders 5 lowercase kind pills (upstream risk re-added at 3.66.0); toggle works", async ({
     browser,
   }) => {
     const page = await loggedInPage(browser);
@@ -822,17 +822,21 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     // §27.3.17 — pills are static (EVENT_KIND_PILLS), so they render even on an
     // empty feed. Button text is lowercase (kind.replace, no CSS transform);
     // exact:true makes the name match case-sensitive and pins that casing.
-    // v1.73 WP4 fix wave: upstream_risk_reported is deliberately withheld from
-    // EVENT_KIND_PILLS until protocol 3.66.0 (WP3) mints it — that array also
+    // v1.73 WP4 fix wave: upstream_risk_reported was deliberately withheld from
+    // EVENT_KIND_PILLS until protocol 3.66.0 (WP3) minted it — that array also
     // serves as the wire filter allowlist, and haiCore treats an all-unknown
     // `kind` filter as no filter at all, so carrying the unminted kind here
     // silently returned the entire feed (all 7 audit-side kinds included) the
-    // moment someone clicked it alone. Only four pills render today.
+    // moment someone clicked it alone.
+    // v1.73 WP4 Phase 2: 3.66.0 landed (haiCore `8177ed3f`, 2026-08-12), the
+    // kind is minted, and the pill is re-added — so FIVE pills render and the
+    // fifth is now a legitimate wire filter value.
     const pillNames = [
       "lead time degraded",
       "lead time improved",
       "promise date slipped",
       "promise date improved",
+      "upstream risk reported",
     ];
     for (const name of pillNames) {
       await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
