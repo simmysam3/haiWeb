@@ -2256,8 +2256,8 @@ export function aliasFor(aliases: Map<string, string>, key: string): string;
 - [ ] **Step 2: Run red.**
 - [ ] **Step 3: Implement** in the results-serving method:
 
-As shipped in `apps/core/src/services/run-scoped-alias.ts` (`48bcaafe`) — note the run-scoped
-key, which the original snippet lacked entirely:
+As shipped in `apps/core/src/services/run-scoped-alias.ts` (`48bcaafe`, separator corrected
+in `bbb1d0f9`) — note the run-scoped key, which the original snippet lacked entirely:
 
 ```ts
 export function assignSupplierAliases(rows: WatcherResult[]): WatcherResult[] {
@@ -2265,7 +2265,7 @@ export function assignSupplierAliases(rows: WatcherResult[]): WatcherResult[] {
   const vendorOf = new Map<string, string>();
   for (const r of rows) {
     if (r.counterparty_participant_id !== null) {
-      vendorOf.set(`${r.run_id}\u0000${r.result_id}`, r.counterparty_participant_id);
+      vendorOf.set(`${r.run_id}:${r.result_id}`, r.counterparty_participant_id);
     }
   }
 
@@ -2280,7 +2280,7 @@ export function assignSupplierAliases(rows: WatcherResult[]): WatcherResult[] {
   for (const r of ordered) {
     if (r.counterparty_participant_id !== null) continue; // direct row: identity already disclosed
     if (r.aggregated_under_tier_1 === null) continue; // no path root ⇒ no resolvable supplier
-    const vendorId = vendorOf.get(`${r.run_id}\u0000${r.aggregated_under_tier_1}`);
+    const vendorId = vendorOf.get(`${r.run_id}:${r.aggregated_under_tier_1}`);
     if (vendorId === undefined) continue; // tier-1 row absent from this page: leave absent, never guess
     let aliases = perRun.get(r.run_id);
     if (!aliases) {
@@ -2297,14 +2297,24 @@ export function assignSupplierAliases(rows: WatcherResult[]): WatcherResult[] {
 }
 ```
 
-> ⚠ **Known defect in the shipped file, NOT yet fixed — carry into Task 25.** The composite
-> map keys use a literal NUL (`\x00`) as the separator, written as a raw byte in the source
-> rather than the `\u0000` escape shown above. Two raw NULs put git's binary heuristic into
-> effect: `git show`/`git diff` render the whole 101-line module as *"Binary files … differ"*
-> and `git grep` returns *"Binary file matches"* with no line numbers. **The central new
-> module of Task 23 would therefore reach the PR with zero reviewable diff.** Fix is one
-> character — any non-NUL separator (`:` is unambiguous, both halves being UUIDs) — plus a
-> re-gate. Needs an owner commit grant before it lands.
+> **Defect found and FIXED in `bbb1d0f9` -- recorded here because the failure mode is
+> invisible and worth carrying.** As first shipped (`48bcaafe`), the composite map keys used a
+> raw NUL byte as the separator rather than the `:` shown above. Two NULs in a 4452-byte file
+> put it inside **git's binary heuristic, which scans the first 8000 bytes**, so `git show` and
+> `git diff` rendered the whole 101-line module as *"Binary files ... differ"*, `git grep`
+> returned *"Binary file matches"* with no line numbers, and plain `grep` found nothing --
+> which is how it surfaced. **Task 23's central module would otherwise have reached the Phase 2
+> PR with zero reviewable diff.**
+>
+> Fixed to `:` -- neither half can contain it (both are UUIDs), so the key space is unchanged
+> and no behaviour moves. haiCore re-gated: protocol 100 files / 1156 tests, apps/core 443 /
+> 3567, root build exit 0, sweep clean both sides.
+>
+> **Judge such a fix by the MERGE-BASE diff.** `git diff HEAD~` reports **0 insertions /
+> 0 deletions** for the fix commit, because the *old* blob is the binary one -- it reads as an
+> empty commit while being correct. `git diff --numstat 8177ed3f -- <path>` showed 106 added
+> lines, which is what the PR actually renders. **At PR-open, check that no file in the diff
+> renders as binary** -- and prove your NUL scanner can detect a NUL before trusting it.
 
 (Adapt field casing/assembly to the service's actual row mapping at dispatch — the snippet states the algorithm; the service's own row-to-API mapping carries it into `supplier_alias`.)
 
