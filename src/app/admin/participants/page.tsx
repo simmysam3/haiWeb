@@ -140,7 +140,8 @@ export default function ParticipantsPage() {
       <Modal open={!!suspendTarget} onClose={() => setSuspendTarget(null)} title="Suspend Participant">
         <div className="space-y-4">
           <p className="text-sm text-charcoal">
-            Suspend <strong>{suspendTarget?.company_name}</strong>? Their agents will be jailed and network participation disabled.
+            {/* P7d (ruled, verbatim) */}
+            Suspend <strong>{suspendTarget?.company_name}</strong>? Their agents will be quarantined and network participation disabled.
           </p>
           <div>
             <label className="block text-sm font-medium text-charcoal mb-1">Reason</label>

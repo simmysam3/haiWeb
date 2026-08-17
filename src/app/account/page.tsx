@@ -48,21 +48,24 @@ export default async function DashboardPage() {
       }, null)
     : null;
 
-  // One call, both fleet numbers. `active` drives the tile; `jailed` drives
-  // the alert — jailed being haiCore's own status for an agent that failed 3
-  // consecutive heartbeat probes (heartbeat-scheduler.ts:14), recovered from
-  // via `probation`. The alert deliberately keys off jailed rather than
-  // "active === 0": an account that has provisioned no agents yet is in setup,
-  // not in fault, and the two are indistinguishable by a zero count.
-  const fleet: { total: number; active: number; jailed: number; jailedNames: string[] } | null = session
+  // One call, both fleet numbers (broker P3, §6.6): `healthy` drives the
+  // "Agents Online" tile — administrative `active` status says nothing about
+  // whether an agent is actually answering, so counting it was a standing
+  // false "online" claim — and `unreachable` drives the alert, both from
+  // haiCore's DERIVED per-agent availability (unresolved dispatch failures /
+  // stale liveness), which self-clears on the recovery edge. The alert
+  // deliberately keys off unreachable rather than "healthy === 0": an account
+  // that has provisioned no agents yet is in setup, not in fault, and the two
+  // are indistinguishable by a zero count.
+  const fleet: { total: number; healthy: number; unreachable: number; unreachableNames: string[] } | null = session
     ? await fetchFromApi(async (client) => {
         const { agents } = await client.listAgents();
         return {
           total: agents.length,
-          active: agents.filter((a) => a.status === "active").length,
-          jailed: agents.filter((a) => a.status === "jailed").length,
-          jailedNames: agents
-            .filter((a) => a.status === "jailed")
+          healthy: agents.filter((a) => a.availability === "healthy").length,
+          unreachable: agents.filter((a) => a.availability === "unreachable").length,
+          unreachableNames: agents
+            .filter((a) => a.availability === "unreachable")
             .map((a) => a.name ?? a.id.slice(0, 8)),
         };
       }, null)
@@ -95,7 +98,7 @@ export default async function DashboardPage() {
           literal "active" hard-coded in auth.ts:145 and would report every
           account healthy including a suspended one. */}
       <DashboardAlertBar
-        agents={fleet && { total: fleet.total, jailed: fleet.jailed, jailedNames: fleet.jailedNames }}
+        agents={fleet && { total: fleet.total, unreachable: fleet.unreachable, unreachableNames: fleet.unreachableNames }}
         accountStatus={accountStatus}
       />
 
@@ -119,9 +122,12 @@ export default async function DashboardPage() {
           label="Trading Pairs"
           value={connections != null ? String(connections.pairs) : null}
         />
+        {/* P7d (ruled): the label stays, the value is the HEALTHY count —
+            an agent is "online" when it is actually answering, not when its
+            administrative status happens to be 'active'. */}
         <StatCard
           label="Agents Online"
-          value={fleet != null ? String(fleet.active) : null}
+          value={fleet != null ? String(fleet.healthy) : null}
         />
         <StatCard
           label="Behavioral Score"

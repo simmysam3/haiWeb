@@ -6,9 +6,9 @@ export default function AgentHealthPage() {
     <div>
       <PageHeader
         title="Agent Health"
-        description="Monitor heartbeat, status, and failure counts across your deployed agents."
+        description="Monitor availability, liveness, and dispatch health across your deployed agents."
       />
-      <ComingSoon note="Live agent heartbeat, last-seen, and failure metrics will appear here once runtime telemetry is wired." />
+      <ComingSoon note="Live agent availability — healthy, quiet, or unreachable — with last-interaction times will appear here once this surface is built." />
     </div>
   );
 }

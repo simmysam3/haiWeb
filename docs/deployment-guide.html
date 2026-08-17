@@ -261,8 +261,8 @@
                             <h3 style="margin-top: 24px;">Health Checks</h3>
                             <p class="body-text">The agent exposes a health endpoint that confirms the application is running, database connections are active, and authentication credentials are valid. Hit it first.</p>
 
-                            <h3 style="margin-top: 24px;">Heartbeat</h3>
-                            <p class="body-text">Once connected to the network, HAIWAVE central sends periodic heartbeat checks (Hello/ACK). Your agent must respond within the configured window. Three consecutive missed heartbeats trigger jail status, which makes your agent undiscoverable on the network until it recovers and completes a probationary period. Heartbeat failures usually indicate networking issues, container resource constraints, or misconfigured authentication.</p>
+                            <h3 style="margin-top: 24px;">Availability</h3>
+                            <p class="body-text">Once connected to the network, HAIWAVE central observes your agent through its normal traffic — polls it makes and requests it answers. An agent whose dispatches fail is shown as unreachable to its owner; an agent with no traffic for a few hours is re-verified on its next contact. Your agent is never removed from discovery for being unreachable — buyers simply see truthful delivery failures until it recovers. Persistent failures usually indicate networking issues, container resource constraints, or misconfigured authentication.</p>
 
                             <h3 style="margin-top: 24px;">Classification Test</h3>
                             <p class="body-text">Push a small batch of known products through the classification flow and verify the returned taxonomy classes match your expectations. Low-confidence results usually mean the product descriptors need enrichment. The agent will suggest which additional fields to provide.</p>
@@ -292,7 +292,7 @@
                                     <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Manifest JSON files with syntax errors</div>
                                 </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr;">
-                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Heartbeat failures</div>
+                                    <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Agent shown unreachable (failing dispatches)</div>
                                     <div style="padding: 10px 16px; font-size: 14px; color: var(--slate);">Network connectivity between container and HAIWAVE central endpoints</div>
                                 </div>
                             </div>

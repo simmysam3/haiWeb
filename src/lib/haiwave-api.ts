@@ -160,6 +160,12 @@ export interface AgentSummary {
   auth_issuer?: string;
   auth_jwks_uri?: string;
   api_base_url?: string;
+  // Broker P3 (§6.6) — DERIVED per-agent availability; absent for agents
+  // outside the derivation (non-active status) and from older haiCore.
+  // `last_interaction_at` is the honest name for the same instant
+  // `last_heartbeat_at` read-maps to.
+  availability?: "healthy" | "quiet" | "unreachable" | "not_deployed";
+  last_interaction_at?: string | null;
 }
 
 export interface AgentCredential {
@@ -503,7 +509,6 @@ export interface HaiwaveClient {
   listNotifications(unread?: boolean): Promise<unknown>;
   /** Marks a notification read. haiCore returns 404 for an unknown/foreign id. */
   markNotificationRead(id: string): Promise<unknown>;
-  getAgentStatus(agentId: string): Promise<Record<string, unknown>>;
   // Agent credential issuance (v.1.58)
   listAgents(): Promise<{ agents: AgentSummary[] }>;
   createAgent(name: string): Promise<AgentCredential>;
@@ -1148,10 +1153,6 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     markNotificationRead(id) {
       return request<unknown>("POST", `/notifications/${encodeURIComponent(id)}/read`);
-    },
-
-    getAgentStatus(agentId) {
-      return request<Record<string, unknown>>("GET", `/heartbeat/status/${agentId}`);
     },
 
     // ─── Agent credential issuance (v.1.58) ───────────────

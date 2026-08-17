@@ -15,6 +15,10 @@ export const STATUS_LABELS: Record<string, string> = {
   inside_sales_transact: 'Inside Sales Transact',
   pass: 'Pass',
   fail: 'Fail',
+  // Broker P3 (P7d, ruled): the on-wire quarantine value stays 'jailed' for
+  // compat, but the console renders the administrative truth.
+  jailed: 'Suspended',
+  not_deployed: 'Not Deployed',
 };
 
 interface StatusBadgeProps {
