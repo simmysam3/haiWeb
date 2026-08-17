@@ -291,12 +291,23 @@ export const MOCK_PRICING_DEFAULTS = {
 
 // ─── Mock Admin Stats ────────────────────────────────────────
 
+// The REAL haiCore AdminOverview shape (broker P3 reshape): the previous
+// mock carried a fictional agent_health block the live payload never had, so
+// the page rendered mock data forever while looking wired. The dev fallback
+// must be indistinguishable in SHAPE from production.
 export const MOCK_ADMIN_STATS = {
-  participants: { active: 10, pending_payment: 0, suspended: 0, total: 10 },
-  trading_pairs: 24,
-  outstanding_invoices: 1,
-  outstanding_amount: 2400,
-  agent_health: { active: 10, jailed: 0, probation: 0, offline: 0 },
+  participants: { total: 10, active: 10, suspended: 0, pending: 0 },
+  trading_pairs: { total: 24, active_30d: 8 },
+  agents: {
+    total: 10,
+    active: 10,
+    jailed: 0,
+    probation: 0,
+    revoked: 0,
+    availability: { healthy: 9, quiet: 1, unreachable: 0, not_deployed: 0 },
+  },
+  gofish: { queries_24h: 4, queries_7d: 31 },
+  orders: { total: 18, open: 3 },
 };
 
 // ─── Mock Blocked Companies ───────────────────────────────

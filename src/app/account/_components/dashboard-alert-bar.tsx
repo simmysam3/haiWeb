@@ -2,14 +2,15 @@ import Link from "next/link";
 
 interface DashboardAlertBarProps {
   /**
-   * Fleet counts. `jailed` is haiCore's own agent status — the state its
-   * heartbeat machine moves an agent into after 3 consecutive failed probes,
-   * and recovers from through `probation`. Using it rather than a freshness
+   * Fleet counts. `unreachable` is haiCore's own DERIVED availability class
+   * (broker P3, §6.6): unresolved dispatch-failure ledger rows for the agent,
+   * self-clearing on the recovery edge. Using it rather than a freshness
    * window defined here means this alert agrees with the Agents page and with
-   * the state machine that owns the question. `jailedNames` are haiCore's own
-   * agent names, with id-slice fallback resolved by the caller. `null` = not known.
+   * the derivation that owns the question. `unreachableNames` are haiCore's
+   * own agent names, with id-slice fallback resolved by the caller.
+   * `null` = not known.
    */
-  agents: { total: number; jailed: number; jailedNames: string[] } | null;
+  agents: { total: number; unreachable: number; unreachableNames: string[] } | null;
   /** The account's own participant status. `null` = not known. */
   accountStatus: string | null;
 }
@@ -62,25 +63,26 @@ export function DashboardAlertBar({ agents, accountStatus }: DashboardAlertBarPr
     });
   }
 
-  // Only a JAILED agent is a fault. An account with no agents at all is mid
-  // setup, not broken, and interrupting it would be noise — which is why this
-  // keys off `jailed` rather than "nothing is active".
-  if (agents && agents.jailed > 0) {
-    const everyAgent = agents.jailed === agents.total;
-    const names = nameList(agents.jailedNames);
+  // Only an UNREACHABLE agent is a fault. An account with no agents at all is
+  // mid setup, not broken, and interrupting it would be noise — which is why
+  // this keys off `unreachable` rather than "nothing is active". Both
+  // sentences are the owner-approved P7a/P7b wording, verbatim.
+  if (agents && agents.unreachable > 0) {
+    const everyAgent = agents.unreachable === agents.total;
+    const names = nameList(agents.unreachableNames);
     alerts.push(
       everyAgent
         ? {
             severity: "blocking",
             headline: "No agents are reachable",
-            detail: `Every agent has stopped answering heartbeats (${names}), so no inbound quote request can be answered.`,
+            detail: `Every agent is failing dispatches (${names}), so no inbound quote request can be answered.`,
             href: "/account/agents",
             hrefLabel: "Check agent health under Agents.",
           }
         : {
             severity: "degraded",
-            headline: `${agents.jailed} of ${agents.total} agents unreachable`,
-            detail: `Unreachable: ${names}. A jailed agent returns to service automatically once it answers heartbeats again.`,
+            headline: `${agents.unreachable} of ${agents.total} agents unreachable`,
+            detail: `Unreachable: ${names}. An unreachable agent returns to service automatically once it answers again.`,
             href: "/account/agents",
             hrefLabel: "Check agent health under Agents.",
           },

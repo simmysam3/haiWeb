@@ -8,12 +8,27 @@ import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
 import { MOCK_ADMIN_STATS, MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
 
+/**
+ * The REAL haiCore AdminOverview payload (protocol AdminOverviewSchema). The
+ * previous local interface here described a fictional
+ * `agent_health{…,offline}` shape haiCore never returned — the real payload
+ * threw on first read and this page silently showed its mock forever.
+ * `availability` is the broker-P3 derived split (additive; absent from an
+ * older haiCore).
+ */
 interface AdminOverview {
-  participants: { active: number; pending_payment: number; suspended: number; total: number };
-  trading_pairs: number;
-  outstanding_invoices: number;
-  outstanding_amount: number;
-  agent_health: { active: number; jailed: number; probation: number; offline: number };
+  participants: { total: number; active: number; suspended: number; pending: number };
+  trading_pairs: { total: number; active_30d: number };
+  agents: {
+    total: number;
+    active: number;
+    jailed: number;
+    probation: number;
+    revoked?: number;
+    availability?: { healthy: number; quiet: number; unreachable: number; not_deployed: number };
+  };
+  gofish: { queries_24h: number; queries_7d: number };
+  orders: { total: number; open: number };
 }
 
 export function AdminDashboard() {
@@ -25,13 +40,22 @@ export function AdminDashboard() {
   const suspended = MOCK_ADMIN_PARTICIPANTS.filter((p) => p.status === "suspended");
   const { toast, showToast } = useToast();
 
-  const agentTotal = stats.agent_health.active + stats.agent_health.jailed + stats.agent_health.probation + stats.agent_health.offline;
-  const healthSegments = [
-    { label: "Active", count: stats.agent_health.active, color: "bg-success" },
-    { label: "Probation", count: stats.agent_health.probation, color: "bg-warning" },
-    { label: "Jailed", count: stats.agent_health.jailed, color: "bg-problem" },
-    { label: "Offline", count: stats.agent_health.offline, color: "bg-slate/30" },
-  ];
+  // P7c (ruled): Healthy / Quiet / Unreachable / Suspended. The first three
+  // are the DERIVED availability of deployed active agents; Suspended is the
+  // administrative jailed count (P3: status is a decision, not a
+  // measurement). not_deployed agents are in setup, not in fault — outside
+  // the tile denominator.
+  const avail = stats.agents.availability ?? null;
+  const deployedTotal = avail ? avail.healthy + avail.quiet + avail.unreachable : null;
+  const healthSegments = avail
+    ? [
+        { label: "Healthy", count: avail.healthy, color: "bg-success" },
+        { label: "Quiet", count: avail.quiet, color: "bg-warning" },
+        { label: "Unreachable", count: avail.unreachable, color: "bg-problem" },
+        { label: "Suspended", count: stats.agents.jailed, color: "bg-slate/30" },
+      ]
+    : [];
+  const segmentTotal = healthSegments.reduce((n, s) => n + s.count, 0);
 
   return (
     <div className="space-y-8">
@@ -50,18 +74,20 @@ export function AdminDashboard() {
         />
         <StatCard
           label="Trading Pairs"
-          value={stats.trading_pairs.toString()}
+          value={stats.trading_pairs.total.toString()}
           color="text-navy"
         />
+        {/* No real data source (the invoice lane never shipped a dashboard
+            field) — absence surfaces as absence, never a fabricated number. */}
         <StatCard
           label="Outstanding Invoices"
-          value={`$${stats.outstanding_amount.toLocaleString()}`}
+          value={null}
           color="text-warning"
         />
         <StatCard
           label="Agent Health"
-          value={`${stats.agent_health.active}/${agentTotal} active`}
-          color={stats.agent_health.jailed > 0 ? "text-warning" : "text-success"}
+          value={avail && deployedTotal != null ? `${avail.healthy}/${deployedTotal} healthy` : null}
+          color={avail && avail.unreachable > 0 ? "text-warning" : "text-success"}
         />
       </div>
 
@@ -123,29 +149,33 @@ export function AdminDashboard() {
         )}
       </Card>
 
-      {/* Network Health */}
-      <Card title="Network Health — Agent Status Distribution">
-        <div className="flex h-6 rounded-full overflow-hidden mb-4">
-          {healthSegments.map((seg) => (
-            seg.count > 0 && (
-              <div
-                key={seg.label}
-                className={`${seg.color} transition-all`}
-                style={{ width: `${(seg.count / agentTotal) * 100}%` }}
-                title={`${seg.label}: ${seg.count}`}
-              />
-            )
-          ))}
-        </div>
-        <div className="flex gap-6">
-          {healthSegments.map((seg) => (
-            <div key={seg.label} className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${seg.color}`} />
-              <span className="text-xs text-slate">{seg.label}: {seg.count} ({Math.round((seg.count / agentTotal) * 100)}%)</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* Network Health — the derived availability split (P7c). Rendered
+          only when haiCore serves the availability block: absence (an older
+          haiCore) surfaces as absence, never as a row of zeros. */}
+      {avail && segmentTotal > 0 && (
+        <Card title="Network Health — Agent Availability Distribution">
+          <div className="flex h-6 rounded-full overflow-hidden mb-4">
+            {healthSegments.map((seg) => (
+              seg.count > 0 && (
+                <div
+                  key={seg.label}
+                  className={`${seg.color} transition-all`}
+                  style={{ width: `${(seg.count / segmentTotal) * 100}%` }}
+                  title={`${seg.label}: ${seg.count}`}
+                />
+              )
+            ))}
+          </div>
+          <div className="flex gap-6">
+            {healthSegments.map((seg) => (
+              <div key={seg.label} className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${seg.color}`} />
+                <span className="text-xs text-slate">{seg.label}: {seg.count} ({Math.round((seg.count / segmentTotal) * 100)}%)</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

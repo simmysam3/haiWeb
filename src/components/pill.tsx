@@ -62,7 +62,13 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     pending_payment: 'Awaiting payment.',
     open: 'Open and unresolved.',
     probation: 'Permitted but under heightened scrutiny.',
-    jailed: 'Temporarily restricted due to policy violation.',
+    // Broker P3 (P7d, owner-approved verbatim): 'jailed' is administrative
+    // suspension; quiet/unreachable/healthy are the DERIVED availability.
+    jailed: 'Suspended by an administrator.',
+    quiet: 'No traffic for a while; screened on next contact.',
+    unreachable: 'Recent dispatches to this agent are failing.',
+    healthy: 'Answering dispatches normally.',
+    not_deployed: 'No endpoint configured yet — in setup, not in fault.',
     revoked: 'Credential revoked — the agent can no longer authenticate.',
     suspended: 'Access suspended.',
     past_due: 'Payment is overdue.',
@@ -399,9 +405,9 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
 
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
   const v = value ?? '';
-  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed', 'revoked'].includes(v)) return 'problem';
-  if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning'].includes(v)) return 'warn';
-  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified', 'enabled'].includes(v)) return 'success';
+  if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed', 'revoked', 'unreachable'].includes(v)) return 'problem';
+  if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning', 'quiet'].includes(v)) return 'warn';
+  if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified', 'enabled', 'healthy'].includes(v)) return 'success';
   // run_origin tones: scheduled/event triggers are info (intentional automation); ad_hoc/manual = neutral
   if (category === 'run_origin') {
     if (v === 'template_scheduled' || v === 'template_event_triggered') return 'info';

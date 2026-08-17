@@ -201,7 +201,7 @@ const navSections: NavSection[] = [
     // Provisioning" so all agent lifecycle surfaces live together.
     label: "Agents",
     items: [
-      { href: "/account/agent-health", label: "Agent Health", tooltip: "Heartbeat, throttle, and error status for each provisioned HAIWAVE agent." },
+      { href: "/account/agent-health", label: "Agent Health", tooltip: "Availability, throttle, and error status for each provisioned HAIWAVE agent." },
       {
         href: "/account/agent-software",
         label: "Agent Software",

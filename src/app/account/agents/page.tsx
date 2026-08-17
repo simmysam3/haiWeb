@@ -10,7 +10,7 @@ export default function AgentsPage() {
         description="Provision HAIWAVE agent deployments and manage their keys. Runtime health lives under Agents → Agent Health."
       />
       <PageIntro>
-        Provision, configure, and rotate the AI agents that act on your behalf across the HAIWAVE network — including their authentication keys, environment, and connection scopes. For runtime status (heartbeat, failures, last-seen), switch to <em>Agents → Agent Health</em>.
+        Provision, configure, and rotate the AI agents that act on your behalf across the HAIWAVE network — including their authentication keys, environment, and connection scopes. For runtime status (availability, dispatch failures, last interaction), switch to <em>Agents → Agent Health</em>.
       </PageIntro>
       <AgentsPanel />
     </div>
