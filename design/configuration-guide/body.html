@@ -1,9 +1,11 @@
 <!--
   HAIWAVE Configuration Guide — design-system content pages (the body slot).
-  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.3.md (canonical)
-  as of haiCore 264caa3c (2026-08-16): incl. §A Baseline Deployment Environments (section 12), the
-  §2 outbound-now / planned self-service registration callouts, the §7.5 redelivery note, and the
-  broker-P3 heartbeat wording (Central observes availability through normal traffic; no probes).
+  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.5.md (canonical)
+  as of haiCore guide-1.5 (2026-08-17): edition 1.4's v1.66/v1.67 reconciliation folded onto the amended
+  1.3, with liveness rewritten for the v1.75 platform (availability derived, not probed: §4.3a), the
+  §4.3b upgrade notes, §6.11 console self-visibility, §7.1d envelope status, §7.5 decline + delivery
+  failures (queued_replay), the /participants/me endpoint + retry_config note (§10.3), and the two
+  prescribed quote/catalog contracts (§10.6). Section numbering here is the PDF's own (see TOC).
   per the authoring contract in template.html. One page section per printed page;
   .pagenum + toc__pg are auto-filled by the template script. Pages were authored
   without a render; verify each .page <= 1056px on first real render and split/trim
@@ -234,8 +236,46 @@
       <div class="h4"><span class="t">Verify it is working —</span> after start-up.</div>
       <ul class="ul">
         <li><b>Process up.</b> <code class="ic">curl -s http://&lt;host&gt;:&lt;port&gt;/health | jq .version</code> returns the running version.</li>
-        <li><b>Reached Central.</b> In network mode the logs show a successful Keycloak token exchange against <code class="ic">HAICORE_BASE_URL</code> (not the localhost fallback) and a registration / heartbeat acknowledgement. A token-exchange failure or the localhost fallback means the Keycloak credentials or <code class="ic">HAICORE_BASE_URL</code> are wrong.</li>
+        <li><b>Reached Central.</b> In network mode the logs show a successful Keycloak token exchange against <code class="ic">HAICORE_BASE_URL</code> (not the localhost fallback) and a registration acknowledgement. A token-exchange failure or the localhost fallback means the Keycloak credentials or <code class="ic">HAICORE_BASE_URL</code> are wrong.</li>
         <li><b>Behaviors intact.</b> Run the conformance kit against the source: <code class="ic">npx vitest run packages/client-sdk/src/__tests__/conformance/</code> (§10.7).</li>
+      </ul>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 04b2 · DEPLOY (availability + upgrades) ============================ -->
+<section class="page" data-screen-label="4b2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">4.3a</span>Availability: Observed, Not Probed</div>
+      <p class="p">Earlier editions described heartbeats as governing availability while nothing on the platform side drove them. v1.66 closed that gap by probing every registered endpoint on a five-minute sweep and jailing an agent that stopped answering. The v1.75 platform removed that machine rather than tuning it: HAIWAVE Central no longer sends heartbeats and no longer jails an agent for silence. It derives your agent's availability at read time from two facts it already holds, the last time your agent itself called Central (its own polls, registration, and any authenticated inbound call) and whether Central's recent dispatches to your agent succeeded. The result is one of four values, shown on your console dashboard and on the agent listing (§6.11).</p>
+      <table class="tbl">
+        <thead><tr><th>Availability</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">healthy</code></td><td>Recent traffic in either direction.</td></tr>
+          <tr><td class="lbl"><code class="ic">quiet</code></td><td>No traffic for a while (four hours by default). Nothing is wrong yet; the agent is screened on its next contact.</td></tr>
+          <tr><td class="lbl"><code class="ic">unreachable</code></td><td>Recent dispatches to the agent are failing. The dashboard says so, by agent name.</td></tr>
+          <tr><td class="lbl"><code class="ic">not deployed</code></td><td>No endpoint has been registered for the agent yet (§3).</td></tr>
+        </tbody>
+      </table>
+      <p class="p">Two consequences follow, and both are worth designing for rather than discovering:</p>
+      <ul class="ul">
+        <li><b>An unreachable agent misses work.</b> A quote request, order, or discovery query that Central cannot deliver is recorded as a failed dispatch. Quote requests and orders are re-sent once the agent is answering again, with less content than the original (§7.5), unless the buyer's request has expired or been withdrawn in the meantime; a discovery query is not re-sent, and the buyer's result simply does not include you. There is no penalty state to leave and nothing to re-enrol: the agent returns to service automatically on its next successful exchange.</li>
+        <li><b>A direct query does not silently drop you.</b> A buyer who queries your agent by name while it is unreachable is told that the agent is unreachable, in a fixed message with no detail, rather than getting nothing back. Being unreachable is visible to counterparties as unreachability, not as absence. Availability does not currently remove you from discovery results or rank you lower; only an administrative suspension of your account does that.</li>
+      </ul>
+      <p class="p">The <code class="ic">heartbeat_hello</code> MCP tool (§10.2) is retained for wire compatibility and is no longer called by Central. The practical requirement is the one §A.1 states: the process must stay up and stay reachable at <code class="ic">AGENT_PUBLIC_URL</code>. An agent that sleeps, scales to zero, or is stopped overnight is shown to its own operators as unreachable until it answers again.</p>
+      <div class="h3"><span class="n">4.3b</span>Upgrades</div>
+      <p class="p">Non-destructive by construction: build the new package, stop the old container, start the new one with the <b>same volumes</b>. Configuration is seed-once, so your edits survive, and the database migrates itself forward. Verify with <code class="ic">/health</code>; the reported version should match the new package. The package's <code class="ic">UPGRADING.md</code> and <code class="ic">CHANGELOG.md</code> carry per-release notes. Agent releases jump from 1.50.0 to 1.56.0 and from 1.60.0 to 1.65.0, and the tag sequence also skips <code class="ic">v1.64.0</code> and <code class="ic">v1.66.0</code>, whose releases are carried inside the following tag; a gap is deliberate, not a failed download.</p>
+      <p class="p"><b>Upgrading to 1.65.</b> A price with no currency is withheld instead of being sent out under an assumed <code class="ic">USD</code>; read §7.1a before upgrading.</p>
+      <p class="p"><b>Upgrading to 1.66 and 1.67.</b> Four changes are visible from outside the agent. None requires configuration, and all four are corrections rather than new options:</p>
+      <ul class="ul">
+        <li><b>Quote expiry is two windows, not one</b> (§7.1c). Check any integration that computes an expiry.</li>
+        <li><b>The quote status a buyer receives is derived differently</b> (§7.1d). A draft whose lines are all partly filled now reports <code class="ic">partial</code> where it previously reported <code class="ic">unable</code>.</li>
+        <li><b>Availability is visible</b> (§4.3a). An agent that is not running is shown to its operators as unreachable rather than as merely stale, and it misses work while it is down.</li>
+        <li><b>A catalog query with no search term is refused</b> (§10.6) instead of returning an arbitrary slice of the catalog.</li>
       </ul>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
@@ -520,6 +560,24 @@
   </div>
 </section>
 
+<!-- ============================ 6f · SECURITY (console self-visibility) ============================ -->
+<section class="page" data-screen-label="6f">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">6.10, continued —</span> the Request backlog.</div>
+      <p class="p"><b>Grants bound what you can take, not only what you can commit</b> (v1.67). The queue offers a <i>Request backlog</i> control that pulls a batch of open items into your working set and holds them for the duration of a lease. That claim is filtered by the same grant reach that governs acting on an item: it hands you only item types you could actually action, because a claim is exclusive and a review-only user checking out a batch used to block, for the whole lease, everyone who could have acted on it. Reading and commenting never required a claim; the queue's All view shows every item and accepts a recommendation without one. The working set is capped (<code class="ic">QUEUE_BACKLOG_SIZE</code>, default 10), so a claim is bounded in size as well as in time.</p>
+      <div class="h3"><span class="n">6.11</span>What Your Own People Can See In The Console</div>
+      <p class="p">Two console read paths opened in v1.66, and both moved in the direction of showing an operator something they were previously denied without gaining any ability to change it.</p>
+      <p class="p"><b>Your account's own standing is readable by any member.</b> The console reports whether your participant record is <code class="ic">active</code>, <code class="ic">pending</code>, or <code class="ic">suspended</code>, on the System Dashboard. Previously there was no self-service reader for it at all, so a suspended account saw an entirely normal console and learned of the suspension only by having operations fail for no stated reason. The reader is scoped to the caller: it resolves your participant from your own verified token and accepts no identifier from the request, so it cannot be turned into a reader of anyone else's standing. It is deliberately not restricted to <code class="ic">account_admin</code>, because an account's own standing is not privileged information to its own members. When the status cannot be read at all, the console shows nothing rather than guessing, so a Central outage never presents itself as a suspension.</p>
+      <p class="p"><b>Agent-fleet visibility is open to every member, with credential-shaped fields withheld below <code class="ic">account_admin</code>.</b> Listing your agents used to require <code class="ic">account_admin</code>, the same gate as creating and revoking them. That gate had a side effect nobody intended: the dashboard raises an alert when every agent in your fleet is unreachable, and for every non-admin the underlying call was refused, the lane went blank, and a blank lane deliberately never raises an alert. The people most likely to be watching that dashboard were the only ones who could not see the alarm. Reading the fleet now requires only membership. Non-admin readers receive the health fields (agent name, status, availability and last-interaction time, registration date) and not the credential-shaped ones (<code class="ic">client_id</code> and the token, issuer, JWKS and API addresses), which individually are not secrets but together describe the shape of a credential pair and its address, and are of no use to a role that cannot manage credentials. Creating, rotating, and revoking an agent are unchanged and still require <code class="ic">account_admin</code>.</p>
+      <div class="cfg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007585" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg><span class="lab">See</span><b>Account › System Dashboard (standing, fleet alert) · Account › Agents (availability: healthy · quiet · unreachable · suspended)</b></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
 <!-- ============================ 07 · MANIFEST (pricing + recommendations) ============================ -->
 <section class="page" data-screen-label="7">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
@@ -533,6 +591,7 @@
       <div class="h3"><span class="n">7.1a</span>A Price With No Currency Does Not Publish</div>
       <div class="note teal"><p class="p"><span class="k">Read before upgrading to v1.65.</span> This changes what your catalog publishes. A price is only meaningful alongside the currency it is denominated in. Earlier releases supplied <code class="ic">USD</code> as a default wherever a currency was missing, so a partly configured row still went to the network carrying a denomination nobody had chosen. From v1.65 the platform does not invent one: where a currency is absent, the price is withheld rather than published with a guess.</p></div>
       <p class="p">The rule applies uniformly across every outbound surface. <b>Catalog publication</b> sends price and currency together or neither, so a priced row with no currency publishes as an unpriced row; it stays discoverable, it simply carries no price. <b>Discovery</b> withholds an offering the agent cannot denominate rather than returning it with an assumed currency. <b>Quotes</b> require a currency on both lines and totals, and a quote whose lines span two currencies is refused, because a total across mixed denominations has no meaning; a quote the agent is unable to price states your configured currency beside zero totals so the reply stays legible. <b>ERP-sourced prices</b> arriving without a currency are skipped rather than stamped with a default.</p>
+      <p class="p"><b>The unit price goes with it.</b> A line dropped for having no currency reports no unit price either. This was corrected in v1.66 after a walk of the live console found the earlier behaviour: the quantity and the total were zeroed but the unit price survived, and at that point the surviving figure could be an internal fallback under a borrowed currency, which is exactly the fabricated number the rule exists to keep off the wire.</p>
       <p class="p"><b>What to do before you upgrade.</b> Confirm your pricing manifest declares a currency and that priced rows in your catalog carry one. Rows that do not will publish without prices after the upgrade. That is intended, and recoverable at any time by setting the currency, but it is better known in advance than discovered as a gap. The agent applies a one-time migration on first boot which removes the old default from the pricing store: prices already stored keep the currency they have, and nothing is rewritten or deleted.</p>
       <p class="p"><b>Where currency belongs.</b> Currency attaches to the price and to the legal entity that transacts, never to a physical site. A facility makes and holds goods; it does not denominate them. If you operate in more than one currency, express that with a pricing manifest scoped to the relevant location (§7.1b), the direct analogue of a currency-denominated price list in an ERP. Do not expect to set a currency on a plant or warehouse record.</p>
     </div>
@@ -569,6 +628,19 @@
       <p class="p">These defaults belong to different sides of the exchange, and nothing keeps them in sync unless the field is set explicitly.</p>
       <div class="note teal"><p class="p"><span class="k">An explicit <code class="ic">valid_for_hours</code> on the request overrides both.</span> Set it on the outgoing request and it carries through untouched: Central uses it as the request window, and the vendor's quote reports the same figure as its price hold.</p></div>
       <p class="p">A <b>solicitation</b> (§7.5) always supplies its own value, calculated from the solicitation's deadline, so neither default applies there. A ten-day solicitation stays open for the full ten days regardless of what a plain quote request would otherwise default to.</p>
+      <div class="h3"><span class="n">7.1d</span>The Quote Status A Buyer Receives</div>
+      <p class="p">A quote carries a per-line status for every line and one envelope status for the quote as a whole. The envelope status is derived from the lines, and v1.67 corrects how: <b>the rule asks whether each line was priced, not whether it was filled completely.</b></p>
+      <table class="tbl">
+        <thead><tr><th>Lines</th><th>Envelope status</th></tr></thead>
+        <tbody>
+          <tr><td>Every line quoted in full</td><td class="mono"><code class="ic">complete</code></td></tr>
+          <tr><td>At least one line quoted in full or partly filled</td><td class="mono"><code class="ic">partial</code></td></tr>
+          <tr><td>No line priced at all</td><td class="mono"><code class="ic">unable</code></td></tr>
+        </tbody>
+      </table>
+      <p class="p">The change is the middle row. A partly filled line, one where you can supply some of the requested quantity but not all of it, previously did not count toward the roll-up, so a draft in which <i>every</i> line was partly filled reported <code class="ic">unable</code>. <code class="ic">unable</code> is presented to the person releasing the quote as "no line on this request could be quoted", so approving it sends the buyer a refusal, the same answer as denying it. For such a draft neither half was true: approving released real available quantities and denying zeroed them, so the two buttons were opposite answers presented as equivalent ones.</p>
+      <p class="p"><b>What this means on the wire.</b> For that class of quote the status a buyer receives changes from <code class="ic">unable</code> to <code class="ic">partial</code>. Nothing else changes: no field is added, no new value enters the vocabulary, and the per-line statuses and quantities are exactly what they were. If you parse the envelope status rather than the lines, this is the one change in v1.67 that can affect your integration. Quotes drafted before the upgrade keep the status they were stored with.</p>
+      <div class="note teal"><p class="p"><span class="k">Journey C.</span> The derivation is a prescribed contract, not reference behaviour, and the conformance kit exercises it (§10.6). If you build your own agent, derive the envelope status by this rule.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -602,7 +674,20 @@
       <p class="p">When an invite arrives, your agent files an actionable item in its work queue (§6.10). From there a person can quote it, or <b>decline</b> it. Declining is a first-class outcome rather than an absence: a buyer receiving four quotes and one decline knows where they stand, whereas a buyer receiving four quotes and silence cannot tell whether the fifth vendor is slow, uninterested, or never received the request.</p>
       <p class="p">Two things about pricing here. Your configured price floor is <b>re-read at the moment of use</b>, not captured when the solicitation arrived, so a floor you change while a solicitation is open applies to the quote you send. And quotes are <b>two-tier</b>: the reply records the basis it was priced on, so a quote derived from a list price and one derived from a negotiated or ERP-resolved price stay distinguishable downstream instead of arriving as indistinguishable numbers.</p>
       <div class="note teal"><p class="p"><span class="k">Requires configuration.</span> Quote delivery needs a registered quote endpoint <b>and</b> the paired webhook secret. Self-registration deliberately does not transmit the secret, so an endpoint can be registered and active while still refusing delivery. A 503 means the secret is unset on your side; a 401 means it does not match. Confirm delivery end to end before relying on solicitations, because an undelivered invite is counted as sent.</p></div>
+      <p class="p"><b>Declining requires release 1.66 or later.</b> Decline shipped in 1.64 and did not work: the call that carried it announced a JSON body and then sent none, which the receiving service rejected outright, so a decline armed in the console, confirmed, and then failed. It is fixed from 1.66. On 1.64 or 1.65, treat decline as unavailable until you upgrade, because the buyer will read your decline as silence, which is precisely the outcome the feature exists to prevent.</p>
+      <p class="p"><b>On delivery failures.</b> From v1.66 a delivery attempt that does not land is recorded on the HAIWAVE side rather than passing without trace, so a persistently misconfigured endpoint is diagnosable instead of merely quiet. On the current platform an undelivered quote request is marked as queued for replay, the buyer sees that status rather than a plain pending one, and Central re-sends the request once your agent is answering again (the redelivery note below says what a re-sent request carries). Time lost while unreachable is not given back: the buyer's request window (§7.1c) runs from the original request, and a request that expires or is withdrawn before your agent returns is not re-sent. Confirm delivery end to end anyway; the operator-side record remains the reliable account of whether a quote request reached you.</p>
       <div class="note"><p class="p"><span class="k">A redelivery carries less than the original — by design.</span> If Central could not reach your agent, it re-sends the work once your agent is back. A re-delivered quote request arrives <b>without per-line ship-to addresses</b>, and a re-built order arrives <b>without ship-to, notes, or payment details</b> (the purchase-order number is recovered from the backing quote and included). This is not data loss in transit: Central deliberately keeps no durable copy of that content, so a redelivery cannot include it. Do not reject or error a redelivery for the missing fields — treat what it carries as authoritative, and expect the omitted details on the normal exchanges that follow.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 7d · MANIFEST (order collaboration) ============================ -->
+<section class="page" data-screen-label="7d">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
       <div class="h3"><span class="n">7.6</span>Order Collaboration</div>
       <p class="p">An order does not always survive first contact with reality. Order collaboration is the channel for changing one after it exists without cancelling and re-placing it: a party proposes a change, the other responds, and the order carries the outcome.</p>
       <p class="p">The division of responsibility determines what HAIWAVE can and cannot see. <b>Central holds the lifecycle only</b>, meaning the states a proposal passes through and the fact that it was proposed, accepted or closed. <b>The promises and envelopes stay at the agents</b>, so the commercial substance of what was offered and agreed never leaves your side. The roll-up a counterparty sees is state, not content.</p>
@@ -743,8 +828,10 @@
           <tr><td class="lbl"><code class="ic">/api/v1/manifests/sync</code></td><td class="mono center">POST</td><td>Push a counterparty or pricing manifest</td></tr>
           <tr><td class="lbl"><code class="ic">/api/v1/orders/{id}/staging</code></td><td class="mono center">PUT</td><td>Write an order to staging</td></tr>
           <tr><td class="lbl"><code class="ic">/api/v1/approvals/callback</code></td><td class="mono center">POST</td><td>HMAC-validated approval-decision callback</td></tr>
+          <tr><td class="lbl"><code class="ic">/api/v1/participants/me</code></td><td class="mono center">GET</td><td>Your own participant record: identifier, legal name, account standing (<code class="ic">active</code> / <code class="ic">pending</code> / <code class="ic">suspended</code>). Resolved from your token; reads only you (v1.66, §6.11)</td></tr>
         </tbody>
       </table>
+      <div class="note"><p class="p"><span class="k"><code class="ic">retry_config</code> is accepted and stored, and it is not honoured.</span> Registration publishes a <code class="ic">retry_config</code> with <code class="ic">max_retries</code>, <code class="ic">backoff_base_s</code> and <code class="ic">backoff_max_s</code>. HAIWAVE persists all three and echoes <code class="ic">max_retries</code> back on the endpoint listing, so you can set a retry budget, read it back unchanged, and have it change nothing. What actually happens is fixed: quote delivery retries exactly once, on a 5xx only, after waiting <code class="ic">backoff_base_s</code>; execution delivery retries exactly once and immediately; <code class="ic">max_retries</code> and <code class="ic">backoff_max_s</code> are unread on both paths. Beyond that single retry, an undelivered quote request is queued for replay when your agent returns (§7.5). Do not size your endpoint's availability budget around a retry count that is not applied.</p></div>
       <div class="h3"><span class="n">10.4</span>OAuth2 / Keycloak Authentication</div>
       <p class="p">All haiCore calls use a Keycloak <code class="ic">client_credentials</code> bearer token. Use <code class="ic">TokenManager</code> from <code class="ic">@haiwave/client-sdk</code> — it caches and refreshes for you. The reference implementation is <code class="ic">network/token-manager.ts</code>.</p>
       <pre class="code"><span class="cm">// client_credentials bearer on every haiCore call (cached + refreshed)</span>
@@ -785,6 +872,7 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
         <li><b>WebSocket message shape</b> <code class="ic">{ type, content_panel, intent }</code>.</li>
       </ol>
       <p class="p">Everything else — which LLM, which local-data backend, UI, auth provider — is unconstrained. The executable companion to these invariants is the conformance kit (§10.7), which pins both Tier 0 and Tier 1 behaviorally.</p>
+      <div class="note teal"><p class="p"><span class="k">Two further prescribed contracts, outside chat.</span> (1) <code class="ic">receive_catalog_query</code> must refuse a query with no search term: text that is empty or only whitespace is rejected with an <code class="ic">empty_query</code> error alongside the existing validation refusal (v1.67). It is a guard rather than a nicety: an empty query used to return an arbitrary slice of the catalog, which is disclosure nobody asked for. (2) The envelope quote status is derived from the lines by the rule in §7.1d (<code class="ic">complete</code> / <code class="ic">partial</code> / <code class="ic">unable</code>). The conformance kit exercises both.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -806,7 +894,7 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
         <li>☐ Validate inbound JWT fail-closed when enforcement is on (<code class="ic">validateJwt</code>). <span class="bc">kit: jwt-auth</span></li>
         <li>☐ Verify the PROTO-3 approval-callback HMAC over the raw bytes — <code class="ic">verifyCallbackSignature(body, signature, secret)</code>. <span class="bc">kit: callback-hmac</span></li>
         <li>☐ Publish a ServerCard with the static protocol capabilities (transport <code class="ic">/mcp</code>, protocol version, discovery). <span class="bc">kit: server-card</span></li>
-        <li>☐ Expose <code class="ic">/mcp</code> over Streamable HTTP; respond to <code class="ic">heartbeat_hello</code>.</li>
+        <li>☐ Expose <code class="ic">/mcp</code> over Streamable HTTP; keep <code class="ic">heartbeat_hello</code> answerable for wire compatibility (Central no longer calls it).</li>
       </ul>
       <div class="h4"><span class="t">Tier 1 —</span> protocol surface</div>
       <ul class="ul">
@@ -889,7 +977,7 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
         </tbody>
       </table>
       <div class="divider"></div>
-      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v1.3, 2026-08-17 edition). Generated from the canonical guide; regenerated as the system evolves.</p>
+      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v1.5, 2026-08-17 edition). Generated from the canonical guide; regenerated as the system evolves.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
