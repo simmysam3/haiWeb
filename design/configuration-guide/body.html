@@ -1,6 +1,9 @@
 <!--
   HAIWAVE Configuration Guide — design-system content pages (the body slot).
   Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.3.md (canonical)
+  as of haiCore 264caa3c (2026-08-16): incl. §A Baseline Deployment Environments (section 12), the
+  §2 outbound-now / planned self-service registration callouts, the §7.5 redelivery note, and the
+  broker-P3 heartbeat wording (Central observes availability through normal traffic; no probes).
   per the authoring contract in template.html. One page section per printed page;
   .pagenum + toc__pg are auto-filled by the template script. Pages were authored
   without a render; verify each .page <= 1056px on first real render and split/trim
@@ -28,6 +31,7 @@
           <div class="toc__row"><span class="toc__num">09</span><span class="toc__t">Provenance &amp; Key Management</span><span class="toc__pg" data-ref="s9"></span></div>
           <div class="toc__row"><span class="toc__num">10</span><span class="toc__t">Build From Scratch (SDK Path)</span><span class="toc__pg" data-ref="s10"></span></div>
           <div class="toc__row"><span class="toc__num">11</span><span class="toc__t">Reference Links</span><span class="toc__pg" data-ref="s11"></span></div>
+          <div class="toc__row"><span class="toc__num">12</span><span class="toc__t">Appendix A · Baseline Deployment Environments</span><span class="toc__pg" data-ref="s12"></span></div>
         </div>
       </div>
       <div class="note teal"><p class="p"><span class="k">Conventions.</span> Configuration on <b>the deployed agent</b> appears as an environment variable (<code class="ic">MONOSPACE</code>) or an operations-manifest JSON block. Configuration in the <b>web console</b> appears as a breadcrumb (<span class="bc"><b>Account Management › Trading Partners</b></span>). Items tagged <span class="tag">Planned</span> are specified but not yet implemented in the current reference agent — called out so their absence is no surprise. The shipped, runnable schema source of truth is the in-package <code class="ic">@haiwave/protocol</code>; the master prose spec it mirrors is HAIWAVE-internal.</p></div>
@@ -170,6 +174,8 @@
         <li><b>Gatekeeper adjudication.</b> A gatekeeper reviews pending applications at <span class="bc"><b>Admin › Registration requests</b></span> (<code class="ic">/account/admin/registrations</code>) and approves or rejects (both audited). Rejection requires a reason and tombstones the record (PII partly redacted) for later re-invitation. Approving a <code class="ic">blocked</code>-tier application requires an explicit, audited override.</li>
       </ol>
       <div class="note teal"><p class="p"><span class="k">On approval.</span> An idempotent provisioning step creates your participant record (<code class="ic">participant_id</code> / <code class="ic">agent_id</code>), creates a Keycloak user for console access (a one-time setup requiring password reset plus TOTP, a Time-based One-Time Password, enrollment), and emails a single-use activation link. From there you can sign in to the console, download the agent source or Docker image, retrieve your agent's Keycloak client credentials, and proceed with the network-mode deployment in §4. The six trust tiers assigned to your counterparties are covered in §6.2.</p></div>
+      <div class="note"><p class="p"><span class="k">Outbound now, inbound after endpoint registration.</span> Once it has valid credentials, your agent authenticates and makes outbound calls (discovery queries, orders, catalog and manifest exchange) as soon as it boots. For HAIWAVE Central to route requests <i>to</i> your agent (discovery, incoming quote requests and orders), your agent's public endpoint (<code class="ic">AGENT_PUBLIC_URL</code>) must be registered with Central. Today that registration is performed by HAIWAVE from the address you provide; until it is in place, your agent is reachable outbound but is not yet discoverable or orderable by counterparties.</p></div>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Self-service endpoint registration.</b> A console control to register and update your agent's callback endpoint yourself is intended but not yet wired; today the endpoint is registered by HAIWAVE as part of onboarding.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -188,7 +194,7 @@
       <div class="h3"><span class="n">4.2</span>Standalone vs. Network Mode</div>
       <ul class="ul">
         <li><b>Standalone.</b> A local AI assistant for your team. No HAIWAVE credentials, no network participation, no Go Fish, no manifest exchange.</li>
-        <li><b>Network.</b> Everything standalone does, plus Keycloak authentication, network registration, heartbeats, Go Fish discovery, manifest exchange, and order flow. Requires <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, and Keycloak client credentials.</li>
+        <li><b>Network.</b> Everything standalone does, plus Keycloak authentication, network registration, Go Fish discovery, manifest exchange, and order flow; Central observes your agent's availability through this normal traffic. Requires <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, and Keycloak client credentials.</li>
       </ul>
       <div class="planned"><p class="p"><span class="tag">Planned</span><b>Automatic mode selection.</b> The intended design selects the mode from the presence of network credentials. Today the switch is not wired: the chat surfaces assume network mode, and <code class="ic">PARTICIPANT_ID</code> / <code class="ic">AGENT_ID</code> carry placeholder defaults when unset. Treat the reference agent as network-oriented; coordinate with your HAIWAVE contact for a pure standalone deployment.</p></div>
     </div>
@@ -222,7 +228,7 @@
           <tr><td class="mono center">7</td><td>Set <code class="ic">PARTICIPANT_ID</code>, <code class="ic">AGENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_ID</code>, <code class="ic">KEYCLOAK_CLIENT_SECRET</code>, <code class="ic">KEYCLOAK_TOKEN_ENDPOINT</code>, <code class="ic">HAICORE_BASE_URL</code>.</td></tr>
           <tr><td class="mono center">8</td><td>Configure manifest posture, pricing defaults, and business documents.</td></tr>
           <tr><td class="mono center">9</td><td>Restart. The agent authenticates with Keycloak, bootstraps its network config, and registers.</td></tr>
-          <tr><td class="mono center">10</td><td>The product scanner classifies your catalog; the agent answers heartbeats and becomes discoverable.</td></tr>
+          <tr><td class="mono center">10</td><td>The product scanner classifies your catalog; once its endpoint is registered the agent becomes discoverable, and Central observes its availability through normal traffic.</td></tr>
         </tbody>
       </table>
       <div class="h4"><span class="t">Verify it is working —</span> after start-up.</div>
@@ -596,6 +602,7 @@
       <p class="p">When an invite arrives, your agent files an actionable item in its work queue (§6.10). From there a person can quote it, or <b>decline</b> it. Declining is a first-class outcome rather than an absence: a buyer receiving four quotes and one decline knows where they stand, whereas a buyer receiving four quotes and silence cannot tell whether the fifth vendor is slow, uninterested, or never received the request.</p>
       <p class="p">Two things about pricing here. Your configured price floor is <b>re-read at the moment of use</b>, not captured when the solicitation arrived, so a floor you change while a solicitation is open applies to the quote you send. And quotes are <b>two-tier</b>: the reply records the basis it was priced on, so a quote derived from a list price and one derived from a negotiated or ERP-resolved price stay distinguishable downstream instead of arriving as indistinguishable numbers.</p>
       <div class="note teal"><p class="p"><span class="k">Requires configuration.</span> Quote delivery needs a registered quote endpoint <b>and</b> the paired webhook secret. Self-registration deliberately does not transmit the secret, so an endpoint can be registered and active while still refusing delivery. A 503 means the secret is unset on your side; a 401 means it does not match. Confirm delivery end to end before relying on solicitations, because an undelivered invite is counted as sent.</p></div>
+      <div class="note"><p class="p"><span class="k">A redelivery carries less than the original — by design.</span> If Central could not reach your agent, it re-sends the work once your agent is back. A re-delivered quote request arrives <b>without per-line ship-to addresses</b>, and a re-built order arrives <b>without ship-to, notes, or payment details</b> (the purchase-order number is recovered from the backing quote and included). This is not data loss in transit: Central deliberately keeps no durable copy of that content, so a redelivery cannot include it. Do not reject or error a redelivery for the missing fields — treat what it carries as authoritative, and expect the omitted details on the normal exchanges that follow.</p></div>
       <div class="h3"><span class="n">7.6</span>Order Collaboration</div>
       <p class="p">An order does not always survive first contact with reality. Order collaboration is the channel for changing one after it exists without cancelling and re-placing it: a party proposes a change, the other responds, and the order carries the outcome.</p>
       <p class="p">The division of responsibility determines what HAIWAVE can and cannot see. <b>Central holds the lifecycle only</b>, meaning the states a proposal passes through and the fact that it was proposed, accepted or closed. <b>The promises and envelopes stay at the agents</b>, so the commercial substance of what was offered and agreed never leaves your side. The roll-up a counterparty sees is state, not content.</p>
@@ -705,7 +712,7 @@
         <tbody>
           <tr><td class="lbl"><code class="ic">get_product_profile</code></td><td>Full product detail for a <code class="ic">product_id</code></td><td>Core</td></tr>
           <tr><td class="lbl"><code class="ic">get_product_list</code></td><td>The agent's current product catalog</td><td>Core</td></tr>
-          <tr><td class="lbl"><code class="ic">heartbeat_hello</code></td><td>Respond to liveness pings</td><td>Core</td></tr>
+          <tr><td class="lbl"><code class="ic">heartbeat_hello</code></td><td>Legacy liveness endpoint (no longer probed)</td><td>Core</td></tr>
           <tr><td class="lbl"><code class="ic">receive_gofish_query</code></td><td>Accept and respond to a Go Fish discovery query</td><td>Discovery</td></tr>
           <tr><td class="lbl"><code class="ic">receive_order</code></td><td>Accept an incoming order</td><td>Orders</td></tr>
           <tr><td class="lbl"><code class="ic">receive_quote_request</code> / <code class="ic">receive_resolution_request</code> / <code class="ic">receive_catalog_query</code></td><td>Quoting, product resolution, catalog search</td><td>Commerce</td></tr>
@@ -882,8 +889,118 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
         </tbody>
       </table>
       <div class="divider"></div>
-      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v2.1). Generated from the application source; regenerated as the system evolves.</p>
+      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v1.3, 2026-08-17 edition). Generated from the canonical guide; regenerated as the system evolves.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
 </section>
+
+<!-- ============================ 12 · APPENDIX A · BASELINE DEPLOYMENT ENVIRONMENTS ============================ -->
+<section class="page" data-screen-label="12">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">12 · Baseline Deployment Environments</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="sec-open" id="s12"><div class="sec-open__num">12</div><div><span class="sec-open__kicker">Appendix A · Journeys A · B · In support of the Quick Start</span><div class="sec-open__title">Baseline Deployment Environments</div></div></div>
+      <p class="p">The Quick Start assumes one thing about your infrastructure: Docker on a host, with the volumes and network access it describes. This appendix is for teams standing up that host fresh. It gives a vetted baseline for four target environments and the trade-offs between them, so the environment decision does not stall the first hour. If you already run a container platform with persistent block storage, you likely need none of this; deploy as you normally would and honor the requirements in A.1.</p>
+      <div class="h3"><span class="n">A.1</span>Requirements Common to Every Environment</div>
+      <p class="p">These follow from the agent's architecture (§4.1) and apply regardless of where the container runs:</p>
+      <ul class="ul">
+        <li><b>Compute.</b> 2 vCPU / 4 GB RAM minimum; the embedding model and DuckDB run in-process. 4 vCPU / 8 GB is comfortable for larger catalogs and document libraries.</li>
+        <li><b>Persistent block storage, not network file systems.</b> A durable volume for <code class="ic">/data</code>, starting around 20 GB (it grows with catalog, documents, and chat log). DuckDB is a single-writer embedded file: NFS, SMB, and object-storage mounts (EFS, Azure Files, GCS FUSE) are unsupported for the data volume. Use encrypted block storage; DuckDB is not encrypted at rest.</li>
+        <li><b>Exactly one replica.</b> The agent does not scale horizontally: one database file, one writer, one network identity. Run one container instance and size it vertically.</li>
+        <li><b>Always on.</b> No scale-to-zero. A sleeping agent fails its inbound dispatches and is shown unreachable to its owner until it answers again (§4.3).</li>
+        <li><b>Outbound HTTPS</b> to HAIWAVE Central, Keycloak, your model provider, and (first boot only) the embedding model repository.</li>
+        <li><b>Inbound.</b> HAIWAVE Central must reach <code class="ic">/mcp</code> at the address you advertise in <code class="ic">AGENT_PUBLIC_URL</code>, over HTTPS. Restrict the chat UI to your team's network; it shares port <code class="ic">3001</code> with the MCP endpoint, so the restriction lives in your proxy or firewall rules, not the agent.</li>
+        <li><b>TLS and secrets.</b> Terminate TLS in a proxy or load balancer in front of the agent, and inject credentials from a secret manager at start. Never bake secrets into the image.</li>
+      </ul>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<section class="page" data-screen-label="12b">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">12 · Baseline Deployment Environments</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">A.2</span>Choosing an Environment</div>
+      <table class="tbl">
+        <thead><tr><th>Environment</th><th class="center">Setup effort</th><th class="center">Persistence fit</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl">Local / on-prem Docker (A.3)</td><td class="center">Lowest</td><td class="s-yes center">Native volumes</td><td>Evaluation; self-managed production.</td></tr>
+          <tr><td class="lbl">AWS · EC2 + EBS (A.4)</td><td class="center">Low</td><td class="s-yes center">Excellent</td><td>Production on AWS.</td></tr>
+          <tr><td class="lbl">Azure · VM + managed disk (A.5)</td><td class="center">Low</td><td class="s-yes center">Excellent</td><td>Production on Azure.</td></tr>
+          <tr><td class="lbl">GCP · Compute Engine + PD (A.6)</td><td class="center">Low</td><td class="s-yes center">Excellent</td><td>Production on GCP.</td></tr>
+          <tr><td class="lbl">GCP · Cloud Run (A.6)</td><td class="center">Moderate</td><td class="s-cfg center">Ephemeral</td><td>Short-lived evaluation only.</td></tr>
+        </tbody>
+      </table>
+      <p class="p">The pattern is deliberate: on every cloud, the assured baseline is a small VM with an encrypted block volume running the Quick Start commands unchanged. Serverless container platforms trade away exactly the two things the agent needs (a local persistent disk and an always-on process), which is why only one appears here, and only as a caveated example.</p>
+      <div class="h3"><span class="n">A.3</span>Local / On-prem Docker (the Quick Start default)</div>
+      <p class="p">This is the environment the Quick Start assumes; the steps below harden it from evaluation to something you can leave running.</p>
+      <ol class="ol">
+        <li>Docker Engine 24+ on a 64-bit glibc host (the image is Debian-based, §4.1). 2 vCPU / 4 GB minimum.</li>
+        <li>Use the named volumes exactly as in the Quick Start, on encrypted storage.</li>
+        <li>Put a reverse proxy (nginx, Caddy) in front of <code class="ic">localhost:3001</code> for TLS, and set <code class="ic">AGENT_PUBLIC_URL</code> to the external HTTPS address. Restrict <code class="ic">/chat</code> to your internal network in the proxy.</li>
+        <li>Add <code class="ic">--restart unless-stopped</code> to the run command so the agent survives host reboots.</li>
+        <li>Back up the data volume on a schedule. DuckDB is a single file; stop the container (or snapshot the volume) for a consistent copy.</li>
+      </ol>
+      <p class="p"><b>Trade-offs.</b> Simplest path and full control; patching, backups, monitoring, and availability are entirely yours. The right choice for evaluation, air-gapped-adjacent environments, and teams that already operate their own hosts.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<section class="page" data-screen-label="12c">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">12 · Baseline Deployment Environments</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">A.4</span>AWS: EC2 with an EBS Data Volume</div>
+      <p class="p">The assured AWS baseline is a single EC2 instance running the Quick Start unchanged. ECS on Fargate is not recommended: its persistence option is EFS, which is NFS, and unsupported for the DuckDB data volume (A.1). If your organization mandates ECS, use the EC2 launch type with an EBS-backed host volume and a single task.</p>
+      <ol class="ol">
+        <li>Launch a <code class="ic">t3.medium</code> (or <code class="ic">m6i.large</code> for headroom) with an encrypted <code class="ic">gp3</code> EBS volume attached and mounted at <code class="ic">/data-vol</code>. Install Docker.</li>
+        <li>Store the Quick Start credentials in Secrets Manager or SSM Parameter Store; render <code class="ic">agent.env</code> from them at instance start (user data or your config-management tool).</li>
+        <li>Run the Quick Start command, replacing the named volumes with bind mounts onto the EBS mount: <code class="ic">-v /data-vol/config:/data/config -v /data-vol/data:/data</code>.</li>
+        <li>Put an Application Load Balancer with an ACM certificate in front of instance port <code class="ic">3001</code>; set <code class="ic">AGENT_PUBLIC_URL</code> to the ALB's HTTPS address.</li>
+        <li>Security groups: inbound 443 on the ALB restricted to HAIWAVE Central's published source range (<code class="ic">34.106.85.228/32</code>, §6.7) plus your corporate egress for <code class="ic">/chat</code>; instance inbound only from the ALB.</li>
+        <li>Snapshot the EBS volume on a schedule (Data Lifecycle Manager) for backups.</li>
+      </ol>
+      <p class="p"><b>Trade-offs.</b> Managed TLS and load balancing with minimal moving parts; instance patching is still yours (SSM Patch Manager covers it). Costs are dominated by the instance; the agent idles lightly between queries.</p>
+      <div class="h3"><span class="n">A.5</span>Azure: VM with a Managed Disk</div>
+      <p class="p">Same shape as AWS. Container Instances and Container Apps persist to Azure Files, which is SMB, and unsupported for the data volume (A.1); a small VM is the assured baseline.</p>
+      <ol class="ol">
+        <li>Create a <code class="ic">Standard_B2ms</code> (or <code class="ic">D2s_v5</code>) VM with an encrypted managed data disk mounted at <code class="ic">/data-vol</code>. Install Docker.</li>
+        <li>Store credentials in Key Vault; render <code class="ic">agent.env</code> at start (cloud-init or your config-management tool).</li>
+        <li>Run the Quick Start command with bind mounts onto the disk: <code class="ic">-v /data-vol/config:/data/config -v /data-vol/data:/data</code>.</li>
+        <li>Put Application Gateway (with a managed certificate) in front of port <code class="ic">3001</code>; set <code class="ic">AGENT_PUBLIC_URL</code> accordingly.</li>
+        <li>NSG rules: inbound 443 restricted to HAIWAVE Central's published source range (<code class="ic">34.106.85.228/32</code>, §6.7) plus your corporate egress for <code class="ic">/chat</code>; VM inbound only from the gateway.</li>
+        <li>Schedule disk snapshots (Azure Backup) for the data volume.</li>
+      </ol>
+      <p class="p"><b>Trade-offs.</b> Equivalent posture to the AWS baseline. Choose it because your estate is on Azure, not for any agent-specific reason; the agent is indifferent.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<section class="page" data-screen-label="12d">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">12 · Baseline Deployment Environments</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">A.6</span>GCP: Compute Engine, with a Cloud Run Example</div>
+      <p class="p"><b>The assured GCP baseline is Compute Engine</b>: an <code class="ic">e2-medium</code> (or larger) VM with an encrypted persistent disk at <code class="ic">/data-vol</code>, Docker, Secret Manager for credentials, and an external HTTPS load balancer in front of port <code class="ic">3001</code>. The steps mirror A.4 one-for-one with GCP's equivalents.</p>
+      <p class="p"><b>Cloud Run is an evaluation-only example, not an assured environment.</b> It conflicts with two A.1 requirements: its file system is ephemeral (DuckDB state does not survive an instance replacement, and its durable mount options are GCS FUSE and Filestore, both unsupported for the data volume) and it wants to scale to zero, which the network's availability expectations forbid (a scaled-to-zero agent fails its inbound dispatches). Pinned to a single always-on instance it can host the agent for a short evaluation:</p>
+      <pre class="code">gcloud run deploy haiwave-agent \
+  --image &lt;your-registry&gt;/haiwave-agent \
+  --cpu 2 --memory 4Gi --port 3001 \
+  --min-instances 1 --max-instances 1 --no-cpu-throttling \
+  --set-secrets <span class="s">"ANTHROPIC_API_KEY=anthropic-key:latest,KEYCLOAK_CLIENT_SECRET=kc-secret:latest"</span> \
+  --set-env-vars <span class="s">"PARTICIPANT_ID=…,AGENT_ID=…,DUCKDB_PATH=/tmp/agent.duckdb"</span></pre>
+      <p class="p">Set <code class="ic">AGENT_PUBLIC_URL</code> to the service's <code class="ic">run.app</code> HTTPS address (Cloud Run provides TLS). Expect the catalog, documents, and chat state to reset whenever the instance is replaced; that is acceptable for a first-hour walkthrough of the Quick Start and for nothing else. Move to Compute Engine before seeding real data.</p>
+      <div class="note teal"><p class="p"><span class="k">Rule of thumb.</span> If a platform cannot give the container a private, durable block device and a process that never sleeps, it can demo the agent but should not deploy it.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
