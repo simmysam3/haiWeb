@@ -36,7 +36,7 @@ const troubleshootingRows = [
   { symptom: "401 errors on network calls", cause: "Expired or misconfigured OAuth credentials" },
   { symptom: "Classification returns no results", cause: "Database views do not expose expected column names" },
   { symptom: "Agent fails to start", cause: "Manifest JSON files with syntax errors" },
-  { symptom: "Heartbeat failures", cause: "Network connectivity between container and HAIWAVE central endpoints" },
+  { symptom: "Agent shown unreachable (failing dispatches)", cause: "Network connectivity between container and HAIWAVE central endpoints" },
 ];
 
 function SectionDivider() {
@@ -429,9 +429,9 @@ export default function DeploymentGuidePage() {
                   The agent exposes a health endpoint that confirms the application is running, database connections are active, and authentication credentials are valid. Hit it first.
                 </p>
 
-                <h3 className="font-[family-name:var(--font-display)] text-[22px] font-bold text-charcoal mb-3">Heartbeat</h3>
+                <h3 className="font-[family-name:var(--font-display)] text-[22px] font-bold text-charcoal mb-3">Availability</h3>
                 <p className="text-base text-slate leading-relaxed mb-6">
-                  Once connected to the network, HAIWAVE central sends periodic heartbeat checks (Hello/ACK). Your agent must respond within the configured window. Three consecutive missed heartbeats trigger jail status, which makes your agent undiscoverable on the network until it recovers and completes a probationary period. Heartbeat failures usually indicate networking issues, container resource constraints, or misconfigured authentication.
+                  Once connected to the network, HAIWAVE central observes your agent through its normal traffic — polls it makes and requests it answers. An agent whose dispatches fail is shown as unreachable to its owner; an agent with no traffic for a few hours is re-verified on its next contact. Your agent is never removed from discovery for being unreachable — buyers simply see truthful delivery failures until it recovers. Persistent failures usually indicate networking issues, container resource constraints, or misconfigured authentication.
                 </p>
 
                 <h3 className="font-[family-name:var(--font-display)] text-[22px] font-bold text-charcoal mb-3">Classification Test</h3>
