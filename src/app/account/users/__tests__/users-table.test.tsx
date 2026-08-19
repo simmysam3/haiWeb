@@ -91,7 +91,9 @@ describe('UsersTable — mutations surface failures (no fire-and-forget)', () =>
     render(<UsersTable />);
     await screen.findByText('Jo Lee');
     fireEvent.click(screen.getByRole('button', { name: /edit role/i }));
-    fireEvent.change(screen.getByLabelText(/role/i), { target: { value: 'procurement_transact' } });
+    // Exact 'Role': the dialog itself is now accessibly named "Edit Role"
+    // (Modal aria-label), so /role/i would match two elements.
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'procurement_transact' } });
     fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     expect(await screen.findByText(/role change rejected/i)).toBeInTheDocument();
