@@ -7,65 +7,135 @@ import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
 import { DataTable, Column } from "@/components/data-table";
 import { useToast } from "@/lib/use-toast";
-import { MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
-import type { MockParticipant } from "@/lib/mock-types";
+import { useApi } from "@/lib/use-api";
+
+/**
+ * v1.75 walk W7: this page was 100% mock theater — useState over
+ * MOCK_ADMIN_PARTICIPANTS, with suspend/reactivate flipping client state and
+ * never calling an API. It now renders GET /api/admin/participants and drives
+ * both actions through POST /api/admin/actions (haiCore admin-action-service,
+ * the one real jail writer). API failure surfaces as absence plus an error
+ * notice, never as mock rows (F-4 lesson).
+ *
+ * Local mirror of haiCore's AdminParticipantRow (admin-dashboard-service.ts) —
+ * the admin surface is BFF-only, so the shape is service-local there, mirrored
+ * here, same as the dashboard's AdminOverview interface.
+ */
+interface AdminParticipantRow {
+  participant_id: string;
+  legal_name: string;
+  status: string;
+  business_address_city: string | null;
+  business_address_state: string | null;
+  business_address_country: string | null;
+  registered_at: string | null;
+  suspension_reason: string | null;
+  agent_count: number;
+  trading_pair_count: number;
+}
+
+interface AdminParticipantsList {
+  participants: AdminParticipantRow[];
+  total_count: number;
+}
+
+function locationOf(p: AdminParticipantRow): string {
+  const cityState = [p.business_address_city, p.business_address_state].filter(Boolean).join(", ");
+  return cityState || p.business_address_country || "—";
+}
+
+type AdminAction = "suspend" | "reactivate";
 
 export default function ParticipantsPage() {
-  const [participants, setParticipants] = useState(MOCK_ADMIN_PARTICIPANTS);
+  const { data, loading, error, refetch } = useApi<AdminParticipantsList | null>({
+    url: "/api/admin/participants",
+    fallback: null,
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [suspendTarget, setSuspendTarget] = useState<MockParticipant | null>(null);
-  const [suspendReason, setSuspendReason] = useState("");
+  const [target, setTarget] = useState<{ participant: AdminParticipantRow; action: AdminAction } | null>(null);
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { toast, showToast } = useToast();
 
-  function handleSuspend() {
-    if (!suspendTarget || !suspendReason) return;
-    setParticipants(participants.map((p) =>
-      p.id === suspendTarget.id
-        ? { ...p, status: "suspended" as const, suspension_reason: suspendReason }
-        : p
-    ));
-    setSuspendTarget(null);
-    setSuspendReason("");
-    showToast(`${suspendTarget.company_name} suspended`);
+  function openAction(participant: AdminParticipantRow, action: AdminAction) {
+    setTarget({ participant, action });
+    setReason("");
+    setActionError(null);
   }
 
-  function handleReactivate(participant: MockParticipant) {
-    setParticipants(participants.map((p) =>
-      p.id === participant.id
-        ? { ...p, status: "active" as const, suspension_reason: undefined }
-        : p
-    ));
-    showToast(`${participant.company_name} reactivated`);
+  async function submitAction() {
+    if (!target || !reason.trim() || submitting) return;
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: target.action,
+          participant_id: target.participant.participant_id,
+          justification: reason.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      showToast(
+        `${target.participant.legal_name} ${target.action === "suspend" ? "suspended" : "reactivated"}`,
+      );
+      setTarget(null);
+      setReason("");
+      refetch();
+    } catch (err) {
+      // The row keeps its real state — nothing flips locally on failure.
+      setActionError(
+        `${target.action === "suspend" ? "Suspend" : "Reactivate"} failed (${err instanceof Error ? err.message : "network error"}). Nothing was changed.`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
+  const participants = data?.participants ?? [];
   const filtered = participants.filter((p) => {
-    const matchesSearch = p.company_name.toLowerCase().includes(search.toLowerCase()) ||
-      p.location.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchesSearch =
+      p.legal_name.toLowerCase().includes(q) || locationOf(p).toLowerCase().includes(q);
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const columns: Column<MockParticipant>[] = [
+  const columns: Column<AdminParticipantRow>[] = [
     {
       key: "company",
       label: "Company",
       render: (p) => (
         <div>
-          <p className="font-medium text-charcoal">{p.company_name}</p>
-          <p className="text-xs text-slate">{p.location}</p>
+          <p className="font-medium text-charcoal">{p.legal_name}</p>
+          <p className="text-xs text-slate">{locationOf(p)}</p>
         </div>
       ),
     },
     {
       key: "status",
       label: "Status",
-      render: (p) => <StatusBadge status={p.status} />,
+      render: (p) => (
+        <div>
+          <StatusBadge status={p.status} />
+          {p.status === "suspended" && p.suspension_reason && (
+            <p className="text-xs text-slate mt-1">{p.suspension_reason}</p>
+          )}
+        </div>
+      ),
     },
     {
       key: "registered",
       label: "Registered",
-      render: (p) => <span className="text-slate">{new Date(p.registered_at).toLocaleDateString()}</span>,
+      render: (p) => (
+        <span className="text-slate">
+          {p.registered_at ? new Date(p.registered_at).toLocaleDateString() : "—"}
+        </span>
+      ),
     },
     {
       key: "agents",
@@ -75,7 +145,7 @@ export default function ParticipantsPage() {
     {
       key: "pairs",
       label: "Pairs",
-      render: (p) => <span className="text-charcoal">{p.trading_pairs}</span>,
+      render: (p) => <span className="text-charcoal">{p.trading_pair_count}</span>,
     },
     {
       key: "actions",
@@ -83,11 +153,11 @@ export default function ParticipantsPage() {
       render: (p) => (
         <div className="flex gap-2">
           {p.status === "suspended" ? (
-            <Button size="sm" variant="secondary" onClick={() => handleReactivate(p)}>
+            <Button size="sm" variant="secondary" onClick={() => openAction(p, "reactivate")}>
               Reactivate
             </Button>
           ) : (
-            <Button size="sm" variant="ghost" onClick={() => setSuspendTarget(p)}>
+            <Button size="sm" variant="ghost" onClick={() => openAction(p, "suspend")}>
               Suspend
             </Button>
           )}
@@ -109,6 +179,13 @@ export default function ParticipantsPage() {
         </div>
       )}
 
+      {error && (
+        <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem mb-4">
+          Couldn&apos;t load participants — haiCore answered {error}. Nothing is shown rather than
+          stale or fabricated rows.
+        </div>
+      )}
+
       <div className="flex gap-4 mb-4">
         <input
           type="text"
@@ -124,40 +201,68 @@ export default function ParticipantsPage() {
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
-          <option value="pending_payment">Pending Payment</option>
+          <option value="pending">Pending</option>
           <option value="suspended">Suspended</option>
         </select>
       </div>
 
       <div className="bg-white rounded-lg border border-slate/15">
         <div className="p-4 border-b border-slate/15">
-          <p className="text-sm text-slate">{filtered.length} participants</p>
+          <p className="text-sm text-slate">
+            {loading ? "Loading participants…" : `${filtered.length} participants`}
+          </p>
         </div>
-        <DataTable columns={columns} data={filtered} keyFn={(p) => p.id} />
+        <DataTable columns={columns} data={filtered} keyFn={(p) => p.participant_id} />
       </div>
 
-      {/* Suspend Modal */}
-      <Modal open={!!suspendTarget} onClose={() => setSuspendTarget(null)} title="Suspend Participant">
+      {/* Suspend / Reactivate modal — both actions require a justification:
+          it lands verbatim in the append-only admin action log (AU-9). */}
+      <Modal
+        open={!!target}
+        onClose={() => setTarget(null)}
+        title={target?.action === "reactivate" ? "Reactivate Participant" : "Suspend Participant"}
+      >
         <div className="space-y-4">
           <p className="text-sm text-charcoal">
-            {/* P7d (ruled, verbatim) */}
-            Suspend <strong>{suspendTarget?.company_name}</strong>? Their agents will be quarantined and network participation disabled.
+            {target?.action === "reactivate" ? (
+              <>
+                Reactivate <strong>{target?.participant.legal_name}</strong>? Their agents will be
+                released from quarantine and network participation restored.
+              </>
+            ) : (
+              <>
+                {/* P7d (ruled, verbatim) */}
+                Suspend <strong>{target?.participant.legal_name}</strong>? Their agents will be
+                quarantined and network participation disabled.
+              </>
+            )}
           </p>
           <div>
             <label className="block text-sm font-medium text-charcoal mb-1">Reason</label>
             <textarea
-              value={suspendReason}
-              onChange={(e) => setSuspendReason(e.target.value)}
-              placeholder="Enter suspension reason..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={
+                target?.action === "reactivate"
+                  ? "Enter reactivation reason..."
+                  : "Enter suspension reason..."
+              }
               className="w-full px-3 py-2 border border-slate/20 rounded-lg text-sm h-20 resize-none focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
               required
             />
           </div>
+          {actionError && <p className="text-sm text-problem">{actionError}</p>}
           <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setSuspendTarget(null)}>Cancel</Button>
-            <Button variant="danger" onClick={handleSuspend} disabled={!suspendReason.trim()}>
-              Suspend
-            </Button>
+            <Button variant="secondary" onClick={() => setTarget(null)}>Cancel</Button>
+            {target?.action === "reactivate" ? (
+              <Button onClick={submitAction} disabled={!reason.trim() || submitting}>
+                Reactivate
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={submitAction} disabled={!reason.trim() || submitting}>
+                Suspend
+              </Button>
+            )}
           </div>
         </div>
       </Modal>

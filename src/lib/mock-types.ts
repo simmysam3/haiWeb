@@ -85,17 +85,6 @@ export interface MockInvoice {
 
 export type LeadTimeTrendSharingPosture = "require" | "prefer" | "not_required";
 
-export interface MockParticipant {
-  id: string;
-  company_name: string;
-  status: "active" | "pending_payment" | "suspended";
-  location: string;
-  registered_at: string;
-  agent_count: number;
-  trading_pairs: number;
-  suspension_reason?: string;
-}
-
 export interface MockApprovalRules {
   bulk: {
     publicly_traded: boolean;

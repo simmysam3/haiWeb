@@ -28,6 +28,9 @@ export function Modal({ open, onClose, title, children, width = "max-w-md" }: Mo
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-navy/40" onClick={onClose} />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className={`relative bg-white rounded-xl border border-slate/15 shadow-xl ${width} w-full max-h-[calc(100vh-2rem)] flex flex-col`}
       >
         <div className="shrink-0 flex items-center justify-between p-6 border-b border-slate/15">

@@ -1,16 +1,17 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MOCK_ADMIN_STATS } from '@/lib/mock-data';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
 
 /**
  * Broker P3 T6 (P7c, ruled): the admin dashboard renders from the REAL
- * haiCore AdminOverview payload. The pre-P3 page expected a fictional
- * `agent_health{active,jailed,probation,offline}` shape haiCore never
- * returned — the real payload threw and the page silently fell back to mock
- * forever. The distribution re-keys to the DERIVED availability
- * (Healthy / Quiet / Unreachable / Suspended), and the dev fallback mock is
- * reshaped to the real payload so it can never mask the contract again.
+ * haiCore AdminOverview payload; the distribution keys to the DERIVED
+ * availability (Healthy / Quiet / Unreachable / Suspended).
+ *
+ * v1.75 walk W3: Recent Registrations and Suspended Accounts were still mock
+ * theater on an otherwise-real dashboard, and a stats API failure silently
+ * fell back to MOCK_ADMIN_STATS (F-4 residue). These tests pin the rebind:
+ * both cards render the real participants list, and any API failure surfaces
+ * as absence + an error notice — never as mock numbers or mock rows.
  */
 
 // A REAL haiCore /admin/dashboard/overview payload (protocol AdminOverview,
@@ -30,13 +31,62 @@ const REAL_OVERVIEW = {
   orders: { total: 40, open: 5 },
 };
 
+// A REAL GET /api/admin/participants payload (haiCore listParticipants),
+// newest-first as the server orders it.
+const REAL_LIST = {
+  participants: [
+    {
+      participant_id: '33333333-3333-4333-8333-333333333333',
+      legal_name: 'Newest Fasteners Inc',
+      status: 'active',
+      business_address_city: 'Reno',
+      business_address_state: 'NV',
+      business_address_country: 'US',
+      registered_at: '2026-08-15T00:00:00.000Z',
+      suspension_reason: null,
+      agent_count: 1,
+      trading_pair_count: 0,
+    },
+    {
+      participant_id: '44444444-4444-4444-8444-444444444444',
+      legal_name: 'Great Lakes Brass',
+      status: 'suspended',
+      business_address_city: null,
+      business_address_state: null,
+      business_address_country: null,
+      registered_at: '2026-06-15T00:00:00.000Z',
+      suspension_reason: 'payment fraud investigation',
+      agent_count: 1,
+      trading_pair_count: 1,
+    },
+  ],
+  total_count: 2,
+};
+
+const { routes } = vi.hoisted(() => ({
+  routes: new Map<string, unknown>(),
+}));
+
 vi.mock('@/lib/use-api', () => ({
-  useApi: () => ({ data: REAL_OVERVIEW, loading: false, error: null }),
+  useApi: (opts: { url: string }) =>
+    routes.get(opts.url) ?? { data: null, loading: false, error: null, refetch: () => {} },
 }));
 
 import { AdminDashboard } from '../admin-dashboard';
 
+function happyRoutes() {
+  routes.clear();
+  routes.set('/api/admin/dashboard?type=overview', {
+    data: REAL_OVERVIEW, loading: false, error: null, refetch: () => {},
+  });
+  routes.set('/api/admin/participants', {
+    data: REAL_LIST, loading: false, error: null, refetch: () => {},
+  });
+}
+
 describe('AdminDashboard on the real payload (P7c)', () => {
+  beforeEach(happyRoutes);
+
   it('renders the availability distribution: Healthy / Quiet / Unreachable / Suspended', () => {
     render(<AdminDashboard />);
     expect(screen.getByText(/Healthy: 6/)).toBeInTheDocument();
@@ -64,11 +114,40 @@ describe('AdminDashboard on the real payload (P7c)', () => {
   });
 });
 
-describe('MOCK_ADMIN_STATS matches the real payload shape', () => {
-  it('carries the protocol AdminOverview fields, not the fictional agent_health', () => {
-    expect(MOCK_ADMIN_STATS.trading_pairs).toHaveProperty('total');
-    expect(MOCK_ADMIN_STATS.agents).toHaveProperty('availability');
-    expect(MOCK_ADMIN_STATS).not.toHaveProperty('agent_health');
-    expect(MOCK_ADMIN_STATS).not.toHaveProperty('outstanding_amount');
+describe('AdminDashboard lists on the real participants API (v1.75 walk W3)', () => {
+  beforeEach(happyRoutes);
+
+  it('Recent Registrations renders the real list, newest first, not mock rows', () => {
+    render(<AdminDashboard />);
+    const card = screen.getByText('Recent Registrations').closest('div')!.parentElement!;
+    expect(within(card).getByText('Newest Fasteners Inc')).toBeInTheDocument();
+    expect(within(card).getByText('Reno, NV')).toBeInTheDocument();
+  });
+
+  it('Suspended Accounts renders the real suspended rows with their reasons and a manage link', () => {
+    render(<AdminDashboard />);
+    expect(screen.getByText('payment fraud investigation')).toBeInTheDocument();
+    const manage = screen.getByRole('link', { name: /manage/i });
+    expect(manage).toHaveAttribute('href', '/admin/participants');
+  });
+
+  it('a stats API failure surfaces as absence + an error notice, never mock numbers', () => {
+    routes.set('/api/admin/dashboard?type=overview', {
+      data: null, loading: false, error: '503', refetch: () => {},
+    });
+    render(<AdminDashboard />);
+    expect(screen.getByText(/couldn't load network stats/i)).toBeInTheDocument();
+    // The old silent-mock numbers must not appear from anywhere.
+    expect(screen.queryByText('12')).toBeNull();
+    expect(screen.queryByText(/healthy/i)).toBeNull();
+  });
+
+  it('a list API failure keeps the cards honest — notice, no rows', () => {
+    routes.set('/api/admin/participants', {
+      data: null, loading: false, error: '502', refetch: () => {},
+    });
+    render(<AdminDashboard />);
+    expect(screen.getByText(/couldn't load participants/i)).toBeInTheDocument();
+    expect(screen.queryByText('Newest Fasteners Inc')).toBeNull();
   });
 });

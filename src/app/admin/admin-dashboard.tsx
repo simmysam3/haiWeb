@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/button";
 import { useApi } from "@/lib/use-api";
-import { useToast } from "@/lib/use-toast";
-import { MOCK_ADMIN_STATS, MOCK_ADMIN_PARTICIPANTS } from "@/lib/mock-data";
+import {
+  participantLocation,
+  type AdminParticipantsList,
+} from "@/lib/admin-participants-types";
 
 /**
  * The REAL haiCore AdminOverview payload (protocol AdminOverviewSchema). The
@@ -32,22 +34,31 @@ interface AdminOverview {
 }
 
 export function AdminDashboard() {
-  const { data: stats } = useApi<AdminOverview>({
+  // v1.75 walk W3 / F-4 residue: the fallback used to be MOCK_ADMIN_STATS, so
+  // an API failure silently rendered mock numbers. Absence surfaces as
+  // absence: null data + a visible notice, never a fabricated dashboard.
+  const { data: stats, error: statsError } = useApi<AdminOverview | null>({
     url: "/api/admin/dashboard?type=overview",
-    fallback: MOCK_ADMIN_STATS,
+    fallback: null,
   });
-  const recentRegistrations = MOCK_ADMIN_PARTICIPANTS.slice(-5).reverse();
-  const suspended = MOCK_ADMIN_PARTICIPANTS.filter((p) => p.status === "suspended");
-  const { toast, showToast } = useToast();
+  const { data: list, error: listError } = useApi<AdminParticipantsList | null>({
+    url: "/api/admin/participants",
+    fallback: null,
+  });
+
+  // The server orders newest-first (listParticipants ORDER BY registered_at
+  // DESC) — the first five ARE the recent registrations.
+  const recentRegistrations = (list?.participants ?? []).slice(0, 5);
+  const suspended = (list?.participants ?? []).filter((p) => p.status === "suspended");
 
   // P7c (ruled): Healthy / Quiet / Unreachable / Suspended. The first three
   // are the DERIVED availability of deployed active agents; Suspended is the
   // administrative jailed count (P3: status is a decision, not a
   // measurement). not_deployed agents are in setup, not in fault — outside
   // the tile denominator.
-  const avail = stats.agents.availability ?? null;
+  const avail = stats?.agents.availability ?? null;
   const deployedTotal = avail ? avail.healthy + avail.quiet + avail.unreachable : null;
-  const healthSegments = avail
+  const healthSegments = avail && stats
     ? [
         { label: "Healthy", count: avail.healthy, color: "bg-success" },
         { label: "Quiet", count: avail.quiet, color: "bg-warning" },
@@ -59,9 +70,15 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      {toast && (
-        <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
-          {toast}
+      {statsError && (
+        <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load network stats — haiCore answered {statsError}. Tiles show absence
+          rather than stale or fabricated numbers.
+        </div>
+      )}
+      {listError && (
+        <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load participants — haiCore answered {listError}.
         </div>
       )}
 
@@ -69,12 +86,12 @@ export function AdminDashboard() {
       <div className="grid grid-cols-4 gap-6">
         <StatCard
           label="Participants"
-          value={stats.participants.total.toString()}
+          value={stats ? stats.participants.total.toString() : null}
           color="text-navy"
         />
         <StatCard
           label="Trading Pairs"
-          value={stats.trading_pairs.total.toString()}
+          value={stats ? stats.trading_pairs.total.toString() : null}
           color="text-navy"
         />
         {/* No real data source (the invoice lane never shipped a dashboard
@@ -91,36 +108,49 @@ export function AdminDashboard() {
         />
       </div>
 
-      {/* Recent Registrations */}
+      {/* Recent Registrations — the real list, newest first (v1.75 walk W3;
+          was mock theater). */}
       <Card title="Recent Registrations">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate/15">
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Company</th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Location</th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Registered</th>
-                <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentRegistrations.map((p) => (
-                <tr key={p.id} className="border-b border-slate/10 hover:bg-light-gray/50">
-                  <td className="py-3 px-4 font-medium text-charcoal">{p.company_name}</td>
-                  <td className="py-3 px-4 text-slate">{p.location}</td>
-                  <td className="py-3 px-4 text-slate">{new Date(p.registered_at).toLocaleDateString()}</td>
-                  <td className="py-3 px-4"><StatusBadge status={p.status} /></td>
+        {recentRegistrations.length === 0 ? (
+          <p className="text-sm text-slate text-center py-4">
+            {listError ? "Not available." : "No registrations yet."}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate/15">
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Company</th>
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Location</th>
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Registered</th>
+                  <th className="text-left text-xs font-medium uppercase tracking-wider text-slate py-3 px-4">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recentRegistrations.map((p) => (
+                  <tr key={p.participant_id} className="border-b border-slate/10 hover:bg-light-gray/50">
+                    <td className="py-3 px-4 font-medium text-charcoal">{p.legal_name}</td>
+                    <td className="py-3 px-4 text-slate">{participantLocation(p)}</td>
+                    <td className="py-3 px-4 text-slate">
+                      {p.registered_at ? new Date(p.registered_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="py-3 px-4"><StatusBadge status={p.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
-      {/* Suspended Accounts */}
+      {/* Suspended Accounts — real rows; the mutation itself lives on the
+          participants page (one modal, one audit-logged path), so this card
+          links there instead of pretending to act (v1.75 walk W3). */}
       <Card title="Suspended Accounts">
         {suspended.length === 0 ? (
-          <p className="text-sm text-slate text-center py-4">No suspended accounts.</p>
+          <p className="text-sm text-slate text-center py-4">
+            {listError ? "Not available." : "No suspended accounts."}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -133,13 +163,16 @@ export function AdminDashboard() {
               </thead>
               <tbody>
                 {suspended.map((p) => (
-                  <tr key={p.id} className="border-b border-slate/10">
-                    <td className="py-3 px-4 font-medium text-charcoal">{p.company_name}</td>
-                    <td className="py-3 px-4 text-slate">{p.suspension_reason}</td>
+                  <tr key={p.participant_id} className="border-b border-slate/10">
+                    <td className="py-3 px-4 font-medium text-charcoal">{p.legal_name}</td>
+                    <td className="py-3 px-4 text-slate">{p.suspension_reason ?? "—"}</td>
                     <td className="py-3 px-4">
-                      <Button size="sm" variant="secondary" onClick={() => showToast(`Reactivated ${p.company_name} (mock)`)}>
-                        Reactivate
-                      </Button>
+                      <Link
+                        href="/admin/participants"
+                        className="text-sm font-medium text-teal hover:underline"
+                      >
+                        Manage →
+                      </Link>
                     </td>
                   </tr>
                 ))}

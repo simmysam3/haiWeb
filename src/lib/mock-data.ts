@@ -11,7 +11,6 @@ import type {
   MockDirectoryCompany,
   MockInvoice,
   LeadTimeTrendSharingPosture,
-  MockParticipant,
   MockApprovalRules,
   MockBlockedCompany,
   MockPricingNode,
@@ -27,7 +26,6 @@ export type {
   MockDirectoryCompany,
   MockInvoice,
   LeadTimeTrendSharingPosture,
-  MockParticipant,
   MockApprovalRules,
   MockBlockedCompany,
   MockPricingNode,
@@ -289,27 +287,6 @@ export const MOCK_PRICING_DEFAULTS = {
   aged_inventory_discount_pct: 20,
 };
 
-// ─── Mock Admin Stats ────────────────────────────────────────
-
-// The REAL haiCore AdminOverview shape (broker P3 reshape): the previous
-// mock carried a fictional agent_health block the live payload never had, so
-// the page rendered mock data forever while looking wired. The dev fallback
-// must be indistinguishable in SHAPE from production.
-export const MOCK_ADMIN_STATS = {
-  participants: { total: 10, active: 10, suspended: 0, pending: 0 },
-  trading_pairs: { total: 24, active_30d: 8 },
-  agents: {
-    total: 10,
-    active: 10,
-    jailed: 0,
-    probation: 0,
-    revoked: 0,
-    availability: { healthy: 9, quiet: 1, unreachable: 0, not_deployed: 0 },
-  },
-  gofish: { queries_24h: 4, queries_7d: 31 },
-  orders: { total: 18, open: 3 },
-};
-
 // ─── Mock Blocked Companies ───────────────────────────────
 
 export const MOCK_BLOCKED_COMPANIES: MockBlockedCompany[] = [];
@@ -375,17 +352,4 @@ export const MOCK_PRICING_HIERARCHY: MockPricingNode[] = [
       },
     ],
   },
-];
-
-export const MOCK_ADMIN_PARTICIPANTS: MockParticipant[] = [
-  { id: "8b7ecca6-b704-4d2b-896c-801898135fdf", company_name: "Apex Manufacturing", status: "active", location: "Cleveland, OH", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 6 },
-  { id: "e755e710-0680-42d2-a9ee-938456ec7e69", company_name: "MidWest Fastener Corp", status: "active", location: "Chicago, IL", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 5 },
-  { id: "ec2308a1-08e4-4f87-bf39-43fb98bef8ff", company_name: "Great Lakes Hardware", status: "active", location: "Detroit, MI", registered_at: "2025-06-15T00:00:00Z", agent_count: 1, trading_pairs: 5 },
-  { id: "32509c89-d9ff-4d4a-b11e-8b09d47b2287", company_name: "Delta Flow Systems", status: "active", location: "Milwaukee, WI", registered_at: "2025-07-01T00:00:00Z", agent_count: 1, trading_pairs: 4 },
-  { id: "16b2784a-d331-46c6-9fcd-df063b895a6e", company_name: "Precision Plastics Inc", status: "active", location: "Fort Wayne, IN", registered_at: "2025-07-15T00:00:00Z", agent_count: 1, trading_pairs: 3 },
-  { id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", company_name: "National Industrial Supply", status: "active", location: "Columbus, OH", registered_at: "2025-06-01T00:00:00Z", agent_count: 1, trading_pairs: 7 },
-  { id: "cb5101dc-2628-426d-99a5-045f7f738f00", company_name: "Summit Electrical Components", status: "active", location: "Indianapolis, IN", registered_at: "2025-08-01T00:00:00Z", agent_count: 1, trading_pairs: 4 },
-  { id: "62124d68-7590-4a4c-a961-5e7d733fcb60", company_name: "Pacific Safety Products", status: "active", location: "Portland, OR", registered_at: "2025-08-15T00:00:00Z", agent_count: 1, trading_pairs: 5 },
-  { id: "83f507ee-47c7-4850-9a91-7a9ad539d2cf", company_name: "W.M. Gore Advanced Materials", status: "active", location: "Newark, DE", registered_at: "2025-09-01T00:00:00Z", agent_count: 1, trading_pairs: 3 },
-  { id: "5b8fde49-5cd0-4b82-a47a-b8a11c79664e", company_name: "Lyn-Tron Inc", status: "active", location: "Spokane, WA", registered_at: "2026-02-15T00:00:00Z", agent_count: 1, trading_pairs: 9 },
 ];
