@@ -130,8 +130,10 @@ render is cheap and a copied artifact has no provenance.
   docblock cited the retired `-v1.5.md` guide and now cites `-v1.6.md`; the
   §4.4 environment table no longer lists `SKU_PICKER_SCOPE`, which guide 1.6
   records as removed from the agent (`client-implementation-guidelines-v1.6.md:350`).
-  Note `body.html` §8.1 still documents that variable on a page this pass did not
-  otherwise reopen — a known remaining instance.
+  ~~Note `body.html` §8.1 still documents that variable on a page this pass did not
+  otherwise reopen — a known remaining instance.~~ *[2026-08-23: superseded the same
+  day — the review fix below removed it from §8.1 too (R-EXEC-29); no `SKU_PICKER_SCOPE`
+  remains anywhere in the PDF.]*
 - **Review fixes (round 1).** The body's own provenance comment now names `ff3f3da2`
   as well as the `31c19cf3` it was authored from, so the file and this log agree on
   which guide commit it corresponds to and a future authoring pass diffs from the
@@ -186,3 +188,8 @@ render is cheap and a copied artifact has no provenance.
 - **To finish:** `npx playwright install chromium`, `npm run build:guide-pdf`
   (verify each `.page` ≤ 1056px on first render; split/trim any overflow in
   `body.html`), then rebuild + redeploy the haiWeb prod image from that working tree.
+
+### 2026-08-23 — v1.76.1 artifacts (Plan 8 Task 11)
+- **Agent zip:** `haiwave-agent-v1.76.1.zip` — 2,506,180 B, built 2026-08-23T05:43:56Z from the `v1.76.1` tag (haiClient merge 92833487; the `v1.76.0` tree could not be packaged — the denylist guard caught 15 demo-name fingerprints in 6 shipped files, scrubbed in haiClient #195 — Q-P8-14 (A)). `manifest.json`: `{ "version": "1.76.1", "zipFile": "haiwave-agent-v1.76.1.zip", "zipBytes": 2506180, "builtAt": "2026-08-23T05:43:56.746Z" }`. Guard: 0 leaks; `unzip -l`: 41 conformance tests ship, 0 other tests, one `.env.example`, no `.env.agent*`. The stale `haiwave-agent-v1.74.0.zip` removed.
+- **Configuration guide PDF:** rendered 2026-08-23 from the merged body (haiWeb master 9a85c24, guide 1.6 @ haiCore ff3f3da2 — haiCore PR #343): 17,221,951 B, 49 pp (`/Count 49`; the cover reads Version 1.6).
+- **Production: NOT updated.** These files are gitignored and baked at image build; the haiWeb prod image rebuild + Cloud Run redeploy are the owner's.
