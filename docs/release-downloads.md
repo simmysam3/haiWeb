@@ -69,7 +69,7 @@ Measured 2026-08-22 in the `guide-1.6` worktree and in `~/dev/hw/haiWeb`.
 | Artifact | On disk (main checkout) | This worktree | Production |
 |---|---|---|---|
 | `haiwave-agent-v<version>.zip` | `haiwave-agent-v1.74.0.zip`, 2,157,791 B, built 2026-08-17 (`manifest.json` version `1.74.0`) | not built here | **NOT updated** |
-| `configuration-guide.pdf` | 14,467,753 B, 41 pp, rendered 2026-08-17 (guide edition 1.5) | 17,217,911 B, 49 pp, rendered 2026-08-22 (guide edition 1.6) | **NOT updated** |
+| `configuration-guide.pdf` | 14,467,753 B, 41 pp, rendered 2026-08-17 (guide edition 1.5) | 17,221,951 B, 49 pp, rendered 2026-08-22 (guide edition 1.6) | **NOT updated** |
 
 Both artifacts are gitignored, so neither travels with a commit and neither is in
 this worktree unless it was produced here. The zip regenerates after the
@@ -110,7 +110,7 @@ render is cheap and a copied artifact has no provenance.
   §10.6 (22 → 36 intents), §11.1, and the edition line. Section numbering is the
   PDF's own; the guide's § numbers are mapped into it.
 - **Guide PDF RENDERED:** `npm run build:guide-pdf` →
-  `private/agent-downloads/configuration-guide.pdf`, **17,217,911 B, 49 pages**
+  `private/agent-downloads/configuration-guide.pdf`, **17,221,951 B, 49 pages**
   (41 at edition 1.5). Every `<section class="page">` measured in Chromium under
   print emulation: **max height 1056 px, no page over the box** (the check was
   mutation-tested — a 600 px block injected into one page reported that page at
@@ -132,6 +132,16 @@ render is cheap and a copied artifact has no provenance.
   records as removed from the agent (`client-implementation-guidelines-v1.6.md:350`).
   Note `body.html` §8.1 still documents that variable on a page this pass did not
   otherwise reopen — a known remaining instance.
+- **Review fixes (round 1).** The body's own provenance comment now names `ff3f3da2`
+  as well as the `31c19cf3` it was authored from, so the file and this log agree on
+  which guide commit it corresponds to and a future authoring pass diffs from the
+  right one. The v1.6 change-log row, written before the review round landed, now
+  also carries the two corrections that round brought — the chat grant model and the
+  13-chain count — plus one sentence on the edition numbering, since the row sits
+  directly under this document's own closed `v2.x` run. `SKU_PICKER_SCOPE` is gone
+  from §8.1 as well as §4.4, so the variable guide 1.6 `:350` records as removed no
+  longer appears anywhere in the PDF. One rank-era phrase in §1 became "grant floor";
+  the `kit: role-floor` chip in §10.7 stays, because that is the test's name.
 - **Agent zip: NOT regenerated.** It follows the `v1.76.0` tag on haiClient; the
   zip on disk is still `haiwave-agent-v1.74.0.zip`.
 - **Production: NOT updated — the owner's image rebuild.** The artifacts are
