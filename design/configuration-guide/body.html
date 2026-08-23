@@ -1,15 +1,21 @@
 <!--
   HAIWAVE Configuration Guide — design-system content pages (the body slot).
-  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.5.md (canonical)
-  as of haiCore guide-1.5 (2026-08-17): edition 1.4's v1.66/v1.67 reconciliation folded onto the amended
-  1.3, with liveness rewritten for the v1.75 platform (availability derived, not probed: §4.3a), the
-  §4.3b upgrade notes, §6.11 console self-visibility, §7.1d envelope status, §7.5 decline + delivery
-  failures (queued_replay), the /participants/me endpoint + retry_config note (§10.3), and the two
-  prescribed quote/catalog contracts (§10.6). Section numbering here is the PDF's own (see TOC).
-  per the authoring contract in template.html. One page section per printed page;
-  .pagenum + toc__pg are auto-filled by the template script. Pages were authored
-  without a render; verify each .page <= 1056px on first real render and split/trim
-  any overflow (do not shrink the base type).
+  Full content brought forward from haiCore/docs/client-implementation-guidelines-v1.6.md (canonical)
+  as of haiCore ff3f3da2 (edition 1.6, 2026-08-22) - authored from 31c19cf3 and followed forward
+  through that edition's review round (eebeede8, ff3f3da2), which is where the guide file stands; a
+  future authoring pass should diff from ff3f3da2, not 31c19cf3: edition 1.5's content carried unchanged, with the
+  v1.76 native-quote release folded in - the seller's own quoting loop (7.7), the eleven chat gestures
+  that drive it (7.8), document rendering (5.6), the seven native-quote environment variables (4.4a)
+  and the five settings the agent refuses to start on (4.4b), the four chat grants and the three
+  native-quote queue items (6.10), the document contract in 10.5, the 36-intent taxonomy in 10.6, and
+  the in-package docs row in 11.1. Three corrections the shipped code forced: 5.5 (the Epicor connector
+  reads by default and has one write path, off unless the mounted mapping declares it), 6.10 (committing
+  is a click for an inbound request and a policy decision for the seller's own quotes) and 7.8 (accepting
+  a received quote from chat returns its terms and awaits a click). Section numbering here is the PDF's
+  own (see TOC); the source guide's own section numbers are mapped into it, never carried through.
+  Written per the authoring contract in template.html. One page section per printed page;
+  .pagenum + toc__pg are auto-filled by the template script. Every .page was measured
+  at <= 1056px on the 2026-08-22 render (do not shrink the base type to fit; split instead).
 -->
 
 <!-- ============================ CONTENTS ============================ -->
@@ -62,6 +68,7 @@
           <tr><td class="lbl">v1.0–v1.7</td><td class="mono">Feb–Jun 2026</td><td>Original single-audience guide (UI customization through custom-agent development), reconciled against the shipped agent at v1.7.</td></tr>
           <tr><td class="lbl">v2.0</td><td class="mono">Jun 2026</td><td>Structural reskeleton (audit backlog BL-19). Reorganized into three reader journeys around the three-tier package boundary <code class="ic">@haiwave/protocol → @haiwave/client-sdk → @haiwave/reference-agent</code>. Added the Tier model (§1), SDK quick-start (§2), the swappable-interface surface (§5.3), the build-from-scratch SDK path (§10), and a conformance checklist (§10.7). All env-var, interface, and class names reconciled against the shipped SDK and reference agent.</td></tr>
           <tr><td class="lbl">v2.1</td><td class="mono">Jun 2026</td><td>Currency and self-evidence pass against the v1.50 agent: the Tier-2 local-data chains are now registered chains in <code class="ic">@haiwave/reference-agent</code> (§5.4); the conformance kit pins Tier 0 and Tier 1 behaviorally — §10.7 maps every shipped test and adds the run command plus the SDK's <code class="ic">verifyCallbackSignature</code> PROTO-3 helper. Added a minimal wiring example (§2), a post-deploy smoke test (§4.3), named the console download page as the source for the SDK, agent, and guide (§4.1, §11), and documented <code class="ic">.env.example</code> as the CI-pinned config reference (§4.4).</td></tr>
+          <tr><td class="lbl">v1.6</td><td class="mono">Aug 2026</td><td>The native-quote release (software suite v1.76). New: <b>§7.7</b>, quoting your own catalog to your own ERP customers, with the loop, the three doors, the <code class="ic">quote_owner_inbound</code> floor, the release and commit policies, and the quote document; <b>§7.8</b>, the eleven chat gestures that drive the same loop; <b>§5.6</b>, document rendering; <b>§4.4a</b>, the seven native-quote variables, and <b>§4.4b</b>, the five settings the agent refuses to start on. Updated: §6.10 (four grants, three new queue items), §10.5 (the document contract), §10.6 (36 intents), §11.1. Corrected: §5.5, the Epicor connector reads by default and has one write path, off unless the mounted mapping declares it; §6.10 and §7.7, your own console buttons call the action directly and only chat goes through the release and commit policy doors; §2.3, §10.6 and §10.7, the chat <b>grant</b> model replaces the retired rank hierarchy — each user carries a <code class="ic">roles</code> array, gating is by <code class="ic">hasGrant</code>, accepting a received quote requires <code class="ic">quote_owner_outbound</code>, and the four grants are two scoped siblings plus <code class="ic">owner</code> rather than a rank, so <b>a users file still carrying the retired single <code class="ic">role</code> field refuses to load</b>; §2.3, §5.4, §10.6 and §10.7, the prescribed transaction-touching chains are <b>13</b>, adding <code class="ic">quoteAttachPoChain</code> and <code class="ic">vendorQuoteStartChain</code>. Numbering: from edition 1.6 this document follows the source guide's edition number; the <code class="ic">v2.x</code> rows above are this document's own earlier numbering, closed in June 2026.</td></tr>
         </tbody>
       </table>
     </div>
@@ -82,7 +89,7 @@
    (wire types)        (prescribed surface)      (reference scaffold)         (composition)</pre>
       <div class="h3"><span class="n">1.1</span>The Three Tiers</div>
       <p class="p"><b>Tier 0 — Wire And Transport.</b> The protocol message schemas (<code class="ic">@haiwave/protocol</code>) plus transport and auth: the outbound client (<code class="ic">HaiWaveClient</code>, <code class="ic">TokenManager</code>), the MCP (Model Context Protocol) server, JWT (JSON Web Token) validation, and the PROTO-3 callback HMAC (Hash-based Message Authentication Code). You cannot change Tier 0 without leaving the network.</p>
-      <p class="p"><b>Tier 1 — Prescribed Conformance.</b> The interfaces and invariants every agent must honor: the chat pipeline phases, the intent taxonomy, the role floor, the write-confirmation gate, the transaction-touching chains, the data-disclosure contracts. Extend at the declared extension points; never remove or bypass them.</p>
+      <p class="p"><b>Tier 1 — Prescribed Conformance.</b> The interfaces and invariants every agent must honor: the chat pipeline phases, the intent taxonomy, the grant floor, the write-confirmation gate, the transaction-touching chains, the data-disclosure contracts. Extend at the declared extension points; never remove or bypass them.</p>
       <p class="p"><b>Tier 2 — Reference Scaffold.</b> Everything in <code class="ic">@haiwave/reference-agent</code>: the reference data layer (a single-file DuckDB by default), the Claude and Gemini adapters, the local embedding model, the reference pricing, lead-time, and recommendation logic, and the UI. Each piece is freely replaceable behind the Tier 1 interfaces.</p>
       <div class="note"><p class="p"><span class="k">Data store is your choice.</span> DuckDB is only the quick-start default — single-file and in-process, so the reference agent runs with no external database. Production deployments point the <code class="ic">DataStore</code> interface at the data platform they already run (Snowflake or any other) and reuse that investment; the agent is not tied to DuckDB. The heavy native dependencies (DuckDB, embeddings, the LLM vendor SDKs, document parsers) live only in <code class="ic">@haiwave/reference-agent</code> — the root app and <code class="ic">@haiwave/client-sdk</code> stay free of them, and guard tests pin that boundary.</p></div>
     </div>
@@ -151,8 +158,8 @@
         <li><b>Pipeline.</b> Run each turn through <code class="ic">runMessageTurn</code>, which executes the eight prescribed phases in order (§10.6).</li>
         <li><b>Sessions.</b> Manage conversational state with <code class="ic">SessionManager</code> / <code class="ic">ChatSession</code>.</li>
         <li><b>Routing.</b> Route against the <code class="ic">VALID_INTENTS</code> taxonomy using <code class="ic">QueryRouter</code> (with an <code class="ic">IQueryFastPath</code> for the regex fast path).</li>
-        <li><b>Role floor.</b> Enforce role gating via <code class="ic">hasMinimumRole</code>; the <code class="ic">quote_accept</code> intent has a hard <code class="ic">trader</code> floor.</li>
-        <li><b>Chains.</b> Register the 11 prescribed transaction-touching chains in the <code class="ic">PromptChainRegistry</code>.</li>
+        <li><b>Grant floor.</b> Enforce grant gating via <code class="ic">hasGrant</code>; the <code class="ic">quote_accept</code> intent requires <code class="ic">quote_owner_outbound</code> (§10.6).</li>
+        <li><b>Chains.</b> Register the 13 prescribed transaction-touching chains in the <code class="ic">PromptChainRegistry</code>.</li>
         <li><b>Write gate.</b> Preserve the pending-confirmation state machine (<code class="ic">handlePendingConfirmation</code> plus the arming in <code class="ic">finalizeTurn</code>) so no write executes without explicit acknowledgment.</li>
       </ol>
       <div class="note teal"><p class="p"><span class="k">2.4 Deploy-as-is shortcut (C).</span> If you are not modifying code, skip §2 and go to §4. The SDK quick-start is for Journeys B and A; chain extension points belong to §5.4 (B) and §10 (A).</p></div>
@@ -289,7 +296,7 @@
     <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="h3"><span class="n">4.4</span>Environment Variable Reference</div>
-      <p class="p">The authoritative, exhaustive reference is the agent's <code class="ic">.env.example</code> — it lists every variable the code reads, with exact names and built-in defaults, and a CI test (<code class="ic">src/__tests__/env-example.test.ts</code>) fails the build if it drifts from the loader. Copy it to <code class="ic">.env</code> and fill in your values. The table below is a curated subset of the most common variables.</p>
+      <p class="p">The authoritative, exhaustive reference is the agent's <code class="ic">.env.example</code> — it lists every variable the code reads, with exact names and built-in defaults, and a CI test (<code class="ic">src/__tests__/env-example.test.ts</code>) fails the build if it drifts from the loader. Copy it to <code class="ic">.env</code> and fill in your values. The table below is a curated subset of the most common variables; the seven that govern the seller's own quoting loop (§7.7) are tabled separately in §4.4a.</p>
       <table class="tbl">
         <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
         <tbody>
@@ -312,10 +319,60 @@
           <tr><td class="lbl"><code class="ic">ADMIN_API_KEY</code></td><td class="mono">—</td><td>Guards <code class="ic">/admin/*</code> via <code class="ic">X-Admin-Key</code>; admin routes 403 if unset.</td></tr>
           <tr><td class="lbl"><code class="ic">CONFIG_DIR</code></td><td class="mono">./config</td><td>Runtime config directory; <code class="ic">/data/config</code> in containers.</td></tr>
           <tr><td class="lbl"><code class="ic">APPROVAL_GATEWAY__*</code></td><td class="mono">disabled</td><td>Approval gateway (disabled by default).</td></tr>
-          <tr><td class="lbl"><code class="ic">MES_ENABLED</code> / <code class="ic">MES_CONFIG</code> / <code class="ic">SKU_PICKER_SCOPE</code></td><td class="mono">false / — / published_only</td><td>Phantom-demand MES (Manufacturing Execution System) bridge (§8.1).</td></tr>
+          <tr><td class="lbl"><code class="ic">MES_ENABLED</code> / <code class="ic">MES_CONFIG</code></td><td class="mono">false / —</td><td>Phantom-demand MES (Manufacturing Execution System) bridge (§8.1).</td></tr>
         </tbody>
       </table>
       <div class="note"><p class="p"><span class="k">No <code class="ic">DATABASE_TYPE</code> switch.</span> The reference build ships a single-file, in-process DuckDB as its quick-start default, so there is nothing to provision to run it. Production deployments point the <code class="ic">DataStore</code> interface (§5.3) at the data platform they already run — Snowflake or any other — and reuse that investment; the agent is not tied to DuckDB.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+
+<!-- ============================ 04c2 · ENV VARS (native quote) ============================ -->
+<section class="page" data-screen-label="4c2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">4.4a</span>Native-Quote Configuration</div>
+      <p class="p">Seven variables govern the seller's own quoting loop (§7.7) and the document it produces (§5.6). Three of them have no flat default: they <b>derive</b> from <code class="ic">AGENT_INTERACTION_MODE</code>, because a policy that waits for a person is only honorable on a deployment where a person exists.</p>
+      <table class="tbl">
+        <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">QUOTE_RESPONSE_MODE</code></td><td class="s-cfg">derived</td><td>How the agent answers an <b>inbound</b> quote request. <code class="ic">auto_respond</code> prices it and puts the draft straight back on the wire; <code class="ic">queue</code> files it as a work item (§6.10) and the buyer receives the protocol's asynchronous pending acknowledgment. Unset derives: <code class="ic">agent_and_human</code> gives <code class="ic">queue</code>, <code class="ic">agent_only</code> gives <code class="ic">auto_respond</code>.</td></tr>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_RELEASE_MODE</code></td><td class="s-cfg">derived</td><td>Whether the <b>agent side</b> may release one of your own quotes (§7.7) without a person. <code class="ic">auto</code> releases it; <code class="ic">queue</code> files a <code class="ic">native_quote_release</code> work item and nothing is released until someone approves it. Unset derives by the same rule: <code class="ic">agent_and_human</code> gives <code class="ic">queue</code>, <code class="ic">agent_only</code> gives <code class="ic">auto</code>. Your own console buttons are a person acting directly and are never queued.</td></tr>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_COMMIT_MODE</code></td><td class="s-cfg">derived</td><td>The same agent-side door for committing a quoted order into your ERP. <code class="ic">auto</code> commits; <code class="ic">queue</code> files a <code class="ic">native_quote_commit</code> work item. Same derivation, same boot refusal.</td></tr>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_CUSTOMER_PRICING</code></td><td class="mono">ask</td><td>Whether the agent reads a customer's own ERP price lists for a draft (§7.7). <code class="ic">ask</code> waits to be asked from the draft's review screen; <code class="ic">auto</code> fetches before a quote is generated; <code class="ic">off</code> is a legal value that refuses the pricing door at request time, with an authored refusal naming this setting rather than an ERP error, not at boot. Independent of <code class="ic">AGENT_INTERACTION_MODE</code>.</td></tr>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_VALIDITY_DAYS</code></td><td class="mono">30</td><td>How many days a generated quote's price stands for. The expiry is printed on the customer's document, so the value must be a whole number of days of at least 1.</td></tr>
+          <tr><td class="lbl"><code class="ic">DOCUMENT_RENDERER</code></td><td class="mono">central</td><td>Which document renderer produces the quote PDF (§5.6). <code class="ic">central</code> is the only value this release ships; substitute your own the way an ERP connector is substituted.</td></tr>
+          <tr><td class="lbl"><code class="ic">BUSINESS_PARTICULARS_PATH</code></td><td class="mono">unset</td><td>Your own seller particulars, printed on a generated quote (§7.7). Unset, the agent looks in <code class="ic">CONFIG_DIR/business-particulars.json</code>. An <b>absent</b> file is legal and is not a boot refusal: it logs a warning, and every generated quote renders its seller block absent rather than inventing a value. A file that is <b>present</b> but unreadable, not valid JSON, or schema-invalid <b>does</b> refuse the boot.</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><p class="p"><span class="k">These variables need an ERP connector to matter.</span> <code class="ic">ERP_CONNECTOR</code> is unset by default, which means no connector, and the customer lookup and customer-pricing doors then refuse with a message naming exactly that rather than doing anything (§7.7, §5.5). Setting the variables above changes nothing on a deployment with no ERP configured.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 04c3 · ENV VARS (boot refusals) ============================ -->
+<section class="page" data-screen-label="4c3">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">4 · Deploy the Reference Agent</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">4.4b</span>Configuration The Agent Refuses To Start On</div>
+      <p class="p">Environment validation reads the native-quote settings of §4.4a inside the same fail-fast step as the rest of the configuration, before anything listens, so a value the agent cannot honor stops the boot with a message naming the variable instead of being accepted and quietly ignored. Five refusals:</p>
+      <ul class="ul">
+        <li><b>An unrecognized <code class="ic">NATIVE_QUOTE_RELEASE_MODE</code> or <code class="ic">NATIVE_QUOTE_COMMIT_MODE</code>.</b> The valid values are <code class="ic">auto</code> and <code class="ic">queue</code>.</li>
+        <li><b><code class="ic">queue</code> on either of those two while <code class="ic">AGENT_INTERACTION_MODE=agent_only</code>.</b> A headless agent has no human surface, so no one could ever approve the queued action, and the boot says so rather than deadlocking quietly.</li>
+        <li><b>A <code class="ic">NATIVE_QUOTE_VALIDITY_DAYS</code> that is not a whole number of days of at least 1.</b> A fraction, a zero, or a number with a unit written after it is refused rather than rounded, because the value is printed as a date on a customer's quote.</li>
+        <li><b>An unrecognized <code class="ic">DOCUMENT_RENDERER</code>.</b> <code class="ic">central</code> is the only value this release ships (§5.6).</li>
+        <li><b>An unrecognized <code class="ic">NATIVE_QUOTE_CUSTOMER_PRICING</code>.</b> The valid values are <code class="ic">auto</code>, <code class="ic">ask</code> and <code class="ic">off</code>.</li>
+      </ul>
+      <p class="p"><code class="ic">QUOTE_RESPONSE_MODE</code>, which governs the same question for an <b>inbound</b> quote request, obeys the identical two rules: an unrecognized value is refused, and <code class="ic">queue</code> on an <code class="ic">agent_only</code> agent is refused.</p>
+      <p class="p">Both resolved policies are logged on every boot, including whether the value was derived rather than set, so the posture an agent actually runs under can be read from its log instead of inferred from its environment.</p>
+      <div class="note teal"><p class="p"><span class="k">Why a refusal rather than a fallback.</span> Each of these settings decides whether a commercial action happens without a person. A misspelling that landed silently on a default would answer that question without telling anybody, which is the one outcome an operator cannot audit after the fact.</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -357,7 +414,7 @@
       <p class="p">Cost is driven by query volume and catalog size. The agent uses a <b>two-tier query router</b>: a tight regex fast-path classifies a narrow set of unambiguous, high-frequency requests (order lookups, ERP status, confirmations) without a model call; everything else falls through to a lightweight LLM classification step. The fast-path is deliberately narrow, so savings are real but bounded. The session and daily token caps are hard cost ceilings.</p>
       <div class="note teal"><p class="p"><span class="k">Support scope.</span> The reference Claude / Gemini configuration is covered by HAIWAVE support. Modifications beyond provider selection — different models, additional providers, custom prompt structures — fall outside that scope.</p></div>
       <div class="h3"><span class="n">5.4</span>Tier 2 Extension Chains</div>
-      <p class="p">The reference agent registers the 11 prescribed transaction-touching chains (§10.6) <b>plus</b> its Tier-2 local-data chains — <code class="ic">inventory_check</code>, <code class="ic">pricing_lookup</code>, <code class="ic">product_specs</code>, <code class="ic">product_compatibility</code>, <code class="ic">cross_reference</code>, <code class="ic">standards_lookup</code>, <code class="ic">document_search</code>, <code class="ic">company_policy</code>, <code class="ic">erp_status</code>, <code class="ic">general</code>, <code class="ic">classification_status</code> — into the <code class="ic">PromptChainRegistry</code>, all wired by <code class="ic">registerAllChains</code> in <code class="ic">@haiwave/reference-agent</code> (<code class="ic">src/chat/chains/</code>). A Journey-B reader can replace any chain by registering a different <code class="ic">PromptChain</code> for the same intent, provided it preserves the chain's prescribed payloads and write-confirmation behavior. The Tier-2 chains are reference-only and freely replaceable.</p>
+      <p class="p">The reference agent registers the 13 prescribed transaction-touching chains (§10.6) <b>plus</b> its Tier-2 local-data chains — <code class="ic">inventory_check</code>, <code class="ic">pricing_lookup</code>, <code class="ic">product_specs</code>, <code class="ic">product_compatibility</code>, <code class="ic">cross_reference</code>, <code class="ic">standards_lookup</code>, <code class="ic">document_search</code>, <code class="ic">company_policy</code>, <code class="ic">erp_status</code>, <code class="ic">general</code>, <code class="ic">classification_status</code> — into the <code class="ic">PromptChainRegistry</code>, all wired by <code class="ic">registerAllChains</code> in <code class="ic">@haiwave/reference-agent</code> (<code class="ic">src/chat/chains/</code>). A Journey-B reader can replace any chain by registering a different <code class="ic">PromptChain</code> for the same intent, provided it preserves the chain's prescribed payloads and write-confirmation behavior. The Tier-2 chains are reference-only and freely replaceable.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -381,7 +438,8 @@
           <tr><td class="lbl"><code class="ic">ITransactionDatabase</code></td><td>DuckDBTransactionDatabase</td><td>Pricing/inventory/lead-time. <span class="tag">Planned</span> Snowflake impl.</td></tr>
           <tr><td class="lbl"><code class="ic">DataStore</code></td><td>DuckDBDataStore</td><td>The <code class="ic">query</code>/<code class="ic">exec</code>/<code class="ic">close</code> seam under the concretes; swap this to retarget the engine.</td></tr>
           <tr><td class="lbl"><code class="ic">IPricingEngine</code></td><td>PricingEngine</td><td><code class="ic">price_basis</code> is Tier 1; the arithmetic is swappable.</td></tr>
-          <tr><td class="lbl"><code class="ic">ErpConnector</code></td><td>EpicorConnector / mock</td><td>Read path (§5.5). <code class="ic">fulfillQuoteRequest</code> is optional, so a read-only connector is a complete implementation.</td></tr>
+          <tr><td class="lbl"><code class="ic">ErpConnector</code></td><td>EpicorConnector / mock</td><td>Selected by <code class="ic">ERP_CONNECTOR</code>; unset means no connector at all (§5.5). <code class="ic">fulfillQuoteRequest</code> is optional, so a read-only connector is a complete implementation.</td></tr>
+          <tr><td class="lbl"><code class="ic">IDocumentRenderer</code></td><td>CentralDocumentRenderer</td><td><code class="ic">DOCUMENT_RENDERER</code> selects it; <code class="ic">central</code> is the only shipped value (§5.6).</td></tr>
           <tr><td class="lbl"><code class="ic">ILeadTimeService</code></td><td>LeadTimeService</td><td>The <code class="ic">FulfillmentClass</code> structure is prescribed.</td></tr>
           <tr><td class="lbl"><code class="ic">IInventoryProvider</code> <span class="bc">ref-only</span></td><td>DuckDBInventoryProvider</td><td>Net-availability reads.</td></tr>
           <tr><td class="lbl"><code class="ic">IRecommendationEngine</code> <span class="bc">ref-only</span></td><td>RecommendationEngine</td><td>N-best recommendation logic (§7.2).</td></tr>
@@ -404,11 +462,53 @@
     <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
       <div class="h3"><span class="n">5.5</span>ERP Connectivity</div>
-      <p class="p">The agent reads from your ERP through an <code class="ic">ErpConnector</code>, selected at boot. A mock connector backed by local fixtures is the default, so the agent runs with no ERP attached.</p>
-      <p class="p">An <b>Epicor Kinetic</b> read-path connector ships with the reference agent. It is <b>read-only by deliberate choice</b>: nothing in it issues a POST, PATCH or DELETE, so a misconfiguration cannot modify your ERP data. This is a property of our implementation rather than a restriction Kinetic imposes, and one we intend to keep until a write path has been designed and reviewed with you.</p>
+      <p class="p">The agent reads from your ERP through an <code class="ic">ErpConnector</code>, selected at boot by <code class="ic">ERP_CONNECTOR</code>. <b>Unset, or <code class="ic">none</code>, means no connector at all</b>, which is the default and is also where an unrecognized value lands. A <code class="ic">mock</code> connector backed by local fixtures and an <code class="ic">epicor_kinetic</code> connector are the two that can be selected. Everything that reads your ERP is therefore off until one is configured, and a deployment that leaves <code class="ic">ERP_CONNECTOR</code> unset sees no change from the v1.76 release.</p>
+      <p class="p">An <b>Epicor Kinetic</b> connector ships with the reference agent. Once selected it <b>reads only</b>. It has exactly one write path, booking a quoted order into your ERP (§7.7), and that path is off unless the mapping you mount declares a <code class="ic">write</code> block, so a connector configured for reads cannot modify your ERP data however it is called. Turning the write path on is a deliberate, documented step rather than a setting: the package ships <code class="ic">docs/erp-write-enable.md</code>, the runbook for a session in which a person watches the first booking against a live Kinetic <b>test</b> company before the write path is trusted anywhere. That runbook records its own status as blocked on exactly that session as of 2026-08-11, because no live Kinetic instance has been configured. Read-by-default is a property of our implementation rather than a restriction Kinetic imposes.</p>
       <p class="p">The connector is <b>mapping-driven</b>. Endpoints, authentication headers, composite-key types, field maps and price-per divisors are supplied as data in a mapping file you mount, not as code. That is what makes one implementation portable across installations that differ in configuration, and it means adapting it to your instance is a configuration exercise rather than a code change.</p>
-      <p class="p">What it reads today is list prices and quote requests. Two limits are worth stating plainly rather than leaving you to find them. <b>Quantity breaks are not yet carried through</b>, so a tiered price in your ERP publishes flat at its base tier; raise this before relying on published prices if your pricing is materially tiered. And <b>a resolved sell price is not reachable on the OData surface</b>: real sell price in Kinetic resolves customer, then price list, then quantity break, then discount, inside business logic the OData half does not expose. What the connector reads is a list price, and it should be treated as one.</p>
+      <p class="p">What it reads today is list prices, quote requests, and, new in v1.76, your customers and their own pricing (§7.7). Two limits are worth stating plainly rather than leaving you to find them. <b>Quantity breaks are not yet carried through</b>, so a tiered price in your ERP publishes flat at its base tier; raise this before relying on published prices if your pricing is materially tiered. And <b>a resolved sell price is not reachable on the OData surface</b>: real sell price in Kinetic resolves customer, then price list, then quantity break, then discount, inside business logic the OData half does not expose. What the connector reads is a list price, and it should be treated as one.</p>
       <div class="note teal"><p class="p"><span class="k">Before first use.</span> The connector has not yet been exercised against a live Kinetic instance, so every assumption it makes about your installation comes from published API definitions rather than from observation. Treat the first connection as a test: run the boot probe alone first, which confirms base URL, company segment and credentials in one call; then one collection read; then one keyed row read, the first step that exercises composite-key rendering. Only then wire the connector into the agent. <code class="ic">connector/epicor/CAPTURE.md</code> in the agent distribution sets this out step by step, with what to capture while you are connected.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+
+<!-- ============================ 05d2 · EXTEND (ERP: v1.76 mapping resources) ============================ -->
+<section class="page" data-screen-label="5d2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">5.5, continued —</span> the mapping resources v1.76 added.</div>
+      <p class="p">Quoting your own customers (§7.7) needs reads the earlier mapping did not describe. These are resource <b>names this connector's code looks up on demand</b>, not methods the interface declares, and the mapping's <code class="ic">resources</code> map has no closed schema of names, so an undeclared resource simply has no feed. The ones read for §7.7 are:</p>
+      <ul class="ul">
+        <li><b><code class="ic">customerSearch</code></b>, with its own <code class="ic">fields</code> map, for finding a customer by identifier or by a name substring.</li>
+        <li><b><code class="ic">customerDetail</code></b> for the customer's particulars: an ERP customer reference resolves by the mapping's declared key, a customer id by a filtered collection read.</li>
+        <li><b><code class="ic">customerShipTo</code></b> for the default ship-to block. A failing read here degrades the answer rather than failing the customer lookup.</li>
+        <li><b>For customer pricing</b>, either a single declared <code class="ic">customerPricing</code> BAQ (business activity query), or the walk <code class="ic">customerPriceLists</code> and <code class="ic">shipToPriceLists</code> for the assignments, then <code class="ic">priceListHeaders</code>, then <code class="ic">priceListParts</code>. The ship-to layer is doubly optional: it is consulted only if the mapping declares <code class="ic">shipToPriceLists</code> <b>and</b> the request names a ship-to, which is how Epicor itself layers ship-to over customer.</li>
+      </ul>
+      <p class="p">Where the BAQ is declared it replaces the walk; where neither is declared the connector answers that it has no customer pricing rather than substituting a list price for one.</p>
+      <div class="note"><p class="p"><span class="k">Two keys the design names that are never read: <code class="ic">shipTo</code> and <code class="ic">plants</code>.</span> Do not configure either in a mapping file. No connector code accesses them; the ship-from capability they belong to is deferred whole — contract, mock, Epicor read and mapping key together. Your ship-from comes from the particulars file you mount instead (<code class="ic">BUSINESS_PARTICULARS_PATH</code>, §4.4a). This is about those two key <b>names</b>: the ship-to reads the connector does perform are declared as <code class="ic">customerShipTo</code> and <code class="ic">shipToPriceLists</code> above.</p></div>
+      <p class="p"><b>Trying it without an ERP.</b> <code class="ic">ERP_CONNECTOR=mock</code> answers the customer search, the customer detail and the customer-pricing reads from two local fixture files, <code class="ic">customers.json</code> and <code class="ic">customer-pricing.json</code>, in the same fixture directory as the list-price fixtures. An absent file means no feed, which is the same meaning an absent list-price fixture carries. That is enough to exercise the whole native-quote loop of §7.7 with no ERP attached.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 05d3 · EXTEND (customer-pricing limits + 5.6 document rendering) ============================ -->
+<section class="page" data-screen-label="5d3">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">5 · Extend &amp; Customize</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">5.5, continued —</span> what customer pricing does not cover.</div>
+      <p class="p">The connector reads the five flat quantity-break columns on a price-list part rather than the <code class="ic">PLPartBrks</code> child collection, and it does not cover discount-type price lists, group price lists, or <code class="ic">PriceListInquiry</code>, which has no OData surface at all. A price in a currency the quote is not denominated in is recorded and not applied: currency is labeled, never converted.</p>
+      <p class="p"><b>And what it refuses rather than substitutes.</b> A discount-only list, a quantity break that expresses a discount rather than a price, an ambiguous unit of measure, an uninterpretable price-per code, a list that states no currency, or an effective-date bound it cannot read: each answers with no unit price and a stated reason, and the walk does not fall through to a lower-priority list that Epicor itself would not have used.</p>
+      <div class="h3"><span class="n">5.6</span>Document Rendering</div>
+      <p class="p">The quote document of §7.7 is produced through a swappable interface, <code class="ic">IDocumentRenderer</code>, selected at boot by <code class="ic">DOCUMENT_RENDERER</code> (§4.4a) exactly as an ERP connector is selected. <code class="ic">central</code> is the only value this release ships, and it calls HAIWAVE Central's render endpoint. Substituting your own renderer is the same exercise as substituting a connector: implement the interface, inject it at the composition root, and name it in the variable. An unrecognized value refuses the boot rather than falling back (§4.4b).</p>
+      <p class="p">Rendering centrally is deliberate and it is <b>transitory</b>. Central receives the document model, renders it in memory, streams the PDF back, and drops it: no row, no file, and no log of the content. Only counts and sizes are logged. Nothing about your quote, your customer, or your prices is retained centrally as a result of rendering it. The PDF your customer receives is stored by your own agent under its own content hash, so it stays available on your side after the render is gone (§7.7).</p>
+      <p class="p">The reason for the split is that a renderer is a large dependency to put on every deployed agent for a document that is produced occasionally. A participant who would rather not send the model out at all substitutes a local renderer, and the rest of the loop is unchanged.</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Rendering needs HAIWAVE Central at the v1.76 platform.</b> The <code class="ic">central</code> renderer calls Central's document-render endpoint under a <code class="ic">documents:render</code> scope that ships with the v1.76 platform. That platform is not yet in production as of this edition (2026-08-22), so Generate does not work against the production platform until it is deployed. Everything before Generate, and the ERP commit itself, are local to your agent and are unaffected (§7.7).</p></div>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -548,13 +648,13 @@
       <div class="h3"><span class="n">6.10</span>The Work Queue And Who May Act</div>
       <p class="p">The agent does not execute commercial decisions on its own. It surfaces them, and a person acts. The work queue is where that happens, and it lives <b>in your agent's own interface</b>, not in the HAIWAVE console.</p>
       <p class="p">That split is deliberate. The console is an elevated-privilege configuration environment, where someone with administrative authority configures your network presence. Working an inbound quote request is not an administrative act, it is a day-to-day commercial one, and the people who do it should not need console privileges to do their jobs.</p>
-      <p class="p">What lands there: inbound quote requests and solicitation invites (§7.5), quote opportunities identified from observed price history, chase items where something promised has not arrived, and order-collaboration proposals awaiting a response.</p>
+      <p class="p">What lands there: inbound quote requests and solicitation invites (§7.5), quote opportunities identified from observed price history, chase items where something promised has not arrived, and order-collaboration proposals awaiting a response. From v1.76 the seller's own quotes (§7.7) add three more. Two are decisions: <code class="ic">native_quote_release</code>, filed when the agent side asks to release one of your quotes under <code class="ic">NATIVE_QUOTE_RELEASE_MODE=queue</code>, and <code class="ic">native_quote_commit</code>, filed when it asks to book the quoted order into your ERP under <code class="ic">NATIVE_QUOTE_COMMIT_MODE=queue</code>. Approving either one runs the real action there and then. The third, <code class="ic">quote_awaiting_po</code>, is a chase item rather than a decision: it is the standing waiting-on-the-customer's-purchase-order row, and it closes when the order is committed, the quote is revised, or the quote is withdrawn, never by hand.</p>
       <table class="tbl"><thead><tr><th>Grant</th><th>May</th></tr></thead><tbody>
-        <tr><td class="lbl">Reviewer</td><td>See queue items and comment; cannot commit.</td></tr>
-        <tr><td class="lbl">Quote owner</td><td>Act on quotes for the products they own.</td></tr>
-        <tr><td class="lbl">Owner</td><td>Act on anything, and grant to others.</td></tr>
+        <tr><td class="lbl"><code class="ic">reviewer</code></td><td>See queue items and comment; cannot commit. Satisfied by any non-empty grant set, so everyone who can sign in can read the queue.</td></tr>
+        <tr><td class="lbl"><code class="ic">quote_owner_inbound</code></td><td>Act on what a counterparty has asked of you: inbound quote requests, solicitation invites, order acknowledgments — and your own quotes to your own customers (§7.7).</td></tr>
+        <tr><td class="lbl"><code class="ic">quote_owner_outbound</code></td><td>Act on your own purchasing side: what you have asked of a counterparty.</td></tr>
+        <tr><td class="lbl"><code class="ic">owner</code></td><td>Act on anything, and grant to others.</td></tr>
       </tbody></table>
-      <p class="p"><b>The agent itself holds a Reviewer grant.</b> It can propose, evaluate and recommend; it cannot commit. This is how autonomy is intended to grow: when you are ready for the agent to do more, you grant it more, and nothing about the architecture changes. There is no separate autonomous mode to switch on, and no rewrite between the agent suggesting and the agent acting.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
@@ -566,7 +666,10 @@
   <div class="page__inner">
     <div class="page-top"><span class="lbl">6 · Security &amp; Access Posture</span><span class="c"></span></div>
     <div class="body" style="padding-top:14px;">
-      <div class="h4"><span class="t">6.10, continued —</span> the Request backlog.</div>
+      <div class="h4"><span class="t">6.10, continued —</span> grant reach, the agent's own grant, and the Request backlog.</div>
+      <p class="p">The two scoped grants are <b>siblings, not a hierarchy</b>. Holding <code class="ic">quote_owner_outbound</code> reaches nothing that <code class="ic">quote_owner_inbound</code> gates, and only <code class="ic">owner</code> covers both. Native quoting (§7.7) runs under <code class="ic">quote_owner_inbound</code> at every door, because what an approval there authorizes is an outward-facing write to a buyer: the quote document you issue, or the order you book against their purchase order.</p>
+      <p class="p"><b>The agent itself holds a Reviewer grant.</b> It can propose, evaluate and recommend; it cannot commit. This is how autonomy is intended to grow: when you are ready for the agent to do more, you grant it more, and nothing about the architecture changes. There is no separate autonomous mode to switch on, and no rewrite between the agent suggesting and the agent acting.</p>
+      <p class="p"><b>Where the default comes from.</b> The container is <code class="ic">agent_and_human</code>, so it has a human surface, and every policy that can wait for a person defaults to waiting: an inbound request queues, and so does a release or a commit that the agent side asks for. A headless agent (<code class="ic">agent_only</code>) has no console and no login, so the same policies default to acting unattended, and asking it to queue is refused at boot rather than accepted, because no one could ever drain that queue (§4.4b). The chat assistant can report on the queue, and for an <b>inbound</b> quote request committing is done in the queue rather than by asking for it. For the seller's <b>own</b> quotes the assistant drives the same policy doors the <b>agent side</b> does (§7.8), queued or unattended according to your settings. Your own console buttons are a different thing again: they call the action directly, because a person pressing Generate or Commit <b>is</b> the human validation, and are never queued.</p>
       <p class="p"><b>Grants bound what you can take, not only what you can commit</b> (v1.67). The queue offers a <i>Request backlog</i> control that pulls a batch of open items into your working set and holds them for the duration of a lease. That claim is filtered by the same grant reach that governs acting on an item: it hands you only item types you could actually action, because a claim is exclusive and a review-only user checking out a batch used to block, for the whole lease, everyone who could have acted on it. Reading and commenting never required a claim; the queue's All view shows every item and accepts a recommendation without one. The working set is capped (<code class="ic">QUEUE_BACKLOG_SIZE</code>, default 10), so a claim is bounded in size as well as in time.</p>
       <div class="h3"><span class="n">6.11</span>What Your Own People Can See In The Console</div>
       <p class="p">Two console read paths opened in v1.66, and both moved in the direction of showing an operator something they were previously denied without gaining any ability to change it.</p>
@@ -698,6 +801,107 @@
   </div>
 </section>
 
+
+<!-- ============================ 07e · MANIFEST (7.7 native quotes) ============================ -->
+<section class="page" data-screen-label="7e">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.7</span>Native Quotes</div>
+      <p class="p">Everything in §7.5 is about being asked to quote by someone on the network. This section is the other direction: quoting <b>your own catalog</b> to <b>your own ERP customers</b>, who need not be HAIWAVE participants at all. The output is a quote document you send and, when the customer's purchase order comes back, an order booked in your ERP. New in v1.76.</p>
+      <p class="p"><b>It is off until an ERP is configured.</b> The customer lookup and the customer-pricing door read your ERP through the connector boundary of §5.5, and <code class="ic">ERP_CONNECTOR</code> is unset by default. With no connector both doors refuse with a message naming exactly that, so a deployment that has not configured an ERP sees no change from this release.</p>
+      <p class="p"><b>The loop.</b> Compose a quote from your own catalog, naming lines and quantities. Deliver it to an ERP customer, which is the point at which the customer is confirmed and the header is defaulted from their customer master (terms, currency, ship-to). Optionally read that customer's own price lists and record, per line, what they would be charged beside what the draft says (<code class="ic">NATIVE_QUOTE_CUSTOMER_PRICING</code>, §4.4a). Generate the document, which mints the quote's reference, stamps its expiry, and produces the PDF. Then wait for the customer's purchase order, attach it, and commit, which books the order into your ERP.</p>
+      <p class="p"><b>Stages.</b> A quote is a draft that moves through named stages, visible on the agent's <b><i>Order Entry</i></b> tab. A composed quote starts at <code class="ic">composing</code>, reaches <code class="ic">review</code> once it has been delivered to a customer and enriched, becomes <code class="ic">quoted</code> when the document is generated, and then moves <code class="ic">committing</code>, <code class="ic">committed</code> and <code class="ic">verdict_received</code> as the ERP write is made and confirmed. Revising a <code class="ic">quoted</code> draft returns it to <code class="ic">review</code> and increments its revision number. The stage vocabulary has eleven members in total; the four this list does not name (<code class="ic">uploaded</code>, <code class="ic">extracted</code>, <code class="ic">aligned</code>, <code class="ic">resolved</code>) belong to the document-driven purchase-order entry flow that shares the same drafts, and <code class="ic">commit_indeterminate</code> is where a draft rests when an ERP write neither clearly succeeded nor clearly failed.</p>
+      <p class="p"><b>Three doors, one core.</b> The same service answers all of them, so what a quote can do is the same at each door. What differs is only whether the <b>agent side</b> may act unattended.</p>
+      <ul class="ul">
+        <li><b>The agent's own console.</b> HTTP routes behind the <b><i>Order Entry</i></b> tab. Every route requires <code class="ic">quote_owner_inbound</code>, so a user holding only <code class="ic">reviewer</code> is refused by the routes themselves rather than shown a read-only screen.</li>
+        <li><b>Chat.</b> The eleven gestures of §7.8, gated on the same grant.</li>
+        <li><b>Network MCP.</b> Deferred by decision, not by omission. See the Planned note in §7.8.</li>
+      </ul>
+      <p class="p">The grant floor is <code class="ic">quote_owner_inbound</code> at every door, and <code class="ic">owner</code> covers it (§6.10).</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 07e2 · MANIFEST (7.7 policy, document, commit) ============================ -->
+<section class="page" data-screen-label="7e2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">7.7, continued —</span> human validation, the document, and the commit.</div>
+      <p class="p"><b>Human validation is a policy, not a step.</b> There is no separate approval stage in the loop. Instead, two settings decide whether the <b>agent side</b> may act alone, and when they say <code class="ic">queue</code> the existing work queue carries the decision as an ordinary item (§6.10).</p>
+      <table class="tbl">
+        <thead><tr><th>Setting</th><th><code class="ic">auto</code></th><th><code class="ic">queue</code></th></tr></thead>
+        <tbody>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_RELEASE_MODE</code></td><td>The agent generates and releases the quote itself.</td><td>A <code class="ic">native_quote_release</code> item is filed and nothing is generated until someone approves it; approving it runs the real generate, minting the document the customer receives.</td></tr>
+          <tr><td class="lbl"><code class="ic">NATIVE_QUOTE_COMMIT_MODE</code></td><td>The agent books the order itself.</td><td>A <code class="ic">native_quote_commit</code> item is filed and nothing is booked until someone approves it.</td></tr>
+        </tbody>
+      </table>
+      <p class="p">Both settings derive from <code class="ic">AGENT_INTERACTION_MODE</code> when unset: an agent with a human surface queues, a headless agent acts unattended, and asking a headless agent to queue is refused at boot (§4.4a, §4.4b). Neither setting touches your own console buttons: those call the action directly, because a person pressing Generate or Commit is already the human validation, and are never queued. The chat door asks through the policy instead.</p>
+      <div class="note teal"><p class="p"><span class="k">Both at <code class="ic">auto</code> is a decision, not a default to inherit.</span> Running with both at <code class="ic">auto</code> means quotes are released and orders are booked in your ERP with no person in the loop. It is the one configuration in this release under which a commercial commitment leaves your agent without anyone having seen it.</p></div>
+      <p class="p"><b>The document.</b> Generating mints a reference of the shape <code class="ic">NQ-</code> plus eight upper-case hexadecimal characters, which is printed on the document and is the handle you and your customer use afterwards. Its expiry is <code class="ic">NATIVE_QUOTE_VALIDITY_DAYS</code> after it was generated (default 30, §4.4a). Revising a generated quote reopens it for editing and increments the revision; regenerating reuses the same reference, so a quote keeps one identity across its revisions. Each generated document is stored by your agent under its own content hash, so generating a later revision adds bytes rather than overwriting the earlier ones. The <b><i>Order Entry</i></b> tab serves the current revision, named for the quote's reference and revision.</p>
+      <p class="p">What the document carries is deliberately plain: the title, the reference, revision, date and valid-until; a seller block and a customer block; the lines with SKU, description, quantity, unit of measure, unit price, extended price and promised lead time; totals, currency, terms and notes. There is <b>no logo, no color and no imagery</b>, and that is a property of the model rather than a styling choice: the document model has no image field at all, so a logo cannot arrive without a protocol change. Your own seller block comes from the particulars file you mount (<code class="ic">BUSINESS_PARTICULARS_PATH</code>, §4.4a). Anything not configured renders as <b>absent</b>, a label with nothing after it, rather than as a plausible default.</p>
+      <p class="p"><b>The customer's purchase order, and the commit.</b> The purchase-order number can be recorded on its own, from the console or from chat; the purchase-order <b>document</b> is uploaded on the <b><i>Order Entry</i></b> tab. Until a number is attached, a commit is refused in those words rather than failing obscurely, and a quote whose validity date has passed is refused with the instruction to revise and regenerate it first. While a quote is generated and waiting, a <code class="ic">quote_awaiting_po</code> item sits in the queue as the standing reminder; it closes when the order is committed, the quote is revised, or the quote is withdrawn, and it is never closed by hand (§6.10).</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Generating a document needs HAIWAVE Central at the v1.76 platform.</b> The renderer this release ships calls Central's document-render endpoint under a new <code class="ic">documents:render</code> scope. That endpoint ships with the v1.76 platform, which is not yet in production as of this edition (2026-08-22), so Generate does not work against the production platform until it is deployed. Everything before Generate — compose, deliver, customer pricing — and the ERP commit itself are local to your agent and are unaffected.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+
+<!-- ============================ 07f · MANIFEST (7.8 quoting from chat) ============================ -->
+<section class="page" data-screen-label="7f">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h3"><span class="n">7.8</span>Quoting From Chat</div>
+      <p class="p">The quotes of §7.7 are drivable from chat, end to end, by the people who already hold the grant for them. This is the seller's loop: the assistant is composing a document <b>you</b> will send, not accepting one you received. New in v1.76.</p>
+      <p class="p">Eleven gestures are recognized, and that is the whole set. One example of each:</p>
+      <table class="tbl">
+        <thead><tr><th>Say something like</th><th>And the assistant</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">quote 50 of SKU-123 and 20 of SKU-456 for Acme</td><td>Starts a new quote from your own catalog, with those lines, for that customer.</td></tr>
+          <tr><td class="mono">add 10 of SKU-789</td><td>Adds, removes, or sets a line on the quote being composed.</td></tr>
+          <tr><td class="mono">call it spring order</td><td>Names or renames the quote.</td></tr>
+          <tr><td class="mono">deliver it to Acme</td><td>Confirms which ERP customer the quote is for, and hands it into the pricing and enrichment pipeline.</td></tr>
+          <tr><td class="mono">get their pricing</td><td>Reads that customer's own price lists and records, per line, what they would be charged.</td></tr>
+          <tr><td class="mono">send it</td><td>Generates the quote document and issues it.</td></tr>
+          <tr><td class="mono">revise it</td><td>Reopens a generated quote so its lines can change, as a new revision.</td></tr>
+          <tr><td class="mono">Acme sent PO-4471 for NQ-1A2B3C4D</td><td>Records the customer's purchase-order number against that quote.</td></tr>
+          <tr><td class="mono">book it</td><td>Commits the quoted order into your ERP.</td></tr>
+          <tr><td class="mono">withdraw it, the customer declined</td><td>Pulls the quote, recording whether it was declined or withdrawn.</td></tr>
+          <tr><td class="mono">what is the status of NQ-1A2B3C4D · list my quotes</td><td>Reports your quotes and their state.</td></tr>
+        </tbody>
+      </table>
+      <p class="p"><b>Saying which quote you mean.</b> Every generated quote carries a reference the agent minted, of the fixed shape <code class="ic">NQ-</code> followed by eight upper-case hexadecimal characters. Say that reference anywhere in a sentence and the assistant acts on that quote. If the sentence asks for nothing else, saying the reference alone is read as asking for its status, which is a read and never a write. A <code class="ic">PO-</code> number in the same sentence is understood as <b>your customer's</b> purchase order arriving for your quote, not as a request to look up one of your own orders. A reference that matches no quote is refused rather than falling through to some other quote, because acting on a different quote than the one you named is the worst answer available. When your words could mean more than one open quote, the assistant lists the candidates and asks, rather than picking one.</p>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
+<!-- ============================ 07f2 · MANIFEST (7.8 refusals, doors, boundaries) ============================ -->
+<section class="page" data-screen-label="7f2">
+  <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
+  <div class="page__inner">
+    <div class="page-top"><span class="lbl">7 · Manifest Configuration</span><span class="c"></span></div>
+    <div class="body" style="padding-top:14px;">
+      <div class="h4"><span class="t">7.8, continued —</span> what is read from your words, and what is refused.</div>
+      <p class="p"><b>Lines come from your words, never from a guess.</b> Quantities are read deterministically from what you typed, in either order (<code class="ic">50 of SKU-123</code> or <code class="ic">SKU-123 x50</code>). A product named with no number is not a line: the assistant names it back to you and asks how many, rather than quoting one unit of it on a real document.</p>
+      <p class="p"><b>Composing and delivering in one breath.</b> If your opening sentence names a customer and exactly one ERP customer matches, the quote is created and delivered to that customer in the same turn, and the reply says which customer it picked so you can correct it. If nothing matches, or if several do, the quote is still created with its lines, and the reply says plainly that nothing was delivered and why, listing the candidates where there are some.</p>
+      <p class="p"><b>What chat refuses, and how.</b> The grant is checked before anything else, and the wording depends on who is asking. One of your own users without the grant is told what to ask for: that native quoting needs the <code class="ic">quote_owner_inbound</code> grant and this session does not hold it. A counterparty's agent reaching your chat surface over the network gets a neutral sentence instead — that this is not something the conversation can do. It discloses nothing, not even whether this agent has native quoting configured at all. The order of those two checks is deliberate: asking the grant first is what keeps the two refusals from differing by deployment.</p>
+      <p class="p"><b>Send it and book it go through the same doors the agent does.</b> Nothing about asking in words bypasses your release and commit policy (§4.4a, §7.7). Under <code class="ic">queue</code>, the reply says the work was queued rather than done, names the work item, and points at the queue. Under <code class="ic">auto</code>, the agent completes the action itself and the reply reports what it did. Asking twice for something already waiting on a decision does not file a second item; you are told one is already open.</p>
+      <p class="p"><b>What chat does not do.</b> Attaching the customer's purchase-order <b>document</b> is an upload on the agent's <b><i>Order Entry</i></b> tab; ask for it in chat and the assistant records the number and says where the document goes. Header terms, currency and ship-to are edited on that same tab and have no chat gesture: the eleven above are the complete set.</p>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>Accepting a received quote from chat.</b> On the <b>buyer</b> side of the conversation, asking the assistant to accept a quote you have received reads that quote and returns its terms as a card marked awaiting confirmation. Nothing is written, and the acceptance itself is a click. The quote-side value threshold arrives with that write.</p></div>
+      <div class="planned"><p class="p"><span class="tag">Planned</span><b>The network MCP door.</b> None of §7.7 is exposed as an MCP tool to other participants' agents, deliberately. The <code class="ic">/mcp</code> surface authenticates at the network level only and carries no caller identity, so a native-quote tool registered there would let any authenticated participant compose and book orders in your ERP. That door stays closed until a self-caller gate exists, and the quote-document resource is deferred with it.</p></div>
+    </div>
+    <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
+  </div>
+</section>
+
 <!-- ============================ 08 · MONITORING (phantom demand) ============================ -->
 <section class="page" data-screen-label="8">
   <svg class="wm" viewBox="0 0 816 1056" preserveAspectRatio="none"><use href="#wave"></use></svg>
@@ -710,7 +914,7 @@
       <ul class="ul">
         <li><b>BOM.</b> Lives in the <code class="ic">boms</code> / <code class="ic">bom_lines</code> DuckDB tables; your agent serves one level via the <code class="ic">get_bom_for_sku</code> MCP tool while Central drives the multi-tier walk. Seed from your ERP (<code class="ic">scripts/seed-phantom-demand-bom.ts</code>).</li>
         <li><b>Lead-time history.</b> The p50/p75/p90 figures derive from the local <code class="ic">transaction_events</code> table (<code class="ic">scripts/seed-lead-time-history.ts</code>) — there is no separate order-history source.</li>
-        <li><b>Internal capacity.</b> Served via the <code class="ic">get_internal_capacity</code> MCP tool through an optional MES bridge: <code class="ic">MES_ENABLED</code> (default <code class="ic">false</code>), <code class="ic">MES_CONFIG</code> (<code class="ic">{endpoint_url, auth_scheme, credential_ref, work_center_mapping}</code>), and <code class="ic">SKU_PICKER_SCOPE</code> (<code class="ic">published_only</code> / <code class="ic">full_catalog</code>). These can also be set centrally via <code class="ic">PATCH /api/v1/agents/{agent_id}/config</code> (<span class="bc"><b>Admin › Agent Config</b></span>), falling back to the env vars if Central is unreachable.</li>
+        <li><b>Internal capacity.</b> Served via the <code class="ic">get_internal_capacity</code> MCP tool through an optional MES bridge: <code class="ic">MES_ENABLED</code> (default <code class="ic">false</code>), <code class="ic">MES_CONFIG</code> (<code class="ic">{endpoint_url, auth_scheme, credential_ref, work_center_mapping}</code>). These can also be set centrally via <code class="ic">PATCH /api/v1/agents/{agent_id}/config</code> (<span class="bc"><b>Admin › Agent Config</b></span>), falling back to the env vars if Central is unreachable.</li>
       </ul>
       <div class="planned"><p class="p"><span class="tag">Planned</span><b>Real MES driver.</b> The reference agent ships a mock MES driver returning stubbed capacity so the integration can be exercised end-to-end. A production MES adapter (SAP, Oracle, custom) is a per-customer integration, not included.</p></div>
       <p class="p">When you answer a phantom-demand probe as a <i>seller</i>, on-hand disclosure is gated by the requester's manifest tier: <code class="ic">premier</code> → <code class="ic">exact</code>, <code class="ic">standard</code> → <code class="ic">sufficient</code> / <code class="ic">insufficient</code>, <code class="ic">basic</code> → <code class="ic">not_disclosed</code>. <b>Console:</b> <span class="bc"><b>Sonar Observe › Phantom Demand</b></span> (<code class="ic">/account/sonar/observations</code>).</p>
@@ -842,11 +1046,12 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
       <p class="p">The prescribed interfaces are the published surface of <code class="ic">@haiwave/client-sdk</code> — import them and implement against the exact TypeScript signatures (or mirror them in your language). The principal contracts:</p>
       <ul class="ul">
         <li><b>Tier 0.</b> <code class="ic">IHaiWaveClient</code> — your outbound Central calls.</li>
-        <li><b>Chat.</b> <code class="ic">IChainServices</code>, <code class="ic">PromptChain</code>, <code class="ic">IQueryRouter</code>, <code class="ic">IQueryFastPath</code>.</li>
+        <li><b>Chat.</b> <code class="ic">IChainServices</code>, <code class="ic">PromptChain</code>, <code class="ic">IQueryRouter</code>, <code class="ic">IQueryFastPath</code>. An agent offering the seller-side quoting loop of §7.7 reaches it as <code class="ic">IChainServices.nativeQuotes</code>, with its own catalog beside it as <code class="ic">IChainServices.ownCatalog</code>; both are optional, and a chain that finds either one absent reports the feature unavailable rather than failing.</li>
         <li><b>Data.</b> <code class="ic">DataStore</code>, <code class="ic">IClassificationDatabase</code>, <code class="ic">ITransactionDatabase</code>, <code class="ic">IVectorStore</code>.</li>
         <li><b>Providers.</b> <code class="ic">ILLMProvider</code>, <code class="ic">IEmbeddingProvider</code>.</li>
         <li><b>Commerce.</b> <code class="ic">IPricingEngine</code>, <code class="ic">ILeadTimeService</code>.</li>
         <li><b>Approval.</b> <code class="ic">IApprovalGateway</code>, <code class="ic">IApprovalRepository</code>, <code class="ic">IApprovalResumeHandler</code>.</li>
+        <li><b>ERP and documents.</b> <code class="ic">ErpConnector</code> (§5.5), whose <code class="ic">fulfillQuoteRequest</code> is optional so a read-only connector is a complete implementation; <code class="ic">IDocumentRenderer</code> (§5.6).</li>
         <li><b>Narrowing.</b> <code class="ic">IAttributeRanker</code>, <code class="ic">IQuestionSelector</code>, <code class="ic">IPreSeedingProvider</code>, <code class="ic">INarrowingPromptBuilder</code>, <code class="ic">INarrowingOrchestrator</code>.</li>
         <li><b>Reference-only</b> (in <code class="ic">@haiwave/reference-agent</code>). <code class="ic">IRecommendationEngine</code>, <code class="ic">IInventoryProvider</code>.</li>
       </ul>
@@ -864,10 +1069,10 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
       <div class="h3"><span class="n">10.6</span>Chat Conformance Invariants</div>
       <p class="p">If your agent offers the conversational surface, it must preserve these six invariants (enforced behaviorally by the conformance kit in §10.7):</p>
       <ol class="ol">
-        <li><b>Full intent taxonomy.</b> Route against the complete <code class="ic">VALID_INTENTS</code> set (22 intents: order, quote, catalog, gofish, inventory, pricing, specs, resolution, audit, and so on) — no narrowing of the taxonomy; unknown intents fall back to <code class="ic">general</code>.</li>
+        <li><b>Full intent taxonomy.</b> Route against the complete <code class="ic">VALID_INTENTS</code> set (36 intents: order, quote, catalog, gofish, inventory, pricing, specs, resolution, audit, and the eleven seller-side native-quote intents of §7.8) — no narrowing of the taxonomy; unknown intents fall back to <code class="ic">general</code>.</li>
         <li><b>Write-confirmation gate.</b> No write executes without explicit user acknowledgment (the pending-confirmation state machine).</li>
-        <li><b>Role ACL with a <code class="ic">quote_accept → trader</code> floor.</b> No lowering; the hierarchy is <code class="ic">operator &lt; trader &lt; admin</code>.</li>
-        <li><b>The 11 transaction-touching chains</b> at their prescribed payloads and call sequences: <code class="ic">orderConfirmChain</code>, <code class="ic">quoteRequestChain</code>, <code class="ic">quoteAcceptChain</code>, <code class="ic">quoteStatusChain</code>, <code class="ic">quoteCompareChain</code>, <code class="ic">orderLookupChain</code>, <code class="ic">gofishQueryChain</code>, <code class="ic">catalogSearchChain</code>, <code class="ic">productResolutionChain</code>, <code class="ic">sourceAuditChain</code>, <code class="ic">manifestStatusChain</code>.</li>
+        <li><b>Grant ACL with a <code class="ic">quote_accept → quote_owner_outbound</code> floor.</b> No lowering. The four grants are <code class="ic">reviewer</code>, the two scoped <code class="ic">quote_owner_*</code> siblings, and <code class="ic">owner</code> (§6.10) — <b>not</b> a hierarchy. Each user carries a <code class="ic">roles</code> array and must declare at least one; a users file still carrying the retired single <code class="ic">role</code> field refuses to load, and the error names the replacement for each old value.</li>
+        <li><b>The 13 transaction-touching chains</b> at their prescribed payloads and call sequences: <code class="ic">orderConfirmChain</code>, <code class="ic">quoteRequestChain</code>, <code class="ic">quoteAcceptChain</code>, <code class="ic">quoteAttachPoChain</code>, <code class="ic">quoteStatusChain</code>, <code class="ic">quoteCompareChain</code>, <code class="ic">orderLookupChain</code>, <code class="ic">gofishQueryChain</code>, <code class="ic">catalogSearchChain</code>, <code class="ic">productResolutionChain</code>, <code class="ic">sourceAuditChain</code>, <code class="ic">manifestStatusChain</code>, <code class="ic">vendorQuoteStartChain</code>.</li>
         <li><b>Eight pipeline phases in order:</b> <code class="ic">guardTurn</code> → <code class="ic">handlePendingConfirmation</code> → <code class="ic">detectContextFilter</code> → <code class="ic">prepareRouterInput</code> → <code class="ic">routeAndRemapIntents</code> → <code class="ic">executeSubIntents</code> → <code class="ic">saveSearchContext</code> → <code class="ic">finalizeTurn</code> — with the scope, <code class="ic">haiwave_only</code>, and write-confirmation gates unconditional.</li>
         <li><b>WebSocket message shape</b> <code class="ic">{ type, content_panel, intent }</code>.</li>
       </ol>
@@ -907,8 +1112,8 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
       <ul class="ul">
         <li>☐ Full <code class="ic">VALID_INTENTS</code> taxonomy; unknown intents fall back to <code class="ic">general</code>. <span class="bc">kit: intents</span></li>
         <li>☐ Write-confirmation gate before any write. <span class="bc">kit: write-gate</span></li>
-        <li>☐ <code class="ic">quote_accept → trader</code> role floor; <code class="ic">operator &lt; trader &lt; admin</code>. <span class="bc">kit: role-floor</span></li>
-        <li>☐ The 11 chains at prescribed payloads and sequences.</li>
+        <li>☐ <code class="ic">quote_accept → quote_owner_outbound</code> grant floor; the four grants are siblings and an owner, not a hierarchy. <span class="bc">kit: role-floor</span></li>
+        <li>☐ The 13 chains at prescribed payloads and sequences.</li>
         <li>☐ The eight pipeline phases in order, gates unconditional. <span class="bc">kit: turn-order</span></li>
         <li>☐ Session idle expiry clears pending state (30-min floor). <span class="bc">kit: session-expiry</span></li>
         <li>☐ Approval-poll expiry resumes the registered handler as rejected/Expired. <span class="bc">kit: approval-expiry</span></li>
@@ -942,6 +1147,7 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
           <tr><td class="lbl">Client SDK (prescribed surface)</td><td><code class="ic">@haiwave/client-sdk</code> (in the Free Agent source; not a public npm package)</td></tr>
           <tr><td class="lbl">Reference scaffold (Tier 2 concretes)</td><td><code class="ic">@haiwave/reference-agent</code></td></tr>
           <tr><td class="lbl">Conformance kit</td><td><code class="ic">@haiwave/client-sdk → src/__tests__/conformance/</code> — run <code class="ic">npx vitest run packages/client-sdk/src/__tests__/conformance/</code></td></tr>
+          <tr><td class="lbl">In-package docs</td><td><code class="ic">UPGRADING.md</code> (upgrade and hardening runbook, including the native-quote section), <code class="ic">CHANGELOG.md</code>, <code class="ic">docs/typed-memory.md</code>, <code class="ic">docs/erp-connector.md</code> (the connector boundary and mapping), <code class="ic">docs/erp-write-enable.md</code> (the watched first booking, §5.5), <code class="ic">.env.example</code> (authoritative config reference)</td></tr>
           <tr><td class="lbl">HAIWAVE website</td><td><code class="ic">https://www.haiwave.ai</code></td></tr>
         </tbody>
       </table>
@@ -977,7 +1183,7 @@ POST <span class="s">{KEYCLOAK_TOKEN_ENDPOINT}</span>
         </tbody>
       </table>
       <div class="divider"></div>
-      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v1.5, 2026-08-17 edition). Generated from the canonical guide; regenerated as the system evolves.</p>
+      <p class="p" style="font-size:10px; color:var(--hw-slate);">© 2026 HAIWAVE — Free Agent SCM: Client Implementation Guidelines (v1.6, 2026-08-22 edition). Generated from the canonical guide; regenerated as the system evolves.</p>
     </div>
     <div class="footer"><span class="brand-logo" aria-label="HAIWAVE"></span><div class="right">haiwave.ai&nbsp;&nbsp;|&nbsp;&nbsp;© 2026 HAIWAVE&nbsp;&nbsp;·&nbsp;&nbsp;<span class="pagenum"></span></div></div>
   </div>
