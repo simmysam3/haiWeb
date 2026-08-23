@@ -69,7 +69,7 @@ Measured 2026-08-22 in the `guide-1.6` worktree and in `~/dev/hw/haiWeb`.
 | Artifact | On disk (main checkout) | This worktree | Production |
 |---|---|---|---|
 | `haiwave-agent-v<version>.zip` | `haiwave-agent-v1.74.0.zip`, 2,157,791 B, built 2026-08-17 (`manifest.json` version `1.74.0`) | not built here | **NOT updated** |
-| `configuration-guide.pdf` | 14,467,753 B, 41 pp, rendered 2026-08-17 (guide edition 1.5) | 17,213,580 B, 49 pp, rendered 2026-08-22 (guide edition 1.6) | **NOT updated** |
+| `configuration-guide.pdf` | 14,467,753 B, 41 pp, rendered 2026-08-17 (guide edition 1.5) | 17,217,911 B, 49 pp, rendered 2026-08-22 (guide edition 1.6) | **NOT updated** |
 
 Both artifacts are gitignored, so neither travels with a commit and neither is in
 this worktree unless it was produced here. The zip regenerates after the
@@ -94,10 +94,14 @@ render is cheap and a copied artifact has no provenance.
 ### 2026-08-22 — guide body re-authored to edition 1.6; PDF re-rendered (zip + prod pending)
 
 - **Files:** `design/configuration-guide/body.html`, `design/configuration-guide/template.html`
-  (the cover version card only), `design/configuration-guide/README.md`, and this file.
+  (the cover version card only), `design/configuration-guide/README.md`,
+  `scripts/build-guide-pdf.mjs` (its docblock cite), and this file.
 - **Guide body → edition 1.6:** `design/configuration-guide/body.html` re-authored
   from `haiCore/docs/client-implementation-guidelines-v1.6.md` at haiCore
-  `31c19cf3` (the 1.5 → 1.6 delta only). Eight new pages, 40 → 48
+  **`ff3f3da2`** — authored from `31c19cf3` and then followed forward through that
+  edition's review round (`eebeede8`, `ff3f3da2`), which is where the guide file
+  stands (`git log -1 -- docs/client-implementation-guidelines-v1.6.md`). The
+  1.5 → 1.6 delta only. Eight new pages, 40 → 48
   `<section class="page">` blocks: §4.4a the seven native-quote variables,
   §4.4b the five settings the agent refuses to start on, §5.5 continued (the
   v1.76 Epicor mapping resources and the customer-pricing boundaries), §5.6
@@ -106,12 +110,28 @@ render is cheap and a copied artifact has no provenance.
   §10.6 (22 → 36 intents), §11.1, and the edition line. Section numbering is the
   PDF's own; the guide's § numbers are mapped into it.
 - **Guide PDF RENDERED:** `npm run build:guide-pdf` →
-  `private/agent-downloads/configuration-guide.pdf`, **17,213,580 B, 49 pages**
+  `private/agent-downloads/configuration-guide.pdf`, **17,217,911 B, 49 pages**
   (41 at edition 1.5). Every `<section class="page">` measured in Chromium under
   print emulation: **max height 1056 px, no page over the box** (the check was
   mutation-tested — a 600 px block injected into one page reported that page at
   1242 px). 49 pages = 48 body sections + the template cover, so no section
   spilled onto a second printed page.
+- **Followed the guide's review round (`31c19cf3` → `ff3f3da2`, 17/17 lines).** The
+  body-visible corrections: the seller's own console buttons **call the action
+  directly** and only chat goes through the release/commit policy doors (§6.10,
+  §7.7); the chat grant model replaces the old rank hierarchy — `hasGrant`, a
+  `roles` array, the floor `quote_accept → quote_owner_outbound`, and the four
+  grants stated as siblings-plus-owner rather than a hierarchy (§2.3, §10.6,
+  §10.7); the prescribed transaction-touching chains are **13**, adding
+  `quoteAttachPoChain` and `vendorQuoteStartChain` (§2.3, §5.4, §10.6, §10.7 —
+  four sites carried the count); and the agent's own *Order Entry* tab is set in
+  bold italic to distinguish it from a HAIWAVE-console breadcrumb.
+- **Two standing corrections in the same pass.** `scripts/build-guide-pdf.mjs`'s
+  docblock cited the retired `-v1.5.md` guide and now cites `-v1.6.md`; the
+  §4.4 environment table no longer lists `SKU_PICKER_SCOPE`, which guide 1.6
+  records as removed from the agent (`client-implementation-guidelines-v1.6.md:350`).
+  Note `body.html` §8.1 still documents that variable on a page this pass did not
+  otherwise reopen — a known remaining instance.
 - **Agent zip: NOT regenerated.** It follows the `v1.76.0` tag on haiClient; the
   zip on disk is still `haiwave-agent-v1.74.0.zip`.
 - **Production: NOT updated — the owner's image rebuild.** The artifacts are
