@@ -9,10 +9,13 @@ import { CalibratedLTTrendChart } from './_components/calibrated-lt-trend-chart'
 import { PerCounterpartyPostureTable } from './_components/per-counterparty-posture-table';
 import { WatcherDefinitionDetail } from './_components/watcher-definition-detail';
 import { WatcherRunNowButton } from './_components/watcher-run-now-button';
+import { DefinitionTabs } from '../../../_components/definition-tabs';
+import { parseDefinitionTab } from '../../../_lib/definition-tab';
 import type { EnrichedWatcherRun } from '../../_components/watcher-column-packs';
 
 interface RouteContext {
   params: Promise<{ template_id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }
 
 interface DetailResponse {
@@ -23,8 +26,9 @@ interface RunsResponse {
   runs: WatcherRun[];
 }
 
-export default async function WatcherDefinitionPage({ params }: RouteContext) {
+export default async function WatcherDefinitionPage({ params, searchParams }: RouteContext) {
   const { template_id } = await params;
+  const initialTab = parseDefinitionTab((await searchParams).tab);
   const detail = await fetchBffJson<DetailResponse>(
     `/api/account/sonar/watcher/definitions/${template_id}`,
   );
@@ -66,43 +70,50 @@ export default async function WatcherDefinitionPage({ params }: RouteContext) {
         }
       />
 
-      <section aria-labelledby="trend-heading" className="space-y-3">
-        <h2
-          id="trend-heading"
-          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-        >
-          Calibrated lead-time trend
-        </h2>
-        <CalibratedLTTrendChart runs={last12 as never} />
-      </section>
+      {/* v1.85 — Run history and Configuration are tabs (?tab=runs|configuration)
+          so the editor is no longer buried below the run history. */}
+      <DefinitionTabs
+        ariaLabel="Watcher sections"
+        initialTab={initialTab}
+        runs={
+          <div className="space-y-6">
+            <section aria-labelledby="trend-heading" className="space-y-3">
+              <h2
+                id="trend-heading"
+                className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+              >
+                Calibrated lead-time trend
+              </h2>
+              <CalibratedLTTrendChart runs={last12 as never} />
+            </section>
 
-      <section aria-labelledby="posture-heading" className="space-y-3">
-        <h2
-          id="posture-heading"
-          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-        >
-          Per-counterparty posture
-        </h2>
-        <PerCounterpartyPostureTable rows={[]} />
-      </section>
+            <section aria-labelledby="posture-heading" className="space-y-3">
+              <h2
+                id="posture-heading"
+                className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+              >
+                Per-counterparty posture
+              </h2>
+              <PerCounterpartyPostureTable rows={[]} />
+            </section>
 
-      <section aria-labelledby="history-heading" className="space-y-3">
-        <h2
-          id="history-heading"
-          className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
-        >
-          Run history
-        </h2>
-        <WatcherHistoryTable
-          initialRows={templateRuns}
-          templateId={template_id}
-          emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
-        />
-      </section>
-
-      <section className="space-y-3">
-        <WatcherDefinitionDetail template={tpl} />
-      </section>
+            <section aria-labelledby="history-heading" className="space-y-3">
+              <h2
+                id="history-heading"
+                className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+              >
+                Run history
+              </h2>
+              <WatcherHistoryTable
+                initialRows={templateRuns}
+                templateId={template_id}
+                emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
+              />
+            </section>
+          </div>
+        }
+        configuration={<WatcherDefinitionDetail template={tpl} />}
+      />
     </div>
   );
 }

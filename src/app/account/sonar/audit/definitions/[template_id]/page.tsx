@@ -4,15 +4,26 @@ import type { RunTemplate } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { formatCadence } from '../../../templates/_lib/format-cadence';
+import { DefinitionTabs } from '../../../_components/definition-tabs';
+import { parseDefinitionTab } from '../../../_lib/definition-tab';
+import { AuditHistoryTable } from '../../_components/audit-history-table';
+import type { EnrichedAuditRun } from '../../_components/audit-column-packs';
 import { AuditDefinitionDetail } from './_components/audit-definition-detail';
 import { AuditRunNowButton } from './_components/audit-run-now-button';
 
 interface DetailPageProps {
   params: Promise<{ template_id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }
 
-export default async function AuditDefinitionDetailPage({ params }: DetailPageProps) {
+interface RunsPayload {
+  runs: EnrichedAuditRun[];
+  auditor_country?: string;
+}
+
+export default async function AuditDefinitionDetailPage({ params, searchParams }: DetailPageProps) {
   const { template_id } = await params;
+  const initialTab = parseDefinitionTab((await searchParams).tab);
   const result = await fetchBffJson<{ template: RunTemplate }>(
     `/api/account/sonar/audit/definitions/${template_id}`,
   );
@@ -27,6 +38,15 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
     notFound();
   }
 
+  // v1.85 — this audit's runs only. The list page shows every run; here the
+  // BFF is asked for the template's runs so the history is the audit's own.
+  const runsResult = await fetchBffJson<RunsPayload>(
+    `/api/account/sonar/audit/runs?template_id=${encodeURIComponent(template_id)}`,
+  );
+  const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
+  const auditorCountry =
+    runsResult.kind === 'ok' ? runsResult.data.auditor_country : undefined;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -40,18 +60,57 @@ export default async function AuditDefinitionDetailPage({ params }: DetailPagePr
               : '—'}
           </>
         }
-        actions={<AuditRunNowButton templateId={tpl.template_id} />}
+        actions={
+          <div className="flex items-center gap-4">
+            <Link
+              href="/account/sonar/audit"
+              className="text-sm text-teal hover:underline"
+            >
+              ← Audits
+            </Link>
+            <AuditRunNowButton templateId={tpl.template_id} />
+          </div>
+        }
       />
 
-      <div className="space-y-2">
-        <Link
-          href="/account/sonar/audit"
-          className="text-sm text-teal hover:underline"
+      {runsResult.kind === 'error' && (
+        <div
+          role="alert"
+          className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
-          ← Audits
-        </Link>
-        <AuditDefinitionDetail template={tpl} />
-      </div>
+          Could not load run history (
+          {runsResult.status !== 0 ? `HTTP ${runsResult.status}` : 'network error'}). Run
+          history may be incomplete.
+        </div>
+      )}
+
+      {/* v1.85 — parity with the watcher page: Run history and Configuration
+          are tabs (?tab=runs|configuration). */}
+      <DefinitionTabs
+        ariaLabel="Audit sections"
+        initialTab={initialTab}
+        runs={
+          <section aria-labelledby="history-heading" className="space-y-3">
+            <h2
+              id="history-heading"
+              className="font-[family-name:var(--font-display)] text-base font-bold text-navy"
+            >
+              Run history
+            </h2>
+            <p className="text-xs text-slate">
+              Runs of this audit only. Polled every 15 seconds while the page is open —
+              in-progress runs update live.
+            </p>
+            <AuditHistoryTable
+              initialRows={runs}
+              auditorCountry={auditorCountry}
+              templateId={template_id}
+              emptyMessage="No runs yet for this audit. Use Run now, or wait for the next scheduled fire."
+            />
+          </section>
+        }
+        configuration={<AuditDefinitionDetail template={tpl} />}
+      />
     </div>
   );
 }

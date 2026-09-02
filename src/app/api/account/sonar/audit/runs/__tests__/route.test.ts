@@ -130,6 +130,53 @@ describe('GET /api/account/sonar/audit/runs', () => {
   });
 });
 
+// v1.85 — the audit definition page shows only that audit's runs, so the BFF
+// forwards `?template_id=` to the haiCore client (which applies the filter —
+// haiCore's own list takes status + limit only). The fake honours
+// `template_id` the way the real client does; assertions are on the body.
+describe('GET /api/account/sonar/audit/runs?template_id=', () => {
+  const RUNS = [
+    { run_id: 'r-1', template_id: 'a-1', status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+    { run_id: 'r-2', template_id: 'a-2', status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+    { run_id: 'r-3', template_id: null, status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+  ];
+
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(async (opts: { template_id?: string } = {}) => ({
+        runs: opts.template_id ? RUNS.filter((r) => r.template_id === opts.template_id) : RUNS,
+      })),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'gb' } })),
+      listRunTemplates: vi.fn(async () => ({
+        templates: [
+          { template_id: 'a-1', template_name: 'Weekly EMEA Audit' },
+          { template_id: 'a-2', template_name: 'Other Audit' },
+        ],
+      })),
+    };
+  });
+
+  it('returns every run when no template_id is given', async () => {
+    const { GET } = await import('../route');
+    const res = await GET(new NextRequest('http://localhost:3001/api/account/sonar/audit/runs'), {
+      params: Promise.resolve({}),
+    });
+    const body = (await res.json()) as { runs: Array<{ run_id: string }> };
+    expect(body.runs.map((r) => r.run_id)).toEqual(['r-1', 'r-2', 'r-3']);
+  });
+
+  it("returns only that template's runs, names still joined", async () => {
+    const { GET } = await import('../route');
+    const res = await GET(
+      new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?template_id=a-1'),
+      { params: Promise.resolve({}) },
+    );
+    const body = (await res.json()) as { runs: Array<{ run_id: string; template_name?: string }> };
+    expect(body.runs.map((r) => r.run_id)).toEqual(['r-1']);
+    expect(body.runs[0].template_name).toBe('Weekly EMEA Audit');
+  });
+});
+
 describe('POST /api/account/sonar/audit/runs', () => {
   it('is not exported — ad-hoc triggers create nameless template-less runs; the wizard path (definitions + /run) is the only trigger', async () => {
     const mod = await import('../route');
