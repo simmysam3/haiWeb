@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { AuditRun, AuditRunResult, ObservationNode } from '@haiwave/protocol';
-import { TierGapGrid } from '../tier-gap-grid';
+import { TierGapGrid, isVendorLevelGap } from '../tier-gap-grid';
 
 // Minimal ObservationNode / AuditRunResult fixtures. The component only reads
 // `tree.{gap, depth_level, components, vendor_legal_name, payload}` and the
@@ -12,10 +12,11 @@ function node(
   gap: boolean,
   children: ObservationNode[] = [],
   vendor = '',
+  hint?: string,
 ): ObservationNode {
   return {
     depth_level: depth,
-    gap: gap ? { kind: 'unauthorized' } : null,
+    gap: gap ? { kind: 'unauthorized', ...(hint ? { hint } : {}) } : null,
     components: children,
     vendor_legal_name: vendor || null,
     // operational_status/class_ids included because the per-SKU evidence
@@ -206,5 +207,84 @@ describe('TierGapGrid domestic flag', () => {
       />,
     );
     expect(screen.queryByLabelText(/verified .*-origin/i)).toBeNull();
+  });
+});
+
+describe('isVendorLevelGap', () => {
+  it('is true for a root-gap/no-children result (the direct vendor never answered)', () => {
+    const r = result('R-1', 'p-x', node(1, true, [], 'X'));
+    expect(isVendorLevelGap(r)).toBe(true);
+  });
+
+  it('is false when the root is fine and a deeper child carries the gap', () => {
+    const r = result('R-2', 'p-x', node(1, false, [node(2, true, [], 'X')], 'X'));
+    expect(isVendorLevelGap(r)).toBe(false);
+  });
+
+  it('is false for a root gap that still has children (partial disclosure, still per-SKU)', () => {
+    const r = result('R-3', 'p-x', node(1, true, [node(2, false, [], 'X')], 'X'));
+    expect(isVendorLevelGap(r)).toBe(false);
+  });
+});
+
+describe('TierGapGrid vendor-level gap collapse', () => {
+  it('collapses three vendor-level gaps for the same vendor into one 5pt group score (and run total)', () => {
+    const unreachableVendor: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-3', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+    ];
+    render(<TierGapGrid run={RUN} results={unreachableVendor} />);
+    // Only ONE ScorePill's worth of "5" should show: the group pill and the
+    // run-total pill both read 5, not 15.
+    expect(screen.getAllByText('5')).toHaveLength(2);
+    expect(screen.queryByText('15')).not.toBeInTheDocument();
+  });
+
+  it('adds the one-time vendor gap (5) to real per-SKU scoring (3) for a mixed vendor: 8, not more', () => {
+    const mixed: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      // Real tier-2 gap: root fine, child at depth 2 has a gap → T2×3 = 3.
+      result('U-3', 'p-un', node(1, false, [node(2, true, [], 'Unreachable Co')], 'Unreachable Co')),
+    ];
+    render(<TierGapGrid run={RUN} results={mixed} />);
+    // Group pill and run-total pill both read 8 (5 + 3), exactly once each.
+    expect(screen.getAllByText('8')).toHaveLength(2);
+  });
+
+  it('counts a vendor-level gap once PER VENDOR: two unreachable vendors → total 10, not 5', () => {
+    const twoVendors: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('V-1', 'p-vn', node(1, true, [], 'Vanished Co', 'responder_unreachable')),
+      result('V-2', 'p-vn', node(1, true, [], 'Vanished Co', 'responder_unreachable')),
+    ];
+    render(<TierGapGrid run={RUN} results={twoVendors} />);
+    // Two group pills at 5 each, one run-total pill at 10.
+    expect(screen.getAllByText('5')).toHaveLength(2);
+    expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+  it('shows a muted "Vendor did not respond" note (no own pts pill) on a vendor-level SKU row, and a group-summary hint', () => {
+    render(
+      <TierGapGrid
+        run={RUN}
+        results={[
+          result(
+            'U-1',
+            'p-un',
+            node(1, true, [], 'Unreachable Co', 'responder_unreachable'),
+          ),
+        ]}
+      />,
+    );
+    const note = screen.getByText('Vendor did not respond');
+    expect(note).toBeInTheDocument();
+    expect(note).toHaveAttribute('title', 'Unauthorized · responder unreachable');
+    // No per-row "pts" pill for this SKU — only the group summary's and the
+    // run total's ScorePill ("5 pts" each) render "pts" on the page.
+    expect(screen.getAllByText('pts')).toHaveLength(2);
+    expect(screen.getByText(/vendor did not respond/)).toBeInTheDocument();
   });
 });
