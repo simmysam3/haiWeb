@@ -40,7 +40,13 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
 
   const detail = (refreshed ?? initialDetail) as PhantomDemandRunDetail;
   const tree = detail.tree;
-  const targetDate = (detail.run.scope_snapshot as { target_date?: string } | null)?.target_date ?? '';
+  const snapshot = detail.run.scope_snapshot as
+    | { target_date?: string; catalog_source?: { kind?: string } }
+    | null;
+  const targetDate = snapshot?.target_date ?? '';
+  // v1.85 — a SKU picked from a counterparty's catalog is the vendor's, so the
+  // tree must not label the root as the buyer's own BOM.
+  const rootSource = snapshot?.catalog_source?.kind === 'counterparty' ? 'counterparty' : 'own';
 
   if (!tree) {
     return (
@@ -65,6 +71,7 @@ export function RunDetailShell({ initialDetail }: RunDetailShellProps) {
       <BomAccordionTree
         tree={tree}
         targetDate={targetDate}
+        rootSource={rootSource}
         renderBand={(node, lineRef) => (
           <BomNodeBand node={node} targetDate={targetDate} lineRef={lineRef} />
         )}
