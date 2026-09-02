@@ -11,7 +11,7 @@ import type {
 } from '@haiwave/protocol';
 import { DEFAULT_WATCHER_DRIFT_THRESHOLDS } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
-import { FormError } from '@/components';
+import { FormError, Modal } from '@/components';
 import { SchedulePicker } from './schedule-picker';
 import { StepRail, type RailStep } from './step-rail';
 import { StepCard } from './step-card';
@@ -176,6 +176,9 @@ export function DefinitionEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // v1.85 — Delete confirms in a dialog (not window.confirm) so the copy can
+  // say what happens to the runs; PR 2 adds the run disposition choice here.
+  const [confirmOpen, setConfirmOpen] = useState(false);
   // v.1.43 drift step — drift thresholds live on the watcher scope (typed via
   // WatcherScope.drift_thresholds in protocol 3.33). For non-watcher classes
   // this remains null and the Drift step + state never render.
@@ -305,12 +308,7 @@ export function DefinitionEditor({
   }
 
   async function remove() {
-    if (
-      !confirm(
-        `Delete ${noun.toLowerCase()} definition "${template.template_name}"? This cannot be undone.`,
-      )
-    )
-      return;
+    setConfirmOpen(false);
     setBusy(true);
     setError(null);
     try {
@@ -426,13 +424,41 @@ export function DefinitionEditor({
         <div className="flex items-center gap-2 mt-2">
           <button
             type="button"
-            onClick={remove}
+            onClick={() => setConfirmOpen(true)}
             disabled={busy}
             className="rounded border border-rose-400 text-rose-700 px-3 py-1.5 text-sm hover:bg-rose-50 disabled:opacity-60"
           >
             Delete
           </button>
         </div>
+
+        <Modal
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          title={`Delete ${noun.toLowerCase()} "${template.template_name}"?`}
+        >
+          <p className="text-sm text-charcoal">
+            This cannot be undone. Its past runs stay in the run history, listed without
+            this name.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="rounded border border-slate/20 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className="rounded bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+            >
+              Delete {noun.toLowerCase()}
+            </button>
+          </div>
+        </Modal>
 
         {dirty && (
           <div className="sticky bottom-0 mt-4 bg-navy text-white rounded-xl px-4 py-3 flex items-center justify-between">

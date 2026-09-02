@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Pill } from '@/components/pill';
+import { ActionsMenu } from '@/components/actions-menu';
 import {
   formatCadence,
   formatRelative,
@@ -42,6 +43,7 @@ export const auditConfigurationsColumnPack: ColumnPack<AuditTemplate> = {
       render: (row) => (
         <Link
           href={`/account/sonar/audit/definitions/${row.template_id}`}
+          title="Open audit: run history and configuration"
           className="text-teal hover:underline font-medium"
         >
           {row.template_name}
@@ -92,13 +94,22 @@ export const auditConfigurationsColumnPack: ColumnPack<AuditTemplate> = {
       key: 'actions',
       label: 'Actions',
       width: '8%',
+      // v1.85 — parity with the watchers list: an explicit menu naming each
+      // destination, instead of a lone "Edit" link.
       render: (row) => (
-        <Link
-          href={`/account/sonar/audit/definitions/${row.template_id}`}
-          className="text-xs text-teal hover:underline"
-        >
-          Edit
-        </Link>
+        <ActionsMenu
+          label={`Actions for ${row.template_name}`}
+          items={[
+            {
+              label: 'View runs',
+              href: `/account/sonar/audit/definitions/${row.template_id}?tab=runs`,
+            },
+            {
+              label: 'Edit configuration',
+              href: `/account/sonar/audit/definitions/${row.template_id}?tab=configuration`,
+            },
+          ]}
+        />
       ),
     },
   ],

@@ -92,11 +92,30 @@ describe('DefinitionEditor (audit)', () => {
     expect(body).not.toHaveProperty('scope');
   });
 
-  it('DELETEs to the endpointBase route on delete', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
-    vi.stubGlobal('confirm', () => true);
+  // v1.85 — Delete asks in a real dialog (not window.confirm) that says what
+  // happens to the runs. Nothing is sent until the dialog's own Delete.
+  it('opens a confirmation dialog on Delete without sending anything yet', async () => {
     renderAuditEditor();
-    await userEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete audit "weekly-audit"?' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/past runs stay in the run history/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('Cancel closes the dialog and sends nothing', async () => {
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETEs to the endpointBase route when the dialog confirms', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete audit' }));
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
     expect((init as RequestInit).method).toBe('DELETE');

@@ -147,3 +147,70 @@ describe('watcher-history column pack — actions cell', () => {
     ).toBeInTheDocument();
   });
 });
+
+// v1.85 — the Configurations table's Actions cell was an un-labelled chevron
+// that led to the same page as the name, and that page opened on runs. It is
+// now a labelled menu with an explicit destination per item; the name link
+// says where it goes.
+import { fireEvent } from '@testing-library/react';
+import type { RunTemplate } from '@haiwave/protocol';
+import { watcherConfigurationsColumnPack } from '../watcher-column-packs';
+
+type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
+
+function makeTemplate(): WatcherTemplate {
+  return {
+    template_id: 't-1',
+    template_name: 'Watcher t-1',
+    observation_class: 'watcher',
+    cadence: { kind: 'manual_only' },
+    enabled: true,
+    retention_days: 90,
+    created_at: '2026-05-08T12:00:00.000Z',
+    last_run_at: null,
+    scope: {
+      kind: 'watcher',
+      authorization_basis: 'bilateral',
+      counterparties: ['acme-corp'],
+      signal_types: ['lead_time_distribution'],
+      skus: [],
+      depth_limit: 1,
+    },
+  } as unknown as WatcherTemplate;
+}
+
+function renderConfigCell(key: string) {
+  const col = watcherConfigurationsColumnPack.columns.find((c) => c.key === key);
+  if (!col) throw new Error(`${key} column missing from configurations pack`);
+  return render(<>{col.render(makeTemplate())}</>);
+}
+
+describe('watcher-configurations column pack — actions cell', () => {
+  it('renders an Actions menu named for the watcher instead of a bare chevron link', () => {
+    renderConfigCell('actions');
+    expect(screen.getByRole('button', { name: 'Actions for Watcher t-1' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Edit Watcher t-1' })).not.toBeInTheDocument();
+  });
+
+  it('offers View runs and Edit configuration, each deep-linking to its tab', () => {
+    renderConfigCell('actions');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Watcher t-1' }));
+    expect(screen.getByRole('menuitem', { name: 'View runs' })).toHaveAttribute(
+      'href',
+      '/account/sonar/watchers/definitions/t-1?tab=runs',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Edit configuration' })).toHaveAttribute(
+      'href',
+      '/account/sonar/watchers/definitions/t-1?tab=configuration',
+    );
+  });
+});
+
+describe('watcher-configurations column pack — name cell', () => {
+  it('links to the watcher page and says what is there', () => {
+    renderConfigCell('name');
+    const link = screen.getByRole('link', { name: 'Watcher t-1' });
+    expect(link).toHaveAttribute('href', '/account/sonar/watchers/definitions/t-1');
+    expect(link).toHaveAttribute('title', 'Open watcher: run history and configuration');
+  });
+});
