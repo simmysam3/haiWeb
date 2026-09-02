@@ -892,3 +892,230 @@ test.describe("§16 3.63.0 landing surfaces", () => {
     await expect(ops).toBeChecked();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §17 v1.81 Inbox connector — Order Entry email provenance
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * v1.81 follow-up F-1. The inbox-connector delta shipped with ZERO end-to-end
+ * walk coverage, and §L-12(a) — `via_email` provenance silently dropped by
+ * every mutation route that re-serialises a draft — is precisely the class of
+ * defect a walk catches. A human reading code caught it instead.
+ *
+ * This section is deliberately NOT part of the default walk: it needs an agent
+ * started with `INBOX_CONNECTOR=mock`, which the four rig agents are not (and
+ * must not become — the owner's morning walk depends on their current state).
+ * Point it at a throwaway agent with:
+ *
+ *   export INBOX_AGENT_BASE_URL=http://localhost:8099
+ *   export INBOX_AGENT_TOKEN=<session token from POST /chat/login>
+ *   export INBOX_AGENT_ADMIN_KEY=<that agent's ADMIN_API_KEY>
+ *
+ * Unset, every test here SKIPS with a message naming what is missing. That is
+ * the §14.8 idiom, not a new one.
+ *
+ * ⚠ Two hazards worth stating, both measured on 2026-08-31:
+ *
+ * 1. A 401 from this agent is NOT proof a route exists. The admin auth hook
+ *    (`adminAuthHook`, an onRequest guard) answers before routing, so a
+ *    deliberately nonexistent `/admin/*` path returns 401 exactly like a real
+ *    one. 17.1 asserts the route by its BODY, never by its status alone.
+ * 2. Migration 0022 was amended in place after some agent DuckDBs had already
+ *    applied it. Such a DB silently lacks `last_failed_at` and the `draft_id`
+ *    unique index, and migrations are recorded applied BY ID so 0022 will
+ *    never re-run. RECREATE that DB — do not migrate it. A schema fault here
+ *    presents as an inbox bug.
+ *
+ * The walk never drives Extract or Commit: both are LLM-bound and an automated
+ * walk must not make billed calls. The badge's survival is asserted through the
+ * RENAME door (`PATCH /api/v1/po-entry/:draftId/quote`), which is one of the
+ * same six `fullDraft` routes §L-12(a) fixed and costs nothing to exercise.
+ */
+test.describe("§17 v1.81 Inbox connector", () => {
+  const AGENT = process.env.INBOX_AGENT_BASE_URL;
+  const TOKEN = process.env.INBOX_AGENT_TOKEN;
+  const ADMIN_KEY = process.env.INBOX_AGENT_ADMIN_KEY;
+
+  /** Skips with a message naming the missing var; returns false when unrunnable. */
+  function requireInboxAgent(): boolean {
+    const missing = [
+      !AGENT && "INBOX_AGENT_BASE_URL",
+      !TOKEN && "INBOX_AGENT_TOKEN",
+      !ADMIN_KEY && "INBOX_AGENT_ADMIN_KEY",
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      test.skip(
+        true,
+        `${missing.join(", ")} not set — §17 needs an agent started with INBOX_CONNECTOR=mock (see e2e/README.md).`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  async function agentCtx(playwright: any): Promise<APIRequestContext> {
+    return playwright.request.newContext({
+      baseURL: AGENT,
+      extraHTTPHeaders: { authorization: `Bearer ${TOKEN}` },
+    });
+  }
+
+  /**
+   * Find the inbox-originated draft, and FAIL DIFFERENTLY for the two reasons
+   * it can be missing. Calibrated against a deliberate mutant (`toViaEmail`
+   * forced to null, i.e. §L-12(a) re-introduced): without this split both
+   * cases reported "was a fixture pulled?", which points at the harness when
+   * the real cause is the regression this section exists to catch.
+   */
+  async function findInboxDraft(req: APIRequestContext): Promise<any> {
+    const res = await req.get("/api/v1/po-entry");
+    expect(res.status(), "the list door refused — check INBOX_AGENT_TOKEN").toBe(200);
+    const drafts = (await res.json()).drafts ?? [];
+    // No drafts at all = harness gap (empty fixture dir, or no pull yet).
+    expect(
+      drafts.length,
+      "no drafts at all — the fixture directory was empty or no pull has run (harness gap, not a product defect)",
+    ).toBeGreaterThan(0);
+    const inbox = drafts.find((d: any) => d.via_email);
+    // Drafts present but none carry provenance = the regression.
+    expect(
+      inbox,
+      `${drafts.length} draft(s) present but NONE carries via_email — provenance is not being attached (§L-12(a) regression), not a missing fixture`,
+    ).toBeTruthy();
+    return inbox;
+  }
+
+  test("17.1 POST /admin/inbox-pull returns a verdict (the route exists, by body not status)", async ({
+    playwright,
+  }) => {
+    if (!requireInboxAgent()) return;
+    const req = await playwright.request.newContext({ baseURL: AGENT });
+    try {
+      // The control that makes this an assertion about ROUTING: a path that
+      // deliberately does not exist. Both requests carry the admin key, so
+      // the auth hook is satisfied for each and cannot be what separates them.
+      const bogus = await req.post("/admin/zzz-definitely-not-a-route-9f3a", {
+        headers: { "x-admin-key": ADMIN_KEY! },
+      });
+      expect(bogus.status(), "control path should not route").toBe(404);
+
+      const res = await req.post("/admin/inbox-pull", { headers: { "x-admin-key": ADMIN_KEY! } });
+      // §L-7: ok → 200, busy → 409, degraded → 502. Any of the three proves
+      // the route registered; only a 404 (or the auth hook's 401) does not.
+      expect([200, 409, 502], `unexpected status ${res.status()}`).toContain(res.status());
+      const body = await res.json();
+      expect(body).toHaveProperty("verdict");
+      expect(["ok", "busy", "degraded"]).toContain(body.verdict);
+      // §L-14 — a degraded pass must name its reason in operator-facing text,
+      // not leave the distinction only in the agent log.
+      if (res.status() === 502) expect(body).toHaveProperty("reason");
+    } finally {
+      await req.dispose();
+    }
+  });
+
+  test("17.2 an inbox-originated draft carries via_email provenance on both GET doors", async ({
+    playwright,
+  }) => {
+    if (!requireInboxAgent()) return;
+    const req = await agentCtx(playwright);
+    try {
+      const inbox = await findInboxDraft(req);
+      expect(inbox.via_email).toHaveProperty("from_address");
+      expect(inbox.via_email).toHaveProperty("received_at");
+
+      // Spec §8: the detail door answers the same provenance as the list door.
+      const detail = await req.get(`/api/v1/po-entry/${inbox.draft_id}`);
+      expect(detail.status()).toBe(200);
+      expect((await detail.json()).via_email).toEqual(inbox.via_email);
+    } finally {
+      await req.dispose();
+    }
+  });
+
+  test("17.3 🎯 §L-12(a): via_email SURVIVES a mutation that re-serialises the draft", async ({
+    playwright,
+  }) => {
+    if (!requireInboxAgent()) return;
+    const req = await agentCtx(playwright);
+    try {
+      const inbox = await findInboxDraft(req);
+      const before = inbox.via_email;
+
+      // The door is `PATCH /api/v1/po-entry/:draftId` — the DOCUMENT surface's
+      // header edit, which re-serialises through the same `draftPayload` that
+      // attaches provenance. Deliberately NOT `/quote` (the native-quote
+      // rename): an inbox draft is `source: document`, and that door answers
+      // 409 "This draft is a customer PO document, not a composed quote" —
+      // a structural refusal, so it can never exercise this at all.
+      // Deliberately NOT Extract or Commit either: both are LLM-bound and an
+      // automated walk must not make billed calls.
+      const edited = await req.patch(`/api/v1/po-entry/${inbox.draft_id}`, {
+        data: { header: [{ key: "customer_po_number", value: `walk-17-${Date.now()}` }] },
+      });
+      expect(edited.status(), "the edit door refused — a stage or shape problem, not a badge one").toBe(200);
+      // The badge must be in the MUTATION's own response body, not merely
+      // recoverable by re-reading. That re-read is what the old code passed.
+      expect(
+        (await edited.json()).via_email,
+        "via_email vanished from the mutation response — §L-12(a) has regressed",
+      ).toEqual(before);
+    } finally {
+      await req.dispose();
+    }
+  });
+
+  test("17.4 a non-inbox draft answers via_email: null (present-and-null, not absent)", async ({
+    playwright,
+  }) => {
+    if (!requireInboxAgent()) return;
+    const req = await agentCtx(playwright);
+    try {
+      // Compose a native draft — no inbox involvement — and read it back.
+      const composed = await req.post("/api/v1/po-entry/compose", {
+        data: { name: `walk-17-native-${Date.now()}` },
+      });
+      expect(composed.status()).toBe(201);
+      const draftId = (await composed.json()).draft_id;
+
+      const detail = await req.get(`/api/v1/po-entry/${draftId}`);
+      expect(detail.status()).toBe(200);
+      const payload = await detail.json();
+      // Spec §8 draws this distinction deliberately: the KEY is always present
+      // and null for a non-inbox draft. An absent key is a different answer —
+      // it is what a provenance OUTAGE looks like — so `toBeNull` is the
+      // assertion and `toBeFalsy` would not be (undefined passes that).
+      expect(payload).toHaveProperty("via_email");
+      expect(payload.via_email).toBeNull();
+    } finally {
+      await req.dispose();
+    }
+  });
+
+  test("17.5 the pull is IDEMPOTENT — a second pass creates no second draft", async ({
+    playwright,
+  }) => {
+    if (!requireInboxAgent()) return;
+    const admin = await playwright.request.newContext({ baseURL: AGENT });
+    const req = await agentCtx(playwright);
+    try {
+      const countInboxDrafts = async (): Promise<number> =>
+        ((await (await req.get("/api/v1/po-entry")).json()).drafts ?? []).filter(
+          (d: any) => d.via_email,
+        ).length;
+
+      const before = await countInboxDrafts();
+      const second = await admin.post("/admin/inbox-pull", {
+        headers: { "x-admin-key": ADMIN_KEY! },
+      });
+      expect([200, 409, 502]).toContain(second.status());
+      // The ledger's whole purpose. A re-pull re-examines nothing already
+      // struck, and the processed/ folder move means it is not even seen.
+      expect(await countInboxDrafts(), "a re-pull created a duplicate draft").toBe(before);
+    } finally {
+      await req.dispose();
+      await admin.dispose();
+    }
+  });
+});
