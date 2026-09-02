@@ -13,11 +13,35 @@ import {
   ScorePill,
   DetailChevron,
 } from '@/components/sonar/observations';
+
 import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
 import {
   DomesticFlagBadge,
   isFullyDomestic,
 } from '@/app/account/sonar/audit/_lib/domestic';
+
+// A "vendor-level gap": the tier-1 (direct) vendor didn't disclose at all —
+// its result tree ROOT carries its own gap and has no children. Such a
+// result contributes no per-SKU score; the owning vendor group (and the run
+// total) count it once, not once per SKU that happened to hit the same
+// unreachable vendor (owner ruling, 2026-09-02 console walk).
+export function isVendorLevelGap(result: AuditRunResult): boolean {
+  return !!result.tree.gap && result.tree.components.length === 0;
+}
+
+function humanize(s: string): string {
+  return s.replace(/_/g, ' ');
+}
+
+// Human-readable label for a vendor-level gap's own `gap` object, e.g.
+// "Unauthorized · responder unreachable". Used as the muted note's tooltip
+// on a vendor-level-gap SKU row.
+export function describeGap(gap: ObservationNode['gap']): string {
+  if (!gap) return '';
+  const kind = humanize(gap.kind);
+  const kindLabel = kind.charAt(0).toUpperCase() + kind.slice(1);
+  return gap.hint ? `${kindLabel} · ${humanize(gap.hint)}` : kindLabel;
+}
 
 // Bucket every gap in the subtree by tier (depth_level, clamped at 4+).
 // Persisted result subtrees are rooted at a depth-1 child (the direct vendor),
@@ -68,6 +92,10 @@ interface VendorGroup {
   skus: SkuRow[];
   gapTiers: Map<number, number>;
   score: number;
+  // True when one or more of this vendor's results are vendor-level gaps
+  // (the direct vendor never answered). Collapsed to a single tier-1 gap in
+  // `gapTiers`/`score` below, however many SKUs hit it.
+  hasVendorGap: boolean;
 }
 
 // One cell of the unified status bar. `hint` is the plain-English explanation
@@ -124,8 +152,19 @@ function SkuEvidenceRow({
           )}
         </span>
         <span className="flex items-center gap-2">
-          <GapTierBar tiers={row.gapTiers} />
-          <ScorePill score={row.score} tiers={row.gapTiers} />
+          {isVendorLevelGap(row.result) ? (
+            <span
+              className="text-xs italic text-slate"
+              title={describeGap(row.result.tree.gap)}
+            >
+              Vendor did not respond
+            </span>
+          ) : (
+            <>
+              <GapTierBar tiers={row.gapTiers} />
+              <ScorePill score={row.score} tiers={row.gapTiers} />
+            </>
+          )}
         </span>
       </div>
       {/* Collapsed-by-default evidence tree for THIS SKU only. */}
@@ -179,7 +218,10 @@ export function TierGapGrid({
   const rows = useMemo<SkuRow[]>(
     () =>
       results.map((r) => {
-        const gapTiers = gapsByTier(r.tree);
+        // A vendor-level gap (the direct vendor never answered) carries no
+        // per-SKU score of its own — the owning vendor group counts it once
+        // (see `groups`/`total` below), not once per SKU that hit it.
+        const gapTiers = isVendorLevelGap(r) ? new Map<number, number>() : gapsByTier(r.tree);
         return {
           result: r,
           productId: r.product_id ?? '',
@@ -218,16 +260,21 @@ export function TierGapGrid({
           skus: [],
           gapTiers: new Map(),
           score: 0,
+          hasVendorGap: false,
         };
         byVendor.set(key, g);
       }
       g.skus.push(r);
       mergeTiers(g.gapTiers, r.gapTiers);
-      g.score += r.score;
+      if (isVendorLevelGap(r.result)) g.hasVendorGap = true;
       if (!g.vendorName && r.vendorName) g.vendorName = r.vendorName;
     }
     const list = [...byVendor.values()];
     for (const g of list) {
+      // The vendor didn't answer at all: one tier-1 gap for the group,
+      // however many SKUs hit the same unreachable vendor.
+      if (g.hasVendorGap) g.gapTiers.set(1, (g.gapTiers.get(1) ?? 0) + 1);
+      g.score = scoreOf(g.gapTiers);
       g.skus.sort(
         (a, b) => b.score - a.score || a.productId.localeCompare(b.productId),
       );
@@ -242,10 +289,21 @@ export function TierGapGrid({
     return list;
   }, [filtered, sort]);
 
-  // Run-wide rollup for the status bar's priority cell.
+  // Run-wide rollup for the status bar's priority cell. Vendor-level gaps
+  // (rows.gapTiers already empty for those, per `rows` above) are counted
+  // once per DISTINCT vendor here too — not once per SKU.
   const total = useMemo(() => {
     const tiers = new Map<number, number>();
-    for (const r of rows) mergeTiers(tiers, r.gapTiers);
+    const vendorGapKeys = new Set<string>();
+    for (const r of rows) {
+      mergeTiers(tiers, r.gapTiers);
+      if (isVendorLevelGap(r.result)) {
+        vendorGapKeys.add(r.vendorId || `name:${r.vendorName}`);
+      }
+    }
+    if (vendorGapKeys.size > 0) {
+      tiers.set(1, (tiers.get(1) ?? 0) + vendorGapKeys.size);
+    }
     return { tiers, score: scoreOf(tiers) };
   }, [rows]);
 
@@ -382,6 +440,7 @@ export function TierGapGrid({
                   </span>
                   <span className="ml-2 text-xs text-slate">
                     {g.skus.length} {g.skus.length === 1 ? 'SKU' : 'SKUs'}
+                    {g.hasVendorGap && ' · vendor did not respond'}
                   </span>
                 </span>
                 <GapTierBar tiers={g.gapTiers} />
