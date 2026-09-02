@@ -14,6 +14,12 @@ import {
   DetailChevron,
 } from '@/components/sonar/observations';
 
+import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
+import {
+  DomesticFlagBadge,
+  isFullyDomestic,
+} from '@/app/account/sonar/audit/_lib/domestic';
+
 // A "vendor-level gap": the tier-1 (direct) vendor didn't disclose at all —
 // its result tree ROOT carries its own gap and has no children. Such a
 // result contributes no per-SKU score; the owning vendor group (and the run
@@ -36,11 +42,6 @@ export function describeGap(gap: ObservationNode['gap']): string {
   const kindLabel = kind.charAt(0).toUpperCase() + kind.slice(1);
   return gap.hint ? `${kindLabel} · ${humanize(gap.hint)}` : kindLabel;
 }
-import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
-import {
-  DomesticFlagBadge,
-  isFullyDomestic,
-} from '@/app/account/sonar/audit/_lib/domestic';
 
 // Bucket every gap in the subtree by tier (depth_level, clamped at 4+).
 // Persisted result subtrees are rooted at a depth-1 child (the direct vendor),
