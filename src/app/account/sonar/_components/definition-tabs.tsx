@@ -3,13 +3,7 @@
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SectionTabs } from '@/components/sonar/section-tabs';
-
-export type DefinitionTab = 'runs' | 'configuration';
-
-/** Reads `?tab=` for a definition page; anything but "configuration" opens runs. */
-export function parseDefinitionTab(value: string | string[] | undefined): DefinitionTab {
-  return value === 'configuration' ? 'configuration' : 'runs';
-}
+import type { DefinitionTab } from '../_lib/definition-tab';
 
 interface Props {
   /** Accessible name for the tablist, e.g. "Watcher sections". */
