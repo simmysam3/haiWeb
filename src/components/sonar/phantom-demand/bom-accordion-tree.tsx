@@ -76,7 +76,19 @@ function attributeSummary(node: BomNode): string {
     .join(' · ');
 }
 
-function IdentityCell({ node, depth }: { node: BomNode; depth: number }) {
+// Whose SKU sits at the root: the buyer's own BOM (default) or a trading
+// partner's catalog product probed as phantom demand (run catalog_source).
+export type BomRootSource = 'own' | 'counterparty';
+
+function IdentityCell({
+  node,
+  depth,
+  rootSource,
+}: {
+  node: BomNode;
+  depth: number;
+  rootSource: BomRootSource;
+}) {
   if (node.wall_block) {
     return (
       <>
@@ -88,6 +100,27 @@ function IdentityCell({ node, depth }: { node: BomNode; depth: number }) {
     );
   }
   if (depth === 0) {
+    // v1.85 — a root picked from a counterparty's catalog is the VENDOR's
+    // SKU, not the buyer's assembly; say so and name the vendor.
+    if (rootSource === 'counterparty') {
+      return (
+        <>
+          <span className="font-mono text-sm text-charcoal">{node.component_sku}</span>
+          <span className="text-sm text-slate">{node.component_label}</span>
+          {node.vendor_block?.vendor_legal_name && (
+            <span className="text-sm font-medium text-charcoal">
+              {node.vendor_block.vendor_legal_name}
+            </span>
+          )}
+          {node.vendor_block?.vendor_participant_id && (
+            <IdChip id={node.vendor_block.vendor_participant_id} />
+          )}
+          <Pill category="source" value="vendor_catalog" tone="neutral">
+            vendor SKU
+          </Pill>
+        </>
+      );
+    }
     return (
       <>
         <span className="font-mono text-sm text-charcoal">{node.component_sku}</span>
@@ -193,12 +226,22 @@ interface TreeRowProps {
   depth: number;
   lineRef: string;
   targetDate: string;
+  rootSource: BomRootSource;
   expanded: Set<string>;
   onToggle: (lineId: string) => void;
   renderBand?: (node: BomNode, lineRef: string) => ReactNode;
 }
 
-function TreeRow({ node, depth, lineRef, targetDate, expanded, onToggle, renderBand }: TreeRowProps) {
+function TreeRow({
+  node,
+  depth,
+  lineRef,
+  targetDate,
+  rootSource,
+  expanded,
+  onToggle,
+  renderBand,
+}: TreeRowProps) {
   const isExpanded = expanded.has(node.line_id);
   const hasChildren = node.subcomponents.length > 0;
   const tone =
@@ -234,7 +277,7 @@ function TreeRow({ node, depth, lineRef, targetDate, expanded, onToggle, renderB
           />
         )}
         <DetailChevron expanded={isExpanded} />
-        <IdentityCell node={node} depth={depth} />
+        <IdentityCell node={node} depth={depth} rootSource={rootSource} />
         <span className="ml-auto whitespace-nowrap text-xs text-slate-400">{qtyText(node)}</span>
         <TrailingPills node={node} targetDate={targetDate} />
       </div>
@@ -248,6 +291,7 @@ function TreeRow({ node, depth, lineRef, targetDate, expanded, onToggle, renderB
               depth={depth + 1}
               lineRef={`${lineRef}.${i + 1}`}
               targetDate={targetDate}
+              rootSource={rootSource}
               expanded={expanded}
               onToggle={onToggle}
               renderBand={renderBand}
@@ -262,10 +306,13 @@ function TreeRow({ node, depth, lineRef, targetDate, expanded, onToggle, renderB
 export function BomAccordionTree({
   tree,
   targetDate,
+  rootSource = 'own',
   renderBand,
 }: {
   tree: BomTree;
   targetDate: string;
+  /** Whose SKU is at the root — from the run's catalog_source. Defaults to own. */
+  rootSource?: BomRootSource;
   renderBand?: (node: BomNode, lineRef: string) => ReactNode;
 }) {
   // Root open by default; deeper tiers collapse so a buried wall/not-ready
@@ -288,6 +335,7 @@ export function BomAccordionTree({
         depth={0}
         lineRef="1"
         targetDate={targetDate}
+        rootSource={rootSource}
         expanded={expanded}
         onToggle={toggle}
         renderBand={renderBand}

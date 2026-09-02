@@ -357,6 +357,8 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
   source: {
     internal_mfg: 'Made internally at this facility.',
     your_bom: 'The root assembly from your own bill of materials.',
+    vendor_catalog:
+      "A trading partner's catalog product, probed as phantom demand against that vendor.",
   },
 };
 

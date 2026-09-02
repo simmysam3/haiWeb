@@ -165,3 +165,52 @@ describe('RunDetailShell', () => {
     expect(screen.queryByText('T2-LEAK')).toBeNull();
   });
 });
+
+// v1.85 — the shell reads the run's catalog_source and tells the tree whose
+// SKU sits at the root, so a counterparty-catalog probe is not labelled as
+// the buyer's own BOM.
+describe('RunDetailShell — root provenance from catalog_source', () => {
+  function counterpartyDetail(): PhantomDemandRunDetail {
+    const tree: BomTree = {
+      ...rootWith([]),
+      component_sku: 'GLH-BF-WM-BN-029',
+      component_label: 'GLH-BF-WM-BN-029',
+      source: 'vendor_mto',
+      internal_block: null,
+      vendor_block: {
+        vendor_participant_id: 'ec2308a1-08e4-4f87-bf39-43fb98bef8ff',
+        vendor_sku: 'GLH-BF-WM-BN-029',
+        vendor_legal_name: 'Great Lakes Hardware Manufacturing Inc',
+        mto_reference: null,
+        plt_days: null,
+        qlt: null,
+        inventory_disclosure: 'not_disclosed',
+        on_hand_qty_at_vendor: null,
+        historical_lt: null,
+        raw_material_status: null,
+      },
+    };
+    return {
+      run: {
+        run_id: '72c225ba-d98e-49a5-b30f-d15418792477',
+        status: 'complete',
+        readiness_verdict: 'not_evaluated',
+        scope_snapshot: {
+          kind: 'phantom_demand_bom',
+          sku: 'GLH-BF-WM-BN-029',
+          qty: 20,
+          target_date: '2026-09-16',
+          catalog_source: { kind: 'counterparty', counterparty_id: 'ec2308a1-08e4-4f87-bf39-43fb98bef8ff' },
+        },
+      },
+      tree,
+    } as unknown as PhantomDemandRunDetail;
+  }
+
+  it('labels a counterparty-catalog root as a vendor SKU, not your BOM', () => {
+    render(<RunDetailShell initialDetail={counterpartyDetail()} />);
+    expect(screen.queryByText('your BOM')).not.toBeInTheDocument();
+    expect(screen.getByText('vendor SKU')).toBeInTheDocument();
+  });
+});
+
