@@ -15,7 +15,7 @@
 - Work ONLY in the worktree `/Users/samfleming/dev/hw/haiCore-v185` (branch `v1.85-run-disposition`, cut from `origin/main`). Start every shell command with `cd /Users/samfleming/dev/hw/haiCore-v185 &&` (or the package dir under it). The primary `~/dev/hw/haiCore` is Central's RUNNING source tree — never edit, check out, or `npm install` there.
 - Counters, allocated by agent1 and not to be changed: migration **0046**, protocol **3.80.0**, decision **D-206**, register **v1.52**. Message agent1 (session `hw-4b`) at the moment each is written into a file (the controller does this; executors report it).
 - Protocol 3.80.0 CHANGELOG must DEFER every parked §P item to 3.81.0 by name (Task 2 has the exact text).
-- Tests run against the LANE database `haiwave_v185_test` only: every vitest invocation is prefixed `DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test`. Never the shared `haiwave_test`, never `haiwave`.
+- Tests run against the LANE database `haiwave_v185_test` only. **`apps/core/vitest.config.ts` reads `TEST_DATABASE_URL` (not `DATABASE_URL`)** — every vitest invocation is prefixed `TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test`; a plain `DATABASE_URL=` prefix is silently ignored by vitest and the run hits the shared `haiwave_test` (happened once in Task 1 — five stray rows). `db:apply` (migrations) reads `DATABASE_URL` from the worktree `.env`, which is pinned to the lane DB. Never the shared `haiwave_test`, never `haiwave`.
 - vitest flags: `--maxWorkers=3 --minWorkers=1` if the installed vitest accepts `--minWorkers` (haiCore's does; if it errors "Unknown option", drop `--minWorkers`). Run gates FOREGROUND. Never two haiCore gates at once on this machine.
 - Copy style: comments dated `v1.85 (2026-09-02)`, one sentence of why, no marketing. Wire fields snake_case. No `any`.
 - Audit rule is server-enforced (400 `AUDIT_RUNS_ARCHIVE_ONLY`), running runs block non-keep dispositions (409 `RUNS_IN_FLIGHT`). Default disposition for a watcher template when `runs` is absent: `keep`.
@@ -118,7 +118,7 @@ If `runTemplates` insert requires other NOT NULL columns, copy the minimal value
 - [ ] **Step 3: Run it — must fail because the columns do not exist**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/db/__tests__/migration-0046-run-archive.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/db/__tests__/migration-0046-run-archive.test.ts --maxWorkers=1
 ```
 Expected: FAIL — TypeScript/drizzle rejects `archivedAt` on the insert value, or Postgres answers `column "archived_at" does not exist`. The third test fails with an empty index list. The second test fails because the snapshot row is gone (cascade).
 
@@ -187,7 +187,7 @@ In `watcher-snapshots.ts` line 17: `{ onDelete: 'cascade' }` → `{ onDelete: 's
 ```bash
 cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npm run db:apply -- status
 cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npm run db:apply -- migrate
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/db/__tests__/migration-0046-run-archive.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/db/__tests__/migration-0046-run-archive.test.ts --maxWorkers=1
 ```
 Expected: `status` shows 0046 pending, `migrate` applies exactly 0046, the three tests PASS.
 
@@ -503,7 +503,7 @@ If `runTemplates.scope` for `phantom_demand` needs different required fields, co
 - [ ] **Step 2: Run — must fail (delete ignores options; returns boolean)**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/run-template-delete-disposition.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/run-template-delete-disposition.test.ts --maxWorkers=1
 ```
 Expected: FAIL — `expect(res).toEqual({deleted:true,…})` receives `true`; `rejects.toMatchObject` cases resolve instead of rejecting.
 
@@ -628,7 +628,7 @@ If TypeScript rejects `tx.update(table).set(...)` on the union type, split `appl
 - [ ] **Step 4: Run to green; then the existing service tests that call delete**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/run-template-delete-disposition.test.ts src/services/__tests__/run-template-service.test.ts src/services/__tests__/run-template-cleanup-service.test.ts --maxWorkers=2 --minWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/run-template-delete-disposition.test.ts src/services/__tests__/run-template-service.test.ts src/services/__tests__/run-template-cleanup-service.test.ts --maxWorkers=2 --minWorkers=1
 ```
 Expected: all PASS. If an existing test asserted `delete()` returns `true`/`false`, update it to the new shape (`toMatchObject({ deleted: true })` / `toBeNull()`) in the same commit.
 
@@ -694,7 +694,7 @@ Replace `createWatcherTemplateViaApi` / `createAuditTemplateViaApi` / `auth(toke
 - [ ] **Step 2: Run — must fail (204 empty body; no 400/409 mapping)**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/routes/__tests__/run-templates.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/routes/__tests__/run-templates.test.ts --maxWorkers=1
 ```
 
 - [ ] **Step 3: Implement the route**
@@ -734,7 +734,7 @@ Import `RunsDispositionSchema` from `@haiwave/protocol`. Match the existing erro
 - [ ] **Step 4: Green, then commit**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/routes/__tests__/run-templates.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/routes/__tests__/run-templates.test.ts --maxWorkers=1
 cd /Users/samfleming/dev/hw/haiCore-v185 && git add apps/core/src/routes/run-templates.ts apps/core/src/routes/__tests__/run-templates.test.ts && git commit -m "feat(routes): DELETE /sonar/templates/:id?runs= — 200 body, 400/409 dispositions (D-206)
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
@@ -800,7 +800,7 @@ describe('WatcherRunService.list archive filter (D-206)', () => {
 - [ ] **Step 2: Run — must fail (archived run listed; `archived_at` undefined; name null)**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/watcher-run-service-archive.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/watcher-run-service-archive.test.ts --maxWorkers=1
 ```
 
 - [ ] **Step 3: Implement**
@@ -861,7 +861,7 @@ Route `watcher.ts` GET `/runs`:
 - [ ] **Step 5: Green + commit**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/watcher-run-service-archive.test.ts src/routes/__tests__/watcher.test.ts src/services/__tests__/watcher-run-service.test.ts --maxWorkers=2 --minWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/watcher-run-service-archive.test.ts src/routes/__tests__/watcher.test.ts src/services/__tests__/watcher-run-service.test.ts --maxWorkers=2 --minWorkers=1
 cd /Users/samfleming/dev/hw/haiCore-v185 && git add apps/core/src/services/watcher-run-service.ts apps/core/src/routes/watcher.ts apps/core/src/services/__tests__/ apps/core/src/routes/__tests__/ && git commit -m "feat(watcher): run list hides archived runs by default; ?archived=true; name snapshot (D-206)
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
@@ -884,7 +884,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - [ ] **Step 2: Run — must fail**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/audit-run-service-archive.test.ts --maxWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/audit-run-service-archive.test.ts --maxWorkers=1
 ```
 
 - [ ] **Step 3: Implement**
@@ -902,7 +902,7 @@ Route `audit-runs.ts` GET `/runs`: add `archived?: string` to the Querystring ty
 - [ ] **Step 5: Green + commit**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/audit-run-service-archive.test.ts src/routes/__tests__/audit-runs.test.ts src/services/__tests__/audit-run-service.test.ts --maxWorkers=2 --minWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/audit-run-service-archive.test.ts src/routes/__tests__/audit-runs.test.ts src/services/__tests__/audit-run-service.test.ts --maxWorkers=2 --minWorkers=1
 cd /Users/samfleming/dev/hw/haiCore-v185 && git add apps/core/src/services/audit-run-service.ts apps/core/src/routes/audit-runs.ts apps/core/src/services/__tests__/ apps/core/src/routes/__tests__/ && git commit -m "feat(audit): run list hides archived runs by default; ?archived=true; name snapshot (D-206)
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
@@ -927,7 +927,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - [ ] **Step 4: Green + the three readers' existing test files + commit**
 
 ```bash
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/archived-runs-hidden-from-readers.test.ts src/services/__tests__/order-promise-feed-service.test.ts src/services/__tests__/reports-list-service.test.ts src/services/__tests__/audit-report-service.test.ts --maxWorkers=2 --minWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run src/services/__tests__/archived-runs-hidden-from-readers.test.ts src/services/__tests__/order-promise-feed-service.test.ts src/services/__tests__/reports-list-service.test.ts src/services/__tests__/audit-report-service.test.ts --maxWorkers=2 --minWorkers=1
 cd /Users/samfleming/dev/hw/haiCore-v185 && git add apps/core/src/services && git commit -m "feat(sonar): rollup readers exclude archived runs (D-206)
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
@@ -981,7 +981,7 @@ Expected: exit 0 (protocol then core).
 
 ```bash
 cd /Users/samfleming/dev/hw/haiCore-v185/packages/protocol && npx vitest run --maxWorkers=3 --minWorkers=1
-cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run --maxWorkers=3 --minWorkers=1
+cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && TEST_DATABASE_URL=postgresql://haiwave:dev_password@localhost:5433/haiwave_v185_test npx vitest run --maxWorkers=3 --minWorkers=1
 cd /Users/samfleming/dev/hw/haiCore-v185/apps/core && npm run typecheck:tests
 ```
 Expected: 0 failed in both packages, no `(retry x` lines, typecheck exit 0. A red that passes alone is a flake to report, not a fix to make. Record the "Test Files / Tests" lines.
