@@ -65,6 +65,35 @@ describe('ActionsMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
+  // v1.85 walk finding: inside the Configurations table's overflow-x-auto
+  // wrapper an absolutely positioned menu was clipped and grew the wrapper
+  // a scrollbar. The open menu therefore leaves its ancestors entirely.
+  it('renders the open menu at the document body, outside any scrolling ancestor', () => {
+    const { container } = render(
+      <div style={{ overflowX: 'auto' }} data-testid="scroller">
+        <ActionsMenu label="Actions for Acme watcher" items={ITEMS} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Acme watcher' }));
+    const menu = screen.getByRole('menu');
+    expect(screen.getByTestId('scroller').contains(menu)).toBe(false);
+    expect(container.contains(menu)).toBe(false);
+    expect(menu.parentElement).toBe(document.body);
+  });
+
+  it('positions the open menu fixed to the viewport, not relative to the table', () => {
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Acme watcher' }));
+    expect(screen.getByRole('menu').style.position).toBe('fixed');
+  });
+
+  it('stays open on a pointer-down inside the menu itself', () => {
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Acme watcher' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'View runs' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
   it('moves focus through the items with ArrowDown/ArrowUp, wrapping', () => {
     renderMenu();
     fireEvent.click(screen.getByRole('button', { name: 'Actions for Acme watcher' }));
