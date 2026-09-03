@@ -44,6 +44,12 @@ const watcherTemplate = (id: string, cadence: object): RunTemplate =>
 // D-206 — a run whose definition was deleted with runs=archive carries
 // archived_at. The runs BFF returns it only when the request URL carries
 // `archived=true`, matching Task 2's BFF contract.
+// v1.85 fix wave (C1) — a real archived/kept run of a DELETED definition has
+// template_id NULL (FK ON DELETE SET NULL) and carries the delete-time name
+// snapshot as template_name on the wire (haiCore COALESCEs it there). Giving
+// this fixture a live template_id (as before) cannot occur in the real system
+// and hid the C1 bug — the page derived every run's name from a live
+// template-id join alone, discarding the wire template_name.
 const ARCHIVED_RUN = {
   run_id: 'r-arch-1',
   initiator_participant_id: 'p-1',
@@ -57,7 +63,8 @@ const ARCHIVED_RUN = {
   gap_count: 0,
   error_message: null,
   run_origin: 'template_scheduled',
-  template_id: 't-1',
+  template_id: null,
+  template_name: 'Deleted EMEA Watch',
   signal_types: ['lead_time_distribution'],
   archived_at: '2026-08-25T00:00:00.000Z',
 };
@@ -148,7 +155,10 @@ describe('WatchersListPage — runs filter (D-206)', () => {
     expect(String(runsCall?.[0])).toMatch(/archived=true/);
     expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
 
-    const row = screen.getByRole('row', { name: /Run r-arch-1/ });
+    // C1 — the run's template was deleted (template_id: null), so its name
+    // can only come from the wire template_name snapshot, never from a join
+    // against the (now-gone) live template.
+    const row = screen.getByRole('row', { name: /Deleted EMEA Watch/ });
     expect(within(row).getByText('Archived')).toBeInTheDocument();
   });
 });

@@ -55,11 +55,18 @@ export default async function WatchersListPage({ searchParams }: RouteProps) {
   const templateNameById = new Map<string, string>(
     allDefinitions.map((t) => [t.template_id, t.template_name]),
   );
+  // v1.85 fix wave (D-206, C1) — haiCore already COALESCEs (live
+  // run_templates.template_name, template_name_snapshot) into run.template_name
+  // on the wire, so an archived/kept run of a deleted definition still carries
+  // its name there even though template_id is now NULL. Prefer the live join
+  // (a rename since the run fired should win) but fall back to the wire value
+  // instead of discarding it.
   const enrichedRuns: EnrichedWatcherRun[] = runs.map((r) => ({
     ...r,
-    template_name: r.template_id
-      ? templateNameById.get(r.template_id) ?? null
-      : null,
+    template_name:
+      (r.template_id ? templateNameById.get(r.template_id) : undefined) ??
+      r.template_name ??
+      null,
   }));
 
   return (

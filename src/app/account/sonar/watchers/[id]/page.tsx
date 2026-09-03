@@ -87,8 +87,15 @@ export default async function WatcherRunDetailPage({ params }: RouteContext) {
     ),
   ]);
 
+  // v1.85 fix wave (D-206, C1) — for a run of a DELETED definition (archived
+  // or kept), template_id is NULL so the live-definition lookup above never
+  // fires. haiCore already COALESCEs (live template_name, delete-time
+  // snapshot) onto the run's wire template_name (watcher-run-service.ts
+  // mapRun) — read it instead of falling straight to the generic title.
   const templateName =
-    defResult.kind === 'ok' ? defResult.data.template.template_name : null;
+    (defResult.kind === 'ok' ? defResult.data.template.template_name : undefined) ??
+    run.template_name ??
+    null;
   const partnerNameById = new Map<string, string>();
   if (partnersResult.kind === 'ok') {
     for (const p of partnersResult.data) {

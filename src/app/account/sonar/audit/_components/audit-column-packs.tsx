@@ -14,9 +14,11 @@ type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
 
 // Enriched shape returned by the list BFF (template_id → name join is added
 // by HaiWeb; total_skus and fully_resolved_skus_by_country come straight off
-// the protocol envelope).
+// the protocol envelope). v1.85 fix wave (C1) — the BFF now returns `null`
+// (never just omits the field) when a run has no name to show, matching what
+// the route actually sends since the wire-template_name fallback fix.
 export type EnrichedAuditRun = Omit<AuditRun, 'template_name'> & {
-  template_name?: string;
+  template_name?: string | null;
 };
 
 function formatScope(scope: AuditTemplate['scope']): string {

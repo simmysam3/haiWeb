@@ -276,3 +276,39 @@ describe('WatcherRunDetailPage — readiness vs legacy grid', () => {
     expect(screen.queryByText(/current ask: .* units within/i)).not.toBeInTheDocument();
   });
 });
+
+// v1.85 fix wave (C1) — extra site found via the mandated
+// `grep -rn "template_name"` sweep, beyond the three the review named. This
+// page derives its title ONLY from a live template lookup keyed on
+// run.template_id — for a run of a DELETED definition (D-206 archive/keep),
+// template_id is NULL (FK ON DELETE SET NULL) so that lookup never fires, and
+// the title silently falls back to generic "Watcher run" forever. haiCore
+// already COALESCEs (live template_name, delete-time snapshot) onto the run's
+// wire template_name (watcher-run-service.ts mapRun); the page must read it.
+describe('WatcherRunDetailPage — title for a run of a deleted definition (fix wave C1)', () => {
+  it('titles the page from the wire template_name when template_id is null', async () => {
+    fetchBffJson
+      // 1. run detail — template deleted: template_id null, wire name present
+      .mockResolvedValueOnce({
+        kind: 'ok',
+        data: {
+          run: { ...baseRun(), template_id: null, template_name: 'Deleted EMEA Watch' },
+          results: [],
+        },
+      })
+      // template_id is null, so the page's ternary resolves the definition
+      // slot via Promise.resolve directly WITHOUT calling fetchBffJson — the
+      // next three fetchBffJson calls are partners, manifest, trailing-history.
+      .mockResolvedValueOnce({ kind: 'ok', data: [] })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: [] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { runs: [], results: [] } });
+
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ id: RUN_ID }) }));
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Deleted EMEA Watch' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Watcher run' })).not.toBeInTheDocument();
+  });
+});

@@ -220,6 +220,69 @@ describe('GET /api/account/sonar/audit/runs?archived=', () => {
   });
 });
 
+// v1.85 fix wave (C1, 2026-09-03) — haiCore's run-list endpoint already
+// COALESCEs (live run_templates.template_name, template_name_snapshot); the
+// BFF's live-template join must not throw that wire value away when there's
+// no live template to join against. A deleted definition (D-206 archive/keep)
+// leaves template_id NULL on the run but still carries the snapshot name.
+describe('GET /api/account/sonar/audit/runs — template_name wire fallback (fix wave C1)', () => {
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'us' } })),
+      listRunTemplates: vi.fn(async () => ({
+        templates: [{ template_id: 't-live', template_name: 'Live Name' }],
+      })),
+    };
+  });
+
+  it('keeps the wire template_name for a run whose template_id is null (deleted definition)', async () => {
+    globalThis.__mockClient.listAuditRuns.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'r-archived',
+          status: 'complete',
+          triggered_at: '2026-09-02T10:00:00Z',
+          template_id: null,
+          template_name: 'Weekly EMEA Audit',
+          archived_at: '2026-09-02T12:00:00.000Z',
+        },
+      ],
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      'http://localhost:3001/api/account/sonar/audit/runs?archived=true',
+    );
+    const res = await GET(req, { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(body.runs[0].template_name).toBe('Weekly EMEA Audit');
+  });
+
+  it('prefers the live template name over the wire snapshot when a live join exists', async () => {
+    globalThis.__mockClient.listAuditRuns.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'r-live',
+          status: 'complete',
+          triggered_at: '2026-09-02T10:00:00Z',
+          template_id: 't-live',
+          template_name: 'Stale Wire Name',
+          archived_at: null,
+        },
+      ],
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
+    const res = await GET(req, { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(body.runs[0].template_name).toBe('Live Name');
+  });
+});
+
 describe('POST /api/account/sonar/audit/runs', () => {
   it('is not exported — ad-hoc triggers create nameless template-less runs; the wizard path (definitions + /run) is the only trigger', async () => {
     const mod = await import('../route');

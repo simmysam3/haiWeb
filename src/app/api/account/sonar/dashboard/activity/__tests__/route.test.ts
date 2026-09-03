@@ -121,6 +121,54 @@ describe('GET /api/account/sonar/dashboard/activity — active runs only (D-206)
     expect(pdArg?.archived).toBeUndefined();
   });
 
+  // v1.85 fix wave (C1) — a KEPT run (template deleted, archived_at null per
+  // D-206 §2 "keep") still shows up here since dashboards only ever ask for
+  // active runs. Its template_id is NULL (FK ON DELETE SET NULL) but haiCore
+  // COALESCEs the delete-time name snapshot onto the wire template_name — the
+  // event title must use it instead of falling back to "Ad hoc <Modality>".
+  it('names a kept watcher/audit run of a deleted definition from the wire template_name', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({
+        runs: [
+          {
+            run_id: 'a-kept',
+            status: 'complete',
+            triggered_at: '2026-09-02T03:00:00Z',
+            completed_at: '2026-09-02T03:01:00Z',
+            run_origin: 'template_scheduled',
+            template_id: null,
+            template_name: 'Kept Audit Definition',
+            archived_at: null,
+          },
+        ],
+      }),
+      listWatcherRuns: vi.fn().mockResolvedValue({
+        runs: [
+          {
+            run_id: 'w-kept',
+            status: 'complete',
+            triggered_at: '2026-09-02T02:00:00Z',
+            completed_at: '2026-09-02T02:05:00Z',
+            run_origin: 'template_scheduled',
+            template_id: null,
+            template_name: 'Kept Watcher Definition',
+            archived_at: null,
+            signal_types: ['price_change'],
+            counterparty_filter: null,
+            depth_limit: 1,
+          },
+        ],
+      }),
+    });
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    const auditEvent = body.events.find((e: any) => e.run_id === 'a-kept');
+    const watcherEvent = body.events.find((e: any) => e.run_id === 'w-kept');
+    expect(auditEvent.title).toBe('Kept Audit Definition');
+    expect(watcherEvent.title).toBe('Kept Watcher Definition');
+  });
+
   it('passes through exactly the runs the client returned, without re-filtering', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({

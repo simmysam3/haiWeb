@@ -153,9 +153,15 @@ describe('AuditListPage', () => {
 // archived list instead of the default active list. A run whose definition
 // was deleted with runs=archive carries archived_at; the runs BFF returns it
 // only when the request URL carries `archived=true` (Task 2's contract).
+// v1.85 fix wave (C1) — a real archived run of a deleted definition has
+// template_id NULL (FK ON DELETE SET NULL); only the wire template_name
+// snapshot names it. This test stubs global fetch above the BFF route, so it
+// can't pin the C1 bug (the BFF route test does that) — but the fixture
+// should still reflect what the real system produces.
 const ARCHIVED_RUN = {
   ...STUB_RUN,
   run_id: 'aaaaaaaa-0000-0000-0000-000000000099',
+  template_id: null,
   template_name: 'Weekly EMEA Audit',
   archived_at: '2026-08-25T00:00:00.000Z',
 };

@@ -57,11 +57,17 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
     // Templates unreachable — names fall back to "Run <uuid>" client-side.
   }
 
-  type EnrichedRun = Omit<AuditRun, 'template_name'> & { template_name?: string };
+  // v1.85 fix wave (D-206, C1) — haiCore already COALESCEs
+  // (live run_templates.template_name, template_name_snapshot) into
+  // run.template_name on the wire, so a run whose template was deleted
+  // (archived or kept per D-206) still carries its name there even though
+  // template_id is now NULL. Prefer the live join (a rename since the run
+  // fired should win) but fall back to the wire value instead of discarding
+  // it — losing it would permanently unname every archived/kept run.
+  type EnrichedRun = Omit<AuditRun, 'template_name'> & { template_name: string | null };
   const enrichedRuns: EnrichedRun[] = runs.map((run): EnrichedRun => {
     const joined = run.template_id ? templateNameById.get(run.template_id) : undefined;
-    const { template_name: _drop, ...rest } = run;
-    return joined ? { ...rest, template_name: joined } : rest;
+    return { ...run, template_name: joined ?? run.template_name ?? null };
   });
 
   return NextResponse.json({ runs: enrichedRuns, auditor_country: auditorCountry });
