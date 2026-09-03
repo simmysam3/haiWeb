@@ -29,16 +29,21 @@ export function WatcherHistoryTable({ initialRows, templateId, archived, emptyMe
   if (templateId) params.set('template_id', templateId);
   if (archived) params.set('archived', 'true');
   const pollEndpoint = `${base}${params.size ? `?${params}` : ''}`;
+  // v1.85 fix wave (I2) — archived mode owns its own empty-state copy: a
+  // deleted watcher can't be triggered, so "Trigger one manually…" is wrong
+  // there. This table knows `archived`, so it overrides any caller-supplied
+  // emptyMessage rather than the four callers each having to remember to.
+  const resolvedEmptyMessage = archived
+    ? 'No archived runs. Runs are archived when their watcher is deleted with "Archive prior runs".'
+    : emptyMessage ??
+      'No watcher runs yet. Create a watcher and trigger a run, or wait for a scheduled cadence to fire.';
   return (
     <RunHistoryTable<EnrichedWatcherRun>
       initialRows={initialRows}
       columns={buildWatcherHistoryColumnPack()}
       pollEndpoint={pollEndpoint}
       keyFn={(r) => r.run_id}
-      emptyMessage={
-        emptyMessage ??
-        'No watcher runs yet. Create a watcher and trigger a run, or wait for a scheduled cadence to fire.'
-      }
+      emptyMessage={resolvedEmptyMessage}
     />
   );
 }

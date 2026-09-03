@@ -30,16 +30,22 @@ export function AuditHistoryTable({ initialRows, auditorCountry, templateId, arc
   if (templateId) params.set('template_id', templateId);
   if (archived) params.set('archived', 'true');
   const pollEndpoint = `${base}${params.size ? `?${params}` : ''}`;
+  // v1.85 fix wave (I2) — archived mode owns its own empty-state copy: a
+  // deleted audit can't be triggered, so "Trigger a run from a
+  // configuration…" is wrong there. This table knows `archived`, so it
+  // overrides any caller-supplied emptyMessage rather than each caller having
+  // to remember to.
+  const resolvedEmptyMessage = archived
+    ? 'No archived runs. Runs are archived when their audit is deleted.'
+    : emptyMessage ??
+      'No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.';
   return (
     <RunHistoryTable<EnrichedAuditRun>
       initialRows={initialRows}
       columns={buildAuditHistoryColumnPack(auditorCountry)}
       pollEndpoint={pollEndpoint}
       keyFn={(r) => r.run_id}
-      emptyMessage={
-        emptyMessage ??
-        'No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.'
-      }
+      emptyMessage={resolvedEmptyMessage}
     />
   );
 }
