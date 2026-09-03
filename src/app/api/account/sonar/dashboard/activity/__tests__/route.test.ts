@@ -100,3 +100,46 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     });
   });
 });
+
+// v1.85 (2026-09-02): dashboards must inherit haiCore's default archived
+// exclusion — they never opt in with ?archived=true (D-206). This pins that
+// so a future change to this route can't silently start asking for archived
+// runs.
+describe('GET /api/account/sonar/dashboard/activity — active runs only (D-206)', () => {
+  beforeEach(() => setMockClient({}));
+
+  it('asks listAuditRuns, listWatcherRuns, and listPhantomDemandRuns for active runs only', async () => {
+    await GET(makeReq(), { params: Promise.resolve({}) });
+
+    const auditArg = globalThis.__mockClient.listAuditRuns.mock.calls[0][0];
+    expect(auditArg?.archived).toBeUndefined();
+
+    const watcherArg = globalThis.__mockClient.listWatcherRuns.mock.calls[0][0];
+    expect(watcherArg?.archived).toBeUndefined();
+
+    const pdArg = globalThis.__mockClient.listPhantomDemandRuns.mock.calls[0][0];
+    expect(pdArg?.archived).toBeUndefined();
+  });
+
+  it('passes through exactly the runs the client returned, without re-filtering', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({
+        runs: [
+          { run_id: 'a1', status: 'complete', triggered_at: '2026-05-09T03:00:00Z', completed_at: null, run_origin: 'ad_hoc' },
+        ],
+      }),
+      listWatcherRuns: vi.fn().mockResolvedValue({
+        runs: [
+          { run_id: 't1', status: 'complete', triggered_at: '2026-05-09T02:00:00Z', completed_at: null, run_origin: 'ad_hoc', signal_types: [], counterparty_filter: null, depth_limit: 1 },
+        ],
+      }),
+      listPhantomDemandRuns: vi.fn().mockResolvedValue([
+        { run_id: 'pd-1', status: 'complete', created_at: '2026-05-09T01:00:00Z', completed_at: null, run_origin: 'ad_hoc' },
+      ]),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+    expect(body.events.map((e: any) => e.run_id).sort()).toEqual(['a1', 'pd-1', 't1']);
+  });
+});
