@@ -49,7 +49,7 @@ export function RunsFilterToggle({ value }: RunsFilterToggleProps) {
         return (
           <label
             key={option.value}
-            className={`cursor-pointer px-3 py-1.5 font-medium transition-colors ${
+            className={`cursor-pointer px-3 py-1.5 font-medium transition-colors focus-within:outline-none focus-within:ring-2 focus-within:ring-teal/30 focus-within:ring-inset ${
               checked ? 'bg-teal/10 text-teal-dark' : 'text-slate hover:text-charcoal'
             }`}
           >
