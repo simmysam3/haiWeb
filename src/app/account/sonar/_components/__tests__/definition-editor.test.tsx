@@ -375,6 +375,22 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
     expect(await screen.findByText(/2 runs are still running/i)).toBeInTheDocument();
   });
+
+  it('a 409 RUNS_IN_FLIGHT reply with running_count=1 uses singular copy', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { code: 'RUNS_IN_FLIGHT', message: 'x', details: { running_count: 1 } },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(await screen.findByText(/1 run is still running/i)).toBeInTheDocument();
+    expect(screen.getByText(/cancel it, then delete/i)).toBeInTheDocument();
+  });
 });
 
 // v.1.43 drift step — only watcher templates get a Drift step. The fields
