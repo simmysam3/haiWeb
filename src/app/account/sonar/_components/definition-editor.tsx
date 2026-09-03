@@ -331,10 +331,13 @@ export function DefinitionEditor({
       });
       if (!res.ok) {
         const info = await describeApiError(res);
-        const running = (info.details as { running_count?: number } | undefined)
-          ?.running_count;
+        // v1.85 fix wave (M4) — `details` is server-controlled JSON typed as
+        // `Record<string, unknown>` (api-error.ts); guard the shape at
+        // runtime instead of casting it, and fall back to the envelope's own
+        // message for anything that isn't the expected numeric count.
+        const running = info.details?.running_count;
         setError(
-          res.status === 409 && running !== undefined
+          res.status === 409 && typeof running === 'number'
             ? `${running} run${running === 1 ? ' is' : 's are'} still running. Wait for ${
                 running === 1 ? 'it' : 'them'
               } to finish or cancel ${running === 1 ? 'it' : 'them'}, then delete.`
@@ -461,10 +464,17 @@ export function DefinitionEditor({
         >
           <p className="text-sm text-charcoal">This cannot be undone.</p>
           {observationClass === 'watcher' && (
-            <fieldset className="mt-4">
-              <legend className="text-xs font-semibold uppercase tracking-wide text-slate">
+            // v1.85 fix wave (M5) — a <fieldset><legend> here would double-
+            // announce "Prior runs" (once from the legend, once from the
+            // radiogroup's own aria-label below). Plain div + an aria-hidden
+            // label keeps the same visible text without the duplication.
+            <div className="mt-4">
+              <p
+                aria-hidden="true"
+                className="text-xs font-semibold uppercase tracking-wide text-slate"
+              >
                 Prior runs
-              </legend>
+              </p>
               <div role="radiogroup" aria-label="Prior runs" className="mt-2 space-y-2">
                 {(
                   [
@@ -492,7 +502,7 @@ export function DefinitionEditor({
                       value={value}
                       checked={runsDisposition === value}
                       onChange={() => setRunsDisposition(value)}
-                      className="mt-0.5 text-teal focus:ring-teal"
+                      className="mt-0.5 text-teal focus-visible:ring-2 focus-visible:ring-teal/30"
                     />
                     <span>
                       <span className="font-medium">{label}</span>
@@ -501,7 +511,7 @@ export function DefinitionEditor({
                   </label>
                 ))}
               </div>
-            </fieldset>
+            </div>
           )}
           {observationClass === 'audit' && (
             <p className="mt-2 text-sm text-charcoal">

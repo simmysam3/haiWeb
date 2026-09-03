@@ -345,6 +345,25 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
     expect(within(group).getByRole('radio', { name: /keep in active history/i })).not.toBeChecked();
   });
 
+  // v1.85 fix wave (M5) — a <fieldset><legend> wrapping role="radiogroup"
+  // aria-label="Prior runs" makes a screen reader announce "Prior runs" twice
+  // (once from the legend, once from the aria-label). Controller ruling: keep
+  // the radiogroup + aria-label (existing tests pin it) and replace the
+  // fieldset/legend with a plain div + a visually-identical, aria-hidden label.
+  it('renders the Prior runs label as a plain aria-hidden element, not a <fieldset><legend> wrapping the radiogroup', async () => {
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('fieldset')).toBeNull();
+    expect(dialog.querySelector('legend')).toBeNull();
+    // The radiogroup + its accessible name (pinned by the test above) is unchanged.
+    expect(
+      within(dialog).getByRole('radiogroup', { name: 'Prior runs' }),
+    ).toBeInTheDocument();
+    // The visible label text still renders, just not as a <legend>.
+    expect(within(dialog).getByText('Prior runs')).toBeInTheDocument();
+  });
+
   it('watcher dialog sends the chosen disposition', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -390,6 +409,32 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
     expect(await screen.findByText(/1 run is still running/i)).toBeInTheDocument();
     expect(screen.getByText(/cancel it, then delete/i)).toBeInTheDocument();
+  });
+
+  // v1.85 fix wave (M4) — `details.running_count` is attacker/server-controlled
+  // JSON read through an unchecked cast; a non-number value must fall back to
+  // the envelope's message rather than rendering a broken/misleading sentence.
+  it('a 409 whose details.running_count is not a number falls back to info.message', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'RUNS_IN_FLIGHT',
+            message: 'Cannot delete: runs are currently executing.',
+            details: { running_count: 'two' },
+          },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(
+      await screen.findByText('Cannot delete: runs are currently executing.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/still running/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
   });
 });
 
