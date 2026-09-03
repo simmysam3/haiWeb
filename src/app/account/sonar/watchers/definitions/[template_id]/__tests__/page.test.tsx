@@ -46,6 +46,41 @@ const ARCHIVED_RUN = {
   template_id: 't-1',
   signal_types: ['lead_time_distribution'],
   archived_at: '2026-08-25T00:00:00.000Z',
+  // No `results` — distinguishes this fixture from ACTIVE_RUN below so the
+  // trend-chart assertions can tell which list actually fed the chart.
+};
+
+// Controller ruling (D-206 fix round): the Calibrated lead-time trend chart
+// always derives from the ACTIVE runs list, never the archived one, even
+// when the Run history table is showing archived rows. Gets its own
+// `results` payload so the chart renders real data (an <svg role="img">)
+// only when it was built from THIS run — if the chart wrongly consumed
+// ARCHIVED_RUN instead (which carries no results) it would fall back to its
+// "Trend view unavailable" empty state.
+const ACTIVE_RUN = {
+  run_id: 'r-active-1',
+  initiator_participant_id: 'p-1',
+  triggered_at: '2026-08-22T10:00:00.000Z',
+  triggered_by_user_id: null,
+  status: 'complete',
+  completed_at: '2026-08-22T10:05:00.000Z',
+  cancelled_at: null,
+  depth_limit: 1,
+  hop_count: 5,
+  gap_count: 0,
+  error_message: null,
+  run_origin: 'template_scheduled',
+  template_id: 't-1',
+  signal_types: ['lead_time_distribution'],
+  archived_at: null,
+  results: [
+    {
+      counterparty_participant_id: 'cp-1',
+      signal_type: 'lead_time_distribution',
+      synthesis_mode: 'direct',
+      payload: { percentiles: { p50: 5 } },
+    },
+  ],
 };
 
 const template = {
@@ -122,7 +157,8 @@ describe('WatcherDefinitionPage — runs filter (D-206)', () => {
       if (path.startsWith('/api/account/sonar/watcher/runs')) {
         const archived = path.includes('archived=true');
         const scoped = path.includes('template_id=t-1');
-        return { kind: 'ok', data: { runs: archived && scoped ? [ARCHIVED_RUN] : [] } };
+        if (!scoped) return { kind: 'ok', data: { runs: [] } };
+        return { kind: 'ok', data: { runs: archived ? [ARCHIVED_RUN] : [ACTIVE_RUN] } };
       }
       throw new Error(`unexpected BFF path ${path}`);
     });
@@ -146,17 +182,34 @@ describe('WatcherDefinitionPage — runs filter (D-206)', () => {
     ).toBe(false);
   });
 
-  it('?runs=archived fetches archived runs, checks Archived, and renders the archived pill', async () => {
+  it('?runs=archived fetches both the active and archived runs lists, checks Archived, shows the archived pill in the table, and keeps the trend chart on the active list', async () => {
     await renderPage(undefined, 'archived');
 
-    const runsCall = fetchBffJson.mock.calls.find(([path]) =>
-      String(path).includes('/watcher/runs'),
-    );
-    expect(String(runsCall?.[0])).toMatch(/archived=true/);
-    expect(String(runsCall?.[0])).toMatch(/template_id=t-1/);
+    const runsCalls = fetchBffJson.mock.calls
+      .map(([path]) => String(path))
+      .filter((path) => path.includes('/watcher/runs'));
+    // (a) the active ?template_id=t-1 fetch (no archived) still happens —
+    // the trend chart's data source is unconditional.
+    expect(runsCalls).toContain('/api/account/sonar/watcher/runs?template_id=t-1');
+    // (b) the archived fetch happens too — the table's data source.
+    expect(
+      runsCalls.some((p) => p.includes('template_id=t-1') && p.includes('archived=true')),
+    ).toBe(true);
+
     expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
 
+    // (c) the history table shows the archived row with its pill.
     const row = screen.getByRole('row', { name: /Run r-arch-1/ });
     expect(within(row).getByText('Archived')).toBeInTheDocument();
+    // ...and NOT the active run — the table follows the toggle.
+    expect(screen.queryByRole('row', { name: /Run r-active-1/ })).not.toBeInTheDocument();
+
+    // The trend chart always derives from the ACTIVE list (controller
+    // ruling): it renders real data from ACTIVE_RUN's results, not the
+    // "unavailable" empty state ARCHIVED_RUN (no results) would produce.
+    expect(
+      screen.getByRole('img', { name: /Calibrated lead-time trend/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Trend view unavailable/i)).not.toBeInTheDocument();
   });
 });

@@ -43,18 +43,33 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
   const tpl = detail.kind === 'ok' ? detail.data.template : null;
   if (!tpl || tpl.observation_class !== 'watcher') notFound();
 
-  // Scoped by template_id to match the SWR poll WatcherHistoryTable issues
-  // below (which is scoped the same way) — an unscoped initial fetch here
-  // would answer a different question than the poll that replaces it 15s
-  // later, and could skew further once archived runs (never deleted) pile up.
-  const runsResp = await fetchBffJson<RunsResponse>(
-    `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}${archived ? '&archived=true' : ''}`,
+  // D-206 controller ruling: the runs toggle governs the Run history TABLE
+  // only, never the Calibrated lead-time trend chart below — that's a
+  // dashboard-style derivation, and the spec hides archived runs from
+  // dashboards. So the active fetch (feeding the chart) is unconditional,
+  // scoped by template_id to match the SWR poll WatcherHistoryTable issues
+  // (an unscoped fetch here would answer a different question than the poll
+  // that replaces it 15s later). A second, archived-scoped fetch only runs
+  // when the toggle asks for it, and feeds the table alone.
+  const activeRunsResp = await fetchBffJson<RunsResponse>(
+    `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}`,
   );
-  const allRuns = runsResp.kind === 'ok' ? runsResp.data.runs : [];
-  const templateRuns: EnrichedWatcherRun[] = allRuns
+  const activeRuns = activeRunsResp.kind === 'ok' ? activeRunsResp.data.runs : [];
+  const templateRuns: EnrichedWatcherRun[] = activeRuns
     .filter((r) => r.template_id === template_id)
     .map((r) => ({ ...r, template_name: tpl.template_name }));
   const last12 = templateRuns.slice(0, 12);
+
+  let historyRows = templateRuns;
+  if (archived) {
+    const archivedRunsResp = await fetchBffJson<RunsResponse>(
+      `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}&archived=true`,
+    );
+    const archivedRuns = archivedRunsResp.kind === 'ok' ? archivedRunsResp.data.runs : [];
+    historyRows = archivedRuns
+      .filter((r) => r.template_id === template_id)
+      .map((r) => ({ ...r, template_name: tpl.template_name }));
+  }
 
   return (
     <div className="space-y-6">
@@ -115,7 +130,7 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
               </h2>
               <RunsFilterToggle value={runsFilter} />
               <WatcherHistoryTable
-                initialRows={templateRuns}
+                initialRows={historyRows}
                 templateId={template_id}
                 archived={archived}
                 emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
