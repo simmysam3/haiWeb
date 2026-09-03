@@ -78,6 +78,19 @@ describe('DELETE /api/account/sonar/templates/[id]', () => {
     expect(deleteRunTemplate).toHaveBeenCalledWith('abc', { runs: 'archive' });
   });
 
+  // v1.85 (2026-09-02): a pre-3.80.0 haiCore answers DELETE with 204 and the
+  // client resolves `null` (no JSON body) — the route must not throw on that.
+  it('passes a null result through without throwing (pre-3.80.0 haiCore 204)', async () => {
+    deleteRunTemplate.mockResolvedValue(null);
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/account/sonar/templates/abc', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'abc' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toBeNull();
+  });
+
   it('returns 400 invalid_runs for an unrecognized ?runs= value, without calling deleteRunTemplate', async () => {
     const { DELETE } = await import('../route');
     const res = await DELETE(
