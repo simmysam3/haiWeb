@@ -35,17 +35,18 @@ function node(
   } as unknown as ObservationNode;
 }
 
-function result(
-  productId: string,
-  vendorId: string,
-  tree: ObservationNode,
-): AuditRunResult {
+// v1.85 (2026-09-03), D-207: a result row may carry the vendor's latest manifest
+// name + catalog descriptors; the grid reads them, '' when absent.
+type Descriptors = Partial<Pick<AuditRunResult, 'product_name' | 'brand' | 'model' | 'family' | 'short_description'>>;
+
+function result(productId: string, vendorId: string, tree: ObservationNode, descriptors: Descriptors = {}): AuditRunResult {
   return {
     result_id: `res-${productId}`,
     product_id: productId,
     vendor_participant_id: vendorId,
     geo_rollup: [],
     tree,
+    ...descriptors,
   } as unknown as AuditRunResult;
 }
 
@@ -286,5 +287,53 @@ describe('TierGapGrid vendor-level gap collapse', () => {
     // run total's ScorePill ("5 pts" each) render "pts" on the page.
     expect(screen.getAllByText('pts')).toHaveLength(2);
     expect(screen.getByText(/vendor did not respond/)).toBeInTheDocument();
+  });
+});
+
+// v1.85 (2026-09-03), D-207: what the product is, under its SKU id.
+describe('TierGapGrid catalog descriptors', () => {
+  const full: Descriptors = { product_name: 'Widget', brand: 'Acme', model: 'W-100', family: 'Widgets', short_description: 'A small widget for small jobs.' };
+
+  it('renders name · brand · model · family under the SKU id — present parts only — and the clamped, titled description', () => {
+    render(<TierGapGrid run={RUN} results={[
+      result('ACME-1', 'p-acme', node(1, false, [], 'Acme'), full),
+      result('ACME-2', 'p-acme', node(1, false, [], 'Acme'), { brand: 'Acme', family: 'Widgets' }),
+    ]} />);
+    expect(screen.getByText('Widget · Acme · W-100 · Widgets')).toBeInTheDocument();
+    expect(screen.getByText('Acme · Widgets')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sku-descriptors')).toHaveLength(2);
+    const desc = screen.getByText('A small widget for small jobs.');
+    expect(desc).toHaveAttribute('title', 'A small widget for small jobs.');
+    expect(desc.className).toContain('line-clamp-2');
+  });
+
+  it('renders no sub-head node when the five are absent; a withheld row (sent without descriptors, as haiCore does) keeps its dash and has none', () => {
+    const withheld = { ...result('X', 'p-acme', node(1, false, [], 'Acme')), product_id: null, vendor_participant_id: null } as unknown as AuditRunResult;
+    render(<TierGapGrid run={RUN} results={[...FIXTURE, withheld]} />);
+    expect(screen.queryByTestId('sku-descriptors')).toBeNull();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('search matches name, brand, model and family (case-insensitive), not the description', () => {
+    render(<TierGapGrid run={RUN} results={[
+      result('ACME-1', 'p-acme', node(1, false, [], 'Acme'), full),
+      result('BETA-1', 'p-beta', node(1, false, [], 'Beta'), { product_name: 'Bolt', brand: 'Boltco', model: 'B-9', family: 'Bolts' }),
+    ]} />);
+    const box = screen.getByLabelText('Search by product or vendor');
+    const cases: Array<[string, string, string]> = [['w-100', 'ACME-1', 'BETA-1'], ['boltco', 'BETA-1', 'ACME-1'], ['widgets', 'ACME-1', 'BETA-1'], ['bolt', 'BETA-1', 'ACME-1']];
+    for (const [q, shown, hidden] of cases) {
+      fireEvent.change(box, { target: { value: q } });
+      expect(screen.getByText(shown)).toBeInTheDocument();
+      expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+    }
+    fireEvent.change(box, { target: { value: 'small jobs' } });
+    expect(screen.getByText('No products match your search.')).toBeInTheDocument();
+  });
+
+  it('a vendor-level "did not respond" row is unchanged — note kept, no sub-head', () => {
+    render(<TierGapGrid run={RUN} results={[result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable'), full)]} />);
+    expect(screen.getByText('Vendor did not respond')).toBeInTheDocument();
+    expect(screen.queryByTestId('sku-descriptors')).toBeNull();
+    expect(screen.getAllByText('pts')).toHaveLength(2);
   });
 });

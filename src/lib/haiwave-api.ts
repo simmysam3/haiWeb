@@ -188,6 +188,12 @@ export interface CatalogProduct {
   external_product_id: string;
   product_name: string | null;
   primary_class_slug: string | null;
+  // v1.85 (2026-09-03), D-207: the latest manifest's descriptors as haiCore's catalog-service
+  // sends them (null when none); optional so rows from a 3.80.0 Central still type. No picker reads them yet.
+  brand?: string | null;
+  model?: string | null;
+  family?: string | null;
+  short_description?: string | null;
 }
 
 // Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
