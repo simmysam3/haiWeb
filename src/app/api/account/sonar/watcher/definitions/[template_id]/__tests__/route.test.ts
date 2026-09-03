@@ -105,19 +105,19 @@ describe('PATCH /api/account/sonar/watcher/definitions/[template_id]', () => {
 });
 
 describe('DELETE /api/account/sonar/watcher/definitions/[template_id]', () => {
-  it('calls deleteRunTemplate for watcher-class templates', async () => {
+  it('calls deleteRunTemplate for watcher-class templates with no runs param when ?runs= is absent', async () => {
     getRunTemplate.mockResolvedValue({
       template: { template_id: 't-watch-3', observation_class: 'watcher', template_name: 'Watcher C' },
     });
-    deleteRunTemplate.mockResolvedValue({ deleted: true });
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
     const { DELETE } = await import('../route');
     const res = await DELETE(
       new NextRequest(`${baseUrl}/t-watch-3`, { method: 'DELETE' }),
       { params: Promise.resolve({ template_id: 't-watch-3' }) },
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ deleted: true });
-    expect(deleteRunTemplate).toHaveBeenCalledWith('t-watch-3');
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('t-watch-3', { runs: undefined });
   });
 
   it('returns 404 for audit-class templates without calling deleteRunTemplate', async () => {
@@ -130,6 +130,37 @@ describe('DELETE /api/account/sonar/watcher/definitions/[template_id]', () => {
       { params: Promise.resolve({ template_id: 't-aud-3' }) },
     );
     expect(res.status).toBe(404);
+    expect(deleteRunTemplate).not.toHaveBeenCalled();
+  });
+
+  // v1.85 (2026-09-02): D-206 — the caller's disposition for the template's
+  // prior runs is forwarded from the ?runs= query param.
+  it('forwards ?runs=archive to deleteRunTemplate for watcher-class templates', async () => {
+    getRunTemplate.mockResolvedValue({
+      template: { template_id: 't-watch-4', observation_class: 'watcher', template_name: 'Watcher D' },
+    });
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'archive', affected: 5 } });
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest(`${baseUrl}/t-watch-4?runs=archive`, { method: 'DELETE' }),
+      { params: Promise.resolve({ template_id: 't-watch-4' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'archive', affected: 5 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('t-watch-4', { runs: 'archive' });
+  });
+
+  it('returns 400 invalid_runs for an unrecognized ?runs= value, without calling deleteRunTemplate', async () => {
+    getRunTemplate.mockResolvedValue({
+      template: { template_id: 't-watch-5', observation_class: 'watcher', template_name: 'Watcher E' },
+    });
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest(`${baseUrl}/t-watch-5?runs=purge`, { method: 'DELETE' }),
+      { params: Promise.resolve({ template_id: 't-watch-5' }) },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_runs' });
     expect(deleteRunTemplate).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { ConfigurationsTable } from '@/components/sonar/observations';
+import {
+  ConfigurationsTable,
+  RunsFilterToggle,
+  parseRunsFilter,
+} from '@/components/sonar/observations';
 import { auditConfigurationsColumnPack, type EnrichedAuditRun } from './_components/audit-column-packs';
 import { AuditHistoryTable } from './_components/audit-history-table';
 import type { RunTemplate } from '@haiwave/protocol';
@@ -15,16 +19,26 @@ interface RunsPayload {
   auditor_country?: string;
 }
 
+interface RouteProps {
+  searchParams: Promise<{ runs?: string | string[] }>;
+}
+
 type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
 
 function isAuditTemplate(t: RunTemplate): t is AuditTemplate {
   return t.observation_class === 'audit';
 }
 
-export default async function AuditListPage() {
+export default async function AuditListPage({ searchParams }: RouteProps) {
+  // D-206 — ?runs=archived shows runs archived when their audit definition
+  // was deleted with runs=archive; otherwise the default active list.
+  const runsFilter = parseRunsFilter((await searchParams).runs);
+  const archived = runsFilter === 'archived';
   const [defsResult, runsResult] = await Promise.all([
     fetchBffJson<DefinitionsPayload>('/api/account/sonar/audit/definitions'),
-    fetchBffJson<RunsPayload>('/api/account/sonar/audit/runs'),
+    fetchBffJson<RunsPayload>(
+      `/api/account/sonar/audit/runs${archived ? '?archived=true' : ''}`,
+    ),
   ]);
 
   const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
@@ -119,7 +133,8 @@ export default async function AuditListPage() {
           All audit runs across configurations and ad-hoc triggers. Polled every
           15 seconds while the page is open — in-progress runs update live.
         </p>
-        <AuditHistoryTable initialRows={runs} auditorCountry={auditorCountry} />
+        <RunsFilterToggle value={runsFilter} />
+        <AuditHistoryTable initialRows={runs} auditorCountry={auditorCountry} archived={archived} />
       </section>
     </div>
   );

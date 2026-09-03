@@ -76,6 +76,8 @@ import type {
   RunTemplateEvent,
   CreateRunTemplateRequest,
   UpdateRunTemplateRequest,
+  RunsDisposition,
+  RunTemplateDeleteResponse,
   PhantomDemandScope,
   BomTree,
   ParticipantModalityPosture,
@@ -186,6 +188,12 @@ export interface CatalogProduct {
   external_product_id: string;
   product_name: string | null;
   primary_class_slug: string | null;
+  // v1.85 (2026-09-03), D-207: the latest manifest's descriptors as haiCore's catalog-service
+  // sends them (null when none); optional so rows from a 3.80.0 Central still type. No picker reads them yet.
+  brand?: string | null;
+  model?: string | null;
+  family?: string | null;
+  short_description?: string | null;
 }
 
 // Mirrors AuditEvent / AuditEventResponse from @haiwave/protocol. Inlined because
@@ -633,7 +641,7 @@ export interface HaiwaveClient {
   // Audit Runs (v1.25)
   triggerAuditRun(body?: RunTriggerRequest): Promise<{ run_id: string; status: string }>;
   refreshVendorAudit(body: RefreshVendorRequest): Promise<{ run_id: string; status: string }>;
-  listAuditRuns(opts?: { status?: string; limit?: number; template_id?: string }): Promise<{ runs: AuditRun[] }>;
+  listAuditRuns(opts?: { status?: string; limit?: number; template_id?: string; archived?: boolean }): Promise<{ runs: AuditRun[] }>;
   getAuditRun(runId: string): Promise<AuditRun>;
   getAuditRunResults(
     runId: string,
@@ -669,7 +677,7 @@ export interface HaiwaveClient {
   ): Promise<ParticipantModalityPosture>;
   // ─── Watcher (v1.28 Phase 5) ─────────────────────────────────────────
   triggerWatcherRun(body: WatcherRunTriggerRequest): Promise<{ run_id: string; status: WatcherRunStatus }>;
-  listWatcherRuns(opts?: { limit?: number; template_id?: string }): Promise<{ runs: WatcherRun[] }>;
+  listWatcherRuns(opts?: { limit?: number; template_id?: string; archived?: boolean }): Promise<{ runs: WatcherRun[] }>;
   getWatcherRun(runId: string): Promise<{ run: WatcherRun; results: WatcherResult[] }>;
   // Trailing history for the readiness run-detail page: the last N runs of the
   // anchor run's watcher plus every result across them (SKU->vendor lead-time
@@ -727,7 +735,7 @@ export interface HaiwaveClient {
     templateId: string,
     body: UpdateRunTemplateRequest,
   ): Promise<{ template: RunTemplate }>;
-  deleteRunTemplate(templateId: string): Promise<{ deleted: boolean }>;
+  deleteRunTemplate(templateId: string, opts?: { runs?: RunsDisposition }): Promise<RunTemplateDeleteResponse>;
   triggerRunTemplate(templateId: string): Promise<{ run_id: string }>;
   listRunTemplateEvents(templateId: string): Promise<{ events: RunTemplateEvent[] }>;
   // ─── v1.30 PR-4: Unified observations list ───────────────────────────
@@ -1563,6 +1571,8 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
       const params = new URLSearchParams();
       if (opts.status) params.set('status', opts.status);
       if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      // v1.85 (2026-09-02): archived runs are excluded server-side by default.
+      if (opts.archived) params.set('archived', 'true');
       const q = params.toString();
       return request<{ runs: AuditRun[] }>(
         'GET',
@@ -1740,6 +1750,8 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listWatcherRuns(opts = {}) {
       const params = new URLSearchParams();
       if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+      // v1.85 (2026-09-02): archived runs are excluded server-side by default.
+      if (opts.archived) params.set('archived', 'true');
       const q = params.toString();
       return request<{ runs: WatcherRun[] }>(
         'GET',
@@ -1912,11 +1924,14 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         body,
       );
     },
-    deleteRunTemplate(templateId) {
-      return request<{ deleted: boolean }>(
-        'DELETE',
-        `/sonar/templates/${templateId}`,
-      );
+    // v1.85 (D-206): the caller's disposition for the template's prior runs.
+    deleteRunTemplate(templateId, opts = {}) {
+      // v1.85 (2026-09-02): raw interpolation (not URLSearchParams) is safe here
+      // ONLY because RunsDisposition is a closed 3-value URL-safe union, enforced
+      // at the BFF boundary against RunsDispositionSchema. Do not widen the type
+      // or accept an unvalidated string here without switching this to a builder.
+      const q = opts.runs ? `?runs=${opts.runs}` : '';
+      return request<RunTemplateDeleteResponse>('DELETE', `/sonar/templates/${templateId}${q}`);
     },
     triggerRunTemplate(templateId) {
       return request<{ run_id: string }>(

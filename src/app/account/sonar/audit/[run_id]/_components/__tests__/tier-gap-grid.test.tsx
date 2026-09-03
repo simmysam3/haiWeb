@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { AuditRun, AuditRunResult, ObservationNode } from '@haiwave/protocol';
-import { TierGapGrid } from '../tier-gap-grid';
+import { TierGapGrid, isVendorLevelGap } from '../tier-gap-grid';
 
 // Minimal ObservationNode / AuditRunResult fixtures. The component only reads
 // `tree.{gap, depth_level, components, vendor_legal_name, payload}` and the
@@ -12,10 +12,11 @@ function node(
   gap: boolean,
   children: ObservationNode[] = [],
   vendor = '',
+  hint?: string,
 ): ObservationNode {
   return {
     depth_level: depth,
-    gap: gap ? { kind: 'unauthorized' } : null,
+    gap: gap ? { kind: 'unauthorized', ...(hint ? { hint } : {}) } : null,
     components: children,
     vendor_legal_name: vendor || null,
     // operational_status/class_ids included because the per-SKU evidence
@@ -34,17 +35,18 @@ function node(
   } as unknown as ObservationNode;
 }
 
-function result(
-  productId: string,
-  vendorId: string,
-  tree: ObservationNode,
-): AuditRunResult {
+// v1.85 (2026-09-03), D-207: a result row may carry the vendor's latest manifest
+// name + catalog descriptors; the grid reads them, '' when absent.
+type Descriptors = Partial<Pick<AuditRunResult, 'product_name' | 'brand' | 'model' | 'family' | 'short_description'>>;
+
+function result(productId: string, vendorId: string, tree: ObservationNode, descriptors: Descriptors = {}): AuditRunResult {
   return {
     result_id: `res-${productId}`,
     product_id: productId,
     vendor_participant_id: vendorId,
     geo_rollup: [],
     tree,
+    ...descriptors,
   } as unknown as AuditRunResult;
 }
 
@@ -206,5 +208,132 @@ describe('TierGapGrid domestic flag', () => {
       />,
     );
     expect(screen.queryByLabelText(/verified .*-origin/i)).toBeNull();
+  });
+});
+
+describe('isVendorLevelGap', () => {
+  it('is true for a root-gap/no-children result (the direct vendor never answered)', () => {
+    const r = result('R-1', 'p-x', node(1, true, [], 'X'));
+    expect(isVendorLevelGap(r)).toBe(true);
+  });
+
+  it('is false when the root is fine and a deeper child carries the gap', () => {
+    const r = result('R-2', 'p-x', node(1, false, [node(2, true, [], 'X')], 'X'));
+    expect(isVendorLevelGap(r)).toBe(false);
+  });
+
+  it('is false for a root gap that still has children (partial disclosure, still per-SKU)', () => {
+    const r = result('R-3', 'p-x', node(1, true, [node(2, false, [], 'X')], 'X'));
+    expect(isVendorLevelGap(r)).toBe(false);
+  });
+});
+
+describe('TierGapGrid vendor-level gap collapse', () => {
+  it('collapses three vendor-level gaps for the same vendor into one 5pt group score (and run total)', () => {
+    const unreachableVendor: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-3', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+    ];
+    render(<TierGapGrid run={RUN} results={unreachableVendor} />);
+    // Only ONE ScorePill's worth of "5" should show: the group pill and the
+    // run-total pill both read 5, not 15.
+    expect(screen.getAllByText('5')).toHaveLength(2);
+    expect(screen.queryByText('15')).not.toBeInTheDocument();
+  });
+
+  it('adds the one-time vendor gap (5) to real per-SKU scoring (3) for a mixed vendor: 8, not more', () => {
+    const mixed: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      // Real tier-2 gap: root fine, child at depth 2 has a gap → T2×3 = 3.
+      result('U-3', 'p-un', node(1, false, [node(2, true, [], 'Unreachable Co')], 'Unreachable Co')),
+    ];
+    render(<TierGapGrid run={RUN} results={mixed} />);
+    // Group pill and run-total pill both read 8 (5 + 3), exactly once each.
+    expect(screen.getAllByText('8')).toHaveLength(2);
+  });
+
+  it('counts a vendor-level gap once PER VENDOR: two unreachable vendors → total 10, not 5', () => {
+    const twoVendors: AuditRunResult[] = [
+      result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('U-2', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable')),
+      result('V-1', 'p-vn', node(1, true, [], 'Vanished Co', 'responder_unreachable')),
+      result('V-2', 'p-vn', node(1, true, [], 'Vanished Co', 'responder_unreachable')),
+    ];
+    render(<TierGapGrid run={RUN} results={twoVendors} />);
+    // Two group pills at 5 each, one run-total pill at 10.
+    expect(screen.getAllByText('5')).toHaveLength(2);
+    expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+  it('shows a muted "Vendor did not respond" note (no own pts pill) on a vendor-level SKU row, and a group-summary hint', () => {
+    render(
+      <TierGapGrid
+        run={RUN}
+        results={[
+          result(
+            'U-1',
+            'p-un',
+            node(1, true, [], 'Unreachable Co', 'responder_unreachable'),
+          ),
+        ]}
+      />,
+    );
+    const note = screen.getByText('Vendor did not respond');
+    expect(note).toBeInTheDocument();
+    expect(note).toHaveAttribute('title', 'Unauthorized · responder unreachable');
+    // No per-row "pts" pill for this SKU — only the group summary's and the
+    // run total's ScorePill ("5 pts" each) render "pts" on the page.
+    expect(screen.getAllByText('pts')).toHaveLength(2);
+    expect(screen.getByText(/vendor did not respond/)).toBeInTheDocument();
+  });
+});
+
+// v1.85 (2026-09-03), D-207: what the product is, under its SKU id.
+describe('TierGapGrid catalog descriptors', () => {
+  const full: Descriptors = { product_name: 'Widget', brand: 'Acme', model: 'W-100', family: 'Widgets', short_description: 'A small widget for small jobs.' };
+
+  it('renders name · brand · model · family under the SKU id — present parts only — and the clamped, titled description', () => {
+    render(<TierGapGrid run={RUN} results={[
+      result('ACME-1', 'p-acme', node(1, false, [], 'Acme'), full),
+      result('ACME-2', 'p-acme', node(1, false, [], 'Acme'), { brand: 'Acme', family: 'Widgets' }),
+    ]} />);
+    expect(screen.getByText('Widget · Acme · W-100 · Widgets')).toBeInTheDocument();
+    expect(screen.getByText('Acme · Widgets')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sku-descriptors')).toHaveLength(2);
+    const desc = screen.getByText('A small widget for small jobs.');
+    expect(desc).toHaveAttribute('title', 'A small widget for small jobs.');
+    expect(desc.className).toContain('line-clamp-2');
+  });
+
+  it('renders no sub-head node when the five are absent; a withheld row (sent without descriptors, as haiCore does) keeps its dash and has none', () => {
+    const withheld = { ...result('X', 'p-acme', node(1, false, [], 'Acme')), product_id: null, vendor_participant_id: null } as unknown as AuditRunResult;
+    render(<TierGapGrid run={RUN} results={[...FIXTURE, withheld]} />);
+    expect(screen.queryByTestId('sku-descriptors')).toBeNull();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('search matches name, brand, model and family (case-insensitive), not the description', () => {
+    render(<TierGapGrid run={RUN} results={[
+      result('ACME-1', 'p-acme', node(1, false, [], 'Acme'), full),
+      result('BETA-1', 'p-beta', node(1, false, [], 'Beta'), { product_name: 'Bolt', brand: 'Boltco', model: 'B-9', family: 'Bolts' }),
+    ]} />);
+    const box = screen.getByLabelText('Search by product or vendor');
+    const cases: Array<[string, string, string]> = [['w-100', 'ACME-1', 'BETA-1'], ['boltco', 'BETA-1', 'ACME-1'], ['widgets', 'ACME-1', 'BETA-1'], ['bolt', 'BETA-1', 'ACME-1']];
+    for (const [q, shown, hidden] of cases) {
+      fireEvent.change(box, { target: { value: q } });
+      expect(screen.getByText(shown)).toBeInTheDocument();
+      expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+    }
+    fireEvent.change(box, { target: { value: 'small jobs' } });
+    expect(screen.getByText('No products match your search.')).toBeInTheDocument();
+  });
+
+  it('a vendor-level "did not respond" row is unchanged — note kept, no sub-head', () => {
+    render(<TierGapGrid run={RUN} results={[result('U-1', 'p-un', node(1, true, [], 'Unreachable Co', 'responder_unreachable'), full)]} />);
+    expect(screen.getByText('Vendor did not respond')).toBeInTheDocument();
+    expect(screen.queryByTestId('sku-descriptors')).toBeNull();
+    expect(screen.getAllByText('pts')).toHaveLength(2);
   });
 });

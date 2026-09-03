@@ -5,7 +5,11 @@ import type { AuditRun } from '@haiwave/protocol';
 /**
  * GET /api/account/sonar/audit/runs — list audit runs for the caller's org.
  *   Optional query params: status, limit (both forwarded to haiCore; filtering
- *   and pagination are enforced server-side).
+ *   and pagination are enforced server-side), template_id (v1.85 — the
+ *   audit definition page's Run history tab; applied by the haiCore client,
+ *   since haiCore's own list takes status + limit only), and archived=true
+ *   (v1.85 (2026-09-02), D-206 — archived runs are excluded server-side by
+ *   default; this opts the caller in to seeing them).
  *
  * NO POST. The ad-hoc trigger was removed 2026-06-09: it had no UI callers and
  * created template-less runs that can never carry the user-given audit name
@@ -29,8 +33,10 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
   const status = sp.get('status') ?? undefined;
   const limitRaw = sp.get('limit');
   const limit = limitRaw === null ? undefined : Number(limitRaw);
+  const templateId = sp.get('template_id') ?? undefined;
+  const archived = sp.get('archived') === 'true' ? true : undefined;
 
-  const { runs } = await client.listAuditRuns({ status, limit });
+  const { runs } = await client.listAuditRuns({ status, limit, template_id: templateId, archived });
 
   // Auditor's HQ country (ISO-2, uppercased). Best-effort.
   let auditorCountry: string | undefined;
@@ -51,11 +57,17 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
     // Templates unreachable — names fall back to "Run <uuid>" client-side.
   }
 
-  type EnrichedRun = Omit<AuditRun, 'template_name'> & { template_name?: string };
+  // v1.85 fix wave (D-206, C1) — haiCore already COALESCEs
+  // (live run_templates.template_name, template_name_snapshot) into
+  // run.template_name on the wire, so a run whose template was deleted
+  // (archived or kept per D-206) still carries its name there even though
+  // template_id is now NULL. Prefer the live join (a rename since the run
+  // fired should win) but fall back to the wire value instead of discarding
+  // it — losing it would permanently unname every archived/kept run.
+  type EnrichedRun = Omit<AuditRun, 'template_name'> & { template_name: string | null };
   const enrichedRuns: EnrichedRun[] = runs.map((run): EnrichedRun => {
     const joined = run.template_id ? templateNameById.get(run.template_id) : undefined;
-    const { template_name: _drop, ...rest } = run;
-    return joined ? { ...rest, template_name: joined } : rest;
+    return { ...run, template_name: joined ?? run.template_name ?? null };
   });
 
   return NextResponse.json({ runs: enrichedRuns, auditor_country: auditorCountry });

@@ -275,3 +275,44 @@ describe('BomAccordionTree — rows', () => {
     expect(screen.getByText('raw ≈ 16,500 units')).toBeInTheDocument();
   });
 });
+
+// v1.85 walk finding: a PD run picked from a COUNTERPARTY's catalog probes the
+// vendor's own SKU, yet the root row wore the "your BOM" pill. The root's
+// provenance comes from the run's catalog_source, passed in as `rootSource`.
+describe('BomAccordionTree — root provenance', () => {
+  function counterpartyRoot(): BomTree {
+    return root([], {
+      component_sku: 'GLH-BF-WM-BN-029',
+      component_label: 'GLH-BF-WM-BN-029',
+      source: 'vendor_mto',
+      internal_block: null,
+      vendor_block: {
+        vendor_participant_id: 'ec2308a1-08e4-4f87-bf39-43fb98bef8ff',
+        vendor_sku: 'GLH-BF-WM-BN-029',
+        vendor_legal_name: 'Great Lakes Hardware Manufacturing Inc',
+        mto_reference: null,
+        plt_days: null,
+        qlt: null,
+        inventory_disclosure: 'not_disclosed',
+        on_hand_qty_at_vendor: null,
+        historical_lt: null,
+        raw_material_status: null,
+      },
+    });
+  }
+
+  it('(10) a counterparty-catalog root shows the vendor and a vendor-SKU pill, never "your BOM"', () => {
+    render(<BomAccordionTree tree={counterpartyRoot()} targetDate={TARGET} rootSource="counterparty" />);
+    expect(screen.queryByText('your BOM')).not.toBeInTheDocument();
+    expect(screen.getByText('vendor SKU')).toBeInTheDocument();
+    expect(screen.getByText('Great Lakes Hardware Manufacturing Inc')).toBeInTheDocument();
+    expect(screen.getByText('GLH-BF-WM-BN-029', { selector: '.font-mono' })).toBeInTheDocument();
+  });
+
+  it('(11) an own-BOM root keeps the "your BOM" pill by default', () => {
+    render(<BomAccordionTree tree={root([])} targetDate={TARGET} />);
+    expect(screen.getByText('your BOM')).toBeInTheDocument();
+    expect(screen.queryByText('vendor SKU')).not.toBeInTheDocument();
+  });
+});
+

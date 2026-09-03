@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({ toString: () => '' }),
@@ -11,6 +11,14 @@ vi.mock('next/headers', () => ({
       return null;
     },
   }),
+}));
+
+// D-206 — RunsFilterToggle (rendered on the page) reads the pathname and
+// search params itself and navigates via useRouter().replace.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => '/account/sonar/audit',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const fetchMock = vi.fn();
@@ -65,7 +73,7 @@ describe('AuditListPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ runs: [] }) } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     expect(screen.getByText(/audits/i, { selector: 'h1' })).toBeInTheDocument();
@@ -83,7 +91,7 @@ describe('AuditListPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ runs: [] }) } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     expect(screen.getByText('Weekly EMEA Audit')).toBeInTheDocument();
@@ -108,7 +116,7 @@ describe('AuditListPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ runs: [] }) } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     expect(screen.queryByText('Manual Ad-hoc')).not.toBeInTheDocument();
@@ -121,7 +129,7 @@ describe('AuditListPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ runs: [] }) } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     expect(screen.getByRole('alert')).toHaveTextContent(/HTTP 503/);
@@ -133,11 +141,78 @@ describe('AuditListPage', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ runs: [] }) } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     const cta = screen.getByRole('link', { name: /\+ new audit/i });
     expect(cta).toHaveAttribute('href', '/account/sonar/audit/new');
+  });
+});
+
+// D-206 — the Audit history section reads `?runs=archived` and shows the
+// archived list instead of the default active list. A run whose definition
+// was deleted with runs=archive carries archived_at; the runs BFF returns it
+// only when the request URL carries `archived=true` (Task 2's contract).
+// v1.85 fix wave (C1) — a real archived run of a deleted definition has
+// template_id NULL (FK ON DELETE SET NULL); only the wire template_name
+// snapshot names it. This test stubs global fetch above the BFF route, so it
+// can't pin the C1 bug (the BFF route test does that) — but the fixture
+// should still reflect what the real system produces.
+const ARCHIVED_RUN = {
+  ...STUB_RUN,
+  run_id: 'aaaaaaaa-0000-0000-0000-000000000099',
+  template_id: null,
+  template_name: 'Weekly EMEA Audit',
+  archived_at: '2026-08-25T00:00:00.000Z',
+};
+
+function mockAuditBff() {
+  fetchMock.mockImplementation(async (url: RequestInfo | URL) => {
+    const u = String(url);
+    if (u.includes('/audit/definitions')) {
+      return { ok: true, status: 200, json: async () => ({ templates: [] }) } as Response;
+    }
+    if (u.includes('/audit/runs')) {
+      const archived = u.includes('archived=true');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ runs: archived ? [ARCHIVED_RUN] : [], auditor_country: 'GB' }),
+      } as Response;
+    }
+    return { ok: true, status: 200, json: async () => ({}) } as Response;
+  });
+}
+
+async function renderPage(searchParams: Record<string, string> = {}) {
+  const Page = (await import('../page')).default;
+  const ui = await Page({ searchParams: Promise.resolve(searchParams) });
+  render(ui as React.ReactElement);
+}
+
+describe('AuditListPage — runs filter (D-206)', () => {
+  it('defaults to active: no archived=true on the runs fetch, Active checked, no archived pill', async () => {
+    mockAuditBff();
+    await renderPage();
+
+    const runsCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/audit/runs'));
+    expect(String(runsCall?.[0])).not.toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
+    expect(
+      screen.queryAllByTestId('pill').some((el) => el.textContent === 'Archived'),
+    ).toBe(false);
+  });
+
+  it('?runs=archived fetches archived runs, checks Archived, and renders the archived pill', async () => {
+    mockAuditBff();
+    await renderPage({ runs: 'archived' });
+
+    const runsCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/audit/runs'));
+    expect(String(runsCall?.[0])).toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
+
+    const row = screen.getByRole('row', { name: /Weekly EMEA Audit/ });
+    expect(within(row).getByText('Archived')).toBeInTheDocument();
   });
 });
 
@@ -151,7 +226,7 @@ describe('AuditListPage — run history (HistoryQueue via initialRows)', () => {
       } as Response);
 
     const Page = (await import('../page')).default;
-    const ui = await Page();
+    const ui = await Page({ searchParams: Promise.resolve({}) });
     render(ui as React.ReactElement);
 
     // HistoryQueue renders as a Client Component with fallbackData — the

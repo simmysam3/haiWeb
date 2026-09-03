@@ -134,7 +134,15 @@ export const GET = withHaiCore(async ({ client }) => {
 
   const auditEvents: ActivityEvent[] = audits.map((r) => {
     const templateId = (r as { template_id?: string | null }).template_id ?? null;
-    const templateName = templateId ? templateNames.get(templateId) ?? null : null;
+    // v1.85 fix wave (D-206, C1) — haiCore COALESCEs (live template_name,
+    // delete-time snapshot) onto the run's wire template_name, so a KEPT run
+    // of a deleted definition (template_id NULL, archived_at NULL — still on
+    // dashboards per spec §2) still carries its name there. Prefer the live
+    // join, fall back to the wire value instead of discarding it.
+    const templateName =
+      (templateId ? templateNames.get(templateId) : undefined) ??
+      (r as { template_name?: string | null }).template_name ??
+      null;
     const completedAt = (r as { completed_at?: string | null }).completed_at ?? null;
     const gapCount = (r as { gap_count?: number | null }).gap_count;
     return {
@@ -159,7 +167,11 @@ export const GET = withHaiCore(async ({ client }) => {
 
   const watcherEvents: ActivityEvent[] = watchers.map((r) => {
     const templateId = (r as { template_id?: string | null }).template_id ?? null;
-    const templateName = templateId ? templateNames.get(templateId) ?? null : null;
+    // Same D-206/C1 wire fallback as the audit branch above.
+    const templateName =
+      (templateId ? templateNames.get(templateId) : undefined) ??
+      (r as { template_name?: string | null }).template_name ??
+      null;
     const completedAt = (r as { completed_at?: string | null }).completed_at ?? null;
     return {
       run_id: r.run_id,
@@ -177,6 +189,10 @@ export const GET = withHaiCore(async ({ client }) => {
   });
 
   const pdEvents: ActivityEvent[] = pds.map((r) => {
+    // No D-206/C1 wire fallback here, by design: PhantomDemandRun (private
+    // schema, haiwave-api.ts) carries no template_name field at all — a
+    // deleted PD request's runs are documented (definition-editor.tsx) to
+    // "stay in the run history, listed without this name."
     const templateName = r.template_id ? templateNames.get(r.template_id) ?? null : null;
     return {
       run_id: r.run_id,

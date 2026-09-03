@@ -65,15 +65,41 @@ describe('PATCH /api/account/sonar/audit/definitions/[id]', () => {
 });
 
 describe('DELETE /api/account/sonar/audit/definitions/[id]', () => {
-  it('calls deleteRunTemplate with the id and returns the result', async () => {
-    deleteRunTemplate.mockResolvedValue({ deleted: true });
+  it('calls deleteRunTemplate with the id and no runs param when ?runs= is absent', async () => {
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
     const { DELETE } = await import('../route');
     const res = await DELETE(
       new NextRequest(`${baseUrl}/def-3`, { method: 'DELETE' }),
       { params: Promise.resolve({ id: 'def-3' }) },
     );
-    expect(await res.json()).toEqual({ deleted: true });
-    expect(deleteRunTemplate).toHaveBeenCalledWith('def-3');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('def-3', { runs: undefined });
+  });
+
+  // v1.85 (2026-09-02): D-206 — the caller's disposition for the template's
+  // prior runs is forwarded from the ?runs= query param.
+  it('forwards ?runs=archive to deleteRunTemplate', async () => {
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'archive', affected: 2 } });
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest(`${baseUrl}/def-4?runs=archive`, { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'def-4' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'archive', affected: 2 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('def-4', { runs: 'archive' });
+  });
+
+  it('returns 400 invalid_runs for an unrecognized ?runs= value, without calling deleteRunTemplate', async () => {
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest(`${baseUrl}/def-5?runs=purge`, { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'def-5' }) },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_runs' });
+    expect(deleteRunTemplate).not.toHaveBeenCalled();
   });
 });
 

@@ -7,15 +7,22 @@ import type { WatcherRunTriggerRequest } from '@haiwave/protocol';
  *   Optional ?template_id=<uuid> filters to runs from a specific watcher
  *   template. Used by the definition-detail page so its history table doesn't
  *   bleed in ad-hoc runs from other watchers.
+ *   Optional ?archived=true includes archived runs — v1.85 (2026-09-02):
+ *   archived runs are excluded server-side by default (D-206).
  * POST /api/account/sonar/watcher/runs — dispatch a new tier-1 sweep.
  *
  * v1.28 Phase 5 BFF passthrough. Auth, scope checks, edge filtering all
  * happen in haiCore. The BFF only adds the JWT + participant context.
  */
 export const GET = withHaiCore(async ({ client, request }) => {
-  const templateId = new URL(request.url).searchParams.get('template_id');
+  const sp = new URL(request.url).searchParams;
+  const templateId = sp.get('template_id');
+  const archived = sp.get('archived') === 'true';
+  const opts: { template_id?: string; archived?: boolean } = {};
+  if (templateId) opts.template_id = templateId;
+  if (archived) opts.archived = true;
   return NextResponse.json(
-    await client.listWatcherRuns(templateId ? { template_id: templateId } : undefined),
+    await client.listWatcherRuns(Object.keys(opts).length ? opts : undefined),
   );
 });
 

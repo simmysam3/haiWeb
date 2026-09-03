@@ -9,22 +9,43 @@ import {
 interface Props {
   initialRows: EnrichedAuditRun[];
   auditorCountry: string | undefined;
+  /** v1.85 — when set, the poll is scoped to this audit's runs (definition page). */
+  templateId?: string;
+  /** D-206 — when true, polls the archived list (runs=archive'd on
+   * definition delete) instead of the default active list. */
+  archived?: boolean;
+  emptyMessage?: string;
 }
 
 /**
- * Client wrapper around <RunHistoryTable> for the audit page. Owns the
- * column-pack construction here (rather than on the server) so the render
- * functions don't have to cross the server→client boundary as props — Next.js
- * 16 refuses to serialize functions through Client Component props.
+ * Client wrapper around <RunHistoryTable> for the audit list and definition
+ * pages. Owns the column-pack construction here (rather than on the server)
+ * so the render functions don't have to cross the server→client boundary as
+ * props — Next.js 16 refuses to serialize functions through Client Component
+ * props.
  */
-export function AuditHistoryTable({ initialRows, auditorCountry }: Props) {
+export function AuditHistoryTable({ initialRows, auditorCountry, templateId, archived, emptyMessage }: Props) {
+  const base = '/api/account/sonar/audit/runs';
+  const params = new URLSearchParams();
+  if (templateId) params.set('template_id', templateId);
+  if (archived) params.set('archived', 'true');
+  const pollEndpoint = `${base}${params.size ? `?${params}` : ''}`;
+  // v1.85 fix wave (I2) — archived mode owns its own empty-state copy: a
+  // deleted audit can't be triggered, so "Trigger a run from a
+  // configuration…" is wrong there. This table knows `archived`, so it
+  // overrides any caller-supplied emptyMessage rather than each caller having
+  // to remember to.
+  const resolvedEmptyMessage = archived
+    ? 'No archived runs. Runs are archived when their audit is deleted.'
+    : emptyMessage ??
+      'No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.';
   return (
     <RunHistoryTable<EnrichedAuditRun>
       initialRows={initialRows}
       columns={buildAuditHistoryColumnPack(auditorCountry)}
-      pollEndpoint="/api/account/sonar/audit/runs"
+      pollEndpoint={pollEndpoint}
       keyFn={(r) => r.run_id}
-      emptyMessage='No audit runs yet. Trigger a run from a configuration or use the "+ New Audit" action above.'
+      emptyMessage={resolvedEmptyMessage}
     />
   );
 }

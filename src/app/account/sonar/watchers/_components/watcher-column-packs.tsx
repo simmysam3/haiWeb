@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Pill } from '@/components/pill';
+import { ActionsMenu } from '@/components/actions-menu';
 import {
   DetailChevron,
   formatCadence,
@@ -80,6 +81,7 @@ export const watcherConfigurationsColumnPack: ColumnPack<WatcherTemplate> = {
       render: (row) => (
         <Link
           href={`/account/sonar/watchers/definitions/${row.template_id}`}
+          title="Open watcher: run history and configuration"
           className="text-teal hover:underline font-medium"
         >
           {row.template_name}
@@ -130,14 +132,22 @@ export const watcherConfigurationsColumnPack: ColumnPack<WatcherTemplate> = {
       key: 'actions',
       label: 'Actions',
       width: '8%',
+      // v1.85 — an explicit menu: the old chevron led to the same page as the
+      // name, and that page opened on runs, so "Actions" read as "runs".
       render: (row) => (
-        <Link
-          href={`/account/sonar/watchers/definitions/${row.template_id}`}
-          aria-label={`Edit ${row.template_name}`}
-          className="group inline-flex"
-        >
-          <DetailChevron />
-        </Link>
+        <ActionsMenu
+          label={`Actions for ${row.template_name}`}
+          items={[
+            {
+              label: 'View runs',
+              href: `/account/sonar/watchers/definitions/${row.template_id}?tab=runs`,
+            },
+            {
+              label: 'Edit configuration',
+              href: `/account/sonar/watchers/definitions/${row.template_id}?tab=configuration`,
+            },
+          ]}
+        />
       ),
     },
   ],
@@ -201,7 +211,14 @@ export function buildWatcherHistoryColumnPack(): ColumnPack<EnrichedWatcherRun> 
         key: 'status',
         label: 'Status',
         width: '10%',
-        render: (run) => <Pill category="run_status" value={run.status} />,
+        render: (run) => (
+          <span className="inline-flex items-center gap-1">
+            <Pill category="run_status" value={run.status} />
+            {typeof run.archived_at === 'string' && (
+              <Pill category="run_status" value="archived" />
+            )}
+          </span>
+        ),
       },
       {
         key: 'actions',

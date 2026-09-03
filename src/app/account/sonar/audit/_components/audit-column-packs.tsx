@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Pill } from '@/components/pill';
+import { ActionsMenu } from '@/components/actions-menu';
 import {
   formatCadence,
   formatRelative,
@@ -13,9 +14,11 @@ type AuditTemplate = Extract<RunTemplate, { observation_class: 'audit' }>;
 
 // Enriched shape returned by the list BFF (template_id → name join is added
 // by HaiWeb; total_skus and fully_resolved_skus_by_country come straight off
-// the protocol envelope).
+// the protocol envelope). v1.85 fix wave (C1) — the BFF now returns `null`
+// (never just omits the field) when a run has no name to show, matching what
+// the route actually sends since the wire-template_name fallback fix.
 export type EnrichedAuditRun = Omit<AuditRun, 'template_name'> & {
-  template_name?: string;
+  template_name?: string | null;
 };
 
 function formatScope(scope: AuditTemplate['scope']): string {
@@ -42,6 +45,7 @@ export const auditConfigurationsColumnPack: ColumnPack<AuditTemplate> = {
       render: (row) => (
         <Link
           href={`/account/sonar/audit/definitions/${row.template_id}`}
+          title="Open audit: run history and configuration"
           className="text-teal hover:underline font-medium"
         >
           {row.template_name}
@@ -92,13 +96,22 @@ export const auditConfigurationsColumnPack: ColumnPack<AuditTemplate> = {
       key: 'actions',
       label: 'Actions',
       width: '8%',
+      // v1.85 — parity with the watchers list: an explicit menu naming each
+      // destination, instead of a lone "Edit" link.
       render: (row) => (
-        <Link
-          href={`/account/sonar/audit/definitions/${row.template_id}`}
-          className="text-xs text-teal hover:underline"
-        >
-          Edit
-        </Link>
+        <ActionsMenu
+          label={`Actions for ${row.template_name}`}
+          items={[
+            {
+              label: 'View runs',
+              href: `/account/sonar/audit/definitions/${row.template_id}?tab=runs`,
+            },
+            {
+              label: 'Edit configuration',
+              href: `/account/sonar/audit/definitions/${row.template_id}?tab=configuration`,
+            },
+          ]}
+        />
       ),
     },
   ],
@@ -212,11 +225,16 @@ export function buildAuditHistoryColumnPack(
         label: 'Status',
         width: '10%',
         render: (run) => (
-          <Pill
-            category="run_status"
-            value={run.status}
-            detail={run.error_message ?? undefined}
-          />
+          <span className="inline-flex items-center gap-1">
+            <Pill
+              category="run_status"
+              value={run.status}
+              detail={run.error_message ?? undefined}
+            />
+            {typeof run.archived_at === 'string' && (
+              <Pill category="run_status" value="archived" />
+            )}
+          </span>
         ),
       },
       {

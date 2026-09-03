@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { ConfigurationsTable } from '@/components/sonar/observations';
+import {
+  ConfigurationsTable,
+  RunsFilterToggle,
+  parseRunsFilter,
+} from '@/components/sonar/observations';
 import { NeedsTriageStrip } from './_components/needs-triage-strip';
 import { ConfigurationsAccordion } from './_components/configurations-accordion';
 import { watcherConfigurationsColumnPack } from './_components/watcher-column-packs';
@@ -18,15 +22,25 @@ interface RunsPayload {
   runs: WatcherRun[];
 }
 
+interface RouteProps {
+  searchParams: Promise<{ runs?: string | string[] }>;
+}
+
 type WatcherTemplate = Extract<RunTemplate, { observation_class: 'watcher' }>;
 function isWatcherTemplate(t: RunTemplate): t is WatcherTemplate {
   return t.observation_class === 'watcher';
 }
 
-export default async function WatchersListPage() {
+export default async function WatchersListPage({ searchParams }: RouteProps) {
+  // D-206 — ?runs=archived shows runs archived when their watcher definition
+  // was deleted with runs=archive; otherwise the default active list.
+  const runsFilter = parseRunsFilter((await searchParams).runs);
+  const archived = runsFilter === 'archived';
   const [defsResult, runsResult] = await Promise.all([
     fetchBffJson<DefinitionsPayload>('/api/account/sonar/watcher/definitions'),
-    fetchBffJson<RunsPayload>('/api/account/sonar/watcher/runs'),
+    fetchBffJson<RunsPayload>(
+      `/api/account/sonar/watcher/runs${archived ? '?archived=true' : ''}`,
+    ),
   ]);
 
   const allDefinitions = defsResult.kind === 'ok' ? defsResult.data.templates : [];
@@ -41,11 +55,18 @@ export default async function WatchersListPage() {
   const templateNameById = new Map<string, string>(
     allDefinitions.map((t) => [t.template_id, t.template_name]),
   );
+  // v1.85 fix wave (D-206, C1) — haiCore already COALESCEs (live
+  // run_templates.template_name, template_name_snapshot) into run.template_name
+  // on the wire, so an archived/kept run of a deleted definition still carries
+  // its name there even though template_id is now NULL. Prefer the live join
+  // (a rename since the run fired should win) but fall back to the wire value
+  // instead of discarding it.
   const enrichedRuns: EnrichedWatcherRun[] = runs.map((r) => ({
     ...r,
-    template_name: r.template_id
-      ? templateNameById.get(r.template_id) ?? null
-      : null,
+    template_name:
+      (r.template_id ? templateNameById.get(r.template_id) : undefined) ??
+      r.template_name ??
+      null,
   }));
 
   return (
@@ -115,7 +136,8 @@ export default async function WatchersListPage() {
         >
           Runs
         </h2>
-        <WatcherHistoryTable initialRows={enrichedRuns} />
+        <RunsFilterToggle value={runsFilter} />
+        <WatcherHistoryTable initialRows={enrichedRuns} archived={archived} />
       </section>
     </div>
   );

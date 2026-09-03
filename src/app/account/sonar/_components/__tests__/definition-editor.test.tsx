@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { DefinitionEditor } from '../definition-editor';
@@ -92,14 +92,54 @@ describe('DefinitionEditor (audit)', () => {
     expect(body).not.toHaveProperty('scope');
   });
 
-  it('DELETEs to the endpointBase route on delete', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
-    vi.stubGlobal('confirm', () => true);
+  // v1.85 — Delete asks in a real dialog (not window.confirm) that says what
+  // happens to the runs. Nothing is sent until the dialog's own Delete.
+  it('opens a confirmation dialog on Delete without sending anything yet', async () => {
     renderAuditEditor();
-    await userEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete audit "weekly-audit"?' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/its runs will be archived/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('Cancel closes the dialog and sends nothing', async () => {
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('DELETEs to the endpointBase route when the dialog confirms', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) } as Response);
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete audit' }));
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
+    expect(url).toBe('/api/account/sonar/audit/definitions/def-1?runs=archive');
     expect((init as RequestInit).method).toBe('DELETE');
+  });
+
+  // v1.85 PR 2 — audit deletes are archive-only: no disposition choice, the
+  // dialog states what happens, and the DELETE carries ?runs=archive.
+  it('audit dialog states archive-only and sends runs=archive', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deleted: true, runs: { disposition: 'archive', affected: 4 } }),
+    } as Response);
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent(/its runs will be archived/i);
+    // Scoped to the dialog: the page's Active/Suspended activation radios
+    // (Schedule step) sit outside it and must not be mistaken for a
+    // disposition choice here.
+    expect(within(dialog).queryByRole('radio')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete audit' }));
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/account/sonar/audit/definitions/def-1?runs=archive',
+    );
   });
 
   it('shows an error and keeps the save bar when PATCH fails', async () => {
@@ -292,6 +332,109 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
     expect(body).not.toHaveProperty('scope');
+  });
+
+  // v1.85 PR 2 — watcher deletes offer a choice of what happens to prior
+  // runs; Archive is the safe default.
+  it('watcher dialog offers three dispositions with Archive selected by default', async () => {
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const group = screen.getByRole('radiogroup', { name: 'Prior runs' });
+    expect(within(group).getByRole('radio', { name: /archive prior runs/i })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: /delete prior runs/i })).not.toBeChecked();
+    expect(within(group).getByRole('radio', { name: /keep in active history/i })).not.toBeChecked();
+  });
+
+  // v1.85 fix wave (M5) — a <fieldset><legend> wrapping role="radiogroup"
+  // aria-label="Prior runs" makes a screen reader announce "Prior runs" twice
+  // (once from the legend, once from the aria-label). Controller ruling: keep
+  // the radiogroup + aria-label (existing tests pin it) and replace the
+  // fieldset/legend with a plain div + a visually-identical, aria-hidden label.
+  it('renders the Prior runs label as a plain aria-hidden element, not a <fieldset><legend> wrapping the radiogroup', async () => {
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.querySelector('fieldset')).toBeNull();
+    expect(dialog.querySelector('legend')).toBeNull();
+    // The radiogroup + its accessible name (pinned by the test above) is unchanged.
+    expect(
+      within(dialog).getByRole('radiogroup', { name: 'Prior runs' }),
+    ).toBeInTheDocument();
+    // The visible label text still renders, just not as a <legend>.
+    expect(within(dialog).getByText('Prior runs')).toBeInTheDocument();
+  });
+
+  it('watcher dialog sends the chosen disposition', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deleted: true, runs: { disposition: 'delete', affected: 2 } }),
+    } as Response);
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('radio', { name: /delete prior runs/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/account/sonar/watcher/definitions/def-1?runs=delete',
+    );
+  });
+
+  it('a 409 RUNS_IN_FLIGHT reply becomes a form error naming the count', async () => {
+    // A real Response (not a plain object cast) — describeApiError reads the
+    // body via res.clone().json(), which a plain mock object lacks.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { code: 'RUNS_IN_FLIGHT', message: 'x', details: { running_count: 2 } },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(await screen.findByText(/2 runs are still running/i)).toBeInTheDocument();
+  });
+
+  it('a 409 RUNS_IN_FLIGHT reply with running_count=1 uses singular copy', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { code: 'RUNS_IN_FLIGHT', message: 'x', details: { running_count: 1 } },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(await screen.findByText(/1 run is still running/i)).toBeInTheDocument();
+    expect(screen.getByText(/cancel it, then delete/i)).toBeInTheDocument();
+  });
+
+  // v1.85 fix wave (M4) — `details.running_count` is attacker/server-controlled
+  // JSON read through an unchecked cast; a non-number value must fall back to
+  // the envelope's message rather than rendering a broken/misleading sentence.
+  it('a 409 whose details.running_count is not a number falls back to info.message', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'RUNS_IN_FLIGHT',
+            message: 'Cannot delete: runs are currently executing.',
+            details: { running_count: 'two' },
+          },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(
+      await screen.findByText('Cannot delete: runs are currently executing.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/still running/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
   });
 });
 

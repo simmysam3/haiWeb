@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type {
   Cadence,
+  RunsDisposition,
   RunTemplate,
   RunTemplateEvent,
   RunTemplateScope,
@@ -11,7 +12,7 @@ import type {
 } from '@haiwave/protocol';
 import { DEFAULT_WATCHER_DRIFT_THRESHOLDS } from '@haiwave/protocol';
 import { describeApiError } from '@/lib/api-error';
-import { FormError } from '@/components';
+import { FormError, Modal } from '@/components';
 import { SchedulePicker } from './schedule-picker';
 import { StepRail, type RailStep } from './step-rail';
 import { StepCard } from './step-card';
@@ -176,6 +177,13 @@ export function DefinitionEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // v1.85 — Delete confirms in a dialog (not window.confirm) so the copy can
+  // say what happens to the runs; PR 2 adds the run disposition choice here.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // v1.85 PR 2 (D-206) — watcher delete offers a choice of what happens to
+  // its prior runs; Archive is the safe default. Audit deletes always
+  // archive; phantom_demand sends no disposition (runs simply lose the name).
+  const [runsDisposition, setRunsDisposition] = useState<RunsDisposition>('archive');
   // v.1.43 drift step — drift thresholds live on the watcher scope (typed via
   // WatcherScope.drift_thresholds in protocol 3.33). For non-watcher classes
   // this remains null and the Drift step + state never render.
@@ -305,21 +313,36 @@ export function DefinitionEditor({
   }
 
   async function remove() {
-    if (
-      !confirm(
-        `Delete ${noun.toLowerCase()} definition "${template.template_name}"? This cannot be undone.`,
-      )
-    )
-      return;
+    setConfirmOpen(false);
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${endpointBase}/${template.template_id}`, {
+      // v1.85 PR 2 (D-206) — audit always archives its runs; phantom_demand
+      // sends no disposition (its runs simply lose the name); watcher carries
+      // the dialog's chosen disposition.
+      const query =
+        observationClass === 'audit'
+          ? '?runs=archive'
+          : observationClass === 'watcher'
+          ? `?runs=${runsDisposition}`
+          : '';
+      const res = await fetch(`${endpointBase}/${template.template_id}${query}`, {
         method: 'DELETE',
       });
       if (!res.ok) {
         const info = await describeApiError(res);
-        setError(info.message);
+        // v1.85 fix wave (M4) — `details` is server-controlled JSON typed as
+        // `Record<string, unknown>` (api-error.ts); guard the shape at
+        // runtime instead of casting it, and fall back to the envelope's own
+        // message for anything that isn't the expected numeric count.
+        const running = info.details?.running_count;
+        setError(
+          res.status === 409 && typeof running === 'number'
+            ? `${running} run${running === 1 ? ' is' : 's are'} still running. Wait for ${
+                running === 1 ? 'it' : 'them'
+              } to finish or cancel ${running === 1 ? 'it' : 'them'}, then delete.`
+            : info.message,
+        );
         setSessionExpired(info.sessionExpired);
         return;
       }
@@ -426,13 +449,99 @@ export function DefinitionEditor({
         <div className="flex items-center gap-2 mt-2">
           <button
             type="button"
-            onClick={remove}
+            onClick={() => setConfirmOpen(true)}
             disabled={busy}
             className="rounded border border-rose-400 text-rose-700 px-3 py-1.5 text-sm hover:bg-rose-50 disabled:opacity-60"
           >
             Delete
           </button>
         </div>
+
+        <Modal
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          title={`Delete ${noun.toLowerCase()} "${template.template_name}"?`}
+        >
+          <p className="text-sm text-charcoal">This cannot be undone.</p>
+          {observationClass === 'watcher' && (
+            // v1.85 fix wave (M5) — a <fieldset><legend> here would double-
+            // announce "Prior runs" (once from the legend, once from the
+            // radiogroup's own aria-label below). Plain div + an aria-hidden
+            // label keeps the same visible text without the duplication.
+            <div className="mt-4">
+              <p
+                aria-hidden="true"
+                className="text-xs font-semibold uppercase tracking-wide text-slate"
+              >
+                Prior runs
+              </p>
+              <div role="radiogroup" aria-label="Prior runs" className="mt-2 space-y-2">
+                {(
+                  [
+                    [
+                      'archive',
+                      'Archive prior runs',
+                      'Hidden from the Runs list and dashboards; still viewable under Runs → Archived.',
+                    ],
+                    [
+                      'delete',
+                      'Delete prior runs',
+                      'Removed for good, with their results and drift history.',
+                    ],
+                    [
+                      'keep',
+                      'Keep in active history',
+                      "Stay on the Runs list under this watcher's name.",
+                    ],
+                  ] as const
+                ).map(([value, label, hint]) => (
+                  <label key={value} className="flex items-start gap-2 text-sm text-charcoal">
+                    <input
+                      type="radio"
+                      name="runs-disposition"
+                      value={value}
+                      checked={runsDisposition === value}
+                      onChange={() => setRunsDisposition(value)}
+                      className="mt-0.5 text-teal focus-visible:ring-2 focus-visible:ring-teal/30"
+                    />
+                    <span>
+                      <span className="font-medium">{label}</span>
+                      <span className="block text-xs text-slate">{hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {observationClass === 'audit' && (
+            <p className="mt-2 text-sm text-charcoal">
+              Its runs will be archived: hidden from the Runs list and dashboards, still
+              viewable under Runs → Archived, never deleted.
+            </p>
+          )}
+          {observationClass === 'phantom_demand' && (
+            <p className="mt-2 text-sm text-charcoal">
+              Its past runs stay in the run history, listed without this name.
+            </p>
+          )}
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="rounded border border-slate/20 px-3 py-1.5 text-sm text-charcoal hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className="rounded bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+            >
+              Delete {noun.toLowerCase()}
+            </button>
+          </div>
+        </Modal>
 
         {dirty && (
           <div className="sticky bottom-0 mt-4 bg-navy text-white rounded-xl px-4 py-3 flex items-center justify-between">

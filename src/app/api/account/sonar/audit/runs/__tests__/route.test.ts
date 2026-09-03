@@ -130,6 +130,159 @@ describe('GET /api/account/sonar/audit/runs', () => {
   });
 });
 
+// v1.85 — the audit definition page shows only that audit's runs, so the BFF
+// forwards `?template_id=` to the haiCore client (which applies the filter —
+// haiCore's own list takes status + limit only). The fake honours
+// `template_id` the way the real client does; assertions are on the body.
+describe('GET /api/account/sonar/audit/runs?template_id=', () => {
+  const RUNS = [
+    { run_id: 'r-1', template_id: 'a-1', status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+    { run_id: 'r-2', template_id: 'a-2', status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+    { run_id: 'r-3', template_id: null, status: 'complete', triggered_at: '2026-09-01T10:00:00Z' },
+  ];
+
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(async (opts: { template_id?: string } = {}) => ({
+        runs: opts.template_id ? RUNS.filter((r) => r.template_id === opts.template_id) : RUNS,
+      })),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'gb' } })),
+      listRunTemplates: vi.fn(async () => ({
+        templates: [
+          { template_id: 'a-1', template_name: 'Weekly EMEA Audit' },
+          { template_id: 'a-2', template_name: 'Other Audit' },
+        ],
+      })),
+    };
+  });
+
+  it('returns every run when no template_id is given', async () => {
+    const { GET } = await import('../route');
+    const res = await GET(new NextRequest('http://localhost:3001/api/account/sonar/audit/runs'), {
+      params: Promise.resolve({}),
+    });
+    const body = (await res.json()) as { runs: Array<{ run_id: string }> };
+    expect(body.runs.map((r) => r.run_id)).toEqual(['r-1', 'r-2', 'r-3']);
+  });
+
+  it("returns only that template's runs, names still joined", async () => {
+    const { GET } = await import('../route');
+    const res = await GET(
+      new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?template_id=a-1'),
+      { params: Promise.resolve({}) },
+    );
+    const body = (await res.json()) as { runs: Array<{ run_id: string; template_name?: string }> };
+    expect(body.runs.map((r) => r.run_id)).toEqual(['r-1']);
+    expect(body.runs[0].template_name).toBe('Weekly EMEA Audit');
+  });
+});
+
+// v1.85 (2026-09-02): archived runs are excluded server-side by default;
+// ?archived=true opts the caller in to seeing them.
+describe('GET /api/account/sonar/audit/runs?archived=', () => {
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(async () => ({ runs: [] })),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'us' } })),
+      listRunTemplates: vi.fn(async () => ({ templates: [] })),
+    };
+  });
+
+  it('forwards archived=true to listAuditRuns', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?archived=true');
+    await GET(req, { params: Promise.resolve({}) });
+
+    expect(globalThis.__mockClient.listAuditRuns).toHaveBeenCalledWith({
+      status: undefined,
+      limit: undefined,
+      template_id: undefined,
+      archived: true,
+    });
+  });
+
+  it('does not forward archived when the param is absent', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
+    await GET(req, { params: Promise.resolve({}) });
+
+    const callArg = globalThis.__mockClient.listAuditRuns.mock.calls[0][0];
+    expect(callArg.archived).toBeUndefined();
+  });
+
+  it('does not forward archived when the value is not "true"', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?archived=false');
+    await GET(req, { params: Promise.resolve({}) });
+
+    const callArg = globalThis.__mockClient.listAuditRuns.mock.calls[0][0];
+    expect(callArg.archived).toBeUndefined();
+  });
+});
+
+// v1.85 fix wave (C1, 2026-09-03) — haiCore's run-list endpoint already
+// COALESCEs (live run_templates.template_name, template_name_snapshot); the
+// BFF's live-template join must not throw that wire value away when there's
+// no live template to join against. A deleted definition (D-206 archive/keep)
+// leaves template_id NULL on the run but still carries the snapshot name.
+describe('GET /api/account/sonar/audit/runs — template_name wire fallback (fix wave C1)', () => {
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'us' } })),
+      listRunTemplates: vi.fn(async () => ({
+        templates: [{ template_id: 't-live', template_name: 'Live Name' }],
+      })),
+    };
+  });
+
+  it('keeps the wire template_name for a run whose template_id is null (deleted definition)', async () => {
+    globalThis.__mockClient.listAuditRuns.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'r-archived',
+          status: 'complete',
+          triggered_at: '2026-09-02T10:00:00Z',
+          template_id: null,
+          template_name: 'Weekly EMEA Audit',
+          archived_at: '2026-09-02T12:00:00.000Z',
+        },
+      ],
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest(
+      'http://localhost:3001/api/account/sonar/audit/runs?archived=true',
+    );
+    const res = await GET(req, { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(body.runs[0].template_name).toBe('Weekly EMEA Audit');
+  });
+
+  it('prefers the live template name over the wire snapshot when a live join exists', async () => {
+    globalThis.__mockClient.listAuditRuns.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'r-live',
+          status: 'complete',
+          triggered_at: '2026-09-02T10:00:00Z',
+          template_id: 't-live',
+          template_name: 'Stale Wire Name',
+          archived_at: null,
+        },
+      ],
+    });
+
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
+    const res = await GET(req, { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(body.runs[0].template_name).toBe('Live Name');
+  });
+});
+
 describe('POST /api/account/sonar/audit/runs', () => {
   it('is not exported — ad-hoc triggers create nameless template-less runs; the wizard path (definitions + /run) is the only trigger', async () => {
     const mod = await import('../route');
