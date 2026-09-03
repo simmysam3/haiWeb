@@ -307,7 +307,7 @@ describe('TierGapGrid catalog descriptors', () => {
     expect(desc.className).toContain('line-clamp-2');
   });
 
-  it('renders no sub-head node when the five are absent; a withheld row keeps its dash and has none', () => {
+  it('renders no sub-head node when the five are absent; a withheld row (sent without descriptors, as haiCore does) keeps its dash and has none', () => {
     const withheld = { ...result('X', 'p-acme', node(1, false, [], 'Acme')), product_id: null, vendor_participant_id: null } as unknown as AuditRunResult;
     render(<TierGapGrid run={RUN} results={[...FIXTURE, withheld]} />);
     expect(screen.queryByTestId('sku-descriptors')).toBeNull();

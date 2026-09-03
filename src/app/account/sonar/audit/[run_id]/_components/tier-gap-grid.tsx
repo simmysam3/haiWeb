@@ -147,6 +147,8 @@ function SkuEvidenceRow({
     isFullyDomestic(row.result.geo_rollup, auditorCountry);
   // v1.85 (2026-09-03), D-207: what the product is, under its id — present parts only; no node
   // when the vendor published nothing, and none on a vendor-level gap row (spec §6: unchanged).
+  // A withheld row (product_id / vendor_participant_id null) needs no guard here: haiCore's results
+  // join is correlated on those ids, so it sends the five as null (audit-run-results-descriptors.test.ts).
   const headline = [row.productName, row.brand, row.model, row.family].filter(Boolean).join(' · ');
   const hasSubhead = (headline !== '' || row.shortDescription !== '') && !isVendorLevelGap(row.result);
 
