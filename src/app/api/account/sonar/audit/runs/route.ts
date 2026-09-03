@@ -5,9 +5,11 @@ import type { AuditRun } from '@haiwave/protocol';
 /**
  * GET /api/account/sonar/audit/runs — list audit runs for the caller's org.
  *   Optional query params: status, limit (both forwarded to haiCore; filtering
- *   and pagination are enforced server-side), and template_id (v1.85 — the
+ *   and pagination are enforced server-side), template_id (v1.85 — the
  *   audit definition page's Run history tab; applied by the haiCore client,
- *   since haiCore's own list takes status + limit only).
+ *   since haiCore's own list takes status + limit only), and archived=true
+ *   (v1.85 (2026-09-02), D-206 — archived runs are excluded server-side by
+ *   default; this opts the caller in to seeing them).
  *
  * NO POST. The ad-hoc trigger was removed 2026-06-09: it had no UI callers and
  * created template-less runs that can never carry the user-given audit name
@@ -32,8 +34,9 @@ export const GET = withHaiCore(async ({ client, session, request }) => {
   const limitRaw = sp.get('limit');
   const limit = limitRaw === null ? undefined : Number(limitRaw);
   const templateId = sp.get('template_id') ?? undefined;
+  const archived = sp.get('archived') === 'true' ? true : undefined;
 
-  const { runs } = await client.listAuditRuns({ status, limit, template_id: templateId });
+  const { runs } = await client.listAuditRuns({ status, limit, template_id: templateId, archived });
 
   // Auditor's HQ country (ISO-2, uppercased). Best-effort.
   let auditorCountry: string | undefined;

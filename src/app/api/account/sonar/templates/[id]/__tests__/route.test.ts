@@ -52,14 +52,40 @@ describe('PATCH /api/account/sonar/templates/[id]', () => {
 });
 
 describe('DELETE /api/account/sonar/templates/[id]', () => {
-  it('calls deleteRunTemplate with the id', async () => {
-    deleteRunTemplate.mockResolvedValue({ deleted: true });
+  it('calls deleteRunTemplate with the id and no runs param when ?runs= is absent', async () => {
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
     const { DELETE } = await import('../route');
     const res = await DELETE(
       new NextRequest('http://localhost/api/account/sonar/templates/abc', { method: 'DELETE' }),
       { params: Promise.resolve({ id: 'abc' }) },
     );
-    expect(await res.json()).toEqual({ deleted: true });
-    expect(deleteRunTemplate).toHaveBeenCalledWith('abc');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'keep', affected: 0 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('abc', { runs: undefined });
+  });
+
+  // v1.85 (2026-09-02): D-206 — the caller's disposition for the template's
+  // prior runs is forwarded from the ?runs= query param.
+  it('forwards ?runs=archive to deleteRunTemplate', async () => {
+    deleteRunTemplate.mockResolvedValue({ deleted: true, runs: { disposition: 'archive', affected: 3 } });
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/account/sonar/templates/abc?runs=archive', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'abc' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, runs: { disposition: 'archive', affected: 3 } });
+    expect(deleteRunTemplate).toHaveBeenCalledWith('abc', { runs: 'archive' });
+  });
+
+  it('returns 400 invalid_runs for an unrecognized ?runs= value, without calling deleteRunTemplate', async () => {
+    const { DELETE } = await import('../route');
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/account/sonar/templates/abc?runs=purge', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'abc' }) },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'invalid_runs' });
+    expect(deleteRunTemplate).not.toHaveBeenCalled();
   });
 });

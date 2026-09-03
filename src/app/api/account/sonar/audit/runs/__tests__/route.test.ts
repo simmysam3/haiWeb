@@ -177,6 +177,49 @@ describe('GET /api/account/sonar/audit/runs?template_id=', () => {
   });
 });
 
+// v1.85 (2026-09-02): archived runs are excluded server-side by default;
+// ?archived=true opts the caller in to seeing them.
+describe('GET /api/account/sonar/audit/runs?archived=', () => {
+  beforeEach(() => {
+    globalThis.__mockClient = {
+      listAuditRuns: vi.fn(async () => ({ runs: [] })),
+      getCompanyProfile: vi.fn(async () => ({ locality: { country: 'us' } })),
+      listRunTemplates: vi.fn(async () => ({ templates: [] })),
+    };
+  });
+
+  it('forwards archived=true to listAuditRuns', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?archived=true');
+    await GET(req, { params: Promise.resolve({}) });
+
+    expect(globalThis.__mockClient.listAuditRuns).toHaveBeenCalledWith({
+      status: undefined,
+      limit: undefined,
+      template_id: undefined,
+      archived: true,
+    });
+  });
+
+  it('does not forward archived when the param is absent', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs');
+    await GET(req, { params: Promise.resolve({}) });
+
+    const callArg = globalThis.__mockClient.listAuditRuns.mock.calls[0][0];
+    expect(callArg.archived).toBeUndefined();
+  });
+
+  it('does not forward archived when the value is not "true"', async () => {
+    const { GET } = await import('../route');
+    const req = new NextRequest('http://localhost:3001/api/account/sonar/audit/runs?archived=false');
+    await GET(req, { params: Promise.resolve({}) });
+
+    const callArg = globalThis.__mockClient.listAuditRuns.mock.calls[0][0];
+    expect(callArg.archived).toBeUndefined();
+  });
+});
+
 describe('POST /api/account/sonar/audit/runs', () => {
   it('is not exported — ad-hoc triggers create nameless template-less runs; the wizard path (definitions + /run) is the only trigger', async () => {
     const mod = await import('../route');
