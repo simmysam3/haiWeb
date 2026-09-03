@@ -1920,6 +1920,10 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     // v1.85 (D-206): the caller's disposition for the template's prior runs.
     deleteRunTemplate(templateId, opts = {}) {
+      // v1.85 (2026-09-02): raw interpolation (not URLSearchParams) is safe here
+      // ONLY because RunsDisposition is a closed 3-value URL-safe union, enforced
+      // at the BFF boundary against RunsDispositionSchema. Do not widen the type
+      // or accept an unvalidated string here without switching this to a builder.
       const q = opts.runs ? `?runs=${opts.runs}` : '';
       return request<RunTemplateDeleteResponse>('DELETE', `/sonar/templates/${templateId}${q}`);
     },

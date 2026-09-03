@@ -28,11 +28,11 @@ describe('haiwave-api run disposition (3.80.0)', () => {
   });
 
   function lastUrl(): string {
-    return String(fetchMock.mock.calls[0]?.[0]);
+    return String(fetchMock.mock.calls.at(-1)?.[0]);
   }
 
   function lastInit(): RequestInit {
-    return fetchMock.mock.calls[0]?.[1] as RequestInit;
+    return fetchMock.mock.calls.at(-1)?.[1] as RequestInit;
   }
 
   it('deleteRunTemplate sends ?runs= and returns the disposition body', async () => {
@@ -71,5 +71,19 @@ describe('haiwave-api run disposition (3.80.0)', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { runs: [] }));
     await client.listAuditRuns({ status: 'complete', limit: 5, archived: true });
     expect(lastUrl()).toMatch(/\/source-audit\/runs\?status=complete&limit=5&archived=true$/);
+  });
+
+  it('listWatcherRuns with archived=false sends no archived param', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { runs: [] }));
+    await client.listWatcherRuns({ template_id: 't-1', archived: false });
+    expect(lastUrl()).toMatch(/\/sonar\/watcher\/runs$/);
+    expect(lastUrl()).not.toContain('archived');
+  });
+
+  it('listAuditRuns with archived omitted sends no archived param', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { runs: [] }));
+    await client.listAuditRuns({ status: 'complete' });
+    expect(lastUrl()).toMatch(/\/source-audit\/runs\?status=complete$/);
+    expect(lastUrl()).not.toContain('archived');
   });
 });
