@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { RunTemplate, WatcherRun } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { formatCadence, RunsFilterToggle, parseRunsFilter } from '@/components/sonar/observations';
+import { formatCadence } from '@/components/sonar/observations';
 import { WatcherHistoryTable } from '../../_components/watcher-history-table';
 import { CalibratedLTTrendChart } from './_components/calibrated-lt-trend-chart';
 import { PerCounterpartyPostureTable } from './_components/per-counterparty-posture-table';
@@ -15,7 +15,7 @@ import type { EnrichedWatcherRun } from '../../_components/watcher-column-packs'
 
 interface RouteContext {
   params: Promise<{ template_id: string }>;
-  searchParams: Promise<{ tab?: string | string[]; runs?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }
 
 interface DetailResponse {
@@ -30,10 +30,6 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
   const { template_id } = await params;
   const resolvedSearchParams = await searchParams;
   const initialTab = parseDefinitionTab(resolvedSearchParams.tab);
-  // D-206 — ?runs=archived shows runs archived when this watcher's
-  // definition was deleted with runs=archive; otherwise the active list.
-  const runsFilter = parseRunsFilter(resolvedSearchParams.runs);
-  const archived = runsFilter === 'archived';
   const detail = await fetchBffJson<DetailResponse>(
     `/api/account/sonar/watcher/definitions/${template_id}`,
   );
@@ -43,14 +39,12 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
   const tpl = detail.kind === 'ok' ? detail.data.template : null;
   if (!tpl || tpl.observation_class !== 'watcher') notFound();
 
-  // D-206 controller ruling: the runs toggle governs the Run history TABLE
-  // only, never the Calibrated lead-time trend chart below — that's a
-  // dashboard-style derivation, and the spec hides archived runs from
-  // dashboards. So the active fetch (feeding the chart) is unconditional,
-  // scoped by template_id to match the SWR poll WatcherHistoryTable issues
-  // (an unscoped fetch here would answer a different question than the poll
-  // that replaces it 15s later). A second, archived-scoped fetch only runs
-  // when the toggle asks for it, and feeds the table alone.
+  // A definition's runs are never archived while the definition is live —
+  // archiving only happens when the definition is deleted, after which this
+  // page 404s. So the runs fetch is unconditional and scoped by template_id
+  // to match the SWR poll WatcherHistoryTable issues (an unscoped fetch here
+  // would answer a different question than the poll that replaces it 15s
+  // later); it feeds both the trend chart and the Run history table.
   const activeRunsResp = await fetchBffJson<RunsResponse>(
     `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}`,
   );
@@ -59,17 +53,6 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
     .filter((r) => r.template_id === template_id)
     .map((r) => ({ ...r, template_name: tpl.template_name }));
   const last12 = templateRuns.slice(0, 12);
-
-  let historyRows = templateRuns;
-  if (archived) {
-    const archivedRunsResp = await fetchBffJson<RunsResponse>(
-      `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}&archived=true`,
-    );
-    const archivedRuns = archivedRunsResp.kind === 'ok' ? archivedRunsResp.data.runs : [];
-    historyRows = archivedRuns
-      .filter((r) => r.template_id === template_id)
-      .map((r) => ({ ...r, template_name: tpl.template_name }));
-  }
 
   return (
     <div className="space-y-6">
@@ -128,11 +111,9 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
               >
                 Run history
               </h2>
-              <RunsFilterToggle value={runsFilter} />
               <WatcherHistoryTable
-                initialRows={historyRows}
+                initialRows={templateRuns}
                 templateId={template_id}
-                archived={archived}
                 emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
               />
             </section>

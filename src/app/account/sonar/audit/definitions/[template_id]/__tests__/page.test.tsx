@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 /**
  * v1.85 — parity with the watcher page: the audit definition page shows this
@@ -132,30 +132,18 @@ describe('AuditDefinitionDetailPage tabs', () => {
   });
 });
 
-describe('AuditDefinitionDetailPage — runs filter (D-206)', () => {
-  it('defaults to active: no archived=true on the runs fetch, Active checked, no archived pill', async () => {
-    await renderPage();
+describe('AuditDefinitionDetailPage — no Archived toggle (D-206 scope change)', () => {
+  it.each([
+    ['no runs param', undefined],
+    ['?runs=archived (now ignored)', 'archived'],
+  ])('%s: fetches the runs list exactly once, scoped by template_id and without archived, and shows no Runs toggle', async (_label, runs) => {
+    await renderPage(undefined, runs);
 
-    const runsCall = fetchBffJson.mock.calls.find(([path]) =>
-      String(path).includes('/audit/runs'),
-    );
-    expect(String(runsCall?.[0])).not.toMatch(/archived=true/);
-    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
-    expect(
-      screen.queryAllByTestId('pill').some((el) => el.textContent === 'Archived'),
-    ).toBe(false);
-  });
+    const runsCalls = fetchBffJson.mock.calls
+      .map(([path]) => String(path))
+      .filter((path) => path.includes('/audit/runs'));
+    expect(runsCalls).toEqual(['/api/account/sonar/audit/runs?template_id=a-1']);
 
-  it('?runs=archived fetches archived runs, checks Archived, and renders the archived pill', async () => {
-    await renderPage(undefined, 'archived');
-
-    const runsCall = fetchBffJson.mock.calls.find(([path]) =>
-      String(path).includes('/audit/runs'),
-    );
-    expect(String(runsCall?.[0])).toMatch(/archived=true/);
-    expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
-
-    const row = screen.getByRole('row', { name: /Run r-arch-1/ });
-    expect(within(row).getByText('Archived')).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Runs' })).not.toBeInTheDocument();
   });
 });

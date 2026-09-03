@@ -67,7 +67,7 @@ Rules:
   - audit: statement "Its N runs will be archived. Archived runs stay viewable under Runs → Archived." No choice.
   - phantom demand: today's statement (runs kept).
   - 409 `RUNS_IN_FLIGHT` → form error "N runs are still running. Wait for them to finish or cancel them, then delete."
-- **Archived filter**: an `Active | Archived` pill toggle above the Runs table on `/account/sonar/watchers`, `/account/sonar/audit`, and both definition pages' Run history tab; the toggle switches the SWR poll endpoint (`?archived=true`) and is reflected in the URL (`?runs=archived`). Archived rows carry a muted `archived` Pill (new `PILL_DEFINITIONS` entry). `RunHistoryTable` itself stays a table; the toggle is rendered by its callers.
+- **Archived filter**: an `Active | Archived` pill toggle above the Runs table on `/account/sonar/watchers` and `/account/sonar/audit`; the toggle switches the SWR poll endpoint (`?archived=true`) and is reflected in the URL (`?runs=archived`). Archived rows carry a muted `archived` Pill (new `PILL_DEFINITIONS` entry). `RunHistoryTable` itself stays a table; the toggle is rendered by its callers. Not on the definition pages: a run is archived only when its definition is deleted, after which that page no longer exists, so a definition page shows live runs only (owner ruling 2026-09-03).
 - Dashboards: no HaiWeb change; they inherit haiCore's default exclusion. Verified by a test on the activity BFF that a run with `archived_at` set is absent from the feed only if haiCore omits it — i.e. HaiWeb does not re-filter.
 
 ## 5. Testing (red/green per behaviour)
