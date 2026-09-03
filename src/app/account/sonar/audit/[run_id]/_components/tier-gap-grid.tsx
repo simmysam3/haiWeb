@@ -81,6 +81,13 @@ interface SkuRow {
   productId: string;
   vendorId: string;
   vendorName: string;
+  // v1.85 (2026-09-03), D-207: the vendor's latest manifest name + catalog descriptors
+  // (protocol 3.81.0), '' when null or absent.
+  productName: string;
+  brand: string;
+  model: string;
+  family: string;
+  shortDescription: string;
   gapTiers: Map<number, number>;
   score: number;
 }
@@ -138,20 +145,31 @@ function SkuEvidenceRow({
   const domestic =
     auditorCountry !== undefined &&
     isFullyDomestic(row.result.geo_rollup, auditorCountry);
+  // v1.85 (2026-09-03), D-207: what the product is, under its id — present parts only; no node
+  // when the vendor published nothing, and none on a vendor-level gap row (spec §6: unchanged).
+  const headline = [row.productName, row.brand, row.model, row.family].filter(Boolean).join(' · ');
+  const hasSubhead = (headline !== '' || row.shortDescription !== '') && !isVendorLevelGap(row.result);
 
   return (
     <li className="text-sm">
       <div className="flex items-center justify-between gap-3 px-4 py-2">
-        <span className="flex items-center gap-2">
-          <span className="font-mono text-charcoal">{row.productId || '—'}</span>
-          {domestic && auditorCountry && (
-            <DomesticFlagBadge
-              country={auditorCountry}
-              title={`All components verified ${auditorCountry}-origin`}
-            />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-center gap-2">
+            <span className="font-mono text-charcoal">{row.productId || '—'}</span>
+            {domestic && auditorCountry && (
+              <DomesticFlagBadge country={auditorCountry} title={`All components verified ${auditorCountry}-origin`} />
+            )}
+          </span>
+          {hasSubhead && (
+            <span data-testid="sku-descriptors" className="flex flex-col text-xs text-slate">
+              {headline && <span>{headline}</span>}
+              {row.shortDescription && (
+                <span className="line-clamp-2" title={row.shortDescription}>{row.shortDescription}</span>
+              )}
+            </span>
           )}
         </span>
-        <span className="flex items-center gap-2">
+        <span className="flex shrink-0 items-center gap-2">
           {isVendorLevelGap(row.result) ? (
             <span
               className="text-xs italic text-slate"
@@ -227,6 +245,11 @@ export function TierGapGrid({
           productId: r.product_id ?? '',
           vendorId: r.vendor_participant_id ?? '',
           vendorName: vendorNameOf(r.tree),
+          productName: r.product_name ?? '',
+          brand: r.brand ?? '',
+          model: r.model ?? '',
+          family: r.family ?? '',
+          shortDescription: r.short_description ?? '',
           gapTiers,
           score: scoreOf(gapTiers),
         };
@@ -237,10 +260,9 @@ export function TierGapGrid({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter(
-      (e) =>
-        e.productId.toLowerCase().includes(q) ||
-        e.vendorName.toLowerCase().includes(q),
+    // v1.85 (2026-09-03), D-207: the box also finds a product by its name, brand, model or family.
+    return rows.filter((e) =>
+      [e.productId, e.vendorName, e.productName, e.brand, e.model, e.family].some((s) => s.toLowerCase().includes(q)),
     );
   }, [rows, query]);
 
