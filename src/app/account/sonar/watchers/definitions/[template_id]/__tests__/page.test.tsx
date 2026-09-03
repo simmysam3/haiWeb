@@ -121,7 +121,8 @@ describe('WatcherDefinitionPage — runs filter (D-206)', () => {
       }
       if (path.startsWith('/api/account/sonar/watcher/runs')) {
         const archived = path.includes('archived=true');
-        return { kind: 'ok', data: { runs: archived ? [ARCHIVED_RUN] : [] } };
+        const scoped = path.includes('template_id=t-1');
+        return { kind: 'ok', data: { runs: archived && scoped ? [ARCHIVED_RUN] : [] } };
       }
       throw new Error(`unexpected BFF path ${path}`);
     });
@@ -152,6 +153,7 @@ describe('WatcherDefinitionPage — runs filter (D-206)', () => {
       String(path).includes('/watcher/runs'),
     );
     expect(String(runsCall?.[0])).toMatch(/archived=true/);
+    expect(String(runsCall?.[0])).toMatch(/template_id=t-1/);
     expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
 
     const row = screen.getByRole('row', { name: /Run r-arch-1/ });

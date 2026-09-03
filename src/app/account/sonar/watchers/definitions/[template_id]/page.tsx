@@ -43,8 +43,12 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
   const tpl = detail.kind === 'ok' ? detail.data.template : null;
   if (!tpl || tpl.observation_class !== 'watcher') notFound();
 
+  // Scoped by template_id to match the SWR poll WatcherHistoryTable issues
+  // below (which is scoped the same way) — an unscoped initial fetch here
+  // would answer a different question than the poll that replaces it 15s
+  // later, and could skew further once archived runs (never deleted) pile up.
   const runsResp = await fetchBffJson<RunsResponse>(
-    `/api/account/sonar/watcher/runs${archived ? '?archived=true' : ''}`,
+    `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(template_id)}${archived ? '&archived=true' : ''}`,
   );
   const allRuns = runsResp.kind === 'ok' ? runsResp.data.runs : [];
   const templateRuns: EnrichedWatcherRun[] = allRuns
