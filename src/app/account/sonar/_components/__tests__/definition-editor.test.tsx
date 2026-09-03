@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { DefinitionEditor } from '../definition-editor';
@@ -99,7 +99,7 @@ describe('DefinitionEditor (audit)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
     const dialog = screen.getByRole('dialog', { name: 'Delete audit "weekly-audit"?' });
     expect(dialog).toBeInTheDocument();
-    expect(dialog).toHaveTextContent(/past runs stay in the run history/i);
+    expect(dialog).toHaveTextContent(/its runs will be archived/i);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -117,8 +117,29 @@ describe('DefinitionEditor (audit)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await userEvent.click(screen.getByRole('button', { name: 'Delete audit' }));
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/account/sonar/audit/definitions/def-1');
+    expect(url).toBe('/api/account/sonar/audit/definitions/def-1?runs=archive');
     expect((init as RequestInit).method).toBe('DELETE');
+  });
+
+  // v1.85 PR 2 — audit deletes are archive-only: no disposition choice, the
+  // dialog states what happens, and the DELETE carries ?runs=archive.
+  it('audit dialog states archive-only and sends runs=archive', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deleted: true, runs: { disposition: 'archive', affected: 4 } }),
+    } as Response);
+    renderAuditEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent(/its runs will be archived/i);
+    // Scoped to the dialog: the page's Active/Suspended activation radios
+    // (Schedule step) sit outside it and must not be mistaken for a
+    // disposition choice here.
+    expect(within(dialog).queryByRole('radio')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete audit' }));
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/account/sonar/audit/definitions/def-1?runs=archive',
+    );
   });
 
   it('shows an error and keeps the save bar when PATCH fails', async () => {
@@ -311,6 +332,48 @@ describe('DefinitionEditor (scopeLocked=false — watcher path)', () => {
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
     expect(body).not.toHaveProperty('scope');
+  });
+
+  // v1.85 PR 2 — watcher deletes offer a choice of what happens to prior
+  // runs; Archive is the safe default.
+  it('watcher dialog offers three dispositions with Archive selected by default', async () => {
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const group = screen.getByRole('radiogroup', { name: 'Prior runs' });
+    expect(within(group).getByRole('radio', { name: /archive prior runs/i })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: /delete prior runs/i })).not.toBeChecked();
+    expect(within(group).getByRole('radio', { name: /keep in active history/i })).not.toBeChecked();
+  });
+
+  it('watcher dialog sends the chosen disposition', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deleted: true, runs: { disposition: 'delete', affected: 2 } }),
+    } as Response);
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('radio', { name: /delete prior runs/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/account/sonar/watcher/definitions/def-1?runs=delete',
+    );
+  });
+
+  it('a 409 RUNS_IN_FLIGHT reply becomes a form error naming the count', async () => {
+    // A real Response (not a plain object cast) — describeApiError reads the
+    // body via res.clone().json(), which a plain mock object lacks.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { code: 'RUNS_IN_FLIGHT', message: 'x', details: { running_count: 2 } },
+        }),
+        { status: 409 },
+      ),
+    );
+    renderWatcherEditor();
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete watcher' }));
+    expect(await screen.findByText(/2 runs are still running/i)).toBeInTheDocument();
   });
 });
 

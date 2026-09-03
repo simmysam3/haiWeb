@@ -65,4 +65,25 @@ describe('describeApiError', () => {
     );
     expect(info.message.match(/f\.\d: bad/g)?.length).toBe(3);
   });
+
+  it('exposes an object-shaped details payload (e.g. RUNS_IN_FLIGHT running_count)', async () => {
+    const info = await describeApiError(
+      res(
+        {
+          error: {
+            code: 'RUNS_IN_FLIGHT',
+            message: 'x',
+            details: { running_count: 2 },
+          },
+        },
+        409,
+      ),
+    );
+    expect(info.details).toEqual({ running_count: 2 });
+  });
+
+  it('leaves details undefined when the envelope has none', async () => {
+    const info = await describeApiError(res({ error: 'Bad request' }, 400));
+    expect(info.details).toBeUndefined();
+  });
 });

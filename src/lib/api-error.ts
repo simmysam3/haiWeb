@@ -16,6 +16,13 @@ export interface ApiErrorInfo {
   message: string;
   /** True when the failure is an expired/missing auth session (HTTP 401). */
   sessionExpired: boolean;
+  /**
+   * The envelope's raw `error.details`, when it's an object (e.g. haiCore's
+   * `RUNS_IN_FLIGHT` 409 carries `{ running_count }`). Left undefined for
+   * the Zod-issues-array shape (already summarized into `message`) and for
+   * envelopes with no details.
+   */
+  details?: Record<string, unknown>;
 }
 
 const SESSION_EXPIRED_MESSAGE =
@@ -50,6 +57,7 @@ export async function describeApiError(res: Response): Promise<ApiErrorInfo> {
   }
 
   let message = '';
+  let details: Record<string, unknown> | undefined;
   const envelope =
     body && typeof body === 'object'
       ? (body as { error?: unknown }).error
@@ -60,6 +68,9 @@ export async function describeApiError(res: Response): Promise<ApiErrorInfo> {
     if (typeof e.message === 'string' && e.message) message = e.message;
     const fieldHints = summarizeZodIssues(e.details);
     if (fieldHints) message = message ? `${message} — ${fieldHints}` : fieldHints;
+    if (e.details && typeof e.details === 'object' && !Array.isArray(e.details)) {
+      details = e.details as Record<string, unknown>;
+    }
   } else if (typeof envelope === 'string' && envelope) {
     message = envelope;
   } else if (
@@ -79,5 +90,5 @@ export async function describeApiError(res: Response): Promise<ApiErrorInfo> {
         : `Request failed (${res.status}).`;
   }
 
-  return { status: res.status, message, sessionExpired };
+  return { status: res.status, message, sessionExpired, details };
 }
