@@ -148,6 +148,38 @@ describe('watcher-history column pack — actions cell', () => {
   });
 });
 
+// D-206 — a run whose definition was deleted with runs=archive carries
+// archived_at. The history pack's status cell adds an `archived` pill after
+// the run_status pill so an archived row reads as such wherever it appears
+// (e.g. the Archived-filtered list on the Run history tab).
+describe('watcher-history column pack — status cell', () => {
+  function renderStatusCell(run: EnrichedWatcherRun) {
+    const pack = buildWatcherHistoryColumnPack();
+    const col = pack.columns.find((c) => c.key === 'status');
+    if (!col) throw new Error('status column missing from history pack');
+    return render(<>{col.render(run)}</>);
+  }
+
+  it('renders only the run_status pill when archived_at is not set', () => {
+    renderStatusCell(makeRun(['lead_time_distribution']));
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.queryByText('Archived')).not.toBeInTheDocument();
+  });
+
+  it('renders an archived pill after the status pill when archived_at is a non-null string', () => {
+    const run = { ...makeRun(['lead_time_distribution']), archived_at: '2026-09-02T12:00:00.000Z' };
+    renderStatusCell(run);
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.getByText('Archived')).toBeInTheDocument();
+  });
+
+  it('does not render the archived pill when archived_at is explicitly null', () => {
+    const run = { ...makeRun(['lead_time_distribution']), archived_at: null };
+    renderStatusCell(run);
+    expect(screen.queryByText('Archived')).not.toBeInTheDocument();
+  });
+});
+
 // v1.85 — the Configurations table's Actions cell was an un-labelled chevron
 // that led to the same page as the name, and that page opened on runs. It is
 // now a labelled menu with an explicit destination per item; the name link

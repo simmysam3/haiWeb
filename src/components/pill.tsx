@@ -28,7 +28,18 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     unsubstantiated_gap:
       'No attestation is available; this node is declared as a known unverified gap.',
   },
-  run_status: RUN_STATUS_DEFINITIONS,
+  // `archived` is not a WatcherRunStatus member — it's a separate archived_at
+  // flag (D-206: set when the run's definition was deleted with
+  // runs=archive), rendered as a second pill alongside the run_status pill.
+  // Spread rather than added to RUN_STATUS_DEFINITIONS directly so that
+  // const's `satisfies Record<WatcherRunStatus, string>` stays an exact
+  // exhaustiveness check against the protocol union (excess keys there fail
+  // the build).
+  run_status: {
+    ...RUN_STATUS_DEFINITIONS,
+    archived:
+      'Archived when its definition was deleted; hidden from the active list and dashboards, never deleted.',
+  },
   run_origin: {
     ad_hoc: 'Triggered manually with no associated run template.',
     template_manual: 'Triggered manually from a saved run template.',

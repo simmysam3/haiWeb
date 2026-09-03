@@ -211,7 +211,14 @@ export function buildWatcherHistoryColumnPack(): ColumnPack<EnrichedWatcherRun> 
         key: 'status',
         label: 'Status',
         width: '10%',
-        render: (run) => <Pill category="run_status" value={run.status} />,
+        render: (run) => (
+          <span className="inline-flex items-center gap-1">
+            <Pill category="run_status" value={run.status} />
+            {typeof run.archived_at === 'string' && (
+              <Pill category="run_status" value="archived" />
+            )}
+          </span>
+        ),
       },
       {
         key: 'actions',

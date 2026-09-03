@@ -175,6 +175,18 @@ describe('Pill', () => {
       expect(definitionFor('run_status', s), `missing run_status definition: ${s}`).toBeDefined();
     }
   });
+
+  // D-206 — `archived` is not a WatcherRunStatus member (it's a separate
+  // archived_at flag rendered as a second pill alongside the status pill),
+  // but it still needs a run_status pill definition of its own.
+  it('renders an archived run_status pill with its definition', () => {
+    render(<Pill category="run_status" value="archived" />);
+    expect(screen.getByText('Archived')).toBeInTheDocument();
+    const tip = document.getElementById(
+      screen.getByTestId('pill').getAttribute('aria-describedby') as string,
+    );
+    expect(tip).toHaveTextContent(/deleted/i);
+  });
 });
 
 describe('lead_time_col pill category', () => {
