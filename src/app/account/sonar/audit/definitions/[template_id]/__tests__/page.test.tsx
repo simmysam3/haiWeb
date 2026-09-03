@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 
 /**
  * v1.85 — parity with the watcher page: the audit definition page shows this
@@ -19,6 +19,7 @@ vi.mock('next/headers', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/account/sonar/audit/definitions/a-1',
+  useSearchParams: () => new URLSearchParams(),
   notFound: vi.fn(),
 }));
 
@@ -62,8 +63,15 @@ function run(id: string, templateId: string, templateName: string) {
 }
 const OWN_RUN = run('r-own-1', 'a-1', 'Weekly EMEA Audit');
 const FOREIGN_RUN = run('r-foreign-1', 'a-2', 'Other Audit');
+// D-206 — a run whose definition was deleted with runs=archive carries
+// archived_at. The runs BFF returns it only when the request URL carries
+// `archived=true` (Task 2's contract).
+const ARCHIVED_RUN = { ...run('r-arch-1', 'a-1', 'Weekly EMEA Audit'), archived_at: '2026-08-25T00:00:00.000Z' };
 
 function runsFor(url: string) {
+  if (url.includes('archived=true')) {
+    return url.includes('template_id=a-1') ? [ARCHIVED_RUN] : [];
+  }
   return url.includes('template_id=a-1') ? [OWN_RUN] : [OWN_RUN, FOREIGN_RUN];
 }
 
@@ -89,11 +97,14 @@ beforeEach(() => {
   );
 });
 
-async function renderPage(tab?: string) {
+async function renderPage(tab?: string, runs?: string) {
   const Page = (await import('../page')).default;
+  const searchParams: Record<string, string> = {};
+  if (tab) searchParams.tab = tab;
+  if (runs) searchParams.runs = runs;
   const el = await Page({
     params: Promise.resolve({ template_id: 'a-1' }),
-    searchParams: Promise.resolve(tab ? { tab } : {}),
+    searchParams: Promise.resolve(searchParams),
   });
   render(el as React.ReactElement);
 }
@@ -118,5 +129,33 @@ describe('AuditDefinitionDetailPage tabs', () => {
   it('keeps the way back to the Audits list', async () => {
     await renderPage();
     expect(screen.getByRole('link', { name: '← Audits' })).toHaveAttribute('href', '/account/sonar/audit');
+  });
+});
+
+describe('AuditDefinitionDetailPage — runs filter (D-206)', () => {
+  it('defaults to active: no archived=true on the runs fetch, Active checked, no archived pill', async () => {
+    await renderPage();
+
+    const runsCall = fetchBffJson.mock.calls.find(([path]) =>
+      String(path).includes('/audit/runs'),
+    );
+    expect(String(runsCall?.[0])).not.toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
+    expect(
+      screen.queryAllByTestId('pill').some((el) => el.textContent === 'Archived'),
+    ).toBe(false);
+  });
+
+  it('?runs=archived fetches archived runs, checks Archived, and renders the archived pill', async () => {
+    await renderPage(undefined, 'archived');
+
+    const runsCall = fetchBffJson.mock.calls.find(([path]) =>
+      String(path).includes('/audit/runs'),
+    );
+    expect(String(runsCall?.[0])).toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
+
+    const row = screen.getByRole('row', { name: /Run r-arch-1/ });
+    expect(within(row).getByText('Archived')).toBeInTheDocument();
   });
 });

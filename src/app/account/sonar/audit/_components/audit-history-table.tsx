@@ -11,6 +11,9 @@ interface Props {
   auditorCountry: string | undefined;
   /** v1.85 — when set, the poll is scoped to this audit's runs (definition page). */
   templateId?: string;
+  /** D-206 — when true, polls the archived list (runs=archive'd on
+   * definition delete) instead of the default active list. */
+  archived?: boolean;
   emptyMessage?: string;
 }
 
@@ -21,10 +24,12 @@ interface Props {
  * props — Next.js 16 refuses to serialize functions through Client Component
  * props.
  */
-export function AuditHistoryTable({ initialRows, auditorCountry, templateId, emptyMessage }: Props) {
-  const pollEndpoint = templateId
-    ? `/api/account/sonar/audit/runs?template_id=${encodeURIComponent(templateId)}`
-    : '/api/account/sonar/audit/runs';
+export function AuditHistoryTable({ initialRows, auditorCountry, templateId, archived, emptyMessage }: Props) {
+  const base = '/api/account/sonar/audit/runs';
+  const params = new URLSearchParams();
+  if (templateId) params.set('template_id', templateId);
+  if (archived) params.set('archived', 'true');
+  const pollEndpoint = `${base}${params.size ? `?${params}` : ''}`;
   return (
     <RunHistoryTable<EnrichedAuditRun>
       initialRows={initialRows}

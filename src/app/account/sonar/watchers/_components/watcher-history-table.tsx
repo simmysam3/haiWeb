@@ -11,6 +11,9 @@ interface Props {
   /** When set, scopes the SWR poll to runs from this template so the
    * definition-detail history table doesn't pick up unrelated ad-hoc runs. */
   templateId?: string;
+  /** D-206 — when true, polls the archived list (runs=archive'd on
+   * definition delete) instead of the default active list. */
+  archived?: boolean;
   emptyMessage?: string;
 }
 
@@ -20,10 +23,12 @@ interface Props {
  * functions don't cross the server→client boundary (see memory:
  * [[haiweb-column-pack-server-client-boundary]]).
  */
-export function WatcherHistoryTable({ initialRows, templateId, emptyMessage }: Props) {
-  const pollEndpoint = templateId
-    ? `/api/account/sonar/watcher/runs?template_id=${encodeURIComponent(templateId)}`
-    : '/api/account/sonar/watcher/runs';
+export function WatcherHistoryTable({ initialRows, templateId, archived, emptyMessage }: Props) {
+  const base = '/api/account/sonar/watcher/runs';
+  const params = new URLSearchParams();
+  if (templateId) params.set('template_id', templateId);
+  if (archived) params.set('archived', 'true');
+  const pollEndpoint = `${base}${params.size ? `?${params}` : ''}`;
   return (
     <RunHistoryTable<EnrichedWatcherRun>
       initialRows={initialRows}

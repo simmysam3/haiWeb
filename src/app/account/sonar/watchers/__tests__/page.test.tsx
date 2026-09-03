@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { RunTemplate } from '@haiwave/protocol';
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({ toString: () => '' }),
   headers: async () => ({ get: () => 'localhost:3001' }),
+}));
+
+// D-206 — RunsFilterToggle (rendered on the page) reads the pathname and
+// search params itself and navigates via useRouter().replace.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => '/account/sonar/watchers',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const fetchMock = vi.fn();
@@ -33,6 +41,27 @@ const watcherTemplate = (id: string, cadence: object): RunTemplate =>
     },
   }) as unknown as RunTemplate;
 
+// D-206 — a run whose definition was deleted with runs=archive carries
+// archived_at. The runs BFF returns it only when the request URL carries
+// `archived=true`, matching Task 2's BFF contract.
+const ARCHIVED_RUN = {
+  run_id: 'r-arch-1',
+  initiator_participant_id: 'p-1',
+  triggered_at: '2026-08-20T10:00:00.000Z',
+  triggered_by_user_id: null,
+  status: 'complete',
+  completed_at: '2026-08-20T10:05:00.000Z',
+  cancelled_at: null,
+  depth_limit: 1,
+  hop_count: 5,
+  gap_count: 0,
+  error_message: null,
+  run_origin: 'template_scheduled',
+  template_id: 't-1',
+  signal_types: ['lead_time_distribution'],
+  archived_at: '2026-08-25T00:00:00.000Z',
+};
+
 function mockBff() {
   fetchMock.mockImplementation(async (url: RequestInfo | URL) => {
     const u = String(url);
@@ -54,16 +83,23 @@ function mockBff() {
       } as Response;
     }
     if (u.includes('/watcher/runs')) {
-      return { ok: true, status: 200, json: async () => ({ runs: [] }) } as Response;
+      const archived = u.includes('archived=true');
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ runs: archived ? [ARCHIVED_RUN] : [] }),
+      } as Response;
     }
     // NeedsTriageStrip (SWR) and anything else.
     return { ok: true, status: 200, json: async () => ({ alerts: [] }) } as Response;
   });
 }
 
-async function renderPage() {
+async function renderPage(searchParams: Record<string, string> = {}) {
   const Page = (await import('../page')).default;
-  render((await Page()) as React.ReactElement);
+  render(
+    (await Page({ searchParams: Promise.resolve(searchParams) })) as React.ReactElement,
+  );
 }
 
 describe('WatchersListPage', () => {
@@ -82,5 +118,37 @@ describe('WatchersListPage', () => {
     expect(screen.getByText('2 configurations · 1 scheduled')).toBeInTheDocument();
     // The configurations table itself stays unmounted until expanded.
     expect(screen.queryByText('Watcher t-1')).not.toBeInTheDocument();
+  });
+});
+
+// D-206 — the Runs section reads `?runs=archived` and shows the archived
+// list instead of the default active list.
+describe('WatchersListPage — runs filter (D-206)', () => {
+  it('defaults to active: no archived=true on the runs fetch, Active checked, no archived pill', async () => {
+    mockBff();
+    await renderPage();
+
+    const runsCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/watcher/runs'),
+    );
+    expect(String(runsCall?.[0])).not.toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
+    expect(
+      screen.queryAllByTestId('pill').some((el) => el.textContent === 'Archived'),
+    ).toBe(false);
+  });
+
+  it('?runs=archived fetches archived runs, checks Archived, and renders the archived pill', async () => {
+    mockBff();
+    await renderPage({ runs: 'archived' });
+
+    const runsCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes('/watcher/runs'),
+    );
+    expect(String(runsCall?.[0])).toMatch(/archived=true/);
+    expect(screen.getByRole('radio', { name: 'Archived' })).toBeChecked();
+
+    const row = screen.getByRole('row', { name: /Run r-arch-1/ });
+    expect(within(row).getByText('Archived')).toBeInTheDocument();
   });
 });

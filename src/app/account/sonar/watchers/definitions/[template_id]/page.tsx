@@ -3,7 +3,7 @@ import Link from 'next/link';
 import type { RunTemplate, WatcherRun } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import { formatCadence } from '@/components/sonar/observations';
+import { formatCadence, RunsFilterToggle, parseRunsFilter } from '@/components/sonar/observations';
 import { WatcherHistoryTable } from '../../_components/watcher-history-table';
 import { CalibratedLTTrendChart } from './_components/calibrated-lt-trend-chart';
 import { PerCounterpartyPostureTable } from './_components/per-counterparty-posture-table';
@@ -15,7 +15,7 @@ import type { EnrichedWatcherRun } from '../../_components/watcher-column-packs'
 
 interface RouteContext {
   params: Promise<{ template_id: string }>;
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; runs?: string | string[] }>;
 }
 
 interface DetailResponse {
@@ -28,7 +28,12 @@ interface RunsResponse {
 
 export default async function WatcherDefinitionPage({ params, searchParams }: RouteContext) {
   const { template_id } = await params;
-  const initialTab = parseDefinitionTab((await searchParams).tab);
+  const resolvedSearchParams = await searchParams;
+  const initialTab = parseDefinitionTab(resolvedSearchParams.tab);
+  // D-206 — ?runs=archived shows runs archived when this watcher's
+  // definition was deleted with runs=archive; otherwise the active list.
+  const runsFilter = parseRunsFilter(resolvedSearchParams.runs);
+  const archived = runsFilter === 'archived';
   const detail = await fetchBffJson<DetailResponse>(
     `/api/account/sonar/watcher/definitions/${template_id}`,
   );
@@ -39,7 +44,7 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
   if (!tpl || tpl.observation_class !== 'watcher') notFound();
 
   const runsResp = await fetchBffJson<RunsResponse>(
-    '/api/account/sonar/watcher/runs',
+    `/api/account/sonar/watcher/runs${archived ? '?archived=true' : ''}`,
   );
   const allRuns = runsResp.kind === 'ok' ? runsResp.data.runs : [];
   const templateRuns: EnrichedWatcherRun[] = allRuns
@@ -104,9 +109,11 @@ export default async function WatcherDefinitionPage({ params, searchParams }: Ro
               >
                 Run history
               </h2>
+              <RunsFilterToggle value={runsFilter} />
               <WatcherHistoryTable
                 initialRows={templateRuns}
                 templateId={template_id}
+                archived={archived}
                 emptyMessage="No runs yet for this watcher. Trigger one manually or wait for the next scheduled fire."
               />
             </section>

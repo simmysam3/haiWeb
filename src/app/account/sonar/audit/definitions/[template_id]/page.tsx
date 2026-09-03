@@ -4,6 +4,7 @@ import type { RunTemplate } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { formatCadence } from '../../../templates/_lib/format-cadence';
+import { RunsFilterToggle, parseRunsFilter } from '@/components/sonar/observations';
 import { DefinitionTabs } from '../../../_components/definition-tabs';
 import { parseDefinitionTab } from '../../../_lib/definition-tab';
 import { AuditHistoryTable } from '../../_components/audit-history-table';
@@ -13,7 +14,7 @@ import { AuditRunNowButton } from './_components/audit-run-now-button';
 
 interface DetailPageProps {
   params: Promise<{ template_id: string }>;
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; runs?: string | string[] }>;
 }
 
 interface RunsPayload {
@@ -23,7 +24,12 @@ interface RunsPayload {
 
 export default async function AuditDefinitionDetailPage({ params, searchParams }: DetailPageProps) {
   const { template_id } = await params;
-  const initialTab = parseDefinitionTab((await searchParams).tab);
+  const resolvedSearchParams = await searchParams;
+  const initialTab = parseDefinitionTab(resolvedSearchParams.tab);
+  // D-206 — ?runs=archived shows runs archived when this audit's definition
+  // was deleted with runs=archive; otherwise the active list.
+  const runsFilter = parseRunsFilter(resolvedSearchParams.runs);
+  const archived = runsFilter === 'archived';
   const result = await fetchBffJson<{ template: RunTemplate }>(
     `/api/account/sonar/audit/definitions/${template_id}`,
   );
@@ -41,7 +47,7 @@ export default async function AuditDefinitionDetailPage({ params, searchParams }
   // v1.85 — this audit's runs only. The list page shows every run; here the
   // BFF is asked for the template's runs so the history is the audit's own.
   const runsResult = await fetchBffJson<RunsPayload>(
-    `/api/account/sonar/audit/runs?template_id=${encodeURIComponent(template_id)}`,
+    `/api/account/sonar/audit/runs?template_id=${encodeURIComponent(template_id)}${archived ? '&archived=true' : ''}`,
   );
   const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
   const auditorCountry =
@@ -101,10 +107,12 @@ export default async function AuditDefinitionDetailPage({ params, searchParams }
               Runs of this audit only. Polled every 15 seconds while the page is open —
               in-progress runs update live.
             </p>
+            <RunsFilterToggle value={runsFilter} />
             <AuditHistoryTable
               initialRows={runs}
               auditorCountry={auditorCountry}
               templateId={template_id}
+              archived={archived}
               emptyMessage="No runs yet for this audit. Use Run now, or wait for the next scheduled fire."
             />
           </section>
