@@ -55,3 +55,11 @@ describe('CrossModalityTable', () => {
     expect(screen.getByText(/No partners observed yet/i)).toBeInTheDocument();
   });
 });
+
+describe('CrossModalityTable — a lane that did not answer (SEC-web-sonar-4-04)', () => {
+  it('renders the unavailable state, never "No partners observed yet.", when partners is null', () => {
+    render(<CrossModalityTable partners={null} />);
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No partners observed yet/i)).not.toBeInTheDocument();
+  });
+});

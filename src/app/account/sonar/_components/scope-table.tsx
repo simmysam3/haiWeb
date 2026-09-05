@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { AuditScope } from '@haiwave/protocol';
 import { DataTable, type Column } from '@/components';
 import { IdChip } from '@/components/id-chip';
+import { describeApiError, type ApiErrorInfo } from '@/lib/api-error';
+import { FormError } from '@/components/form-error';
 
 export function ScopeTable({
   initialScopes,
@@ -15,23 +17,33 @@ export function ScopeTable({
 }) {
   const [scopes, setScopes] = useState<AuditScope[]>(initialScopes);
   const [showDisabled, setShowDisabled] = useState(false);
+  const [actionError, setActionError] = useState<ApiErrorInfo | null>(null);
 
   const disabledCount = scopes.filter((s) => s.disabled_at).length;
   const visibleScopes = showDisabled ? scopes : scopes.filter((s) => !s.disabled_at);
 
+  // Revoking a counterparty's audit authorization must be visibly refused
+  // when it is refused: the row changes only after the BFF said 2xx/204.
   async function disable(id: string) {
-    const res = await fetch(`/api/account/audit-scopes/${id}`, {
-      method: 'DELETE',
-    });
-    if (res.ok || res.status === 204) {
-      setScopes((s) =>
-        s.map((x) =>
-          x.scope_id === id
-            ? { ...x, disabled_at: new Date().toISOString() }
-            : x,
-        ),
-      );
+    setActionError(null);
+    let res: Response;
+    try {
+      res = await fetch(`/api/account/audit-scopes/${id}`, { method: 'DELETE' });
+    } catch {
+      setActionError({ status: 0, sessionExpired: false, message: 'Could not reach the server. The scope is still active.' });
+      return;
     }
+    if (!res.ok && res.status !== 204) {
+      setActionError(await describeApiError(res));
+      return;
+    }
+    setScopes((s) =>
+      s.map((x) =>
+        x.scope_id === id
+          ? { ...x, disabled_at: new Date().toISOString() }
+          : x,
+      ),
+    );
   }
 
   const columns: Column<AuditScope>[] = [
@@ -124,12 +136,17 @@ export function ScopeTable({
     );
 
   return (
-    <DataTable
-      columns={columns}
-      data={visibleScopes}
-      keyFn={(s) => s.scope_id}
-      emptyMessage={filteredEmpty}
-      toolbar={toolbar}
-    />
+    <div className="space-y-3">
+      {actionError && (
+        <FormError message={actionError.message} sessionExpired={actionError.sessionExpired} />
+      )}
+      <DataTable
+        columns={columns}
+        data={visibleScopes}
+        keyFn={(s) => s.scope_id}
+        emptyMessage={filteredEmpty}
+        toolbar={toolbar}
+      />
+    </div>
   );
 }

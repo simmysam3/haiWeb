@@ -4,11 +4,13 @@ import { RefreshButton } from './refresh-button';
 import { RunAllButton } from './run-all-button';
 
 interface Props {
-  totalPartners: number;
+  /** `null` = the cross-modality lane did not answer; rendered as a dash, never 0. */
+  totalPartners: number | null;
   lastRunAt: string | null;
   throttledCounts: { audit: number; watcher: number; total: number } | null;
   failedRunsLast30d: number | null;
-  enabledTemplateCount?: number;
+  /** `null` = the templates lane did not answer (passed through to Run all). */
+  enabledTemplateCount?: number | null;
 }
 
 function Tile({ label, value }: { label: string; value: string | number }) {
@@ -34,7 +36,7 @@ export function HeaderStrip({
     <div className="space-y-4">
       <ThrottledRunsPanel counts={throttledCounts} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile label="Total partners observed" value={totalPartners} />
+        <Tile label="Total partners observed" value={totalPartners ?? '—'} />
         <Tile label="Last run" value={lastRunDisplay} />
         <Tile
           label="Throttled runs"

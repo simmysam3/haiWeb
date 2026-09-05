@@ -50,3 +50,18 @@ describe('RunAllButton', () => {
     await waitFor(() => screen.getByText(/1 failed/i));
   });
 });
+
+describe('RunAllButton — the templates lane did not answer (SEC-web-sonar-4-04)', () => {
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('is disabled with a could-not-load title, not "No enabled configurations yet", when the count is unknown', () => {
+    render(<RunAllButton enabledTemplateCount={null} />);
+    const btn = screen.getByRole('button', { name: /Run all/i });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('title', expect.stringMatching(/could not be loaded/i));
+    expect(btn.getAttribute('title')).not.toMatch(/No enabled configurations yet/i);
+  });
+});

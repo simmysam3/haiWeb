@@ -216,3 +216,24 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     consoleWarnSpy.mockRestore();
   });
 });
+
+describe('UnifiedDashboardPage — a best-effort lane that did not answer (SEC-web-sonar-4-04)', () => {
+  it('renders the unavailable copy, never "No partners observed yet.", when the cross-modality lane fails', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { points: [snapshot(25)] } })
+      // the four best-effort lanes, cross-modality first — refused
+      .mockResolvedValueOnce({ kind: 'error', status: 403, message: 'forbidden' })
+      .mockResolvedValueOnce({ kind: 'ok', data: { events: [] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { audit: 0, watcher: 0, total: 0 } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { templates: [] } });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { default: Page } = await import('../page');
+    render(await Page());
+    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
+
+    expect(screen.getAllByText(/could not be loaded/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/No partners observed yet/i)).not.toBeInTheDocument();
+  }, 10_000);
+});

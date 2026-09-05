@@ -147,3 +147,41 @@ describe('AuditDefinitionDetailPage — no Archived toggle (D-206 scope change)'
     expect(screen.queryByRole('radiogroup', { name: 'Runs' })).not.toBeInTheDocument();
   });
 });
+
+describe('AuditDefinitionDetailPage — History step reads the lifecycle events (QUA-web-api-1-14)', () => {
+  const EVENT = {
+    event_id: 'e-1',
+    template_id: 'a-1',
+    event_kind: 'suspended',
+    actor_user_id: null,
+    at: '2026-08-30T10:00:00.000Z',
+  };
+
+  it('passes the events lane to the History step instead of an always-empty list', async () => {
+    fetchBffJson.mockImplementation(async (path: string) => {
+      if (path === '/api/account/sonar/audit/definitions/a-1/events') return { kind: 'ok', data: { events: [EVENT] } };
+      if (path.startsWith('/api/account/sonar/audit/definitions/a-1')) return { kind: 'ok', data: { template } };
+      if (path.startsWith('/api/account/sonar/audit/runs')) return { kind: 'ok', data: { runs: runsFor(path), auditor_country: 'GB' } };
+      throw new Error(`unexpected BFF path ${path}`);
+    });
+    await renderPage('configuration');
+
+    expect(screen.getByText(/Authorized by/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No lifecycle events recorded yet/i)).not.toBeInTheDocument();
+  });
+
+  // Pin: the null branch landed with the events fetch; a lane that did not
+  // answer must never read as "no events recorded".
+  it('says History could not be loaded, not "no events", when the events lane fails', async () => {
+    fetchBffJson.mockImplementation(async (path: string) => {
+      if (path === '/api/account/sonar/audit/definitions/a-1/events') return { kind: 'error', status: 500, message: 'down' };
+      if (path.startsWith('/api/account/sonar/audit/definitions/a-1')) return { kind: 'ok', data: { template } };
+      if (path.startsWith('/api/account/sonar/audit/runs')) return { kind: 'ok', data: { runs: runsFor(path), auditor_country: 'GB' } };
+      throw new Error(`unexpected BFF path ${path}`);
+    });
+    await renderPage('configuration');
+
+    expect(screen.getByText(/History could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No lifecycle events recorded yet/i)).not.toBeInTheDocument();
+  });
+});
