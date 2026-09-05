@@ -344,6 +344,7 @@ const proxyEnv = loadEnv();
 const KEYCLOAK_URL = proxyEnv.KEYCLOAK_URL;
 const REALM = proxyEnv.KEYCLOAK_REALM;
 const PORTAL_CLIENT_ID = proxyEnv.KEYCLOAK_PORTAL_CLIENT_ID;
+const PORTAL_CLIENT_SECRET = proxyEnv.KEYCLOAK_CLIENT_SECRET;
 const TOKEN_URL = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
 
 interface RefreshedTokens {
@@ -362,12 +363,18 @@ async function exchangeRefreshToken(
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: PORTAL_CLIENT_ID,
+        client_secret: PORTAL_CLIENT_SECRET,
         refresh_token: refreshToken,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[proxy] refresh exchange failed', res.status, body);
+      return null;
+    }
     return (await res.json()) as RefreshedTokens;
-  } catch {
+  } catch (err) {
+    console.error('[proxy] refresh exchange threw', err);
     return null;
   }
 }
