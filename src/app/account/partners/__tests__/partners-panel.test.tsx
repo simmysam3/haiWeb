@@ -317,7 +317,9 @@ describe('PartnersPanel — remove partnership (SEC-web-account-1-02, §L-26 clo
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/open work/i);
     expect(alert).toHaveTextContent(/3 open orders/i);
-    expect(alert).toHaveTextContent(/1 open quote/i);
+    expect(alert).toHaveTextContent(/1 open quote(?!s)/i);
+    expect(alert).not.toHaveTextContent(/open sales order/i);
+    expect(alert).not.toHaveTextContent(/0 /);
     expect(screen.getByText('Acme Metals')).toBeInTheDocument();
     expect(screen.queryByText(/removed acme metals/i)).not.toBeInTheDocument();
   });

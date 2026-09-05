@@ -437,6 +437,8 @@ export function PartnersPanel() {
     },
   ];
 
+  const openWork = actionError ? openWorkSummary(actionError.details) : '';
+
   return (
     <>
       {toast && (
@@ -447,7 +449,7 @@ export function PartnersPanel() {
       {actionError && (
         <div className="mb-4">
           <FormError
-            message={openWorkSummary(actionError.details) ? `${actionError.message}: ${openWorkSummary(actionError.details)}` : actionError.message}
+            message={openWork ? `${actionError.message}: ${openWork}` : actionError.message}
             sessionExpired={actionError.sessionExpired}
           />
         </div>
