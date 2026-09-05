@@ -88,3 +88,41 @@ describe('CatalogClassBrowser — trading partner catalog', () => {
     );
   });
 });
+
+// R-5b interim (owner ruling 2026-09-05): a class's products are fetched as one
+// page of 500 and the rest silently did not exist. Until server-side search
+// lands, the browser says how many it holds versus how many it shows.
+describe('CatalogClassBrowser — a class larger than the page says so', () => {
+  it('names the shown count against the total when haiCore reports more products than the page', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/account/partners/vendor-1/catalog/classes') {
+        return jsonResponse({
+          classes: [{ class_id: 'k1', class_name: 'Connectors', product_count: 700 }],
+        });
+      }
+      if (url.startsWith('/api/account/partners/vendor-1/catalog/products?class_id=k1')) {
+        return jsonResponse({
+          products: [
+            { external_product_id: 'CN-1', product_name: 'Connector 1' },
+            { external_product_id: 'CN-2', product_name: 'Connector 2' },
+          ],
+          total: 700,
+        });
+      }
+      throw new Error(`unexpected url ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <CatalogClassBrowser
+        catalog={{ kind: 'counterparty', counterpartyId: 'vendor-1' }}
+        selectedSku=""
+        onSelect={vi.fn()}
+      />,
+    );
+    await screen.findByText('Connectors');
+    fireEvent.click(screen.getByRole('button', { name: /expand connectors/i }));
+    await screen.findByText('Connector 2');
+    expect(screen.getByText(/showing the first 2 of 700 products/i)).toBeInTheDocument();
+  });
+});
