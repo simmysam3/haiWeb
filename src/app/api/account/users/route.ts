@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole } from "@/lib/auth";
-import { listUsers, createUser, sendExecuteActionsEmail } from "@/lib/keycloak";
+import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
+import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
 
 /**
@@ -59,21 +59,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Only a role an owner may grant (never account_owner or a platform role).
+    if (typeof role !== "string" || !isAssignableRole(role)) {
+      return NextResponse.json(
+        { error: "role is not assignable" },
+        { status: 400 },
+      );
+    }
+
     const userId = await createUser({
       email,
       firstName: first_name,
       lastName: last_name,
       attributes: {
         participant_id: [session.participant.id],
-        role: [role ?? "account_viewer"],
       },
     });
+
+    // The realm role is the governing record (D-212): grant exactly the one
+    // chosen, before the invitee can log in.
+    await updateUserRole(userId, role);
 
     // The invitee proves mailbox control and sets their own password via
     // Keycloak's email flow; the portal never issues a usable credential.
     await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"]);
 
-    return NextResponse.json({ id: userId, email, first_name, last_name, role: role ?? "account_viewer" }, { status: 201 });
+    return NextResponse.json({ id: userId, email, first_name, last_name, role }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to create user" },

@@ -12,6 +12,7 @@
  */
 
 import { loadEnv } from "@/config/env";
+import { isAssignableRole } from "@/lib/auth";
 
 const env = loadEnv();
 const KEYCLOAK_URL = env.KEYCLOAK_URL;
@@ -177,7 +178,19 @@ export async function endSession(token: string): Promise<void> {
 
 // ─── Admin User Operations ──────────────────────────────────
 
-export async function listUsers(participantId: string): Promise<unknown[]> {
+export interface KeycloakUser {
+  id: string;
+  attributes?: Record<string, string[]>;
+}
+
+/**
+ * The participant's users, each carrying the realm role names mapped to them
+ * (D-212: the realm role is the governing record; the `role` attribute is not
+ * read). One role-mappings call per user, bounded by the `max=100` page.
+ */
+export async function listUsers(
+  participantId: string,
+): Promise<Array<KeycloakUser & { realmRoles: string[] }>> {
   const token = await getAdminToken();
 
   const res = await fetch(
@@ -188,12 +201,13 @@ export async function listUsers(participantId: string): Promise<unknown[]> {
   );
 
   if (!res.ok) return [];
-  return res.json();
-}
-
-export interface KeycloakUser {
-  id: string;
-  attributes?: Record<string, string[]>;
+  const users = (await res.json()) as KeycloakUser[];
+  return Promise.all(
+    users.map(async (user) => ({
+      ...user,
+      realmRoles: (await getUserRealmRoles(user.id)).map((r) => r.name),
+    })),
+  );
 }
 
 export async function getUser(userId: string): Promise<KeycloakUser> {
@@ -208,11 +222,57 @@ export async function getUser(userId: string): Promise<KeycloakUser> {
   return res.json();
 }
 
+export interface RealmRole {
+  id: string;
+  name: string;
+}
+
+/** The realm roles currently mapped to the user — the governing record (D-212). */
+export async function getUserRealmRoles(userId: string): Promise<RealmRole[]> {
+  const token = await getAdminToken();
+  const res = await fetch(
+    `${keycloakAdminUrl}/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Keycloak role-mappings lookup failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+/**
+ * Make `roleName` the user's one assignable realm role (D-212): every other
+ * ASSIGNABLE realm role is removed first, then the new one is added. Roles
+ * outside the assignable set (the realm default composite, account_owner,
+ * haiwave_admin) are never touched. Remove-first means a failure between the
+ * two steps leaves the user with less privilege, never more. Throws on any
+ * Keycloak refusal. Returns the realm role names that govern afterwards, so
+ * the caller reports the role that actually applies (a non-assignable role
+ * such as account_owner is untouched and still wins).
+ */
 export async function updateUserRole(
   userId: string,
   roleName: string,
-): Promise<void> {
+): Promise<string[]> {
   const token = await getAdminToken();
+  const mappingsUrl = `${keycloakAdminUrl}/users/${encodeURIComponent(userId)}/role-mappings/realm`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+  const current = await getUserRealmRoles(userId);
+  const stale = current.filter((r) => r.name !== roleName && isAssignableRole(r.name));
+  if (stale.length > 0) {
+    const del = await fetch(mappingsUrl, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify(stale),
+    });
+    if (!del.ok) {
+      throw new Error(`Keycloak role removal failed: ${del.status} ${await del.text()}`);
+    }
+  }
 
   const rolesRes = await fetch(
     `${keycloakAdminUrl}/roles/${roleName}`,
@@ -223,20 +283,17 @@ export async function updateUserRole(
   }
   const role = await rolesRes.json();
 
-  const res = await fetch(
-    `${keycloakAdminUrl}/users/${userId}/role-mappings/realm`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify([role]),
-    },
-  );
+  const res = await fetch(mappingsUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify([role]),
+  });
   if (!res.ok) {
     throw new Error(`Keycloak role assignment failed: ${res.status} ${await res.text()}`);
   }
+
+  const kept = current.filter((r) => !stale.includes(r)).map((r) => r.name);
+  return Array.from(new Set([...kept, roleName]));
 }
 
 export async function disableUser(userId: string): Promise<void> {

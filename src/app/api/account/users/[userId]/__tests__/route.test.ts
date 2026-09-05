@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const ASSIGNABLE = new Set([
-  'account_admin', 'procurement_read_only', 'procurement_transact',
-  'buyer_view_only', 'buyer_request_quote', 'buyer_full_transact',
-  'inside_sales_read_only', 'inside_sales_transact',
-]);
-vi.mock('@/lib/auth', () => ({
+// Only the session and the owner check are doubled; the role vocabulary
+// (isAssignableRole, resolveUserRole) is the real one.
+vi.mock('@/lib/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth')>()),
   getSession: vi.fn(),
   hasRole: (userRole: string) => userRole === 'account_owner',
-  isAssignableRole: (role: string) => ASSIGNABLE.has(role),
 }));
 
 vi.mock('@/lib/keycloak', () => ({
-  updateUserRole: vi.fn(async () => {}),
+  // Returns the realm roles that govern after the change (D-212).
+  updateUserRole: vi.fn(async (_userId: string, role: string) => ['default-roles-haiwave-network', role]),
   disableUser: vi.fn(async () => {}),
   getUser: vi.fn(),
 }));
@@ -56,6 +54,16 @@ describe('PATCH /api/account/users/:userId — role allowlist + tenant scoping',
     const res = await PATCH(patchReq({ role: 'account_admin' }), ctx('u-target'));
     expect(res.status).toBe(200);
     expect(updateUserRole).toHaveBeenCalledWith('u-target', 'account_admin');
+  });
+
+  it('reports the role that governs after the change, not the one requested (D-212)', async () => {
+    // The target also holds account_owner, which this route never removes.
+    (updateUserRole as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      'default-roles-haiwave-network', 'account_owner', 'buyer_view_only',
+    ]);
+    const res = await PATCH(patchReq({ role: 'buyer_view_only' }), ctx('u-target'));
+    expect(res.status).toBe(200);
+    expect((await res.json()).role).toBe('account_owner');
   });
 });
 
