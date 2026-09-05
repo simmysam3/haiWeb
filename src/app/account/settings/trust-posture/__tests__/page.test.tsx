@@ -44,6 +44,7 @@ describe('TrustPosturePage', () => {
       ok: false,
       status: 503,
       json: async () => ({}),
+      text: async () => 'Service Unavailable',
     } as Response);
     const Page = (await import('../page')).default;
     const ui = await Page();

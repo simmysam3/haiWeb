@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers';
+import { fetchBffJson } from '@/lib/server-fetch';
 import type {
   QueryGuardEvent,
   QueryGuardRule,
@@ -46,75 +46,58 @@ interface LoadResult {
 }
 
 async function loadQueryGuard(): Promise<LoadResult> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const base = `${proto}://${host}`;
-  const opts = { headers: { cookie: cookieHeader }, cache: 'no-store' as const };
-  try {
-    const [matrixRes, rulesRes, settingsRes, statesRes, eventsRes] = await Promise.all([
-      fetch(`${base}/api/account/query-guard/rules/resolved`, opts),
-      fetch(`${base}/api/account/query-guard/rules`, opts),
-      fetch(`${base}/api/account/query-guard/settings`, opts),
-      fetch(`${base}/api/account/query-guard/states`, opts),
-      fetch(`${base}/api/account/query-guard/events?limit=100`, opts),
-    ]);
-    // States + events are progressive enhancements like rules/settings —
-    // degrade to empty lists if either fetch fails.
-    let states: QueryGuardState[] = [];
-    if (statesRes.ok) {
-      const statesPayload = (await statesRes.json()) as { states?: QueryGuardState[] };
-      if (Array.isArray(statesPayload.states)) states = statesPayload.states;
-    }
-    let events: QueryGuardEvent[] = [];
-    if (eventsRes.ok) {
-      const eventsPayload = (await eventsRes.json()) as { events?: QueryGuardEvent[] };
-      if (Array.isArray(eventsPayload.events)) events = eventsPayload.events;
-    }
-    if (!matrixRes.ok) {
+  // D-62: every lane goes through `fetchBffJson`, which takes the origin from
+  // the configured PORTAL_BASE_URL (never the request's Host header), forwards
+  // the cookie, and never throws — a network failure is `status: 0`.
+  const [matrixRes, rulesRes, settingsRes, statesRes, eventsRes] = await Promise.all([
+    fetchBffJson<{ matrix?: ResolvedQueryGuardRule[] }>('/api/account/query-guard/rules/resolved'),
+    fetchBffJson<{ rules?: QueryGuardRule[] }>('/api/account/query-guard/rules'),
+    fetchBffJson<QueryGuardSettings>('/api/account/query-guard/settings'),
+    fetchBffJson<{ states?: QueryGuardState[] }>('/api/account/query-guard/states'),
+    fetchBffJson<{ events?: QueryGuardEvent[] }>('/api/account/query-guard/events?limit=100'),
+  ]);
+  // States + events are progressive enhancements like rules/settings —
+  // degrade to empty lists if either fetch fails.
+  let states: QueryGuardState[] = [];
+  if (statesRes.kind === 'ok' && Array.isArray(statesRes.data.states)) states = statesRes.data.states;
+  let events: QueryGuardEvent[] = [];
+  if (eventsRes.kind === 'ok' && Array.isArray(eventsRes.data.events)) events = eventsRes.data.events;
+  if (matrixRes.kind === 'error') {
+    if (matrixRes.status === 0) {
+      console.error('[query-guard] fetch failed', matrixRes.message);
       return {
         matrix: synthesizeDefaultMatrix(),
         rules: [],
         defaultAlertEmail: null,
         states,
         events,
-        error: `Unable to load query-guard rules (status ${matrixRes.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
+        error:
+          'Unable to reach the query-guard service. Showing spec defaults — saves may fail until the backend is reachable.',
       };
     }
-    const matrixPayload = (await matrixRes.json()) as { matrix?: ResolvedQueryGuardRule[] };
-    // Raw rules + settings are progressive enhancements (global column
-    // provenance, alert-email placeholder) — degrade quietly if they fail.
-    let rules: QueryGuardRule[] = [];
-    if (rulesRes.ok) {
-      const rulesPayload = (await rulesRes.json()) as { rules?: QueryGuardRule[] };
-      if (Array.isArray(rulesPayload.rules)) rules = rulesPayload.rules;
-    }
-    let defaultAlertEmail: string | null = null;
-    if (settingsRes.ok) {
-      const settings = (await settingsRes.json()) as QueryGuardSettings;
-      defaultAlertEmail = settings.default_alert_email ?? null;
-    }
-    return {
-      matrix: matrixPayload.matrix ?? synthesizeDefaultMatrix(),
-      rules,
-      defaultAlertEmail,
-      states,
-      events,
-      error: null,
-    };
-  } catch (err) {
-    console.error('[query-guard] fetch failed', err);
     return {
       matrix: synthesizeDefaultMatrix(),
       rules: [],
       defaultAlertEmail: null,
-      states: [],
-      events: [],
-      error:
-        'Unable to reach the query-guard service. Showing spec defaults — saves may fail until the backend is reachable.',
+      states,
+      events,
+      error: `Unable to load query-guard rules (status ${matrixRes.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
     };
   }
+  // Raw rules + settings are progressive enhancements (global column
+  // provenance, alert-email placeholder) — degrade quietly if they fail.
+  let rules: QueryGuardRule[] = [];
+  if (rulesRes.kind === 'ok' && Array.isArray(rulesRes.data.rules)) rules = rulesRes.data.rules;
+  let defaultAlertEmail: string | null = null;
+  if (settingsRes.kind === 'ok') defaultAlertEmail = settingsRes.data.default_alert_email ?? null;
+  return {
+    matrix: matrixRes.data.matrix ?? synthesizeDefaultMatrix(),
+    rules,
+    defaultAlertEmail,
+    states,
+    events,
+    error: null,
+  };
 }
 
 /**
