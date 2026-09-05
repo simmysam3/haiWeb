@@ -1,4 +1,4 @@
-# Counterparty Updates — HaiWeb lane (v1.86) Implementation Plan
+# Counterparty Updates — HaiWeb lane (v1.88) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- Worktree `~/dev/hw/haiWeb-cpsync`, branch `v1.86-counterparty-updates`, base `de85db2` (origin/master). Never touch `~/dev/hw/haiWeb` (the :3001 console's tree) or `~/dev/hw/haiCore` (the live Central's tree).
-- Release: HaiWeb **v1.86** cycle (release PR `v1.86`); no package.json bump (HaiWeb releases follow the cycle label). Merge order: after haiCore v1.86.0 and haiClient 1.89.0.
+- Worktree `~/dev/hw/haiWeb-cpsync`, branch `v1.88-counterparty-updates`, base `de85db2` (origin/master). Never touch `~/dev/hw/haiWeb` (the :3001 console's tree) or `~/dev/hw/haiCore` (the live Central's tree).
+- Release: HaiWeb **v1.88** cycle (release PR `v1.88`); no package.json bump (HaiWeb releases follow the cycle label). Merge order: after haiCore v1.88.0 and haiClient 1.89.0.
 - `@haiwave/protocol` resolves via `file:../haiCore/packages/protocol` — i.e. the PRIMARY haiCore checkout. This lane never repoints or symlinks it to an unmerged tree; the gate runs against whatever the primary carries (this feature imports nothing new from the protocol). Central accepts an older minor protocol header.
 - **No commercial ERP name in any user-visible string** — "your ERP" throughout.
 - Every string the spec quotes is used verbatim: the alert *"Write not allowed — your agent is not permitted to update your ERP. Please update these records directly in your ERP; they will clear on the next refresh."*; the tab label **"Counterparty updates"**; the existing tab keeps its label **"Counterparty Manifest"** (owner ruling #2, 2026-09-05 — no rename).
@@ -98,7 +98,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `src/app/account/manifests/counterparty-updates/counterparty-updates-tab.tsx`, `updates-table.tsx`, `write-alert.tsx`, `sync-now-panel.tsx`
-- Modify: `src/app/account/manifests/page.tsx:13-20, :35-41` (tab + rename)
+- Modify: `src/app/account/manifests/page.tsx:13-20, :35-41` (tab registration; no rename)
 - Test: `src/app/account/manifests/__tests__/page-tabs.test.tsx` (seven tabs; "Counterparty Manifest" present; "Counterparty updates" after "Entity Approvals"), `src/app/account/manifests/counterparty-updates/__tests__/counterparty-updates-tab.test.tsx`
 
 **Interfaces:**
@@ -199,16 +199,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
-### Task 4: The gate, HOLD, release PR body
-
-- [ ] **Step 1: Merge up.** `git fetch origin && git merge origin/master`.
-- [ ] **Step 2: Gate** (record counts): `npm run build` (0) · `~/dev/hw/vitest-lock.sh npx vitest run --maxWorkers=3 --minWorkers=1` (0 failed) · `npx playwright test --list` (0 type errors). The protocol the primary haiCore carries at that moment is what the build sees; this feature imports nothing new from it. Census: `git -C /Users/samfleming/dev/hw/haiWeb-cpsync diff origin/master...HEAD -- src | grep -c '^+.*@haiwave/protocol'` must be 0 added import lines; present control: `grep -rn "@haiwave/protocol" src | wc -l` returns the existing imports (measured 293 today). This census is the reason the 3.81.0-resolved gate (protocol via `file:../haiCore/packages/protocol`, the PRIMARY tree) is binding.
-- [ ] **Step 3: Visual walk on :3002** (`npx next start -p 3002` from this worktree after `npm run build`; the haiWeb bring-up memory: env from the primary's `.env.local`, never the primary's port): the seven tabs; the Counterparty updates tab against the merged haiCore (rows seeded by the haiClient live proof); the alert text verbatim; the profile locations round-trip (save, reload, plants persist). Screenshots into `.superpowers/walk-v186/` (untracked; preserve). **This walk is blocked until haiCore v1.86.0 AND haiClient 1.89.0 are merged and the haiClient live proof has seeded rows on central** — the Counterparty updates tab and the alert have nothing to render before then. Do not treat this as a gate condition for this lane's own HOLD; record it as an owed check.
-- [ ] **Step 4: HOLD record** `.superpowers/PR-BODY-v1.86.md` (the haiClient PR body's shape): tab, BFF, profile locations, tab rename, copy census; gate counts; walk screenshots; merge order last; release PR `v1.86`. Record the Step 3 visual walk as an OWED CHECK (blocked on haiCore + haiClient merging first) rather than a gate condition for this HOLD. Then STOP and report to the owner. **Push and the release PR only on the owner's word in session hw-a3's window.**
-
----
-
-### Task 5: Profile form — hide or disable every key with no backing haiCore profile field so nothing appears editable that does not persist
+### Task 4: Profile form — hide or disable every key with no backing haiCore profile field so nothing appears editable that does not persist
 
 **Files:**
 - Modify: `src/app/account/profile/profile-form.tsx`
@@ -237,11 +228,20 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
+### Task 5: The gate, HOLD, release PR body
+
+- [ ] **Step 1: Merge up.** `git fetch origin && git merge origin/master`.
+- [ ] **Step 2: Gate** (record counts): `npm run build` (0) · `~/dev/hw/vitest-lock.sh npx vitest run --maxWorkers=3 --minWorkers=1` (0 failed) · `npx playwright test --list` (0 type errors). The protocol the primary haiCore carries at that moment is what the build sees; this feature imports nothing new from it. Census: `git -C /Users/samfleming/dev/hw/haiWeb-cpsync diff origin/master...HEAD -- src | grep -c '^+.*@haiwave/protocol'` must be 0 added import lines; present control: `grep -rn "@haiwave/protocol" src | wc -l` returns the existing imports (measured 293 today). This census is the reason the 3.81.0-resolved gate (protocol via `file:../haiCore/packages/protocol`, the PRIMARY tree) is binding.
+- [ ] **Step 3: Visual walk on :3002** (`npx next start -p 3002` from this worktree after `npm run build`; the haiWeb bring-up memory: env from the primary's `.env.local`, never the primary's port): the seven tabs; the Counterparty updates tab against the merged haiCore (rows seeded by the haiClient live proof); the alert text verbatim; the profile locations round-trip (save, reload, plants persist). Screenshots into `.superpowers/walk-v188/` (untracked; preserve). **This walk is blocked until haiCore v1.88.0 AND haiClient 1.89.0 are merged and the haiClient live proof has seeded rows on central** — the Counterparty updates tab and the alert have nothing to render before then. Do not treat this as a gate condition for this lane's own HOLD; record it as an owed check.
+- [ ] **Step 4: HOLD record** `.superpowers/PR-BODY-v1.88.md` (the haiClient PR body's shape): tab, BFF, profile locations, tab registration (no rename), copy census; gate counts; walk screenshots; merge order last; release PR `v1.88`. Record the Step 3 visual walk as an OWED CHECK (blocked on haiCore + haiClient merging first) rather than a gate condition for this HOLD. Then STOP and report to the owner. **Push and the release PR only on the owner's word in session hw-a3's window.**
+
+---
+
 ## Self-review
 
-**Spec coverage → task:** §6.4 tab (header, alert, rows, pills, filter, identity select, "Not in your ERP" / "Create in ERP") → Task 2 · §6.4 BFF + client → Task 1 · §6.4 profile Locations editor → Task 3 · §6.4 tab rename → Task 2 · ruling 6 Sync all now + progress → Task 2 · ruling 7 "their last updated" → Task 2 · ruling 3 alert verbatim + dirty pill → Task 2 · §5.4 `account_admin` → Task 1 · §10 gate + walk → Task 4 · §11 boundaries (no notification; no counterparty view of the owner's rows — the BFF is owner-scoped by session) → held.
+**Spec coverage → task:** §6.4 tab (header, alert, rows, pills, filter, identity select, "Not in your ERP" / "Create in ERP") → Task 2 · §6.4 BFF + client → Task 1 · §6.4 profile Locations editor → Task 3 · §6.4 tab keeps its label (no rename, owner ruling #2) → Task 2 · ruling 6 Sync all now + progress → Task 2 · ruling 7 "their last updated" → Task 2 · ruling 3 alert verbatim + dirty pill → Task 2 · §5.4 `account_admin` → Task 1 · §10 gate + walk → Task 5 · §11 boundaries (no notification; no counterparty view of the owner's rows — the BFF is owner-scoped by session) → held.
 **Placeholder scan:** none.
 **Type consistency:** `CounterpartyUpdateRow` / `CounterpartyUpdatesList` / `CounterpartyUpdateDecision` / `SyncNowResponse` (Task 1) consumed in Task 2 · `ProfileLocation` (Task 3) matches `ParticipantLocationSchema` field for field · client method names in Task 1 match the routes' calls.
 **Verified in review round 1 (no change):** `hasRole('account_admin')` (`src/lib/auth.ts:228-240`) accepts `account_admin` and `account_owner` short-circuits; `MANIFEST_TABS` (`page.tsx:13-20`) carries exactly the six keys/labels reproduced in Task 2.
 **Round 2 refinement of §6.4's alert condition (stated):** the banner means "the write is not enabled" (every capability false + an approved row — ruling 3's verbatim sentence); every other refusal or failure shows the agent's own `apply_detail` on its row (the Why column). Without this the four-verb decision would make the banner false for a matched location's refusal (C-R1). An ambiguously matched location's Keep mine is captioned as a suppression (C-R2).
-**Observation for the PR body:** see Task 5 — the profile form's unbacked key (`tax_id`, no haiCore column) is hidden/disabled so nothing appears editable that does not persist; the `phone` vs `primary_contact_phone` naming was a mapping issue, resolved by Task 3 Step 3.
+**Observation for the PR body:** see Task 4 — the profile form's unbacked key (`tax_id`, no haiCore column) is hidden/disabled so nothing appears editable that does not persist; the `phone` vs `primary_contact_phone` naming was a mapping issue, resolved by Task 3 Step 3.
