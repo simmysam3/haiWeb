@@ -11,6 +11,8 @@ import { Modal } from "@/components/modal";
 import { ScoreBar } from "@/components/score-bar";
 import { scoreTextClass } from "@/lib/score-tier";
 import { useToast } from "@/lib/use-toast";
+import { describeApiError, type ApiErrorInfo } from "@/lib/api-error";
+import { FormError } from "@/components/form-error";
 import { DataTable, Column } from "@/components/data-table";
 import { CompanyProfileModal } from "@/components/company-profile-modal";
 import { ApprovalRules } from "./approval-rules";
@@ -44,12 +46,36 @@ export function PartnersPanel() {
   const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [connectCompany, setConnectCompany] = useState<MockDirectoryCompany | null>(null);
   const [connectMessage, setConnectMessage] = useState("");
-  const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
   const [banPartner, setBanPartner] = useState<MockPartner | null>(null);
   const [invitePartner, setInvitePartner] = useState<MockPartner | null>(null);
   const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
   const { toast, showToast } = useToast();
+  // The BFF's answer is the fact: a mutation mutates local state and shows a
+  // success toast only after a 2xx; anything else is surfaced here.
+  const [actionError, setActionError] = useState<ApiErrorInfo | null>(null);
+
+  /**
+   * Run a BFF request and return the Response only on a 2xx. A refusal is
+   * surfaced with the server's reason; a request that never reached the
+   * server is surfaced as such. Callers mutate and toast only when this
+   * returns a Response.
+   */
+  async function confirmed(request: Promise<Response>): Promise<Response | null> {
+    setActionError(null);
+    let res: Response;
+    try {
+      res = await request;
+    } catch {
+      setActionError({ status: 0, sessionExpired: false, message: "Could not reach the server. Please try again." });
+      return null;
+    }
+    if (!res.ok) {
+      setActionError(await describeApiError(res));
+      return null;
+    }
+    return res;
+  }
 
   // Queue filters & sort
   const [queueSort, setQueueSort] = useState<SortKey>("newest");
@@ -107,114 +133,121 @@ export function PartnersPanel() {
     return directory.find((c) => c.company_name === req.company_name)?.id;
   }
 
-  function handleApprove(req: MockAccessRequest) {
-    setRequests(requests.filter((r) => r.id !== req.id));
-    setPartners([...partners, {
-      id: `p-${req.id}`,
-      company_name: req.company_name,
-      status: "approved",
-      manifest_progress: 0,
-      established_at: new Date().toISOString(),
-      location: req.location,
-      industry: req.industry,
-      invite_yours: false,
-      invite_theirs: req.invite,
-      connection_id: `conn-${req.id}`,
-    }]);
+  // The connection haiCore records is the fact: after a successful approval
+  // the Active list is re-read from the BFF instead of inventing a row with a
+  // synthetic id (which later actions would post back as a participant id).
+  async function reloadPartners() {
+    const res = await confirmed(fetch('/api/account/partners'));
+    if (!res) return;
+    setPartners((await res.json()) as MockPartner[]);
+  }
+
+  async function handleApprove(req: MockAccessRequest) {
+    const res = await confirmed(fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) }));
+    if (!res) return;
+    setRequests((prev) => prev.filter((r) => r.id !== req.id));
     const dirId = findDirectoryIdForRequest(req);
     if (dirId) updateDirectoryStatus(dirId, "approved");
     showToast(`Approved connection with ${req.company_name}`);
-    // Fire-and-forget: persist approval to BFF
-    fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) });
+    await reloadPartners();
   }
 
-  function handleApproveWithInvite(req: MockAccessRequest) {
-    const newStatus = req.invite ? "trading_pair" : "approved";
-    setRequests(requests.filter((r) => r.id !== req.id));
-    setPartners([...partners, {
-      id: `p-${req.id}`,
-      company_name: req.company_name,
-      status: newStatus,
-      manifest_progress: 0,
-      established_at: new Date().toISOString(),
-      location: req.location,
-      industry: req.industry,
-      invite_yours: true,
-      invite_theirs: req.invite,
-      connection_id: `conn-${req.id}`,
-    }]);
+  // Approve, then propose the trading pair on the connection haiCore returns.
+  // (The approve route never read an `invite` flag; the proposal is its own
+  // PATCH, and both answers are checked before anything is shown as done.)
+  async function handleApproveWithInvite(req: MockAccessRequest) {
+    const approveRes = await confirmed(fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) }));
+    if (!approveRes) return;
+    const record = (await approveRes.json().catch(() => null)) as { id?: unknown } | null;
+    const connectionId = typeof record?.id === 'string' ? record.id : null;
+    setRequests((prev) => prev.filter((r) => r.id !== req.id));
     const dirId = findDirectoryIdForRequest(req);
-    if (dirId) updateDirectoryStatus(dirId, newStatus === "trading_pair" ? "trading_pair" : "approved");
+    if (dirId) updateDirectoryStatus(dirId, "approved");
+
+    if (!connectionId) {
+      setActionError({
+        status: approveRes.status,
+        sessionExpired: false,
+        message: `Approved ${req.company_name}, but the response named no connection, so the trading pair was not proposed. Use "Propose Trading Pair" from the Active list.`,
+      });
+      await reloadPartners();
+      return;
+    }
+    const inviteRes = await confirmed(fetch(`/api/account/connections/${connectionId}/invite`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invite: true }) }));
+    if (!inviteRes) {
+      setActionError((info) => info && { ...info, message: `Approved ${req.company_name}, but the trading pair was not proposed: ${info.message}` });
+      const list = await confirmed(fetch('/api/account/partners'));
+      if (list) setPartners((await list.json()) as MockPartner[]);
+      return;
+    }
     showToast(`Approved as trading partner — ${req.company_name}${req.invite ? " (Trading Pair Active)" : " (Pending their proposal)"}`);
-    // Fire-and-forget: persist approval + invite to BFF
-    fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve', invite: true }) });
+    await reloadPartners();
   }
 
-  function handleDecline(req: MockAccessRequest) {
-    setRequests(requests.filter((r) => r.id !== req.id));
+  async function handleDecline(req: MockAccessRequest) {
+    const res = await confirmed(fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deny' }) }));
+    if (!res) return;
+    setRequests((prev) => prev.filter((r) => r.id !== req.id));
     const dirId = findDirectoryIdForRequest(req);
     if (dirId) updateDirectoryStatus(dirId, "none");
     showToast(`Declined connection from ${req.company_name}`);
-    // Fire-and-forget: persist denial to BFF
-    fetch(`/api/account/connections/${req.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deny' }) });
   }
 
   // ─── Partner Actions ────────────────────────────────────────
 
-  function handleRemove() {
-    if (!removePartner) return;
-    setPartners(partners.filter((p) => p.id !== removePartner.id));
-    updateDirectoryStatus(removePartner.id, "none");
-    setRemovePartner(null);
-    showToast(`Removed partnership with ${removePartner.company_name}`);
-  }
+  // There is no "remove partnership": haiCore has no endpoint that removes an
+  // active connection (§L-26). Until one exists the only severance is Block,
+  // so no Remove control is offered rather than one that only edits the page.
 
-  function handleBan() {
+  async function handleBan() {
     if (!banPartner) return;
-    setPartners(partners.filter((p) => p.id !== banPartner.id));
+    const res = await confirmed(fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) }));
+    setBanPartner(null);
+    if (!res) return;
+    setPartners((prev) => prev.filter((p) => p.id !== banPartner.id));
     updateDirectoryStatus(banPartner.id, "banned");
     setBanPartner(null);
     showToast(`Banned ${banPartner.company_name}`);
-    fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) });
   }
 
-  function handleDowngrade() {
+  async function handleDowngrade() {
     if (!downgradePartner) return;
-    setPartners(partners.map((p) =>
+    const res = await confirmed(fetch('/api/account/connections/downgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ connection_id: downgradePartner.connection_id, target_state: 'approved' }) }));
+    setDowngradePartner(null);
+    if (!res) return;
+    setPartners((prev) => prev.map((p) =>
       p.id === downgradePartner.id
         ? { ...p, status: "approved" as const, invite_yours: false, invite_theirs: false }
         : p,
     ));
     updateDirectoryStatus(downgradePartner.id, "approved");
-    setDowngradePartner(null);
     showToast(`Downgraded ${downgradePartner.company_name} to Approved`);
-    fetch('/api/account/connections/downgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ connection_id: downgradePartner.connection_id, target_state: 'approved' }) });
   }
 
-  function handleConnect() {
+  async function handleConnect() {
     if (!connectCompany) return;
-    updateDirectoryStatus(connectCompany.id, "pending");
-    // Fire-and-forget: send connection request to BFF
-    fetch('/api/account/connections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: connectCompany.id, message: connectMessage }) });
+    const res = await confirmed(fetch('/api/account/connections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: connectCompany.id, message: connectMessage }) }));
     setConnectCompany(null);
+    if (!res) return;
+    updateDirectoryStatus(connectCompany.id, "pending");
     setConnectMessage("");
     showToast(`Connection request sent to ${connectCompany.company_name}`);
   }
 
-  function handleSetInvite() {
+  async function handleSetInvite() {
     if (!invitePartner) return;
     const newInviteYours = !invitePartner.invite_yours;
     const newStatus = newInviteYours && invitePartner.invite_theirs ? "trading_pair" : "approved";
-    setPartners(partners.map((p) => {
+    const res = await confirmed(fetch(`/api/account/connections/${invitePartner.connection_id}/invite`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invite: newInviteYours }) }));
+    setInvitePartner(null);
+    if (!res) return;
+    setPartners((prev) => prev.map((p) => {
       if (p.id !== invitePartner.id) return p;
       return { ...p, invite_yours: newInviteYours, status: newStatus };
     }));
     updateDirectoryStatus(invitePartner.id, newStatus);
     const action = invitePartner.invite_yours ? "Withdrew trading pair proposal from" : "Proposed trading pair with";
     showToast(`${action} ${invitePartner.company_name}`);
-    // Fire-and-forget: persist invite toggle to BFF
-    fetch(`/api/account/connections/${invitePartner.connection_id}/invite`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invite: newInviteYours }) });
-    setInvitePartner(null);
   }
 
   // ─── Filtered / Sorted Queue ────────────────────────────────
@@ -337,18 +370,6 @@ export function PartnersPanel() {
       ),
     },
     {
-      key: "manifest",
-      label: "Manifest Progress",
-      render: (p) => (
-        <div className="flex items-center gap-2">
-          <div className="w-24 h-2 bg-slate/10 rounded-full overflow-hidden">
-            <div className="h-full bg-teal rounded-full" style={{ width: `${p.manifest_progress}%` }} />
-          </div>
-          <span className="text-xs text-slate">{p.manifest_progress}%</span>
-        </div>
-      ),
-    },
-    {
       key: "established",
       label: "Established",
       render: (p) => <span className="text-slate">{new Date(p.established_at).toLocaleDateString()}</span>,
@@ -380,7 +401,6 @@ export function PartnersPanel() {
           {p.status === "trading_pair" && (
             <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => setRemovePartner(p)}>Remove</Button>
           <Button size="sm" variant="ghost" onClick={() => setBanPartner(p)}>Block</Button>
         </div>
       ),
@@ -392,6 +412,11 @@ export function PartnersPanel() {
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
           {toast}
+        </div>
+      )}
+      {actionError && (
+        <div className="mb-4">
+          <FormError message={actionError.message} sessionExpired={actionError.sessionExpired} />
         </div>
       )}
 
@@ -766,24 +791,6 @@ export function PartnersPanel() {
             <Button onClick={handleSetInvite}>
               {invitePartner?.invite_yours ? "Withdraw" : "Propose Trading Pair"}
             </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Remove Modal */}
-      <Modal open={!!removePartner} onClose={() => setRemovePartner(null)} title="Remove Partnership">
-        <div className="space-y-4">
-          <p className="text-sm text-charcoal">
-            Remove partnership with <strong>{removePartner?.company_name}</strong>?
-          </p>
-          {removePartner?.status === "trading_pair" && (
-            <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
-              Active orders in flight will not be cancelled, but no new orders can be initiated. Connection fee billing stops at end of billing period.
-            </div>
-          )}
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={() => setRemovePartner(null)}>Cancel</Button>
-            <Button variant="danger" onClick={handleRemove}>Remove</Button>
           </div>
         </div>
       </Modal>

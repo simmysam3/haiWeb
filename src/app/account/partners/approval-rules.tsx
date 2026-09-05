@@ -5,6 +5,8 @@ import { Card } from "@/components/card";
 import { Button } from "@/components/button";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
+import { describeApiError, type ApiErrorInfo } from "@/lib/api-error";
+import { FormError } from "@/components/form-error";
 import type { MockApprovalRules } from "@/lib/mock-types";
 
 const EMPTY_RULES: MockApprovalRules = {
@@ -47,6 +49,8 @@ export function ApprovalRules() {
   const [testBusinessType, setTestBusinessType] = useState("Corporation");
   const [testRegion, setTestRegion] = useState("Midwest");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testError, setTestError] = useState<ApiErrorInfo | null>(null);
+  const [saveError, setSaveError] = useState<ApiErrorInfo | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
@@ -424,6 +428,10 @@ export function ApprovalRules() {
           onClick={async () => {
             setIsTesting(true);
             setTestResult(null);
+            setTestError(null);
+            // The verdict shown is the server's or nothing: a refusal or an
+            // unreachable server is reported as such, never replaced by a
+            // browser-side guess against the unsaved draft.
             try {
               const res = await fetch("/api/account/rules/test", {
                 method: "POST",
@@ -433,13 +441,10 @@ export function ApprovalRules() {
               if (res.ok) {
                 setTestResult(await res.json());
               } else {
-                // Fallback: evaluate locally
-                const localResult = evaluateLocally(rules, testScore, testBusinessType, testRegion);
-                setTestResult(localResult);
+                setTestError(await describeApiError(res));
               }
             } catch {
-              const localResult = evaluateLocally(rules, testScore, testBusinessType, testRegion);
-              setTestResult(localResult);
+              setTestError({ status: 0, sessionExpired: false, message: "Could not reach the server. Please try again." });
             } finally {
               setIsTesting(false);
             }
@@ -447,6 +452,11 @@ export function ApprovalRules() {
         >
           {isTesting ? "Testing..." : "Test Rules"}
         </Button>
+        {testError && (
+          <div className="mt-4">
+            <FormError message={testError.message} sessionExpired={testError.sessionExpired} />
+          </div>
+        )}
         {testResult && (
           <div className={`mt-4 p-4 rounded-lg border ${
             testResult.result === "auto_approve" ? "bg-success/5 border-success/20" :
@@ -470,20 +480,35 @@ export function ApprovalRules() {
         )}
       </Card>
 
+      {saveError && (
+        <FormError message={saveError.message} sessionExpired={saveError.sessionExpired} />
+      )}
       <div className="flex justify-end">
         <Button
           disabled={isSaving}
           onClick={async () => {
             setIsSaving(true);
+            setSaveError(null);
+            // Three writes, each checked: "saved" is shown only when all three
+            // are 2xx; a refusal names the section and nothing claims success.
+            const sections: Array<[string, unknown]> = [
+              ["bulk_criteria", rules.bulk],
+              ["per_request", rules.per_request],
+              ["contact_route", rules.contact],
+            ];
             try {
-              await Promise.all([
-                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "bulk_criteria", data: rules.bulk }) }),
-                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "per_request", data: rules.per_request }) }),
-                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: "contact_route", data: rules.contact }) }),
-              ]);
+              const responses = await Promise.all(sections.map(([section, data]) =>
+                fetch("/api/account/rules", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section, data }) }),
+              ));
+              const failed = responses.findIndex((res) => !res.ok);
+              if (failed !== -1) {
+                const info = await describeApiError(responses[failed]);
+                setSaveError({ ...info, message: `${sections[failed][0]}: ${info.message}` });
+                return;
+              }
               showToast("Approval rules saved.");
             } catch {
-              showToast("Approval rules saved (local only).");
+              setSaveError({ status: 0, sessionExpired: false, message: "Could not reach the server. Nothing was saved." });
             } finally {
               setIsSaving(false);
             }
@@ -494,33 +519,4 @@ export function ApprovalRules() {
       </div>
     </div>
   );
-}
-
-function evaluateLocally(
-  rules: MockApprovalRules,
-  score: number,
-  businessType: string,
-  region: string,
-): TestResult {
-  if (rules.per_request.default_posture === "auto_approve_all") {
-    return { result: "auto_approve", reason: "Posture is auto-approve all." };
-  }
-  if (rules.per_request.default_posture === "manual_only") {
-    return { result: "queue", reason: "Posture is manual review only." };
-  }
-  // Check bulk criteria first
-  if (score >= rules.bulk.min_score) {
-    return { result: "auto_approve", reason: `Score ${score} meets bulk minimum of ${rules.bulk.min_score}.`, matched_criterion: "bulk_criteria.min_score" };
-  }
-  // Per-request checks
-  if (score < rules.per_request.min_score) {
-    return { result: "queue", reason: `Score ${score} below per-request minimum of ${rules.per_request.min_score}.`, matched_criterion: "per_request.min_score" };
-  }
-  if (rules.per_request.allowed_business_types.length > 0 && !rules.per_request.allowed_business_types.includes(businessType)) {
-    return { result: "queue", reason: `Business type "${businessType}" not in allowed types.`, matched_criterion: "per_request.allowed_business_types" };
-  }
-  if (rules.per_request.allowed_regions.length > 0 && !rules.per_request.allowed_regions.includes(region)) {
-    return { result: "queue", reason: `Region "${region}" not in allowed regions.`, matched_criterion: "per_request.allowed_regions" };
-  }
-  return { result: "auto_approve", reason: "All per-request rules passed." };
 }
