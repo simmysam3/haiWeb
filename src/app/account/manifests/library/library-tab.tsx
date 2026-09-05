@@ -6,8 +6,7 @@ import type { LibraryView, LibraryElement, PolicyContext } from '@/lib/library-t
 import { LibraryMatrix } from './library-matrix';
 import { AddEvidenceModal } from './add-evidence-modal';
 import { DraftReviewBanner } from './draft-review-banner';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { jsonFetcher } from '@/lib/swr-fetcher';
 
 function collectDraftIds(view: LibraryView): string[] {
   return view.sections.flatMap((s) =>
@@ -19,7 +18,9 @@ function collectDraftIds(view: LibraryView): string[] {
 }
 
 export function LibraryTab({ context }: { context: PolicyContext }) {
-  const { data, mutate, isLoading, error } = useSWR<LibraryView>('/api/account/library', fetcher);
+  // jsonFetcher throws on a non-2xx, so a 401/500 lands in `error` below
+  // instead of an error body reaching collectDraftIds (SEC-web-account-1-06).
+  const { data, mutate, isLoading, error } = useSWR<LibraryView>('/api/account/library', jsonFetcher);
   const [modalElement, setModalElement] = useState<LibraryElement | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [gatherStarted, setGatherStarted] = useState(false);

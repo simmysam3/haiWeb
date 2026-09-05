@@ -13,22 +13,13 @@ interface ConnectionAnalytics {
   top_requesters: { participant_id: string; name: string; request_count: number }[];
 }
 
-const MOCK_ANALYTICS: ConnectionAnalytics = {
-  approval_rate_30d: 78.5,
-  mean_time_to_approve_hours: 4.2,
-  auto_approval_rate: 62.3,
-  requests_30d: 47,
-  top_requesters: [
-    { participant_id: "1", name: "National Industrial Supply", request_count: 8 },
-    { participant_id: "2", name: "Pacific Coast Distributors", request_count: 6 },
-    { participant_id: "3", name: "Great Lakes Supply Co.", request_count: 5 },
-  ],
-};
-
 export default function AnalyticsPage() {
-  const { data } = useApi<ConnectionAnalytics>({
+  // Absence surfaces as absence (admin-dashboard.tsx): no seeded rates or
+  // requesters; a failed read is a visible notice and the tiles show
+  // "Not Available" (SEC-web-admin-ops-1-05).
+  const { data, error } = useApi<ConnectionAnalytics | null>({
     url: "/api/admin/dashboard?type=connections",
-    fallback: MOCK_ANALYTICS,
+    fallback: null,
   });
 
   return (
@@ -38,11 +29,16 @@ export default function AnalyticsPage() {
         description="Track connection formation patterns and approval velocity."
       />
 
+      {error && (
+        <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load connection analytics — haiCore answered {error}. Tiles show absence rather than stale or fabricated numbers.
+        </div>
+      )}
       <div className="grid grid-cols-4 gap-6">
-        <StatCard label="Requests (30d)" value={data.requests_30d.toString()} color="text-navy" />
-        <StatCard label="Approval Rate" value={`${data.approval_rate_30d.toFixed(1)}%`} color="text-success" />
-        <StatCard label="Avg. Approval Time" value={`${data.mean_time_to_approve_hours.toFixed(1)}h`} color="text-navy" />
-        <StatCard label="Auto-Approval Rate" value={`${data.auto_approval_rate.toFixed(1)}%`} color="text-teal" />
+        <StatCard label="Requests (30d)" value={data ? data.requests_30d.toString() : null} color="text-navy" />
+        <StatCard label="Approval Rate" value={data ? `${data.approval_rate_30d.toFixed(1)}%` : null} color="text-success" />
+        <StatCard label="Avg. Approval Time" value={data ? `${data.mean_time_to_approve_hours.toFixed(1)}h` : null} color="text-navy" />
+        <StatCard label="Auto-Approval Rate" value={data ? `${data.auto_approval_rate.toFixed(1)}%` : null} color="text-teal" />
       </div>
 
       <Card title="Top Requesters (30 days)">
@@ -56,7 +52,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {data.top_requesters.map((r) => (
+              {(data?.top_requesters ?? []).map((r) => (
                 <tr key={r.participant_id} className="border-b border-slate/10 hover:bg-light-gray/50">
                   <td className="py-3 px-4 font-medium text-charcoal">{r.name}</td>
                   <td className="py-3 px-4 text-slate">{r.request_count}</td>
