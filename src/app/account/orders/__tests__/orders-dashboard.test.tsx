@@ -114,3 +114,20 @@ describe('OrdersDashboard — process/complete report the response (SEC-web-acco
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('OrdersDashboard — a failed read is never an empty order book (SEC-web-account-2-06 instance)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('a failed read shows a could-not-load notice with Retry, not "No sell-side orders"', () => {
+    const refetch = vi.fn();
+    useApi.mockReturnValue({ data: { sell_side: [] }, loading: false, error: '500', refetch });
+    render(<OrdersDashboard />);
+
+    expect(screen.getByText(/couldn.t load/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/No sell-side orders/i)).not.toBeInTheDocument();
+  });
+});

@@ -51,7 +51,7 @@ export function OrdersDashboard() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [actionError, setActionError] = useState<ApiErrorInfo | null>(null);
 
-  const { data, loading, refetch } = useApi<OrdersApiResponse>({
+  const { data, loading, error, refetch } = useApi<OrdersApiResponse>({
     url: "/api/account/orders",
     fallback: FALLBACK,
   });
@@ -112,6 +112,13 @@ export function OrdersDashboard() {
             <Card>
               <p className="text-slate text-sm">Loading orders...</p>
             </Card>
+          ) : error ? (
+            // A failed read is a distinct state with Retry, never the empty
+            // order book (SEC-web-account-2-06).
+            <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem flex items-center justify-between gap-4">
+              <span>Couldn&apos;t load orders — haiCore answered {error}. Nothing here is a statement about your order book.</span>
+              <button type="button" onClick={refetch} className="px-3 py-1.5 text-xs font-medium rounded border border-problem/30 hover:bg-problem/10">Retry</button>
+            </div>
           ) : filteredOrders.length === 0 ? (
             <Card>
               <p className="text-slate text-sm">
