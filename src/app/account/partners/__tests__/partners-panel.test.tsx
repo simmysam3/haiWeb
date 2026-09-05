@@ -276,17 +276,62 @@ describe('PartnersPanel — network failure (SEC-web-account-1-05)', () => {
   });
 });
 
-describe('PartnersPanel — remove partnership (SEC-web-account-1-02, §L-26)', () => {
+describe('PartnersPanel — remove partnership (SEC-web-account-1-02, §L-26 closed by haiCore D-214)', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('offers no Remove control: haiCore has no endpoint that removes an active connection', async () => {
-    routeFetch(() => undefined, { partners: [activePartner] });
+  it('Remove → confirm posts target_state none for the partner\'s connection, drops the row, and toasts', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    routeFetch((url, init) => {
+      if (url === '/api/account/connections/downgrade' && init?.method === 'POST') {
+        calls.push({ url, init });
+        return jsonResponse({ connection_id: 'conn-1', previous_state: 'approved', new_state: 'none', invite_status: { requestor_invite: false, counterparty_invite: false } });
+      }
+      return undefined;
+    }, { partners: [activePartner] });
     render(<PartnersPanel />);
     await screen.findByText('Acme Metals');
 
-    expect(screen.queryByRole('button', { name: /^remove$/i })).not.toBeInTheDocument();
-    // The real severance path stays available.
-    expect(screen.getByRole('button', { name: /^block$/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
+    const confirm = (await screen.findAllByRole('button', { name: /^remove$/i })).at(-1)!;
+    fireEvent.click(confirm);
+
+    expect(await screen.findByText(/removed acme metals/i)).toBeInTheDocument();
+    expect(calls).toHaveLength(1);
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ connection_id: 'conn-1', target_state: 'none' });
+    expect(screen.queryByText('Acme Metals')).not.toBeInTheDocument();
+  });
+
+  it('a 409 OPEN_WORK keeps the partner, shows the reason with the counts, and shows no success toast', async () => {
+    routeFetch((url, init) =>
+      url === '/api/account/connections/downgrade' && init?.method === 'POST'
+        ? jsonResponse({ error: { code: 'OPEN_WORK', message: 'Cannot remove a connection while open work references the pair',
+            details: { orders: 3, sell_side_orders: 0, quotes: 1, obligations: 0, manifest_exchanges: 0, rma_requests: 0 } } }, 409)
+        : undefined,
+    { partners: [activePartner] });
+    render(<PartnersPanel />);
+    await screen.findByText('Acme Metals');
+
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
+    fireEvent.click((await screen.findAllByRole('button', { name: /^remove$/i })).at(-1)!);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/open work/i);
+    expect(alert).toHaveTextContent(/3 open orders/i);
+    expect(alert).toHaveTextContent(/1 open quote/i);
+    expect(screen.getByText('Acme Metals')).toBeInTheDocument();
+    expect(screen.queryByText(/removed acme metals/i)).not.toBeInTheDocument();
+  });
+
+  it('a 403 keeps the partner and shows the error', async () => {
+    routeFetch((url, init) =>
+      url === '/api/account/connections/downgrade' && init?.method === 'POST' ? jsonResponse({ error: 'Forbidden' }, 403) : undefined,
+    { partners: [activePartner] });
+    render(<PartnersPanel />);
+    await screen.findByText('Acme Metals');
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }));
+    fireEvent.click((await screen.findAllByRole('button', { name: /^remove$/i })).at(-1)!);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/forbidden|permission/i);
+    expect(screen.getByText('Acme Metals')).toBeInTheDocument();
   });
 });
 
