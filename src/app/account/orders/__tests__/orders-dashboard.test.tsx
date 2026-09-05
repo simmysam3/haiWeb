@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { OrdersDashboard } from '../orders-dashboard';
 
 const useApi = vi.fn();
@@ -59,5 +59,58 @@ describe('OrdersDashboard', () => {
     expect(screen.getByText(/Order aaaabbbb/)).toBeInTheDocument();
     expect(screen.queryByText(/ERP Ref/)).not.toBeInTheDocument();
     expect(screen.queryByText(/MOCK-SO-12345/)).not.toBeInTheDocument();
+  });
+});
+
+const pendingOrder = {
+  id: 'o-pending',
+  order_id: 'eeeeffff-0000-4000-8000-000000000003',
+  invoice_id: 'inv-1',
+  vendor_participant_id: 'v1',
+  buyer_participant_id: 'b1',
+  status: 'pending',
+  po_number: 'PO-1',
+  order_total: 10,
+  currency: 'USD',
+  line_items_summary: '1 item',
+  created_at: '2026-08-01T12:00:00Z',
+  updated_at: '2026-08-01T12:00:00Z',
+  processed_at: null,
+  completed_at: null,
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
+describe('OrdersDashboard — process/complete report the response (SEC-web-account-2-05)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('Process: a 403 shows the permission error and does not refetch', async () => {
+    const refetch = vi.fn();
+    useApi.mockReturnValue({ data: { sell_side: [pendingOrder] }, loading: false, error: null, refetch });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'Forbidden' }, 403));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<OrdersDashboard />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^process$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/forbidden|permission/i);
+    expect(refetch).not.toHaveBeenCalled();
+  });
+
+  it('Process: a 2xx re-reads the orders and shows no error', async () => {
+    const refetch = vi.fn();
+    useApi.mockReturnValue({ data: { sell_side: [pendingOrder] }, loading: false, error: null, refetch });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ id: 'o-pending', status: 'processed' }));
+    render(<OrdersDashboard />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^process$/i }));
+
+    await vi.waitFor(() => expect(refetch).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
