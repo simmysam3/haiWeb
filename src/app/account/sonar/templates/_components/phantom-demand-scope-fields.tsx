@@ -32,6 +32,16 @@ interface CatalogProductRow {
   product_name: string | null;
 }
 
+/** One page of a partner's catalog is what the suggestions can offer. */
+const CATALOG_PAGE_SIZE = 500;
+
+/** How much of a partner's catalog the suggestions cover, when it is not all of it. */
+interface PartnerCoverage {
+  counterpartyId: string;
+  shown: number;
+  total: number;
+}
+
 // Both catalog endpoints return the full product list; filter + cap client-side
 // to the autocomplete's needs (the input only queries at length >= 2).
 function toHits(products: CatalogProductRow[], q: string): CatalogHit[] {
@@ -54,6 +64,8 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
   // The qty field keeps its own string draft so the user can fully clear and
   // retype it. Only propagate valid positive integers to the parent scope.
   const [qtyDraft, setQtyDraft] = useState(String(value.default_qty));
+  // Keyed by partner so a stale figure never survives a partner change.
+  const [partnerCoverage, setPartnerCoverage] = useState<PartnerCoverage | null>(null);
   useEffect(() => {
     setQtyDraft(String(value.default_qty));
   }, [value.default_qty]);
@@ -75,11 +87,16 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
     async (q: string): Promise<CatalogHit[]> => {
       if (!counterpartyId) return [];
       const res = await fetch(
-        `/api/account/partners/${encodeURIComponent(counterpartyId)}/catalog/products?page=1&size=500`,
+        `/api/account/partners/${encodeURIComponent(counterpartyId)}/catalog/products?page=1&size=${CATALOG_PAGE_SIZE}`,
       );
       if (!res.ok) return [];
-      const body = (await res.json()) as { products?: CatalogProductRow[] };
-      return toHits(body.products ?? [], q);
+      const body = (await res.json()) as { products?: CatalogProductRow[]; total?: number };
+      const products = body.products ?? [];
+      const total = body.total ?? products.length;
+      setPartnerCoverage(
+        total > products.length ? { counterpartyId, shown: products.length, total } : null,
+      );
+      return toHits(products, q);
     },
     [counterpartyId],
   );
@@ -187,6 +204,14 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
               : 'Search by product name or SKU…'
           }
         />
+        {source.kind === 'counterparty' &&
+          partnerCoverage &&
+          partnerCoverage.counterpartyId === counterpartyId && (
+            <p className="mt-1 text-xs italic text-slate" role="note">
+              Suggestions cover the first {partnerCoverage.shown.toLocaleString()} of{' '}
+              {partnerCoverage.total.toLocaleString()} products. A SKU typed exactly is kept.
+            </p>
+          )}
         {source.kind === 'counterparty' && !counterpartyId ? (
           <p className="mt-2 text-xs italic text-slate">
             Select a trading partner to browse their catalog.

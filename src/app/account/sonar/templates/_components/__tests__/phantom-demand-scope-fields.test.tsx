@@ -226,3 +226,38 @@ describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
     ).toBeInTheDocument();
   });
 });
+
+// R-5b interim (owner ruling 2026-09-05): the SKU box suggests from ONE page of
+// the partner's catalog. Until server-side search lands, the box says how much
+// of the catalog its suggestions cover; a SKU typed exactly is kept (R-5a).
+describe('PhantomDemandScopeFields — partner catalog larger than the suggestion page', () => {
+  it('says how many products the suggestions cover against the partner total', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.startsWith('/api/account/partners/vendor-1/catalog/products?')) {
+        return new Response(
+          JSON.stringify({
+            products: [
+              { external_product_id: 'CN-1', product_name: 'Connector 1' },
+              { external_product_id: 'CN-2', product_name: 'Connector 2' },
+            ],
+            total: 10421,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return new Response('[]', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <PhantomDemandScopeFields
+        value={{ ...BASE, catalog_source: { kind: 'counterparty', counterparty_id: 'vendor-1' } }}
+        onChange={vi.fn()}
+      />,
+    );
+    // the partner picker is a combobox too — address the SKU box by its placeholder
+    fireEvent.change(screen.getByPlaceholderText(/search by product name or sku/i), { target: { value: 'CN' } });
+    await screen.findByText('Connector 2');
+    expect(screen.getByText(/suggestions cover the first 2 of 10,421 products/i)).toBeInTheDocument();
+  });
+});

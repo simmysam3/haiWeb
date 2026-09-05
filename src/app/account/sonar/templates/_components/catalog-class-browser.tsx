@@ -36,6 +36,8 @@ interface ProductState {
   loading: boolean;
   loaded: boolean;
   rows: ProductRow[];
+  /** haiCore's count for the whole class; more than `rows` when the page is short. */
+  total: number;
   error?: string;
 }
 
@@ -76,34 +78,46 @@ async function fetchClasses(catalog: CatalogRef): Promise<ClassGroup[]> {
   }));
 }
 
+/** One page of a class's products plus haiCore's count for the whole class. */
+interface ProductPage {
+  rows: ProductRow[];
+  total: number;
+}
+
+const PRODUCT_PAGE_SIZE = 500;
+
 async function fetchProducts(
   catalog: CatalogRef,
   productKey: string,
-): Promise<ProductRow[]> {
+): Promise<ProductPage> {
   if (catalog.kind === 'own') {
     const res = await fetch(
-      `/api/account/provenance/grouped/${encodeURIComponent(productKey)}?page=1&page_size=500`,
+      `/api/account/provenance/grouped/${encodeURIComponent(productKey)}?page=1&page_size=${PRODUCT_PAGE_SIZE}`,
     );
     if (!res.ok) throw new Error(`Couldn't load products (${res.status}).`);
     const body = (await res.json()) as {
       skus?: { external_product_id: string; product_name: string }[];
+      total?: number;
     };
-    return (body.skus ?? []).map((s) => ({
+    const rows = (body.skus ?? []).map((s) => ({
       sku: s.external_product_id,
       label: s.product_name,
     }));
+    return { rows, total: body.total ?? rows.length };
   }
   const res = await fetch(
-    `/api/account/partners/${encodeURIComponent(catalog.counterpartyId)}/catalog/products?class_id=${encodeURIComponent(productKey)}&page=1&size=500`,
+    `/api/account/partners/${encodeURIComponent(catalog.counterpartyId)}/catalog/products?class_id=${encodeURIComponent(productKey)}&page=1&size=${PRODUCT_PAGE_SIZE}`,
   );
   if (!res.ok) throw new Error(`Couldn't load products (${res.status}).`);
   const body = (await res.json()) as {
     products?: { external_product_id: string; product_name: string | null }[];
+    total?: number;
   };
-  return (body.products ?? []).map((p) => ({
+  const rows = (body.products ?? []).map((p) => ({
     sku: p.external_product_id,
     label: p.product_name ?? p.external_product_id,
   }));
+  return { rows, total: body.total ?? rows.length };
 }
 
 export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
@@ -154,14 +168,14 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
       requested.current.add(key);
       setProducts((prev) => ({
         ...prev,
-        [key]: { loading: true, loaded: false, rows: [] },
+        [key]: { loading: true, loaded: false, rows: [], total: 0 },
       }));
       fetchProducts(catalogRef.current, key)
-        .then((rows) => {
+        .then(({ rows, total }) => {
           if (!cancelled)
             setProducts((prev) => ({
               ...prev,
-              [key]: { loading: false, loaded: true, rows },
+              [key]: { loading: false, loaded: true, rows, total },
             }));
         })
         .catch((e) => {
@@ -172,6 +186,7 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
                 loading: false,
                 loaded: true,
                 rows: [],
+                total: 0,
                 error: e instanceof Error ? e.message : 'Failed to load products.',
               },
             }));
@@ -223,6 +238,13 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
             {pstate?.error && <AccordionError>{pstate.error}</AccordionError>}
             {pstate?.loaded && !pstate.error && pstate.rows.length === 0 && (
               <AccordionEmpty>No products in this class.</AccordionEmpty>
+            )}
+            {pstate?.loaded && !pstate.error && pstate.total > pstate.rows.length && (
+              <p className="px-3 py-2 text-xs italic text-slate" role="note">
+                Showing the first {pstate.rows.length.toLocaleString()} of{' '}
+                {pstate.total.toLocaleString()} products in this class. A SKU typed
+                exactly in the SKU box is kept.
+              </p>
             )}
             {pstate?.loaded &&
               pstate.rows.map((row) => (
