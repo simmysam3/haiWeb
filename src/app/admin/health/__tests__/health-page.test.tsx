@@ -32,3 +32,16 @@ describe('admin Network Health page (P7c)', () => {
     expect(screen.queryByText(/Avg Response Time/)).toBeNull();
   });
 });
+
+describe('admin Network Health page — absence surfaces as absence (SEC-web-admin-ops-1-05)', () => {
+  it('a failed fetch shows a could-not-load notice and no fabricated numbers', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500 })));
+    render(<HealthPage />);
+
+    expect(await screen.findByText(/couldn.t load/i)).toBeInTheDocument();
+    // The seeded values that used to stand in for the fleet: 97.2 % uptime, 84.5 % narrowing, 8 healthy agents.
+    expect(screen.queryByText(/97\.2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/84\.5/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^8$/)).not.toBeInTheDocument();
+  });
+});

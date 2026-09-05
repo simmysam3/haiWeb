@@ -231,3 +231,19 @@ describe('listUsers — the roster carries each user\'s realm roles (D-212)', ()
     ]);
   });
 });
+
+describe('listUsers — a refused or failed Keycloak read is never an empty roster (SEC-web-core-1-04)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('throws when Keycloak refuses the user list', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      return { ok: false, status: 403, text: async () => 'view-users missing' } as unknown as Response;
+    }));
+
+    await expect(listUsers('p-apex')).rejects.toThrow(/403/);
+  });
+});

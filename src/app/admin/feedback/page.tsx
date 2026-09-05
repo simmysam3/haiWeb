@@ -40,6 +40,9 @@ const EMPTY: FeedbackResponse = { events: [], total: 0, page: 1, page_size: 50 }
 
 export default function AdminFeedbackPage() {
   const [data, setData] = useState<FeedbackResponse>(EMPTY);
+  // HTTP status of a refused read; 0 = the server could not be reached. A
+  // failed read is said, never a silent empty list (SEC-web-admin-ops-1-05).
+  const [loadError, setLoadError] = useState<number | null>(null);
   const [sentiment, setSentiment] = useState("");
   const [deployment, setDeployment] = useState("");
   const [from, setFrom] = useState("");
@@ -65,10 +68,27 @@ export default function AdminFeedbackPage() {
     const params = new URLSearchParams(filterParams);
     params.set("page", String(page));
     params.set("page_size", "50");
+    let cancelled = false;
     fetch(`/api/admin/chat-feedback?${params}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setData(d); })
-      .catch(() => {});
+      .then(async (r) => {
+        if (cancelled) return;
+        if (!r.ok) {
+          setLoadError(r.status);
+          setData(EMPTY);
+          return;
+        }
+        setLoadError(null);
+        setData((await r.json()) as FeedbackResponse);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError(0);
+          setData(EMPTY);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [filterParams, page]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.page_size));
@@ -79,6 +99,11 @@ export default function AdminFeedbackPage() {
         title="Chat Feedback"
         description="Thumbs up/down events rolled up from deployed agents. Download the filtered set as JSONL for triage."
       />
+      {loadError !== null && (
+        <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load chat feedback — {loadError === 0 ? "the server could not be reached" : `haiCore answered ${loadError}`}. The list below is empty because of that, not because there is no feedback.
+        </div>
+      )}
       <Card>
         <div className="flex items-center gap-4 mb-6 flex-wrap">
           <select

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import useSWR from 'swr';
 import { LibraryTab } from '../library-tab';
 import type { LibraryView } from '@/lib/library-types';
+import { jsonFetcher } from '@/lib/swr-fetcher';
 
 vi.mock('swr');
 const mockedUseSWR = vi.mocked(useSWR);
@@ -290,5 +291,13 @@ describe('LibraryTab', () => {
     // The view must snap back to truth — revalidate on failure too.
     expect(mutate).toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+});
+
+describe('LibraryTab — the fetcher checks the status (SEC-web-account-1-06)', () => {
+  it('reads the library through jsonFetcher, so a 401/500 lands in the error branch instead of crashing render', () => {
+    mockedUseSWR.mockReturnValue({ data: VIEW, mutate, isLoading: false, error: undefined } as never);
+    render(<LibraryTab context="share" />);
+    expect(mockedUseSWR).toHaveBeenCalledWith('/api/account/library', jsonFetcher);
   });
 });

@@ -132,3 +132,12 @@ describe('AdminFeedbackPage', () => {
     await waitFor(() => expect(screen.getByText(/no feedback/i)).toBeInTheDocument());
   });
 });
+
+describe('admin Chat Feedback page — a failed read is said (SEC-web-admin-ops-1-05 instance)', () => {
+  it('a failed fetch shows a could-not-load notice instead of a silent empty list', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'down' }) } as Response);
+    render(<Page />);
+
+    expect(await screen.findByText(/couldn.t load/i)).toBeInTheDocument();
+  });
+});

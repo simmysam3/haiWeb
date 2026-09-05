@@ -200,7 +200,11 @@ export async function listUsers(
     },
   );
 
-  if (!res.ok) return [];
+  // A refused or failed read is an outage the route reports (502), never an
+  // empty roster shown as fact (SEC-web-core-1-04).
+  if (!res.ok) {
+    throw new Error(`Keycloak list users failed: ${res.status} ${await res.text()}`);
+  }
   const users = (await res.json()) as KeycloakUser[];
   return Promise.all(
     users.map(async (user) => ({
