@@ -32,6 +32,24 @@ function ageLabel(days: number) {
   return { text: "Expires", color: "text-problem bg-problem/10" };
 }
 
+const OPEN_WORK_LABELS: Array<[key: string, singular: string, plural: string]> = [
+  ['orders', 'open order', 'open orders'],
+  ['sell_side_orders', 'open sales order', 'open sales orders'],
+  ['quotes', 'open quote', 'open quotes'],
+  ['obligations', 'open obligation', 'open obligations'],
+  ['manifest_exchanges', 'unfinished manifest exchange', 'unfinished manifest exchanges'],
+  ['rma_requests', 'open return', 'open returns'],
+];
+
+/** "3 open orders · 1 open quote" for a haiCore OPEN_WORK 409's details; "" for anything else. */
+function openWorkSummary(details?: Record<string, unknown>): string {
+  if (!details || !OPEN_WORK_LABELS.every(([k]) => typeof details[k] === 'number')) return '';
+  return OPEN_WORK_LABELS
+    .filter(([k]) => (details[k] as number) > 0)
+    .map(([k, one, many]) => `${details[k]} ${details[k] === 1 ? one : many}`)
+    .join(' · ');
+}
+
 export function PartnersPanel() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -49,6 +67,7 @@ export function PartnersPanel() {
   const [banPartner, setBanPartner] = useState<MockPartner | null>(null);
   const [invitePartner, setInvitePartner] = useState<MockPartner | null>(null);
   const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
+  const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
   const { toast, showToast } = useToast();
   // The BFF's answer is the fact: a mutation mutates local state and shows a
@@ -195,10 +214,6 @@ export function PartnersPanel() {
 
   // ─── Partner Actions ────────────────────────────────────────
 
-  // There is no "remove partnership": haiCore has no endpoint that removes an
-  // active connection (§L-26). Until one exists the only severance is Block,
-  // so no Remove control is offered rather than one that only edits the page.
-
   async function handleBan() {
     if (!banPartner) return;
     const res = await confirmed(fetch('/api/account/connections/blocked', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_participant_id: banPartner.id }) }));
@@ -222,6 +237,20 @@ export function PartnersPanel() {
     ));
     updateDirectoryStatus(downgradePartner.id, "approved");
     showToast(`Downgraded ${downgradePartner.company_name} to Approved`);
+  }
+
+  async function handleRemove() {
+    if (!removePartner) return;
+    const res = await confirmed(fetch('/api/account/connections/downgrade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connection_id: removePartner.connection_id, target_state: 'none' }),
+    }));
+    setRemovePartner(null);
+    if (!res) return;
+    setPartners((prev) => prev.filter((p) => p.id !== removePartner.id));
+    updateDirectoryStatus(removePartner.id, "none");
+    showToast(`Removed ${removePartner.company_name}`);
   }
 
   async function handleConnect() {
@@ -401,11 +430,14 @@ export function PartnersPanel() {
           {p.status === "trading_pair" && (
             <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
           )}
+          <Button size="sm" variant="ghost" onClick={() => setRemovePartner(p)}>Remove</Button>
           <Button size="sm" variant="ghost" onClick={() => setBanPartner(p)}>Block</Button>
         </div>
       ),
     },
   ];
+
+  const openWork = actionError ? openWorkSummary(actionError.details) : '';
 
   return (
     <>
@@ -416,7 +448,10 @@ export function PartnersPanel() {
       )}
       {actionError && (
         <div className="mb-4">
-          <FormError message={actionError.message} sessionExpired={actionError.sessionExpired} />
+          <FormError
+            message={openWork ? `${actionError.message}: ${openWork}` : actionError.message}
+            sessionExpired={actionError.sessionExpired}
+          />
         </div>
       )}
 
@@ -807,6 +842,22 @@ export function PartnersPanel() {
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setDowngradePartner(null)}>Cancel</Button>
             <Button variant="danger" onClick={handleDowngrade}>Downgrade</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Remove Modal */}
+      <Modal open={!!removePartner} onClose={() => setRemovePartner(null)} title="Remove Partnership">
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            Remove <strong>{removePartner?.company_name}</strong> as a partner?
+          </p>
+          <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
+            The connection is closed on both sides and each side's disclosure to the other falls to the base tier. Removal is refused while open orders, quotes, obligations, exchanges or returns still reference the pair. Either side can request a new connection later.
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setRemovePartner(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleRemove}>Remove</Button>
           </div>
         </div>
       </Modal>
