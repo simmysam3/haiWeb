@@ -245,14 +245,59 @@ export async function getUserRealmRoles(userId: string): Promise<RealmRole[]> {
 }
 
 /**
+ * The requested realm role does not exist. Distinguished from a transport or
+ * permission failure so callers can say which one happened without matching on
+ * message text.
+ */
+export class RealmRoleNotFoundError extends Error {
+  readonly roleName: string;
+  constructor(roleName: string) {
+    super(`Keycloak realm role not found: ${roleName}`);
+    this.name = "RealmRoleNotFoundError";
+    this.roleName = roleName;
+  }
+}
+
+/**
+ * The realm role named `roleName`. Resolved through the searchable list
+ * endpoint (`/roles?search=`), which the portal-admin service account reaches
+ * with its query-users/view-users grants — the single-role endpoint
+ * (`/roles/{name}`) requires `view-realm`, which it is deliberately not given
+ * (least privilege). `search` is a substring match, so the exact name is
+ * picked out of the results; anything else is a missing role, not a match.
+ */
+export async function getRealmRole(roleName: string): Promise<RealmRole> {
+  const token = await getAdminToken();
+  const res = await fetch(
+    `${keycloakAdminUrl}/roles?search=${encodeURIComponent(roleName)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Keycloak role lookup failed: ${res.status} ${await res.text()}`);
+  }
+  const matches = await res.json();
+  // A 200 that is not a list is a broken response, not a missing role: saying
+  // "not defined in the realm" would be a false statement about the realm.
+  if (!Array.isArray(matches)) {
+    throw new Error(`Keycloak role lookup failed: unexpected response for ${roleName}`);
+  }
+  const role = (matches as RealmRole[]).find((r) => r.name === roleName);
+  if (!role) {
+    throw new RealmRoleNotFoundError(roleName);
+  }
+  return role;
+}
+
+/**
  * Make `roleName` the user's one assignable realm role (D-212): every other
  * ASSIGNABLE realm role is removed first, then the new one is added. Roles
  * outside the assignable set (the realm default composite, account_owner,
- * haiwave_admin) are never touched. Remove-first means a failure between the
- * two steps leaves the user with less privilege, never more. Throws on any
- * Keycloak refusal. Returns the realm role names that govern afterwards, so
- * the caller reports the role that actually applies (a non-assignable role
- * such as account_owner is untouched and still wins).
+ * haiwave_admin) are never touched. The role is resolved before either step,
+ * so a failed lookup leaves the user exactly as it was. Remove-first means a
+ * failure between the two steps leaves the user with less privilege, never
+ * more. Throws on any Keycloak refusal. Returns the realm role names that
+ * govern afterwards, so the caller reports the role that actually applies (a
+ * non-assignable role such as account_owner is untouched and still wins).
  */
 export async function updateUserRole(
   userId: string,
@@ -264,6 +309,10 @@ export async function updateUserRole(
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   };
+
+  // Resolve before touching anything: a lookup that fails must leave the user
+  // exactly as it was, never stripped of the role they had.
+  const role = await getRealmRole(roleName);
 
   const current = await getUserRealmRoles(userId);
   const stale = current.filter((r) => r.name !== roleName && isAssignableRole(r.name));
@@ -277,15 +326,6 @@ export async function updateUserRole(
       throw new Error(`Keycloak role removal failed: ${del.status} ${await del.text()}`);
     }
   }
-
-  const rolesRes = await fetch(
-    `${keycloakAdminUrl}/roles/${roleName}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!rolesRes.ok) {
-    throw new Error(`Keycloak role lookup failed: ${rolesRes.status} ${await rolesRes.text()}`);
-  }
-  const role = await rolesRes.json();
 
   const res = await fetch(mappingsUrl, {
     method: "POST",

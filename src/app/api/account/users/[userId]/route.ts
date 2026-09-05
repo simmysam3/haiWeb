@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole, isAssignableRole, resolveUserRole } from "@/lib/auth";
-import { updateUserRole, disableUser, getUser } from "@/lib/keycloak";
+import { updateUserRole, disableUser, getUser, RealmRoleNotFoundError } from "@/lib/keycloak";
 
 // Confirm the target user belongs to the caller's participant before any
 // mutation. A missing/foreign participant is reported as 404 so the endpoint
@@ -62,8 +62,15 @@ export async function PATCH(
     const governing = await updateUserRole(userId, role);
     return NextResponse.json({ success: true, user_id: userId, role: resolveUserRole(governing) });
   } catch (err) {
+    // The detail is for the server log; the dialog gets a plain sentence.
+    console.error("[account/users PATCH] failed to update user role", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update user role" },
+      {
+        error:
+          err instanceof RealmRoleNotFoundError
+            ? `The role ${err.roleName} is not defined in the sign-in realm. Nothing was changed.`
+            : "The role change did not complete. Check the user's current role before trying again.",
+      },
       { status: 500 },
     );
   }
@@ -105,8 +112,12 @@ export async function DELETE(
     await disableUser(userId);
     return NextResponse.json({ success: true, user_id: userId });
   } catch (err) {
+    // The detail is for the server log; the dialog gets a plain sentence.
+    // `disableUser` is one PUT and it is the only call in this try, so a
+    // failure leaves the user exactly as it was.
+    console.error("[account/users DELETE] failed to deactivate user", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to disable user" },
+      { error: "The user could not be deactivated. Nothing was changed." },
       { status: 500 },
     );
   }
