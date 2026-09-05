@@ -66,7 +66,11 @@ export function ScoreDashboard() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MyScoreCard current={myCurrent} loading={myQuarters.isLoading} />
+        <MyScoreCard
+          current={myCurrent}
+          loading={myQuarters.isLoading}
+          error={myQuarters.error ? String((myQuarters.error as Error).message ?? myQuarters.error) : undefined}
+        />
         <PeerBenchmarkCard
           peerCurrent={peerCurrent}
           myCurrent={myCurrent}
@@ -85,9 +89,12 @@ export function ScoreDashboard() {
 function MyScoreCard({
   current,
   loading,
+  error,
 }: {
   current: QuarterlyScore | undefined;
   loading: boolean;
+  /** The read failed (HTTP status or message); shown as such, never as "no score" (SEC-web-account-2-06). */
+  error?: string;
 }) {
   return (
     <Card>
@@ -101,6 +108,10 @@ function MyScoreCard({
       </div>
       {loading ? (
         <p className="text-sm text-slate">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load your score — haiCore answered {error}. This is not a statement about your score.
+        </p>
       ) : !current ? (
         <p className="text-sm text-slate">No score available yet.</p>
       ) : (
@@ -319,6 +330,11 @@ function VendorRiskRegister() {
 
       {risk.isLoading ? (
         <p className="text-sm text-slate">Loading…</p>
+      ) : risk.error ? (
+        // A failed read is said, never rendered as an empty cohort (SEC-web-account-2-06).
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load the vendor risk register — haiCore answered {String((risk.error as Error).message ?? risk.error)}. This is not a statement about your cohort.
+        </p>
       ) : vendors.length === 0 ? (
         <p className="text-sm text-slate">No vendors in your cohort yet.</p>
       ) : (

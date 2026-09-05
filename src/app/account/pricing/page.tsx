@@ -162,6 +162,13 @@ export default function PricingPage() {
             Loading pricing hierarchy...
           </div>
         </Card>
+      ) : pricingApi.error ? (
+        // A failed read is a distinct state with Retry, never "No pricing
+        // hierarchy configured" (SEC-web-account-2-06).
+        <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem flex items-center justify-between gap-4">
+          <span>Couldn&apos;t load the pricing hierarchy — haiCore answered {pricingApi.error}. Nothing here is a statement about your pricing.</span>
+          <Button size="sm" variant="secondary" onClick={pricingApi.refetch}>Retry</Button>
+        </div>
       ) : hierarchy.length === 0 ? (
         <Card>
           <div className="text-center py-12">

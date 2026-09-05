@@ -78,3 +78,16 @@ describe('PricingPage — save and reset report the response (SEC-web-account-2-
     expect(screen.queryByText(/saved pricing for/i)).not.toBeInTheDocument();
   });
 });
+
+describe('PricingPage — a failed read is never an empty hierarchy (SEC-web-account-2-06 instance)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('a failed read shows a could-not-load notice with Retry, not "No pricing hierarchy configured"', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'down' }, 500));
+    render(<PricingPage />);
+
+    expect(await screen.findByText(/couldn.t load/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/No pricing hierarchy configured/i)).not.toBeInTheDocument();
+  });
+});

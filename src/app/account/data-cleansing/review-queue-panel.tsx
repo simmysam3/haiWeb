@@ -56,14 +56,16 @@ export function ReviewQueuePanel() {
     fallback: { nodes: [], total_count: 0 },
   });
 
-  // Copy API data into local state once the initial fetch completes so that
-  // optimistic removals after each action survive without a refetch.
+  // Copy API data into local state once the initial fetch SUCCEEDS so that
+  // optimistic removals after each action survive without a refetch. A failed
+  // load does not latch `loaded`: the notice below offers Retry, and the
+  // fallback never reaches the table's all-clear message (SEC-web-account-2-06).
   useEffect(() => {
-    if (!loaded && !itemsApi.loading) {
+    if (!loaded && !itemsApi.loading && !itemsApi.error) {
       setItems(itemsApi.data.results);
       setLoaded(true);
     }
-  }, [itemsApi.loading, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [itemsApi.loading, itemsApi.error, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openAction(product: ClassificationResult, action: ClassificationOverrideAction) {
     setActiveAction({ product, action });
@@ -149,16 +151,25 @@ export function ReviewQueuePanel() {
       <Card>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-navy">
-            Unclassifiable Products ({items.length})
+            Unclassifiable Products{loaded ? ` (${items.length})` : ''}
           </h2>
         </div>
 
-        <DataTable
-          columns={columns}
-          data={items}
-          keyFn={(r) => r.product_id}
-          emptyMessage="No unclassifiable products — all products have been classified successfully."
-        />
+        {itemsApi.error ? (
+          <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem flex items-center justify-between gap-4">
+            <span>Couldn&apos;t load the review queue — haiCore answered {itemsApi.error}. Nothing here is a statement about your products.</span>
+            <Button size="sm" variant="secondary" onClick={itemsApi.refetch}>Retry</Button>
+          </div>
+        ) : !loaded ? (
+          <p className="text-sm text-slate">Loading review queue…</p>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={items}
+            keyFn={(r) => r.product_id}
+            emptyMessage="No unclassifiable products — all products have been classified successfully."
+          />
+        )}
       </Card>
 
       <Modal open={activeAction !== null} onClose={closeAction} title={activeAction ? modalTitle(activeAction.action) : ''}>
