@@ -11,4 +11,4 @@ import type { WatcherSignalSubscriptionPatch } from '@haiwave/protocol';
 export const PATCH = withHaiCore<{ id: string }>(async ({ client, params, request }) => {
   const body = (await request.json().catch(() => ({}))) as WatcherSignalSubscriptionPatch;
   return NextResponse.json(await client.patchWatcherSubscription(params.id, body));
-});
+}, { role: 'account_admin' });

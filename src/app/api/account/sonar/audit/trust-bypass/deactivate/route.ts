@@ -15,4 +15,4 @@ export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json()) as TrustBypassDeactivationRequest;
   await client.deactivateTrustBypass(body);
   return new NextResponse(null, { status: 204 });
-});
+}, { role: 'account_admin' });

@@ -38,7 +38,7 @@ export const POST = withHaiCore(async ({ client, request }) => {
   }
   const result = await client.triggerPhantomDemand(parsed.data);
   return NextResponse.json(result, { status: 202 });
-});
+}, { role: 'account_admin' });
 
 // DELETE /api/account/sonar/phantom-demand/runs?template_id=… — clear a
 // config's run history (PD runs are transitory). Proxies to haiCore, which
@@ -53,4 +53,4 @@ export const DELETE = withHaiCore(async ({ client, request }) => {
   }
   const result = await client.deletePhantomDemandRunsForTemplate(templateId);
   return NextResponse.json(result);
-});
+}, { role: 'account_admin' });

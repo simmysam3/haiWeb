@@ -12,4 +12,4 @@ export const POST = withHaiCore<{ draft_id: string }>(async ({ client, params, r
     await client.createEvidenceAnnotation(params.draft_id, body),
     { status: 201 },
   );
-});
+}, { role: 'account_admin' });

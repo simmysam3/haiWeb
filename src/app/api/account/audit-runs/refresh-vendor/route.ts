@@ -5,4 +5,4 @@ import type { RefreshVendorRequest } from '@haiwave/protocol';
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json()) as RefreshVendorRequest;
   return NextResponse.json(await client.refreshVendorAudit(body));
-});
+}, { role: 'account_admin' });

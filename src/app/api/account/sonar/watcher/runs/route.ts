@@ -29,4 +29,4 @@ export const GET = withHaiCore(async ({ client, request }) => {
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json().catch(() => ({}))) as WatcherRunTriggerRequest;
   return NextResponse.json(await client.triggerWatcherRun(body));
-});
+}, { role: 'account_admin' });
