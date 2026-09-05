@@ -125,4 +125,39 @@ describe('CatalogClassBrowser — a class larger than the page says so', () => {
     await screen.findByText('Connector 2');
     expect(screen.getByText(/showing the first 2 of 700 products/i)).toBeInTheDocument();
   });
+
+  // Catalog search lane (owner ruling R-5b, 2026-09-05): a class larger than
+  // one page is paged — "Load more" fetches the next page and appends it.
+  it('loads the next page of a large class on "Load more"', async () => {
+    const pages: Record<string, { external_product_id: string; product_name: string }[]> = {
+      '1': [{ external_product_id: 'CN-1', product_name: 'Connector 1' }],
+      '2': [{ external_product_id: 'CN-2', product_name: 'Connector 2' }],
+    };
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/account/partners/vendor-1/catalog/classes') {
+        return jsonResponse({ classes: [{ class_id: 'k1', class_name: 'Connectors', product_count: 700 }] });
+      }
+      if (url.startsWith('/api/account/partners/vendor-1/catalog/products?class_id=k1')) {
+        const page = new URL(url, 'http://bff').searchParams.get('page') ?? '1';
+        return jsonResponse({ products: pages[page] ?? [], total: 700 });
+      }
+      throw new Error(`unexpected url ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <CatalogClassBrowser
+        catalog={{ kind: 'counterparty', counterpartyId: 'vendor-1' }}
+        selectedSku=""
+        onSelect={vi.fn()}
+      />,
+    );
+    await screen.findByText('Connectors');
+    fireEvent.click(screen.getByRole('button', { name: /expand connectors/i }));
+    await screen.findByText('Connector 1');
+    fireEvent.click(screen.getByRole('button', { name: /load more/i }));
+    await screen.findByText('Connector 2');
+    expect(screen.getByText('Connector 1')).toBeInTheDocument();
+    expect(screen.getByText(/showing the first 2 of 700 products/i)).toBeInTheDocument();
+  });
 });
