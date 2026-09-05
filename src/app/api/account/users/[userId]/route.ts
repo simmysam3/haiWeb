@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
+import { getSession, hasRole, isAssignableRole, resolveUserRole } from "@/lib/auth";
 import { updateUserRole, disableUser, getUser } from "@/lib/keycloak";
 
 // Confirm the target user belongs to the caller's participant before any
@@ -56,8 +56,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await updateUserRole(userId, role);
-    return NextResponse.json({ success: true, user_id: userId, role });
+    // The realm role-mappings govern (D-212): report the role that applies
+    // after the change, which may differ from the one requested when the
+    // target holds a role this route never removes (account_owner).
+    const governing = await updateUserRole(userId, role);
+    return NextResponse.json({ success: true, user_id: userId, role: resolveUserRole(governing) });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to update user role" },

@@ -1,4 +1,4 @@
-import type { UserRole } from "./auth";
+import { resolveUserRole, type UserRole } from "./auth";
 
 /**
  * The account-users DTO the console renders (snake_case, matching the haiCore
@@ -25,9 +25,9 @@ export interface KeycloakUserRep {
   lastName?: string;
   enabled?: boolean;
   attributes?: Record<string, string[] | undefined>;
+  /** Realm role names mapped to the user — the governing record (D-212). */
+  realmRoles?: string[];
 }
-
-const DEFAULT_ROLE: UserRole = "buyer_view_only";
 
 /** Map a raw Keycloak user representation to the account-users DTO. */
 export function toAccountUser(kc: KeycloakUserRep): AccountUser {
@@ -37,7 +37,8 @@ export function toAccountUser(kc: KeycloakUserRep): AccountUser {
     email: kc.email ?? "",
     first_name: kc.firstName ?? "",
     last_name: kc.lastName ?? "",
-    role: (attrs.role?.[0] as UserRole | undefined) ?? DEFAULT_ROLE,
+    // The realm role-mappings govern; the legacy `role` attribute is never read.
+    role: resolveUserRole(kc.realmRoles ?? []),
     job_title: attrs.job_title?.[0] ?? "",
     phone: attrs.phone?.[0] ?? "",
     status: kc.enabled === false ? "disabled" : "active",

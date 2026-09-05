@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { refreshToken, endSession, updateUserRole, disableUser, createUser, sendExecuteActionsEmail } from '../keycloak';
+import { refreshToken, endSession, updateUserRole, disableUser, createUser, sendExecuteActionsEmail, listUsers } from '../keycloak';
 
 describe('keycloak token endpoints send client_secret (confidential client)', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -26,12 +26,15 @@ describe('keycloak token endpoints send client_secret (confidential client)', ()
 describe('keycloak admin mutations surface Keycloak failures', () => {
   // URL-routed mock so the module-level admin-token cache cannot desync call order.
   function routedFetch(overrides: (url: string) => Response | undefined) {
-    return vi.fn(async (url: string) => {
+    return vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url);
       const override = overrides(u);
       if (override) return override;
       if (u.includes('/protocol/openid-connect/token')) {
         return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (u.endsWith('/role-mappings/realm') && (init?.method ?? 'GET') === 'GET') {
+        return { ok: true, json: async () => [], text: async () => '' } as unknown as Response;
       }
       return { ok: true, json: async () => ({ id: 'r1', name: 'account_admin' }), text: async () => '' } as unknown as Response;
     });
@@ -116,5 +119,115 @@ describe('invited-user identity assurance (IA-5)', () => {
       return { ok: false, status: 500, text: async () => 'smtp down' } as unknown as Response;
     }));
     await expect(sendExecuteActionsEmail('u-1', ['VERIFY_EMAIL'])).rejects.toThrow();
+  });
+});
+
+describe('updateUserRole — the realm role is the single source of truth (D-212)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('removes the other assignable realm roles before adding the new one', async () => {
+    const calls: Array<{ method: string; url: string; body?: unknown }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const method = init?.method ?? 'GET';
+      calls.push({ method, url: u, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (u.match(/\/roles\/[^/]+$/)) {
+        const name = u.split('/roles/')[1];
+        return { ok: true, json: async () => ({ id: `id-${name}`, name }), text: async () => '' } as unknown as Response;
+      }
+      if (u.endsWith('/users/u1/role-mappings/realm') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            { id: 'id-account_admin', name: 'account_admin' },
+            { id: 'id-default', name: 'default-roles-haiwave-network' },
+          ],
+          text: async () => '',
+        } as unknown as Response;
+      }
+      return { ok: true, status: 204, json: async () => ({}), text: async () => '' } as unknown as Response;
+    }));
+
+    await updateUserRole('u1', 'buyer_view_only');
+
+    const mappingWrites = calls
+      .filter((c) => c.url.endsWith('/users/u1/role-mappings/realm') && c.method !== 'GET')
+      .map((c) => [c.method, (c.body as Array<{ name: string }>).map((r) => r.name)]);
+    // The prior assignable role goes first; the realm's default composite role is left alone.
+    expect(mappingWrites).toEqual([
+      ['DELETE', ['account_admin']],
+      ['POST', ['buyer_view_only']],
+    ]);
+  });
+
+  it('returns the realm roles that govern after the change (a non-assignable role stays)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const method = init?.method ?? 'GET';
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (u.match(/\/roles\/[^/]+$/)) {
+        const name = u.split('/roles/')[1];
+        return { ok: true, json: async () => ({ id: `id-${name}`, name }), text: async () => '' } as unknown as Response;
+      }
+      if (u.endsWith('/users/u-owner/role-mappings/realm') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            { id: 'id-account_owner', name: 'account_owner' },
+            { id: 'id-procurement_transact', name: 'procurement_transact' },
+            { id: 'id-default', name: 'default-roles-haiwave-network' },
+          ],
+          text: async () => '',
+        } as unknown as Response;
+      }
+      return { ok: true, status: 204, json: async () => ({}), text: async () => '' } as unknown as Response;
+    }));
+
+    const governing: string[] | void = await updateUserRole('u-owner', 'buyer_view_only');
+
+    expect([...(governing ?? [])].sort()).toEqual(
+      ['account_owner', 'buyer_view_only', 'default-roles-haiwave-network'].sort(),
+    );
+  });
+});
+
+describe('listUsers — the roster carries each user\'s realm roles (D-212)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('attaches each user\'s realm role-mappings as realmRoles', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (u.includes('/users?q=participant_id:p-apex')) {
+        return {
+          ok: true,
+          json: async () => [
+            { id: 'kc1', email: 'a@b.com', attributes: { role: ['account_admin'] } },
+            { id: 'kc2', email: 'x@y.com' },
+          ],
+        } as unknown as Response;
+      }
+      if (u.endsWith('/users/kc1/role-mappings/realm')) {
+        return { ok: true, json: async () => [{ id: 'r1', name: 'default-roles-haiwave-network' }, { id: 'r2', name: 'procurement_transact' }], text: async () => '' } as unknown as Response;
+      }
+      if (u.endsWith('/users/kc2/role-mappings/realm')) {
+        return { ok: true, json: async () => [{ id: 'r1', name: 'default-roles-haiwave-network' }], text: async () => '' } as unknown as Response;
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    }));
+
+    const users = (await listUsers('p-apex')) as Array<{ id: string; realmRoles?: string[] }>;
+
+    expect(users.map((u) => [u.id, u.realmRoles])).toEqual([
+      ['kc1', ['default-roles-haiwave-network', 'procurement_transact']],
+      ['kc2', ['default-roles-haiwave-network']],
+    ]);
   });
 });
