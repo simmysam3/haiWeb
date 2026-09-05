@@ -45,7 +45,8 @@ interface DashboardData {
   crossModality: CrossModalityResponse | null;
   initialActivity: ActivityResponse | null;
   throttledCounts: { audit: number; watcher: number; total: number } | null;
-  enabledTemplateCount: number;
+  /** `null` = the templates lane did not answer (distinct from zero enabled). */
+  enabledTemplateCount: number | null;
   failedRunsLast30d: number | null;
   coverageCurrent: FetchResult<CoverageCurrentResponse>;
   coverageTrend: FetchResult<CoverageTrend>;
@@ -110,7 +111,7 @@ async function loadDashboard(): Promise<DashboardData> {
   const throttledCounts = unwrapBestEffort(throttledCountsRes, 'throttled-counts');
   const templates = unwrapBestEffort(templatesRes, 'templates');
 
-  const enabledTemplateCount = templates?.templates.filter((t) => t.enabled).length ?? 0;
+  const enabledTemplateCount = templates ? templates.templates.filter((t) => t.enabled).length : null;
 
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const failedRunsLast30d = initialActivity
@@ -142,7 +143,9 @@ export default async function UnifiedDashboardPage() {
 
   const data = await loadDashboard();
 
-  const totalPartners = data.crossModality?.partners.length ?? 0;
+  // A lane that did not answer stays null all the way to the render: '—', an
+  // 'unavailable' state, never an affirmative zero or 'nothing observed'.
+  const totalPartners = data.crossModality ? data.crossModality.partners.length : null;
   const lastRunAt =
     data.initialActivity && data.initialActivity.events.length > 0
       ? data.initialActivity.events[0].triggered_at
@@ -287,8 +290,8 @@ export default async function UnifiedDashboardPage() {
                   failedRunsLast30d={data.failedRunsLast30d}
                   enabledTemplateCount={data.enabledTemplateCount}
                 />
-                <ModalityLens partners={data.crossModality?.partners ?? []} />
-                <CrossModalityTable partners={data.crossModality?.partners ?? []} />
+                <ModalityLens partners={data.crossModality?.partners ?? null} />
+                <CrossModalityTable partners={data.crossModality?.partners ?? null} />
               </section>
             ),
           },

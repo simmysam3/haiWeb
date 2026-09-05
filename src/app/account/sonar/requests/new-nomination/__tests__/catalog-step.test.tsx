@@ -193,3 +193,42 @@ describe('CatalogStep', () => {
     expect(onAdvance).toHaveBeenCalled();
   });
 });
+
+describe('CatalogStep — the whole class, not the first page (SEC-web-sonar-3-06)', () => {
+  it('offers every product of a class that spans two pages', async () => {
+    const big: CatalogProduct[] = Array.from({ length: 600 }, (_, i) => ({
+      external_product_id: `b-${i + 1}`,
+      product_name: `Bearing ${i + 1}`,
+      primary_class_slug: 'bearings',
+    }));
+    globalThis.fetch = vi.fn(async (url: RequestInfo | URL) => {
+      const u = new URL(typeof url === 'string' ? url : url.toString(), 'http://localhost');
+      if (u.pathname.endsWith('/catalog/classes')) {
+        return new Response(JSON.stringify({ classes: [{ ...CLASSES[0], product_count: 600 }] }), { status: 200 });
+      }
+      if (u.pathname.includes('/audit-coverage')) return new Response(JSON.stringify(COVERAGE_EMPTY), { status: 200 });
+      if (u.pathname.includes('/audit-scopes')) return new Response(JSON.stringify({ scopes: [] }), { status: 200 });
+      if (u.pathname.endsWith('/catalog/products')) {
+        const page = Number(u.searchParams.get('page'));
+        const size = Number(u.searchParams.get('size'));
+        return new Response(JSON.stringify({ products: big.slice((page - 1) * size, page * size), total: big.length }), { status: 200 });
+      }
+      return new Response('not mocked', { status: 500 });
+    }) as unknown as typeof fetch;
+
+    render(
+      <CatalogStep
+        vendor={{ id: 'v1', legal_name: 'Apex' }}
+        selections={{ classes: new Set(), products: new Set() }}
+        onChange={() => {}}
+        onAdvance={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    await waitFor(() => screen.getByText('Ball Bearings'));
+    await userEvent.click(screen.getByRole('button', { name: /products in ball bearings/i }));
+
+    await waitFor(() => screen.getByText('Bearing 1'));
+    expect(screen.getByText('Bearing 600')).toBeInTheDocument();
+  });
+});

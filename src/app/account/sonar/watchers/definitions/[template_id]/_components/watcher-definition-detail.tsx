@@ -7,7 +7,7 @@ import { WatcherScopePicker } from '../../../new/_components/watcher-scope-picke
 
 interface Props {
   template: RunTemplate;
-  events?: RunTemplateEvent[];
+  events?: RunTemplateEvent[] | null;
 }
 
 /**

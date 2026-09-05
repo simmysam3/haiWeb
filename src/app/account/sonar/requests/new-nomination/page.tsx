@@ -1,5 +1,6 @@
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import { fetchBffJson } from '@/lib/server-fetch';
+import { fetchAllCatalogProducts } from '@/lib/catalog-products';
 import { NominationForm } from './nomination-form';
 import type { InitialState, PartnerSummary } from './types';
 
@@ -44,11 +45,23 @@ async function findProduct(
   );
   if (!classesBody) return null;
   for (const klass of classesBody.classes ?? []) {
-    const prodsBody = await bffJson<{ products: CatalogProduct[]; total: number }>(
-      `/api/account/partners/${encodeURIComponent(vendorId)}/catalog/products?class_id=${encodeURIComponent(klass.class_id)}&page=1&size=500`,
-    );
+    // The whole class, paged to haiCore's `total` (SEC-web-sonar-3-06): a
+    // product past the first 500 must still be found.
+    let prodsBody: { products: CatalogProduct[]; total: number } | null;
+    try {
+      prodsBody = await fetchAllCatalogProducts(vendorId, {
+        classId: klass.class_id,
+        getPage: async (path) => {
+          const page = await bffJson<{ products: CatalogProduct[]; total: number }>(path);
+          if (!page) throw new Error('products unavailable');
+          return page;
+        },
+      });
+    } catch {
+      prodsBody = null;
+    }
     if (!prodsBody) continue;
-    const match = prodsBody.products?.find((p) => p.external_product_id === productId);
+    const match = prodsBody.products.find((p) => p.external_product_id === productId);
     if (match) return { product: match, classId: klass.class_id };
   }
   return null;
