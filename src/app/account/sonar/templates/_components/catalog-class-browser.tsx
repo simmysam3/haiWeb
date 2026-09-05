@@ -38,6 +38,9 @@ interface ProductState {
   rows: ProductRow[];
   /** haiCore's count for the whole class; more than `rows` when the page is short. */
   total: number;
+  /** Pages fetched so far (the class browser pages a large class; R-5b). */
+  page: number;
+  loadingMore?: boolean;
   error?: string;
 }
 
@@ -89,10 +92,11 @@ const PRODUCT_PAGE_SIZE = 500;
 async function fetchProducts(
   catalog: CatalogRef,
   productKey: string,
+  page = 1,
 ): Promise<ProductPage> {
   if (catalog.kind === 'own') {
     const res = await fetch(
-      `/api/account/provenance/grouped/${encodeURIComponent(productKey)}?page=1&page_size=${PRODUCT_PAGE_SIZE}`,
+      `/api/account/provenance/grouped/${encodeURIComponent(productKey)}?page=${page}&page_size=${PRODUCT_PAGE_SIZE}`,
     );
     if (!res.ok) throw new Error(`Couldn't load products (${res.status}).`);
     const body = (await res.json()) as {
@@ -106,7 +110,7 @@ async function fetchProducts(
     return { rows, total: body.total ?? rows.length };
   }
   const res = await fetch(
-    `/api/account/partners/${encodeURIComponent(catalog.counterpartyId)}/catalog/products?class_id=${encodeURIComponent(productKey)}&page=1&size=${PRODUCT_PAGE_SIZE}`,
+    `/api/account/partners/${encodeURIComponent(catalog.counterpartyId)}/catalog/products?class_id=${encodeURIComponent(productKey)}&page=${page}&size=${PRODUCT_PAGE_SIZE}`,
   );
   if (!res.ok) throw new Error(`Couldn't load products (${res.status}).`);
   const body = (await res.json()) as {
@@ -168,14 +172,14 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
       requested.current.add(key);
       setProducts((prev) => ({
         ...prev,
-        [key]: { loading: true, loaded: false, rows: [], total: 0 },
+        [key]: { loading: true, loaded: false, rows: [], total: 0, page: 0 },
       }));
       fetchProducts(catalogRef.current, key)
         .then(({ rows, total }) => {
           if (!cancelled)
             setProducts((prev) => ({
               ...prev,
-              [key]: { loading: false, loaded: true, rows, total },
+              [key]: { loading: false, loaded: true, rows, total, page: 1 },
             }));
         })
         .catch((e) => {
@@ -187,6 +191,7 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
                 loaded: true,
                 rows: [],
                 total: 0,
+                page: 0,
                 error: e instanceof Error ? e.message : 'Failed to load products.',
               },
             }));
@@ -205,6 +210,27 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
       return next;
     });
   }, []);
+
+  // Next page of a large class, appended; a refusal is said in place.
+  function loadMore(key: string) {
+    const current = products[key];
+    if (!current || current.loadingMore) return;
+    const next = current.page + 1;
+    setProducts((prev) => ({ ...prev, [key]: { ...prev[key], loadingMore: true } }));
+    fetchProducts(catalogRef.current, key, next)
+      .then(({ rows, total }) =>
+        setProducts((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], rows: [...prev[key].rows, ...rows], total, page: next, loadingMore: false },
+        })),
+      )
+      .catch((e) =>
+        setProducts((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], loadingMore: false, error: e instanceof Error ? e.message : 'Failed to load products.' },
+        })),
+      );
+  }
 
   if (loading) return <AccordionLoading>Loading product classes…</AccordionLoading>;
   if (error)
@@ -240,10 +266,19 @@ export function CatalogClassBrowser({ catalog, selectedSku, onSelect }: Props) {
               <AccordionEmpty>No products in this class.</AccordionEmpty>
             )}
             {pstate?.loaded && !pstate.error && pstate.total > pstate.rows.length && (
-              <p className="px-3 py-2 text-xs italic text-slate" role="note">
-                Showing the first {pstate.rows.length.toLocaleString()} of{' '}
-                {pstate.total.toLocaleString()} products in this class. A SKU typed
-                exactly in the SKU box is kept.
+              <p className="flex items-center justify-between gap-3 px-3 py-2 text-xs italic text-slate" role="note">
+                <span>
+                  Showing the first {pstate.rows.length.toLocaleString()} of{' '}
+                  {pstate.total.toLocaleString()} products in this class.
+                </span>
+                <button
+                  type="button"
+                  className="not-italic rounded border border-slate/30 px-2 py-1 text-xs text-charcoal hover:bg-slate/10 disabled:opacity-50"
+                  disabled={pstate.loadingMore}
+                  onClick={() => loadMore(cls.productKey)}
+                >
+                  {pstate.loadingMore ? 'Loading…' : 'Load more'}
+                </button>
               </p>
             )}
             {pstate?.loaded &&

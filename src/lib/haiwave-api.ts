@@ -640,7 +640,7 @@ export interface HaiwaveClient {
   listCatalogClasses(vendorId: string): Promise<{ classes: CatalogClass[] }>;
   listCatalogProducts(
     vendorId: string,
-    opts?: { classId?: string; page?: number; size?: number },
+    opts?: { classId?: string; page?: number; size?: number; q?: string },
   ): Promise<{ products: CatalogProduct[]; total: number }>;
   // Audit Scopes (v1.25)
   createAuditScope(body: AuditScopeCreationRequest): Promise<AuditScope>;
@@ -1531,6 +1531,8 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listCatalogProducts(vendorId, opts = {}) {
       const params = new URLSearchParams();
       if (opts.classId) params.set('class_id', opts.classId);
+      // Server-side SKU / product-name match; total is then bounded at 1,000.
+      if (opts.q) params.set('q', opts.q);
       if (opts.page !== undefined) params.set('page', String(opts.page));
       if (opts.size !== undefined) params.set('size', String(opts.size));
       const q = params.toString();

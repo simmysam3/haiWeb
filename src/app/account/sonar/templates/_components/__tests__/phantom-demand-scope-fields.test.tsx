@@ -227,20 +227,19 @@ describe('PhantomDemandScopeFields (v.1.44 phantom_demand_bom)', () => {
   });
 });
 
-// R-5b interim (owner ruling 2026-09-05): the SKU box suggests from ONE page of
-// the partner's catalog. Until server-side search lands, the box says how much
-// of the catalog its suggestions cover; a SKU typed exactly is kept (R-5a).
-describe('PhantomDemandScopeFields — partner catalog larger than the suggestion page', () => {
-  it('says how many products the suggestions cover against the partner total', async () => {
+// Catalog search lane (owner ruling R-5b, 2026-09-05): the SKU box asks haiCore
+// as you type — `q` + a small page — so catalog size never matters (100,000
+// items or 500). This REPLACES the interim "suggestions cover the first N of M"
+// note from haiWeb #179: with server-side search there is no partial page to
+// disclose.
+describe('PhantomDemandScopeFields — partner catalog suggestions come from the server', () => {
+  it('asks haiCore with q and a small page, never a page of 500, and shows no coverage note', async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.startsWith('/api/account/partners/vendor-1/catalog/products?')) {
         return new Response(
           JSON.stringify({
-            products: [
-              { external_product_id: 'CN-1', product_name: 'Connector 1' },
-              { external_product_id: 'CN-2', product_name: 'Connector 2' },
-            ],
-            total: 10421,
+            products: [{ external_product_id: 'CN-1', product_name: 'Connector 1' }],
+            total: 1000,
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         );
@@ -255,9 +254,15 @@ describe('PhantomDemandScopeFields — partner catalog larger than the suggestio
         onChange={vi.fn()}
       />,
     );
-    // the partner picker is a combobox too — address the SKU box by its placeholder
     fireEvent.change(screen.getByPlaceholderText(/search by product name or sku/i), { target: { value: 'CN' } });
-    await screen.findByText('Connector 2');
-    expect(screen.getByText(/suggestions cover the first 2 of 10,421 products/i)).toBeInTheDocument();
+    await screen.findByText('Connector 1');
+    const productCalls = fetchMock.mock.calls
+      .map(([u]) => String(u))
+      .filter((u) => u.includes('/catalog/products?'));
+    expect(productCalls).toHaveLength(1);
+    const sp = new URL(productCalls[0], 'http://bff').searchParams;
+    expect(sp.get('q')).toBe('CN');
+    expect(Number(sp.get('size'))).toBeLessThanOrEqual(20);
+    expect(screen.queryByText(/suggestions cover the first/i)).not.toBeInTheDocument();
   });
 });
