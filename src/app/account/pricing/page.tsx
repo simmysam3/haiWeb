@@ -9,6 +9,8 @@ import { PricingTree, PricingNode } from "@/components/pricing-tree";
 import { PricingLevelEditor } from "@/components/pricing-level-editor";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
+import { describeApiError, type ApiErrorInfo } from "@/lib/api-error";
+import { FormError } from "@/components/form-error";
 
 function findNode(nodes: PricingNode[], id: string): PricingNode | null {
   for (const node of nodes) {
@@ -46,6 +48,7 @@ export default function PricingPage() {
   const [hierarchy, setHierarchy] = useState<PricingNode[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const { toast, showToast } = useToast();
+  const [saveError, setSaveError] = useState<ApiErrorInfo | null>(null);
 
   const pricingApi = useApi<PricingNode[]>({
     url: "/api/account/pricing",
@@ -67,8 +70,26 @@ export default function PricingPage() {
 
   const selectedNode = selectedId ? findNode(hierarchy, selectedId) : null;
 
+  // The BFF's answer is the fact: the tree changes and "Saved" shows only
+  // after a 2xx; a refusal or an unreachable server is surfaced instead.
   const handleSave = useCallback(async (data: Record<string, unknown>) => {
-    // Optimistic update
+    setSaveError(null);
+    let res: Response;
+    try {
+      res = await fetch("/api/account/pricing", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    } catch {
+      setSaveError({ status: 0, sessionExpired: false, message: "Could not reach the server. Nothing was saved." });
+      return;
+    }
+    if (!res.ok) {
+      setSaveError(await describeApiError(res));
+      return;
+    }
+
     setHierarchy((prev) =>
       updateNodeInTree(prev, data.id as string, (node) => ({
         ...node,
@@ -76,25 +97,26 @@ export default function PricingPage() {
         terms: { ...node.terms, ...(data.terms as Record<string, unknown>) },
       })),
     );
-
-    // Persist to BFF
-    try {
-      await fetch("/api/account/pricing", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-    } catch {
-      // Fire-and-forget
-    }
-
     showToast(`Saved pricing for "${(data.label as string) ?? "level"}"`);
   }, []);
 
   const handleReset = useCallback(async () => {
     if (!selectedNode) return;
+    setSaveError(null);
+    let res: Response;
+    try {
+      res = await fetch(`/api/account/pricing?manifest_id=${encodeURIComponent(selectedNode.id)}`, {
+        method: "DELETE",
+      });
+    } catch {
+      setSaveError({ status: 0, sessionExpired: false, message: "Could not reach the server. Nothing was reset." });
+      return;
+    }
+    if (!res.ok) {
+      setSaveError(await describeApiError(res));
+      return;
+    }
 
-    // Optimistic: reset node pricing/terms to empty (will inherit)
     setHierarchy((prev) =>
       updateNodeInTree(prev, selectedNode.id, (node) => ({
         ...node,
@@ -102,16 +124,6 @@ export default function PricingPage() {
         terms: {},
       })),
     );
-
-    // Persist deletion to BFF
-    try {
-      await fetch(`/api/account/pricing?manifest_id=${encodeURIComponent(selectedNode.id)}`, {
-        method: "DELETE",
-      });
-    } catch {
-      // Fire-and-forget
-    }
-
     showToast(`Reset "${selectedNode.label}" to inherited values`);
   }, [selectedNode]);
 
@@ -136,6 +148,11 @@ export default function PricingPage() {
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
           {toast}
+        </div>
+      )}
+      {saveError && (
+        <div className="mb-4">
+          <FormError message={saveError.message} sessionExpired={saveError.sessionExpired} />
         </div>
       )}
 
