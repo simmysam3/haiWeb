@@ -16,7 +16,7 @@
 - Release: HaiWeb **v1.86** cycle (release PR `v1.86`); no package.json bump (HaiWeb releases follow the cycle label). Merge order: after haiCore v1.86.0 and haiClient 1.89.0.
 - `@haiwave/protocol` resolves via `file:../haiCore/packages/protocol` — i.e. the PRIMARY haiCore checkout. This lane never repoints or symlinks it to an unmerged tree; the gate runs against whatever the primary carries (this feature imports nothing new from the protocol). Central accepts an older minor protocol header.
 - **No commercial ERP name in any user-visible string** — "your ERP" throughout.
-- Every string the spec quotes is used verbatim: the alert *"Write not allowed — your agent is not permitted to update your ERP. Please update these records directly in your ERP; they will clear on the next refresh."*; the tab label **"Counterparty updates"**; the renamed tab **"Sharing posture"**.
+- Every string the spec quotes is used verbatim: the alert *"Write not allowed — your agent is not permitted to update your ERP. Please update these records directly in your ERP; they will clear on the next refresh."*; the tab label **"Counterparty updates"**; the existing tab keeps its label **"Counterparty Manifest"** (owner ruling #2, 2026-09-05 — no rename).
 - Tests: `~/dev/hw/vitest-lock.sh npx vitest run <file> --maxWorkers=3 --minWorkers=1` (one vitest on the machine at a time). Gate at HOLD: `npm run build` (0) · `vitest run` (0 failed) · `npx playwright test --list` (0 type errors).
 - Commits end with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`; never push (owner's word in session hw-a3's window).
 
@@ -28,7 +28,7 @@
 | `src/lib/haiwave-api.ts` | `listCounterpartyUpdates`, `decideCounterpartyUpdate`, `syncCounterpartyUpdatesNow` (+ interface entries beside `entityApprovalsQueue` :502) |
 | `src/app/api/account/counterparty-updates/{route.ts, [id]/decide/route.ts, sync-now/route.ts}` (new) | BFF, `role: "account_admin"` on all three |
 | `src/app/account/manifests/counterparty-updates/{counterparty-updates-tab.tsx, updates-table.tsx, write-alert.tsx, sync-now-panel.tsx}` (new) | the tab |
-| `src/app/account/manifests/page.tsx` | tab registration; "Counterparty Manifest" → "Sharing posture" |
+| `src/app/account/manifests/page.tsx` | tab registration; "Counterparty Manifest" keeps its label (no rename) |
 | `src/app/account/profile/profile-form.tsx`, `src/lib/haiwave-api.ts` (`ParticipantProfile.locations`) | the Locations editor + explicit PUT mapping |
 
 ---
@@ -99,7 +99,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Create: `src/app/account/manifests/counterparty-updates/counterparty-updates-tab.tsx`, `updates-table.tsx`, `write-alert.tsx`, `sync-now-panel.tsx`
 - Modify: `src/app/account/manifests/page.tsx:13-20, :35-41` (tab + rename)
-- Test: `src/app/account/manifests/__tests__/page-tabs.test.tsx` (seven tabs; "Sharing posture"; "Counterparty updates" after "Entity Approvals"), `src/app/account/manifests/counterparty-updates/__tests__/counterparty-updates-tab.test.tsx`
+- Test: `src/app/account/manifests/__tests__/page-tabs.test.tsx` (seven tabs; "Counterparty Manifest" present; "Counterparty updates" after "Entity Approvals"), `src/app/account/manifests/counterparty-updates/__tests__/counterparty-updates-tab.test.tsx`
 
 **Interfaces:**
 - Consumes: Task 1's client via `fetch('/api/account/counterparty-updates…')` (the `useApi` / `fetch` idiom of `review-queue-panel.tsx`); `DataTable`/`Column`, `Button`, `Card`, `Pill`, `useToast`.
@@ -109,7 +109,7 @@ Layout (spec §6.4): header row — **Sync all now** (disabled while `sync_state
 
 - [ ] **Step 1: Write the failing tests**
 ```ts
-// page-tabs: seven tab buttons; 'Sharing posture' present and 'Counterparty Manifest' absent; 'Counterparty updates' after 'Entity Approvals'; clicking it renders the header "Sync all now".
+// page-tabs: seven tab buttons; 'Counterparty Manifest' present; 'Counterparty updates' after 'Entity Approvals'; clicking it renders the header "Sync all now".
 // tab (fetch stubbed per URL): renders a group per counterparty with the pending count; a row shows label, your value, represented value, "2 days ago"-style last updated; Keep mine POSTs { keep: 'mine' } and the row becomes kept without a refetch (fetch called exactly twice: list + decide); Take theirs POSTs { keep: 'theirs' }; a location row with mine null shows "Not in your ERP" and "Create in ERP"; an ambiguously matched location row lists each candidate as name · location_ref · city, state and offers no Take theirs (present control: the same row still offers Keep mine, captioned as suppressing that represented address until it changes); an identity row's Link POSTs { link: 7 } for the selected candidate; the alert appears when all write capabilities are false and an approved row exists and reads the verbatim sentence (present control: absent when capabilities are true); an `approved && dirty` location row whose `apply_detail` reads "your agent may create a location in your ERP but not change an existing one …" renders that sentence in its own Why cell and does NOT render the generic banner (present control: an `approved && dirty` row while `write_capabilities` are all false renders both); the alert is also absent when `sync_state` is null and an approved row exists (present control for the pre-first-check-in state); Sync all now POSTs sync-now, shows "Sync started", disables itself, and re-fetches until last_run_id changes (fake timers); filter changes the query string; a 409 on decide reverts the row and toasts.
 ```
 
@@ -118,7 +118,7 @@ Layout (spec §6.4): header row — **Sync all now** (disabled while `sync_state
 - [ ] **Step 3: Implement** the four components and the page change:
 ```ts
 const MANIFEST_TABS = [
-  { key: "counterparty", label: "Sharing posture" },
+  { key: "counterparty", label: "Counterparty Manifest" },
   { key: "library_sharing", label: "Library — Sharing" },
   { key: "library_requirements", label: "Library — Requirements" },
   { key: "pricing", label: "Baseline Pricing" },
@@ -136,7 +136,7 @@ const MANIFEST_TABS = [
 
 ```bash
 git add src/app/account/manifests
-git commit -m "feat(console): Counterparty updates tab — grouped rows, keep/take/link, write alert, Sync all now; Counterparty Manifest tab renamed Sharing posture
+git commit -m "feat(console): Counterparty updates tab — grouped rows, keep/take/link, write alert, Sync all now
 
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
@@ -208,6 +208,35 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ---
 
+### Task 5: Profile form — hide or disable every key with no backing haiCore profile field so nothing appears editable that does not persist
+
+**Files:**
+- Modify: `src/app/account/profile/profile-form.tsx`
+
+**Rule:** A `ProfileData` key with no corresponding haiCore profile field (per Task 3 Step 3's load mapping) renders read-only with a caption explaining it does not persist to your ERP-facing profile, or does not render at all; a key backed by a haiCore field (e.g. `phone`, mapped from `primary_contact_phone`) stays fully editable. `tax_id` is the unbacked key named in this plan's own review observation (owner ruling #5, 2026-09-05); any other key found unbacked at implementation time (e.g. `duns`) gets the same treatment.
+
+- [ ] **Step 1: Write the failing test.**
+```ts
+// profile-form: tax_id renders with no editable control (a disabled input, or plain text, captioned that it is not saved to your profile) (present control: phone IS an editable, enabled input, backed by primary_contact_phone).
+```
+
+- [ ] **Step 2: Run — expect FAIL.**
+
+- [ ] **Step 3: Implement.** Disable (or remove) the `tax_id` input and add its caption; audit the remaining `ProfileData` fields against Task 3 Step 3's mapping and apply the same treatment to any other key found unbacked.
+
+- [ ] **Step 4: Run — expect PASS. `npm run build`.**
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/app/account/profile/profile-form.tsx
+git commit -m "fix(profile): hide/disable profile keys with no backing haiCore field (tax_id) — owner ruling #5, 2026-09-05
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+```
+
+---
+
 ## Self-review
 
 **Spec coverage → task:** §6.4 tab (header, alert, rows, pills, filter, identity select, "Not in your ERP" / "Create in ERP") → Task 2 · §6.4 BFF + client → Task 1 · §6.4 profile Locations editor → Task 3 · §6.4 tab rename → Task 2 · ruling 6 Sync all now + progress → Task 2 · ruling 7 "their last updated" → Task 2 · ruling 3 alert verbatim + dirty pill → Task 2 · §5.4 `account_admin` → Task 1 · §10 gate + walk → Task 4 · §11 boundaries (no notification; no counterparty view of the owner's rows — the BFF is owner-scoped by session) → held.
@@ -215,4 +244,4 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Type consistency:** `CounterpartyUpdateRow` / `CounterpartyUpdatesList` / `CounterpartyUpdateDecision` / `SyncNowResponse` (Task 1) consumed in Task 2 · `ProfileLocation` (Task 3) matches `ParticipantLocationSchema` field for field · client method names in Task 1 match the routes' calls.
 **Verified in review round 1 (no change):** `hasRole('account_admin')` (`src/lib/auth.ts:228-240`) accepts `account_admin` and `account_owner` short-circuits; `MANIFEST_TABS` (`page.tsx:13-20`) carries exactly the six keys/labels reproduced in Task 2.
 **Round 2 refinement of §6.4's alert condition (stated):** the banner means "the write is not enabled" (every capability false + an approved row — ruling 3's verbatim sentence); every other refusal or failure shows the agent's own `apply_detail` on its row (the Why column). Without this the four-verb decision would make the banner false for a matched location's refusal (C-R1). An ambiguously matched location's Keep mine is captioned as a suppression (C-R2).
-**Observation for the PR body (§L candidate, not this lane's fix):** the profile form's non-address keys that haiCore has no column for (`tax_id` display, `phone` vs `primary_contact_phone` naming) were mapped where a haiCore field exists and left client-side otherwise.
+**Observation for the PR body:** see Task 5 — the profile form's unbacked key (`tax_id`, no haiCore column) is hidden/disabled so nothing appears editable that does not persist; the `phone` vs `primary_contact_phone` naming was a mapping issue, resolved by Task 3 Step 3.
