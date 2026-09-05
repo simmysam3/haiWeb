@@ -17,7 +17,7 @@ export const POST = withHaiCore(
         { status: 400 },
       );
     }
-    return client.downgradeConnection(body.connection_id);
+    return client.downgradeConnection(body.connection_id, body.target_state);
   },
   {
     role: "account_admin",
