@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { UsersTable } from '../users-table';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -13,6 +13,11 @@ function postCall(fetchMock: ReturnType<typeof vi.spyOn>) {
   );
 }
 
+const seedUser = {
+  id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
+  role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
+};
+
 describe('UsersTable — invite', () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -22,6 +27,9 @@ describe('UsersTable — invite', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee', role: 'buyer_view_only' }, 201),
     );
+    // A successful invite re-reads the roster (§L-29); without a third scripted
+    // response that GET falls through to the real fetch.
+    fetchMock.mockResolvedValueOnce(jsonResponse([seedUser]));
 
     render(<UsersTable />);
     fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
@@ -75,11 +83,6 @@ describe('UsersTable — invite', () => {
   });
 });
 
-const seedUser = {
-  id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
-  role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
-};
-
 describe('UsersTable — mutations surface failures (no fire-and-forget)', () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -128,5 +131,134 @@ describe('UsersTable — load error', () => {
     // An outage must NOT read as "this account has no users".
     expect(screen.queryByText(/0 users/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+});
+
+describe('UsersTable — a late initial load never wipes an invited row (§L-29)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('keeps the invited user on the page when the initial roster GET settles after the invite', async () => {
+    let resolveInitial!: (res: Response) => void;
+    const initialGet = new Promise<Response>((resolve) => { resolveInitial = resolve; });
+    const invited = {
+      id: 'u9', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
+      role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
+    };
+    let gets = 0;
+
+    // Routed by URL + method: after the fix three requests hit the same URL and
+    // an order-based mock script cannot say which is which.
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/account/users' && method === 'GET') {
+        gets += 1;
+        // The initial load is held open until the invite has landed.
+        return gets === 1 ? initialGet : jsonResponse([invited]);
+      }
+      if (url === '/api/account/users' && method === 'POST') return jsonResponse(invited, 201);
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    render(<UsersTable />);
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jo' } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Lee' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jo@acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+
+    await waitFor(() => expect(postCall(fetchMock)).toBeTruthy());
+    expect(await screen.findByText('Jo Lee')).toBeInTheDocument();
+
+    // Only now does the initial load answer, with a roster that predates the
+    // invite. Flushed to exhaustion so the settle is not merely still pending.
+    await act(async () => {
+      resolveInitial(jsonResponse([]));
+      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(screen.getByText('Jo Lee')).toBeInTheDocument();
+  });
+});
+
+describe('UsersTable — the roster is re-read after a successful invite (§L-29)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('renders the invited user with the role the roster resolves, not the one the invite echoed', async () => {
+    // D-212: the realm role is the governing record. The POST echoes the
+    // requested role; the list endpoint reports the role actually mapped.
+    const echoed = { id: 'u9', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee', role: 'buyer_view_only' };
+    const governing = {
+      ...echoed, role: 'procurement_transact',
+      job_title: '', phone: '', status: 'active', last_login: 'Never',
+    };
+    const existing = { ...seedUser, id: 'u1', first_name: 'Ada', last_name: 'Byron', email: 'ada@acme.com' };
+    const gets: string[] = [];
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/account/users' && method === 'GET') {
+        gets.push(url);
+        return jsonResponse(gets.length === 1 ? [existing] : [existing, governing]);
+      }
+      if (url === '/api/account/users' && method === 'POST') return jsonResponse(echoed, 201);
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    render(<UsersTable />);
+    // The initial load settles first, so this test is about the re-read alone
+    // and not about the §L-29 race the test above pins down.
+    await screen.findByText('Ada Byron');
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jo' } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Lee' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jo@acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+
+    // Asserted on the row, not on the pill's text: <Pill> renders the label
+    // beside an sr-only definition, so its textContent is never just the label.
+    await waitFor(() => {
+      expect(screen.getByText('Jo Lee').closest('tr')).toHaveTextContent('Procurement Transact');
+    });
+    expect(gets).toHaveLength(2);
+    // The echoed role never survives the re-read.
+    expect(screen.getByText('Jo Lee').closest('tr')).not.toHaveTextContent('Buyer View Only');
+  });
+});
+
+describe('UsersTable — a failed re-read never hides the invite confirmation (§L-29)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('shows the invitation confirmation beside the outage panel when the post-invite roster re-read fails', async () => {
+    const invited = { id: 'u9', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee', role: 'buyer_view_only' };
+    const existing = { ...seedUser, id: 'u1', first_name: 'Ada', last_name: 'Byron', email: 'ada@acme.com' };
+    let gets = 0;
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/account/users' && method === 'GET') {
+        gets += 1;
+        // The invite lands, then the re-read it triggers goes down.
+        return gets === 1 ? jsonResponse([existing]) : jsonResponse({ error: 'Could not load users' }, 502);
+      }
+      if (url === '/api/account/users' && method === 'POST') return jsonResponse(invited, 201);
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    render(<UsersTable />);
+    await screen.findByText('Ada Byron');
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jo' } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Lee' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jo@acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+
+    expect(await screen.findByText(/could not load users/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    // The dialog has already closed. Without the confirmation the user reads
+    // the outage as a failed invite and invites the same person again.
+    expect(screen.getByText('Invitation sent to jo@acme.com')).toBeInTheDocument();
   });
 });
