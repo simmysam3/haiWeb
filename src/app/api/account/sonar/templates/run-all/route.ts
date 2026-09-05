@@ -35,4 +35,4 @@ export const POST = withHaiCore(async ({ client }) => {
   });
 
   return NextResponse.json({ total: enabled.length, triggered, failed });
-});
+}, { role: 'account_admin' });

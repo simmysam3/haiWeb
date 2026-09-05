@@ -51,4 +51,4 @@ export const POST = withHaiCore(async ({ client, request }) => {
     );
   }
   return NextResponse.json(await client.createRunTemplate(parsed.data));
-});
+}, { role: 'account_admin' });

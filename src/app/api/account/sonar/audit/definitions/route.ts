@@ -28,4 +28,4 @@ export const POST = withHaiCore(async ({ client, request }) => {
   // so we cast back to the same type after the override.
   const payload = { ...body, observation_class: 'audit' as const } as unknown as CreateRunTemplateRequest;
   return NextResponse.json(await client.createRunTemplate(payload));
-});
+}, { role: 'account_admin' });

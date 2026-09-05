@@ -8,4 +8,4 @@ export const PATCH = withHaiCore<{ draft_id: string; annotation_id: string }>(
     return NextResponse.json(
       await client.patchEvidenceAnnotation(params.draft_id, params.annotation_id, body),
     );
-  });
+  }, { role: 'account_admin' });

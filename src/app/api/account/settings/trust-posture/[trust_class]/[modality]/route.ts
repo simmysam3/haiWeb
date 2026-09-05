@@ -28,4 +28,5 @@ export const PUT = withHaiCore<{ trust_class: string; modality: string }>(
       ),
     );
   },
+  { role: 'account_admin' },
 );

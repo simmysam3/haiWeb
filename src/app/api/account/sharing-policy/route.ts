@@ -10,4 +10,4 @@ export const GET = withHaiCore(async ({ client }: { client: HaiwaveClient }) => 
 export const PUT = withHaiCore(async ({ client, request }: { client: HaiwaveClient; request: Request }) => {
   const body = (await request.json()) as SharingPolicyUpdateRequest;
   return NextResponse.json(await client.upsertSharingPolicy(body));
-});
+}, { role: 'account_admin' });

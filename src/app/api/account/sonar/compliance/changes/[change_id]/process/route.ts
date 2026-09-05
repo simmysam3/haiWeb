@@ -12,4 +12,4 @@ import type { ProcessComplianceChangeRequest } from '@haiwave/protocol';
 export const POST = withHaiCore<{ change_id: string }>(async ({ client, request, params }) => {
   const body = (await request.json()) as ProcessComplianceChangeRequest;
   return NextResponse.json(await client.processComplianceChange(params.change_id, body));
-});
+}, { role: 'account_admin' });
