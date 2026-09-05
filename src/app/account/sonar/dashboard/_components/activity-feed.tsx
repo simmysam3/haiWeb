@@ -20,8 +20,19 @@ interface ActivityEvent {
   detail_href: string;
 }
 
+/** A lane the route could not read (W-F1, 2026-09-05) — said, never shown as "no runs". */
+type FailedLane = 'audit' | 'watcher' | 'phantom_demand' | 'templates';
+
+const FAILED_LANE_LABEL: Record<FailedLane, string> = {
+  audit: 'Audit',
+  watcher: 'Watcher',
+  phantom_demand: 'Phantom Demand',
+  templates: 'Run-name',
+};
+
 interface FeedResponse {
   events: ActivityEvent[];
+  failed?: FailedLane[];
 }
 
 interface Props {
@@ -109,16 +120,27 @@ export function ActivityFeed({ initial }: Props) {
     );
   }
   const events = data?.events ?? [];
+  const failed = data?.failed ?? [];
+  const failedNotice =
+    failed.length > 0 ? (
+      <p role="status" className="border-b border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-900">
+        {failed.map((l) => FAILED_LANE_LABEL[l] ?? l).join(' and ')} activity could not be loaded — this is
+        not a statement about those runs. Refresh to retry.
+      </p>
+    ) : null;
   if (events.length === 0) {
     return (
-      <div className="rounded-md border border-slate-200 bg-white p-6 text-sm italic text-slate">
-        No recent runs across modalities.
+      <div className="rounded-md border border-slate-200 bg-white">
+        {failedNotice ?? (
+          <div className="p-6 text-sm italic text-slate">No recent runs across modalities.</div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="rounded-md border border-slate-200 bg-white">
+      {failedNotice}
       <h2 className="border-b border-slate-100 px-4 py-2 text-sm font-semibold text-charcoal">
         Recent activity
       </h2>
