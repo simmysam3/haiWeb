@@ -109,6 +109,12 @@ export function UsersTable() {
       setUsers((prev) => [...prev, newUser]);
       showToast(`Invitation sent to ${newUser.email}`);
       closeInvite();
+      // Re-read the roster: the realm role is the governing record (D-212), so
+      // the row must show the role the list endpoint resolves, not the one this
+      // request echoed back. The refetch also supersedes an initial load still
+      // in flight — useApi cancels it — so a roster that predates the invite can
+      // no longer land and wipe the row just appended (§L-29).
+      refetch();
     } catch {
       setInviteError("Could not reach the server. Please try again.");
     } finally {
@@ -206,26 +212,34 @@ export function UsersTable() {
     },
   ];
 
+  // Rendered in both branches. A successful invite closes its dialog, so if the
+  // re-read that follows fails the outage panel would be the only thing left on
+  // the page and the user would read it as a failed invite and re-invite.
+  const toastBanner = toast && (
+    <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
+      {toast}
+    </div>
+  );
+
   // A load failure must read as an outage, not as "this account has no users".
   if (error && !loading) {
     return (
-      <div className="bg-white rounded-lg border border-slate/15 p-8 text-center">
-        <p className="text-sm font-medium text-problem">Could not load users.</p>
-        <p className="mt-1 text-sm text-slate">There was a problem reaching the identity service. Your team members are safe — this is a display issue.</p>
-        <div className="mt-4">
-          <Button size="sm" variant="secondary" onClick={refetch}>Retry</Button>
+      <>
+        {toastBanner}
+        <div className="bg-white rounded-lg border border-slate/15 p-8 text-center">
+          <p className="text-sm font-medium text-problem">Could not load users.</p>
+          <p className="mt-1 text-sm text-slate">There was a problem reaching the identity service. Your team members are safe — this is a display issue.</p>
+          <div className="mt-4">
+            <Button size="sm" variant="secondary" onClick={refetch}>Retry</Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
-      {toast && (
-        <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
-          {toast}
-        </div>
-      )}
+      {toastBanner}
 
       <div className="bg-white rounded-lg border border-slate/15">
         <div className="p-4 border-b border-slate/15 flex justify-between items-center">
