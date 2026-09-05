@@ -1,5 +1,5 @@
-import { cookies, headers } from 'next/headers';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { NominationForm } from './nomination-form';
 import type { InitialState, PartnerSummary } from './types';
 
@@ -9,37 +9,29 @@ interface PartnerRow {
   status: string;
 }
 
-async function getBaseUrl() {
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  return `${proto}://${host}`;
-}
-
-async function authedFetch(path: string): Promise<Response> {
-  const baseUrl = await getBaseUrl();
-  const cookieHeader = (await cookies()).toString();
-  return fetch(`${baseUrl}${path}`, {
-    headers: { cookie: cookieHeader },
-    cache: 'no-store',
-  });
+/**
+ * D-62: every BFF read goes through `fetchBffJson`, which takes the origin
+ * from the configured PORTAL_BASE_URL (never the request's Host header) and
+ * forwards the caller's cookie. Non-OK and network failures both become null.
+ */
+async function bffJson<T>(path: string): Promise<T | null> {
+  const result = await fetchBffJson<T>(path);
+  return result.kind === 'ok' ? result.data : null;
 }
 
 async function findVendor(vendorId: string): Promise<PartnerSummary | null> {
-  const res = await authedFetch('/api/account/partners');
-  if (!res.ok) return null;
-  const partners = (await res.json()) as PartnerRow[];
+  const partners = await bffJson<PartnerRow[]>('/api/account/partners');
+  if (!partners) return null;
   const match = partners.find((p) => p.id === vendorId);
   if (!match) return null;
   return { id: match.id, legal_name: match.company_name };
 }
 
 async function findClass(vendorId: string, classId: string): Promise<CatalogClass | null> {
-  const res = await authedFetch(
+  const body = await bffJson<{ classes: CatalogClass[] }>(
     `/api/account/partners/${encodeURIComponent(vendorId)}/catalog/classes`,
   );
-  if (!res.ok) return null;
-  const body = (await res.json()) as { classes: CatalogClass[] };
+  if (!body) return null;
   return body.classes?.find((c) => c.class_id === classId) ?? null;
 }
 
@@ -47,18 +39,16 @@ async function findProduct(
   vendorId: string,
   productId: string,
 ): Promise<{ product: CatalogProduct; classId: string } | null> {
-  const classesRes = await authedFetch(
+  const classesBody = await bffJson<{ classes: CatalogClass[] }>(
     `/api/account/partners/${encodeURIComponent(vendorId)}/catalog/classes`,
   );
-  if (!classesRes.ok) return null;
-  const { classes } = (await classesRes.json()) as { classes: CatalogClass[] };
-  for (const klass of classes ?? []) {
-    const prodsRes = await authedFetch(
+  if (!classesBody) return null;
+  for (const klass of classesBody.classes ?? []) {
+    const prodsBody = await bffJson<{ products: CatalogProduct[]; total: number }>(
       `/api/account/partners/${encodeURIComponent(vendorId)}/catalog/products?class_id=${encodeURIComponent(klass.class_id)}&page=1&size=500`,
     );
-    if (!prodsRes.ok) continue;
-    const { products } = (await prodsRes.json()) as { products: CatalogProduct[]; total: number };
-    const match = products?.find((p) => p.external_product_id === productId);
+    if (!prodsBody) continue;
+    const match = prodsBody.products?.find((p) => p.external_product_id === productId);
     if (match) return { product: match, classId: klass.class_id };
   }
   return null;

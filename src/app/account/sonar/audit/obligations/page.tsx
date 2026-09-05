@@ -1,5 +1,5 @@
-import { headers } from 'next/headers';
 import type { DownstreamGapEntry } from '@haiwave/protocol';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { GapsTable } from './gaps-table';
 import { LeastCompliantPanel } from './least-compliant-panel';
 import { FilterPills } from './filter-pills';
@@ -28,18 +28,14 @@ async function fetchGaps(searchParams: SearchParams): Promise<FetchResult> {
   }
   if (searchParams.min_request_count) sp.set('min_request_count', searchParams.min_request_count);
 
-  const h = await headers();
-  const cookie = h.get('cookie') ?? '';
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3000';
-  const url = `${protocol}://${host}/api/account/sku-obligations/downstream-gaps?${sp}`;
-  try {
-    const res = await fetch(url, { headers: { cookie }, cache: 'no-store' });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    return { kind: 'ok', entries: (await res.json()) as DownstreamGapEntry[] };
-  } catch {
-    return { kind: 'error', status: 0 };
-  }
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header; `fetchBffJson` forwards the cookie and never throws — a
+  // network failure is `status: 0`.
+  const result = await fetchBffJson<DownstreamGapEntry[]>(
+    `/api/account/sku-obligations/downstream-gaps?${sp}`,
+  );
+  if (result.kind === 'error') return { kind: 'error', status: result.status };
+  return { kind: 'ok', entries: result.data };
 }
 
 interface PageProps {

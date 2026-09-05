@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { cookies, headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import type { RunTemplate } from '@haiwave/protocol';
 import { TemplateEditor } from '../_components/template-editor';
@@ -8,31 +7,27 @@ import { TemplateRunHistory } from './_components/template-run-history';
 import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
 import { PageHeader } from '@/components';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
 }
 
 async function loadTemplate(templateId: string): Promise<RunTemplate | null> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  try {
-    const res = await fetch(
-      `${proto}://${host}/api/account/sonar/templates/${templateId}`,
-      { headers: { cookie: cookieHeader }, cache: 'no-store' },
-    );
-    if (res.status === 404) return null;
-    if (!res.ok) {
-      throw new Error(`template detail fetch failed: ${res.status}`);
-    }
-    const payload = (await res.json()) as { template: RunTemplate };
-    return payload.template;
-  } catch (err) {
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header; `fetchBffJson` forwards the cookie and never throws. A 404
+  // is "no such template"; any other failure is surfaced to the error
+  // boundary exactly as before.
+  const result = await fetchBffJson<{ template: RunTemplate }>(
+    `/api/account/sonar/templates/${templateId}`,
+  );
+  if (result.kind === 'error') {
+    if (result.status === 404) return null;
+    const err = new Error(`template detail fetch failed: ${result.status}`);
     console.error('[template detail] fetch failed', err);
     throw err;
   }
+  return result.data.template;
 }
 
 export default async function TemplateDetailPage({ params }: DetailPageProps) {

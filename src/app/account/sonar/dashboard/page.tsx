@@ -1,4 +1,3 @@
-import { cookies, headers } from 'next/headers';
 import { PageIntro } from '@/components/page-intro';
 import { Panel, PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -83,19 +82,12 @@ function unwrapBestEffort<T>(result: FetchResult<T>, lane: string): T | null {
 }
 
 async function loadDashboard(): Promise<DashboardData> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-
-  // v1.37 polish item 1: all BFF lanes now go through `fetchBffJson` so the
+  // v1.37 polish item 1: all BFF lanes go through `fetchBffJson` so the
   // dashboard speaks a single fetch dialect. Coverage uses the discriminated
   // result directly (status-aware banner); the best-effort lanes adapt to
   // `T | null` via `unwrapBestEffort` so the existing downstream null
-  // handling stays intact. `loadAuditChartData` keeps its raw `fetch`
-  // because it operates against the broader audit-runs API on a different
-  // path prefix and has lane-specific recovery logic.
+  // handling stays intact. `loadAuditChartData` resolves its own origin the
+  // same way (D-62), so nothing here is derived from the request headers.
   const coveragePromise = loadCoverage();
   const [
     crossModalityRes,
@@ -110,7 +102,7 @@ async function loadDashboard(): Promise<DashboardData> {
     fetchBffJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
     fetchBffJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
     coveragePromise,
-    loadAuditChartData(baseUrl, cookieHeader),
+    loadAuditChartData(),
   ]);
 
   const crossModality = unwrapBestEffort(crossModalityRes, 'cross-modality');

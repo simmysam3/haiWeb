@@ -1,27 +1,20 @@
 import { cache } from 'react';
-import { cookies, headers } from 'next/headers';
 import type { AuditScope } from '@haiwave/protocol';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 export type ScopesResult =
   | { kind: 'ok'; scopes: AuditScope[] }
   | { kind: 'error'; status: number };
 
 export const getActiveScopes = cache(async (): Promise<ScopesResult> => {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-  try {
-    const res = await fetch(`${baseUrl}/api/account/audit-scopes?active_only=true`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) return { kind: 'error', status: res.status };
-    const data = (await res.json()) as { scopes?: AuditScope[] };
-    return { kind: 'ok', scopes: data.scopes ?? [] };
-  } catch (err) {
-    console.error('[getActiveScopes] network failure', { err });
-    return { kind: 'error', status: 0 };
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header; `fetchBffJson` forwards the cookie and never throws.
+  const result = await fetchBffJson<{ scopes?: AuditScope[] }>(
+    '/api/account/audit-scopes?active_only=true',
+  );
+  if (result.kind === 'error') {
+    if (result.status === 0) console.error('[getActiveScopes] network failure', { err: result.message });
+    return { kind: 'error', status: result.status };
   }
+  return { kind: 'ok', scopes: result.data.scopes ?? [] };
 });
