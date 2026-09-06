@@ -180,6 +180,7 @@ export async function endSession(token: string): Promise<void> {
 
 export interface KeycloakUser {
   id: string;
+  email?: string;
   attributes?: Record<string, string[]>;
 }
 
@@ -343,7 +344,7 @@ export async function updateUserRole(
 export async function disableUser(userId: string): Promise<void> {
   const token = await getAdminToken();
 
-  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -356,10 +357,35 @@ export async function disableUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Set the user's first and last name. The body carries those two fields and
+ * nothing else: the email is the login and is never edited from the portal —
+ * a wrong email is a delete + re-invite (owner ruling 2026-09-06).
+ */
+export async function updateUserName(
+  userId: string,
+  firstName: string,
+  lastName: string,
+): Promise<void> {
+  const token = await getAdminToken();
+
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ firstName, lastName }),
+  });
+  if (!res.ok) {
+    throw new Error(`Keycloak update user name failed: ${res.status} ${await res.text()}`);
+  }
+}
+
 export async function deleteUser(userId: string): Promise<void> {
   const token = await getAdminToken();
 
-  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,
