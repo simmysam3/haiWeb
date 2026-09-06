@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { refreshToken, endSession, updateUserRole, disableUser, createUser, sendExecuteActionsEmail, listUsers, RealmRoleNotFoundError } from '../keycloak';
+import { refreshToken, endSession, updateUserRole, disableUser, createUser, sendExecuteActionsEmail, listUsers, updateUserName, RealmRoleNotFoundError } from '../keycloak';
 
 describe('keycloak token endpoints send client_secret (confidential client)', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -362,5 +362,41 @@ describe('listUsers — a refused or failed Keycloak read is never an empty rost
     }));
 
     await expect(listUsers('p-apex')).rejects.toThrow(/403/);
+  });
+});
+
+describe('updateUserName — the name PUT never touches the email', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function recordingFetch(refusePut = false) {
+    const calls: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const method = init?.method ?? 'GET';
+      calls.push({ method, url: u, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (refusePut) {
+        return { ok: false, status: 403, text: async () => '{"error":"HTTP 403 Forbidden"}' } as unknown as Response;
+      }
+      return { ok: true, status: 204, json: async () => ({}), text: async () => '' } as unknown as Response;
+    }));
+    return calls;
+  }
+
+  it('PUTs firstName and lastName only — no email, no username', async () => {
+    const calls = recordingFetch();
+    await updateUserName('u1', 'Jo', 'Lee');
+    const put = calls.find((c) => c.method === 'PUT');
+    expect(put?.url).toMatch(/\/users\/u1$/);
+    // Exact key set: a body that also carried email/username would rename the login.
+    expect(Object.keys(put!.body!).sort()).toEqual(['firstName', 'lastName']);
+    expect(put!.body).toEqual({ firstName: 'Jo', lastName: 'Lee' });
+  });
+
+  it('throws when Keycloak refuses the PUT', async () => {
+    recordingFetch(true);
+    await expect(updateUserName('u1', 'Jo', 'Lee')).rejects.toThrow(/update user name failed/);
   });
 });
