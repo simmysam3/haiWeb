@@ -81,6 +81,8 @@ describe('POST /api/account/users — invited-user provisioning', () => {
     );
     const res = await POST(req(invite));
     expect(res.status).toBe(500);
+    // Negative control: nothing was created, so the key must be absent.
+    expect(await res.clone().json()).not.toHaveProperty('user_id');
     // A plain sentence for the dialog; Keycloak's own text never reaches it.
     expect((await res.json()).error).toBe(
       'The role buyer_view_only is not defined in the sign-in realm. Nothing was created.',
@@ -93,21 +95,25 @@ describe('POST /api/account/users — invited-user provisioning', () => {
     (updateUserRole as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Keycloak role assignment failed: 500'));
     const res = await POST(req(invite));
     expect(res.status).toBe(500);
-    const { error } = await res.json();
+    const body = await res.json();
+    const { error } = body;
     expect(createUser).toHaveBeenCalled();
     expect(error).not.toMatch(/[Nn]othing was created/);
     expect(error).toBe(
       'The user was created but their role could not be set. An administrator must finish setting up the account.',
     );
+    expect(body.user_id).toBe('u-new');
   });
 
   it('names the email step, not the role step, when only the invitation email fails', async () => {
     (sendExecuteActionsEmail as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('smtp down'));
     const res = await POST(req(invite));
     expect(res.status).toBe(500);
-    const { error } = await res.json();
+    const body = await res.json();
+    const { error } = body;
     expect(updateUserRole).toHaveBeenCalled();
     expect(error).toBe('The user was created but the invitation email could not be sent.');
+    expect(body.user_id).toBe('u-new');
   });
 
   it('writes no role attribute on the Keycloak user — the realm role is the only record (D-212)', async () => {
