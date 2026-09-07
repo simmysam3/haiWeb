@@ -1,7 +1,7 @@
 /**
  * Local mirror of haiCore protocol 3.82.0's counterparty-updates wire shapes
  * (`packages/protocol/src/counterparty-updates.ts`). Field names are kept
- * identical on purpose — do NOT import from `@haiwave/protocol` here; this
+ * identical on purpose — do NOT import from the protocol package here; this
  * lane's types are a deliberate local copy (see dispatch-constraints.md).
  */
 

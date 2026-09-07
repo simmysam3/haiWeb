@@ -94,6 +94,9 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
   }
 
   const inputClass = `w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal ${readOnly ? "bg-light-gray cursor-not-allowed" : ""}`;
+  // Always-disabled fields (unbacked by any haiCore profile field) carry the same grey affordance the
+  // rest of the form uses for readOnly, independent of the readOnly prop.
+  const unbackedInputClass = "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm bg-light-gray cursor-not-allowed";
 
   function update<K extends keyof ProfileData>(key: K, value: ProfileData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -122,8 +125,9 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
     e.preventDefault();
     if (readOnly) return;
 
-    // Check for sensitive field changes
-    if (form.company_name !== profile.company_name || form.tax_id !== profile.tax_id) {
+    // Check for sensitive field changes. tax_id is disabled (unbacked by any haiCore field, see
+    // profile-mapping.ts) and can never differ from its loaded value, so only company_name is checked.
+    if (form.company_name !== profile.company_name) {
       setConfirmModal(true);
       return;
     }
@@ -218,12 +222,18 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal mb-1">Tax ID / EIN</label>
-              <input type="text" value={form.tax_id} onChange={(e) => update("tax_id", e.target.value)} className={inputClass} readOnly={readOnly} />
+              <label htmlFor="tax-id" className="block text-sm font-medium text-charcoal mb-1">Tax ID / EIN</label>
+              <input id="tax-id" type="text" value={form.tax_id} disabled className={unbackedInputClass} />
+              <p className="text-xs text-slate mt-1">
+                Not saved from this form — your profile on HAIWAVE has no editable field for this.
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal mb-1">DUNS Number</label>
-              <input type="text" value={form.duns} onChange={(e) => update("duns", e.target.value)} className={inputClass} readOnly={readOnly} />
+              <label htmlFor="duns" className="block text-sm font-medium text-charcoal mb-1">DUNS Number</label>
+              <input id="duns" type="text" value={form.duns} disabled className={unbackedInputClass} />
+              <p className="text-xs text-slate mt-1">
+                Not saved from this form — your profile on HAIWAVE has no editable field for this.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-charcoal mb-1">Website</label>
@@ -422,7 +432,7 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
 
       <Modal open={confirmModal} onClose={() => setConfirmModal(false)} title="Confirm Changes">
         <p className="text-sm text-charcoal mb-4">
-          You are changing your <strong>Legal Name</strong> or <strong>Tax ID</strong>. These fields affect your network identity and billing records. Are you sure you want to proceed?
+          You are changing your <strong>Legal Name</strong>. This field affects your network identity and billing records. Are you sure you want to proceed?
         </p>
         <div className="flex gap-3 justify-end">
           <Button variant="secondary" onClick={() => setConfirmModal(false)}>Cancel</Button>
