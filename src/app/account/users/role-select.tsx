@@ -5,6 +5,7 @@ import { STATUS_LABELS } from "@/components/status-badge";
 
 /** The roles an account owner may pick in the Invite and Edit dialogs. */
 export const ROLES = [
+  "account_admin",
   "procurement_read_only",
   "procurement_transact",
   "buyer_view_only",

@@ -6,6 +6,7 @@ export const STATUS_LABELS: Record<string, string> = {
   pending_payment: 'Pending Payment',
   past_due: 'Past Due',
   account_owner: 'Owner',
+  account_admin: 'Account Admin',
   procurement_read_only: 'Procurement Read Only',
   procurement_transact: 'Procurement Transact',
   buyer_view_only: 'Buyer View Only',
