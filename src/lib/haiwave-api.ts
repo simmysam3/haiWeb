@@ -272,7 +272,23 @@ export async function registerParticipant(data: {
 export interface ParticipantProfile {
   id: string;
   company_name: string;
+  locations?: ProfileLocation[];
   [key: string]: unknown;
+}
+
+/** A participant's headquarters or one child plant, self-declared on the profile (D-208).
+ *  Local mirror of haiCore's `ParticipantLocationSchema` (`.strict()` — no extra keys). */
+export interface ProfileLocation {
+  id?: string;
+  kind: "headquarters" | "plant";
+  label: string;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  updated_at?: string;
 }
 
 /** GET /participants/me — the caller's own record. `status` is the account's

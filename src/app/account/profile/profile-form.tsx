@@ -1,59 +1,28 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, useMemo, FormEvent } from "react";
 import { Button } from "@/components/button";
 import { Modal } from "@/components/modal";
+import { Card } from "@/components/card";
 import { useApi } from "@/lib/use-api";
 import { AliasEditor, type AliasItem } from "@/components/alias-editor";
+import type { ProfileLocation } from "@/lib/haiwave-api";
+import { type ProfileData, EMPTY_PLANT, toProfileData, toProfileUpdate } from "./profile-mapping";
 
 const BUSINESS_TYPES = ["Corporation", "LLC", "Partnership", "Sole Proprietorship", "Government", "Nonprofit"];
-
-interface ProfileData {
-  id: string;
-  company_name: string;
-  status: string;
-  business_type: string;
-  address: {
-    line1: string;
-    line2: string;
-    city: string;
-    state: string;
-    postal_code: string;
-    country: string;
-  };
-  phone: string;
-  email: string;
-  dba: string;
-  tax_id: string;
-  duns: string;
-  website: string;
-  description: string;
-}
-
-const EMPTY_PROFILE: ProfileData = {
-  id: "",
-  company_name: "",
-  status: "",
-  business_type: "",
-  address: { line1: "", line2: "", city: "", state: "", postal_code: "", country: "" },
-  phone: "",
-  email: "",
-  dba: "",
-  tax_id: "",
-  duns: "",
-  website: "",
-  description: "",
-};
 
 interface ProfileFormProps {
   readOnly: boolean;
 }
 
 export function ProfileForm({ readOnly }: ProfileFormProps) {
-  const { data: profile, loading } = useApi<ProfileData>({
+  // Fetched raw: haiCore's own body shape and the console's dev/mock fallback shape differ, so the
+  // response is mapped into ProfileData explicitly (toProfileData) rather than trusted as-is.
+  const { data: rawProfile, loading } = useApi<unknown>({
     url: "/api/account/profile",
-    fallback: EMPTY_PROFILE,
+    fallback: null,
   });
+  const profile = useMemo(() => toProfileData(rawProfile), [rawProfile]);
 
   const [form, setForm] = useState<ProfileData>(profile);
   const [saved, setSaved] = useState(false);
@@ -134,6 +103,21 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
     setForm((prev) => ({ ...prev, address: { ...prev.address, [key]: value } }));
   }
 
+  function addPlant() {
+    setForm((prev) => ({ ...prev, plants: [...prev.plants, { ...EMPTY_PLANT }] }));
+  }
+
+  function removePlant(index: number) {
+    setForm((prev) => ({ ...prev, plants: prev.plants.filter((_, i) => i !== index) }));
+  }
+
+  function updatePlant<K extends keyof ProfileLocation>(index: number, key: K, value: ProfileLocation[K]) {
+    setForm((prev) => ({
+      ...prev,
+      plants: prev.plants.map((p, i) => (i === index ? { ...p, [key]: value } : p)),
+    }));
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (readOnly) return;
@@ -151,9 +135,7 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
     setSaveError(null);
     setSaving(true);
 
-    const { id: _id, status: _status, ...payload } = form;
-    void _id;
-    void _status;
+    const payload = toProfileUpdate(form, profile);
 
     try {
       const res = await fetch("/api/account/profile", {
@@ -271,6 +253,109 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
             </div>
           </div>
         </div>
+
+        {/* Plant locations */}
+        <Card title="Plant locations">
+          <div className="space-y-4">
+            {form.plants.length === 0 && (
+              <p className="text-xs text-slate">No plant locations added yet.</p>
+            )}
+            {form.plants.map((plant, i) => (
+              <div key={i} data-testid={`plant-location-${i}`} className="border border-slate/15 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor={`plant-${i}-label`} className="block text-sm font-medium text-charcoal mb-1">Label</label>
+                    <input
+                      id={`plant-${i}-label`}
+                      type="text"
+                      required
+                      value={plant.label}
+                      onChange={(e) => updatePlant(i, "label", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`plant-${i}-line1`} className="block text-sm font-medium text-charcoal mb-1">Street Address</label>
+                    <input
+                      id={`plant-${i}-line1`}
+                      type="text"
+                      value={plant.address_line1 ?? ""}
+                      onChange={(e) => updatePlant(i, "address_line1", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor={`plant-${i}-line2`} className="block text-sm font-medium text-charcoal mb-1">Address Line 2</label>
+                  <input
+                    id={`plant-${i}-line2`}
+                    type="text"
+                    value={plant.address_line2 ?? ""}
+                    onChange={(e) => updatePlant(i, "address_line2", e.target.value)}
+                    className={inputClass}
+                    readOnly={readOnly}
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <label htmlFor={`plant-${i}-city`} className="block text-sm font-medium text-charcoal mb-1">City</label>
+                    <input
+                      id={`plant-${i}-city`}
+                      type="text"
+                      value={plant.city ?? ""}
+                      onChange={(e) => updatePlant(i, "city", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`plant-${i}-state`} className="block text-sm font-medium text-charcoal mb-1">State</label>
+                    <input
+                      id={`plant-${i}-state`}
+                      type="text"
+                      value={plant.state ?? ""}
+                      onChange={(e) => updatePlant(i, "state", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`plant-${i}-postal_code`} className="block text-sm font-medium text-charcoal mb-1">Postal Code</label>
+                    <input
+                      id={`plant-${i}-postal_code`}
+                      type="text"
+                      value={plant.postal_code ?? ""}
+                      onChange={(e) => updatePlant(i, "postal_code", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={`plant-${i}-country`} className="block text-sm font-medium text-charcoal mb-1">Country</label>
+                    <input
+                      id={`plant-${i}-country`}
+                      type="text"
+                      value={plant.country ?? ""}
+                      onChange={(e) => updatePlant(i, "country", e.target.value)}
+                      className={inputClass}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => removePlant(i)} disabled={readOnly}>
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="secondary" onClick={addPlant} disabled={readOnly}>
+              Add plant
+            </Button>
+          </div>
+        </Card>
 
         {/* Contacts */}
         <div className="bg-white rounded-lg border border-slate/15 p-6">
