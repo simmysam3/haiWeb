@@ -133,6 +133,17 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
   async function doSave() {
     setConfirmModal(false);
     setSaveError(null);
+
+    // "Add plant" appends a required label — but the confirm-modal's "Confirm Changes" button is a
+    // plain button outside the <form>, so it isn't gated by HTML5 constraint validation the way the
+    // "Save Changes" submit is. Enforce it here too, on the one path both submit routes share, so a
+    // blank plant label never reaches the PUT (haiCore would 400 the whole save, wiping the other,
+    // legitimate edits along with it).
+    if (form.plants.some((p) => !p.label.trim())) {
+      setSaveError("Every plant location needs a label.");
+      return;
+    }
+
     setSaving(true);
 
     const payload = toProfileUpdate(form, profile);

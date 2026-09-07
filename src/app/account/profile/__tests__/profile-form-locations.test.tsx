@@ -192,4 +192,34 @@ describe("ProfileForm locations", () => {
     expect(within(plantCard).getByRole("button", { name: "Remove" })).toBeDisabled();
     expect(within(plantCard).getByLabelText(/label/i)).toHaveAttribute("readonly");
   });
+
+  it("a plant with a blank label never reaches the PUT — the save says so, even via the confirm-modal path", async () => {
+    const fetchMock = mockFetchImpl(PROFILE_NO_LOCATIONS);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProfileForm readOnly={false} />);
+
+    await waitFor(() => expect(screen.getByDisplayValue("No Locations Inc")).toBeInTheDocument());
+
+    // change the company name (a "sensitive field") on an otherwise-valid, plant-free form — this is
+    // the only way to reach "Confirm Changes": the plain "Save Changes" button is a form submit and
+    // jsdom itself enforces the plant label's `required` attribute, so a blank label there would
+    // silently block the click and never open the modal at all.
+    fireEvent.change(screen.getByDisplayValue("No Locations Inc"), { target: { value: "Renamed Inc" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(screen.getByRole("dialog", { name: "Confirm Changes" })).toBeInTheDocument();
+
+    // now, with the modal already open, add a plant and leave its label blank — "Confirm Changes" is
+    // a plain button outside the <form>, so no HTML5 constraint validation gates it.
+    fireEvent.click(screen.getByRole("button", { name: "Add plant" }));
+    const plantCard = screen.getByTestId("plant-location-0");
+    fireEvent.change(within(plantCard).getByLabelText(/city/i), { target: { value: "Dayton" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Changes" }));
+
+    await waitFor(() => expect(screen.getByText("Every plant location needs a label.")).toBeInTheDocument());
+
+    // only the initial GET happened — the confirm-modal path never reached a PUT
+    const profileCalls = fetchMock.mock.calls.filter(([u]) => String(u) === "/api/account/profile");
+    expect(profileCalls).toHaveLength(1);
+  });
 });
