@@ -56,7 +56,7 @@ function mockLibraryLoaded() {
 }
 
 describe('ManifestsPage tabs', () => {
-  it('renders six tabs including the two Library tabs and Entity Approvals', () => {
+  it('renders seven tabs including the two Library tabs, Entity Approvals, and Counterparty updates', () => {
     mockLibraryLoaded();
     render(<ManifestsPage />);
     expect(screen.getByRole('button', { name: 'Counterparty Manifest' })).toBeInTheDocument();
@@ -65,6 +65,7 @@ describe('ManifestsPage tabs', () => {
     expect(screen.getByRole('button', { name: 'Baseline Pricing' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Audit Permissions' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entity Approvals' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Counterparty updates' })).toBeInTheDocument();
   });
 
   it('Entity Approvals tab sits after Audit Permissions', () => {
@@ -72,6 +73,20 @@ describe('ManifestsPage tabs', () => {
     render(<ManifestsPage />);
     const labels = screen.getAllByRole('button').map((b) => b.textContent);
     expect(labels.indexOf('Entity Approvals')).toBeGreaterThan(labels.indexOf('Audit Permissions'));
+  });
+
+  it('Counterparty updates tab sits after Entity Approvals', () => {
+    mockLibraryLoaded();
+    render(<ManifestsPage />);
+    const labels = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(labels.indexOf('Counterparty updates')).toBeGreaterThan(labels.indexOf('Entity Approvals'));
+  });
+
+  it('clicking Counterparty updates renders the Sync all now header (fetch stub returns {})', () => {
+    mockLibraryLoaded();
+    render(<ManifestsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Counterparty updates' }));
+    expect(screen.getByRole('button', { name: 'Sync all now' })).toBeInTheDocument();
   });
 
   it('switching to Library — Requirements renders the require-context legend', () => {

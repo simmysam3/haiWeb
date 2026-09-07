@@ -127,6 +127,13 @@ import type {
   PolicyContext,
 } from '@/lib/library-types';
 
+import type {
+  CounterpartyUpdatesList,
+  CounterpartyUpdateRow,
+  CounterpartyUpdateDecision,
+  SyncNowResponse,
+} from '@/lib/counterparty-updates-types';
+
 // Catalog types — not exported from @haiwave/protocol (CatalogService lives in
 // haiCore only). Defined locally to match the haiCore route response shapes.
 export interface CatalogClass {
@@ -265,7 +272,23 @@ export async function registerParticipant(data: {
 export interface ParticipantProfile {
   id: string;
   company_name: string;
+  locations?: ProfileLocation[];
   [key: string]: unknown;
+}
+
+/** A participant's headquarters or one child plant, self-declared on the profile (D-208).
+ *  Local mirror of haiCore's `ParticipantLocationSchema` (`.strict()` — no extra keys). */
+export interface ProfileLocation {
+  id?: string;
+  kind: "headquarters" | "plant";
+  label: string;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  updated_at?: string;
 }
 
 /** GET /participants/me — the caller's own record. `status` is the account's
@@ -527,6 +550,19 @@ export interface HaiwaveClient {
   listNotifications(unread?: boolean): Promise<unknown>;
   /** Marks a notification read. haiCore returns 404 for an unknown/foreign id. */
   markNotificationRead(id: string): Promise<unknown>;
+  // Counterparty updates (v1.88, D-208/D-209, protocol 3.82.0)
+  /** Lists the account_admin's counterparty-update review rows. Unset query keys are omitted so haiCore applies its defaults. */
+  listCounterpartyUpdates(query: {
+    status?: "pending" | "decided" | "all";
+    counterparty?: string;
+  }): Promise<CounterpartyUpdatesList>;
+  /** Decides one pending row. haiCore: 404 unknown/foreign id, 409 no-longer-pending (CONFLICT). */
+  decideCounterpartyUpdate(
+    id: string,
+    decision: CounterpartyUpdateDecision,
+  ): Promise<CounterpartyUpdateRow>;
+  /** Kicks off an immediate counterparty-updates sync against the owner's own agent. */
+  syncCounterpartyUpdatesNow(): Promise<SyncNowResponse>;
   // Agent credential issuance (v.1.58)
   listAgents(): Promise<{ agents: AgentSummary[] }>;
   createAgent(name: string): Promise<AgentCredential>;
@@ -1178,6 +1214,24 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     },
     markNotificationRead(id) {
       return request<unknown>("POST", `/notifications/${encodeURIComponent(id)}/read`);
+    },
+
+    listCounterpartyUpdates(query) {
+      const params = new URLSearchParams();
+      if (query.status !== undefined) params.set("status", query.status);
+      if (query.counterparty !== undefined) params.set("counterparty", query.counterparty);
+      const qs = params.toString();
+      return request<CounterpartyUpdatesList>("GET", `/counterparty-updates${qs ? `?${qs}` : ""}`);
+    },
+    decideCounterpartyUpdate(id, decision) {
+      return request<CounterpartyUpdateRow>(
+        "POST",
+        `/counterparty-updates/${encodeURIComponent(id)}/decide`,
+        decision,
+      );
+    },
+    syncCounterpartyUpdatesNow() {
+      return request<SyncNowResponse>("POST", "/counterparty-updates/sync-now");
     },
 
     // ─── Agent credential issuance (v.1.58) ───────────────
