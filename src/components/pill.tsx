@@ -97,6 +97,7 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     verified: 'Verified and confirmed authentic.',
     unverified: 'Not yet verified.',
     account_owner: 'The account owner; full administrative control.',
+    account_admin: 'Account administrator; manages portal settings, the library and manifests.',
     procurement_transact: 'Procurement role permitted to transact.',
     buyer_full_transact: 'Buyer role with full transaction rights.',
     inside_sales_transact: 'Inside sales role permitted to transact.',
