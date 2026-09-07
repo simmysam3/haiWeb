@@ -612,3 +612,98 @@ describe('UsersTable — a failed re-read never hides the invite confirmation (�
     expect(screen.getByText('Invitation sent to jo@acme.com')).toBeInTheDocument();
   });
 });
+
+describe('UsersTable — an invite that created the user but could not finish (§L-34)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  const created = { ...seedUser, id: 'u9', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee' };
+  const banner = 'The user was created but the invitation email could not be sent.';
+
+  function fillAndSend() {
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jo' } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Lee' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jo@acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+  }
+
+  it('re-reads the roster, keeps the banner, and refuses a repeat when the BFF names a created user', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // initial GET
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: banner, user_id: 'u9' }, 500)); // POST: created, email failed
+    fetchMock.mockResolvedValueOnce(jsonResponse([created])); // the re-read
+
+    render(<UsersTable />);
+    fillAndSend();
+
+    // The roster behind the dialog now shows the user Keycloak holds.
+    expect(await screen.findByText('Jo Lee')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/account/users' && ((c[1] as RequestInit | undefined)?.method ?? 'GET') === 'GET')).toHaveLength(2);
+    // The sentence stays where the user is looking; a second Send is refused.
+    expect(screen.getByText(banner)).toBeInTheDocument();
+    const sendButton = screen.getByRole('button', { name: /send invitation/i });
+    expect(sendButton).toBeDisabled();
+    // Scoped to the footer: the Modal chrome's own icon button also carries
+    // aria-label="Close", so an unscoped query matches two elements.
+    const footer = sendButton.closest('div')!;
+    expect(within(footer).getByRole('button', { name: /^close$/i })).toBeInTheDocument();
+    expect(within(footer).queryByRole('button', { name: /^cancel$/i })).not.toBeInTheDocument();
+
+    // Closing and reopening starts a fresh invite: the refusal was about the
+    // address just submitted, so it must not outlive the dialog that carried it.
+    fireEvent.click(within(footer).getByRole('button', { name: /^close$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    const reopenedSend = screen.getByRole('button', { name: /send invitation/i });
+    expect(reopenedSend).toBeEnabled();
+    const reopenedFooter = reopenedSend.closest('div')!;
+    expect(within(reopenedFooter).getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(within(reopenedFooter).queryByRole('button', { name: /^close$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(banner)).not.toBeInTheDocument();
+  });
+
+  it('leaves the nothing-created path untouched: no re-read, Send enabled, Cancel (negative control)', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(jsonResponse([])); // initial GET
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: 'The invitation could not be completed. Nothing was created.' }, 500),
+    );
+
+    render(<UsersTable />);
+    fillAndSend();
+
+    expect(await screen.findByText(/nothing was created/i)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/account/users' && ((c[1] as RequestInit | undefined)?.method ?? 'GET') === 'GET')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /send invitation/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
+    expect(screen.queryByText('Jo Lee')).not.toBeInTheDocument();
+  });
+
+  it('keeps the open dialog, its banner and the disabled Send beside the outage panel when the re-read fails', async () => {
+    const existing = { ...seedUser, id: 'u1', first_name: 'Ada', last_name: 'Byron', email: 'ada@acme.com' };
+    let gets = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/account/users' && method === 'GET') {
+        gets += 1;
+        // The user was created; the re-read the dialog triggers then goes down.
+        return gets === 1 ? jsonResponse([existing]) : jsonResponse({ error: 'Could not load users' }, 502);
+      }
+      if (url === '/api/account/users' && method === 'POST') return jsonResponse({ error: banner, user_id: 'u9' }, 500);
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    render(<UsersTable />);
+    await screen.findByText('Ada Byron');
+    fillAndSend();
+
+    expect(await screen.findByText(/could not load users/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    // The dialog is still open: without it the outage reads as a failed invite
+    // and the same person is invited again.
+    expect(screen.getByText(banner)).toBeInTheDocument();
+    const sendButton = screen.getByRole('button', { name: /send invitation/i });
+    expect(sendButton).toBeDisabled();
+    expect(within(sendButton.closest('div')!).getByRole('button', { name: /^close$/i })).toBeInTheDocument();
+  });
+});

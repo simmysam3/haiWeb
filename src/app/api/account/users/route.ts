@@ -121,7 +121,14 @@ export async function POST(request: NextRequest) {
     // The detail is for the server log; the dialog gets a plain sentence.
     console.error("[account/users POST] invitation failed", err);
     return NextResponse.json(
-      { error: inviteFailureMessage(err, createdUserId, roleAssigned) },
+      {
+        error: inviteFailureMessage(err, createdUserId, roleAssigned),
+        // The id, not the detail: the 201 body already returns it, so the browser
+        // learns nothing new. Present only when a user now exists — the dialog
+        // keys on its presence to re-read the roster and refuse a repeat (§L-34).
+        // Absent = nothing was created.
+        ...(createdUserId !== null ? { user_id: createdUserId } : {}),
+      },
       { status: 500 },
     );
   }
