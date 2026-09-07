@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/card";
+import { Button } from "@/components/button";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
 import type {
@@ -38,6 +39,7 @@ export default function CounterpartyUpdatesTab() {
   const [filter, setFilter] = useState<FilterValue>("pending");
   const [counterparty, setCounterparty] = useState("");
   const [rows, setRows] = useState<CounterpartyUpdateRow[]>([]);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const { toast, showToast } = useToast();
 
   const api = useApi<CounterpartyUpdatesList>({
@@ -49,9 +51,13 @@ export default function CounterpartyUpdatesTab() {
   // changes and the Sync all now poll all land here. Unlike
   // review-queue-panel's one-time "loaded" latch, this tab re-fetches
   // repeatedly and must reflect each new response, not just the first.
+  // `loadedOnce` gates the loading line only — a FAILED fetch must never
+  // fall through to the empty-rows "No counterparty updates." message,
+  // which would read as a false all-clear (the fallback never latches).
   useEffect(() => {
     if (!api.loading && !api.error) {
       setRows(api.data.rows ?? []);
+      setLoadedOnce(true);
     }
   }, [api.data, api.loading, api.error]);
 
@@ -122,9 +128,24 @@ export default function CounterpartyUpdatesTab() {
         </div>
       </Card>
 
-      <WriteAlert state={syncState} rows={rows} />
-
-      <UpdatesTable rows={rows} counterparties={counterparties} onDecide={handleDecide} />
+      {api.error ? (
+        <div
+          role="alert"
+          className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem flex items-center justify-between gap-4"
+        >
+          <span>Couldn&apos;t load counterparty updates — haiCore answered {api.error}.</span>
+          <Button size="sm" variant="secondary" onClick={api.refetch}>
+            Retry
+          </Button>
+        </div>
+      ) : !loadedOnce ? (
+        <p className="text-sm text-slate">Loading counterparty updates…</p>
+      ) : (
+        <>
+          <WriteAlert state={syncState} rows={rows} />
+          <UpdatesTable rows={rows} counterparties={counterparties} onDecide={handleDecide} />
+        </>
+      )}
     </div>
   );
 }

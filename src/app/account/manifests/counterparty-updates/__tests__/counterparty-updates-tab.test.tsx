@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import CounterpartyUpdatesTab from '../counterparty-updates-tab';
+import { renderValue } from '../updates-table';
 import type {
   CounterpartyUpdateRow,
   CounterpartyUpdatesList,
@@ -91,17 +92,40 @@ beforeEach(() => {
 // ---- tests -------------------------------------------------------------
 
 describe('CounterpartyUpdatesTab', () => {
-  it('renders a group per counterparty with the pending count', async () => {
+  it('shows a loading line before the first fetch resolves', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    render(<CounterpartyUpdatesTab />);
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.queryByText('No counterparty updates.')).toBeNull();
+  });
+
+  it('shows an error notice with Retry instead of a false all-clear when the list fetch fails', async () => {
+    const fetchMock = vi.fn(() => Promise.reject(new Error('500')));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<CounterpartyUpdatesTab />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/couldn.?t load/i);
+    expect(screen.queryByText('No counterparty updates.')).toBeNull();
+
+    const callsBeforeRetry = fetchMock.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeRetry);
+  });
+
+  it('renders a group per counterparty with the pending count, distinguished per group', async () => {
     const rows = [
       makeRow({ id: 'r1', counterparty_participant_id: 'cp1', counterparty_name: 'Acme Corp' }),
-      makeRow({ id: 'r2', counterparty_participant_id: 'cp2', counterparty_name: 'Globex', label: 'Website' }),
+      makeRow({ id: 'r1b', counterparty_participant_id: 'cp1', counterparty_name: 'Acme Corp', label: 'Website' }),
+      makeRow({ id: 'r2', counterparty_participant_id: 'cp2', counterparty_name: 'Globex', label: 'DBA' }),
     ];
     stubListOnly(makeList(rows));
     render(<CounterpartyUpdatesTab />);
 
-    expect(await screen.findByRole('heading', { name: /Acme Corp/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Globex/ })).toBeInTheDocument();
-    expect(screen.getAllByText(/1 pending/, { exact: false }).length).toBeGreaterThan(0);
+    const acmeHeading = await screen.findByRole('heading', { name: /Acme Corp/ });
+    const globexHeading = screen.getByRole('heading', { name: /Globex/ });
+    expect(acmeHeading).toHaveTextContent('2 pending');
+    expect(globexHeading).toHaveTextContent('1 pending');
   });
 
   it('a row shows label, your value, represented value, and a day-style last updated', async () => {
@@ -422,6 +446,30 @@ describe('CounterpartyUpdatesTab', () => {
     expect(listCalls).toBe(callsAfterStop);
   });
 
+  it.each([
+    ['already_running', 'A sync is already running'],
+    ['no_endpoint', 'Your agent has not registered an endpoint yet'],
+    ['agent_unreachable', 'Your agent could not be reached'],
+  ] as const)('Sync all now shows the verbatim message for %s', async (status, message) => {
+    stubListOnly(EMPTY_LIST);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (typeof url === 'string' && url.includes('/sync-now')) {
+          return Promise.resolve(jsonResponse({ status }));
+        }
+        return Promise.resolve(jsonResponse(EMPTY_LIST));
+      }),
+    );
+    render(<CounterpartyUpdatesTab />);
+    await screen.findByText('No counterparty updates.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync all now' }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sync all now' })).not.toBeDisabled();
+  });
+
   it('filter changes the query string and rows reflect the new response', async () => {
     const pendingRows = [makeRow({ id: 'r1', label: 'Pending Attribute' })];
     const allRows = [
@@ -478,5 +526,47 @@ describe('CounterpartyUpdatesTab', () => {
     expect(screen.getByRole('button', { name: 'Keep mine' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Take theirs' })).toBeInTheDocument();
     expect(screen.getByText(/Could not save/)).toBeInTheDocument();
+  });
+});
+
+describe('renderValue', () => {
+  it('renders null/undefined as an em dash', () => {
+    render(<>{renderValue(null)}</>);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('renders numbers with locale grouping', () => {
+    render(<>{renderValue(1234567)}</>);
+    expect(screen.getByText('1,234,567')).toBeInTheDocument();
+  });
+
+  it('renders { amount_usd } as a dollar figure with grouping', () => {
+    render(<>{renderValue({ amount_usd: 5_000_000 })}</>);
+    expect(screen.getByText('$5,000,000')).toBeInTheDocument();
+  });
+
+  it('renders booleans as Yes/No', () => {
+    render(
+      <>
+        <div>{renderValue(true)}</div>
+        <div>{renderValue(false)}</div>
+      </>,
+    );
+    expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText('No')).toBeInTheDocument();
+  });
+
+  it('renders an address tuple as two lines', () => {
+    render(
+      <>{renderValue({ lines: ['500 Dock Rd'], city: 'Reno', state: 'NV', postal_code: '89501', country: 'US' })}</>,
+    );
+    expect(screen.getByText('500 Dock Rd')).toBeInTheDocument();
+    expect(screen.getByText('Reno, NV, 89501 US')).toBeInTheDocument();
+  });
+
+  it('renders any other object as JSON in a <code> element', () => {
+    render(<>{renderValue({ weird: 'shape' })}</>);
+    const code = screen.getByText('{"weird":"shape"}');
+    expect(code.tagName).toBe('CODE');
   });
 });
