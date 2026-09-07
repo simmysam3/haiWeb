@@ -26,6 +26,7 @@ export function UsersTable() {
   const [inviteRole, setInviteRole] = useState<string>("buyer_view_only");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [inviteCreated, setInviteCreated] = useState(false);
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editRole, setEditRole] = useState<string>("");
@@ -71,6 +72,7 @@ export function UsersTable() {
     setInviteFirstName("");
     setInviteLastName("");
     setInviteError(null);
+    setInviteCreated(false);
   }
 
   async function handleInvite() {
@@ -98,6 +100,14 @@ export function UsersTable() {
         // that was never created.
         const body = await res.json().catch(() => ({}));
         setInviteError(body.error ?? `Could not send the invitation (${res.status}).`);
+        // A user now exists (role or email step failed after createUser): the
+        // roster is the system of record, so re-read it, and refuse a repeat
+        // that would POST the same address again (§L-34). No key = nothing
+        // was created, and the dialog stays as it is.
+        if (typeof body.user_id === "string") {
+          setInviteCreated(true);
+          refetch();
+        }
         return;
       }
       const created = await res.json();
@@ -311,11 +321,70 @@ export function UsersTable() {
     </div>
   );
 
+  // Rendered in both branches too. A created-but-incomplete invite leaves
+  // this dialog open and re-reads the roster (§L-34); if that re-read fails,
+  // the outage panel alone would read as a failed invite, and the banner, the
+  // disabled Send and the "Close" that say otherwise would all vanish with it.
+  const inviteModal = (
+    <Modal open={inviteOpen} onClose={closeInvite} title="Invite User">
+      <div className="space-y-4">
+        {inviteError && (
+          <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+            {inviteError}
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="invite-first-name" className="block text-sm font-medium text-charcoal mb-1">First Name</label>
+            <input
+              id="invite-first-name"
+              type="text"
+              value={inviteFirstName}
+              onChange={(e) => setInviteFirstName(e.target.value)}
+              className={FIELD_CLASS}
+              placeholder="Jordan"
+            />
+          </div>
+          <div>
+            <label htmlFor="invite-last-name" className="block text-sm font-medium text-charcoal mb-1">Last Name</label>
+            <input
+              id="invite-last-name"
+              type="text"
+              value={inviteLastName}
+              onChange={(e) => setInviteLastName(e.target.value)}
+              className={FIELD_CLASS}
+              placeholder="Reyes"
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="invite-email" className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
+          <input
+            id="invite-email"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            className={FIELD_CLASS}
+            placeholder="user@company.com"
+          />
+        </div>
+        <RoleSelect id="invite-role" value={inviteRole} onChange={setInviteRole} />
+        <div className="flex gap-3 justify-end">
+          <Button variant="secondary" onClick={closeInvite}>{inviteCreated ? "Close" : "Cancel"}</Button>
+          <Button onClick={handleInvite} disabled={inviting || inviteCreated}>
+            {inviting ? "Sending…" : "Send Invitation"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+
   // A load failure must read as an outage, not as "this account has no users".
   if (error && !loading) {
     return (
       <>
         {toastBanner}
+        {inviteModal}
         <div className="bg-white rounded-lg border border-slate/15 p-8 text-center">
           <p className="text-sm font-medium text-problem">Could not load users.</p>
           <p className="mt-1 text-sm text-slate">There was a problem reaching the identity service. Your team members are safe — this is a display issue.</p>
@@ -330,67 +399,15 @@ export function UsersTable() {
   return (
     <>
       {toastBanner}
+      {inviteModal}
 
       <div className="bg-white rounded-lg border border-slate/15">
         <div className="p-4 border-b border-slate/15 flex justify-between items-center">
           <p className="text-sm text-slate">{users.length} users</p>
-          <Button size="sm" onClick={() => setInviteOpen(true)}>Invite User</Button>
+          <Button size="sm" onClick={() => { setInviteOpen(true); setInviteCreated(false); }}>Invite User</Button>
         </div>
         <DataTable columns={columns} data={users} keyFn={(u) => u.id} />
       </div>
-
-      {/* Invite Modal */}
-      <Modal open={inviteOpen} onClose={closeInvite} title="Invite User">
-        <div className="space-y-4">
-          {inviteError && (
-            <div className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
-              {inviteError}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="invite-first-name" className="block text-sm font-medium text-charcoal mb-1">First Name</label>
-              <input
-                id="invite-first-name"
-                type="text"
-                value={inviteFirstName}
-                onChange={(e) => setInviteFirstName(e.target.value)}
-                className={FIELD_CLASS}
-                placeholder="Jordan"
-              />
-            </div>
-            <div>
-              <label htmlFor="invite-last-name" className="block text-sm font-medium text-charcoal mb-1">Last Name</label>
-              <input
-                id="invite-last-name"
-                type="text"
-                value={inviteLastName}
-                onChange={(e) => setInviteLastName(e.target.value)}
-                className={FIELD_CLASS}
-                placeholder="Reyes"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="invite-email" className="block text-sm font-medium text-charcoal mb-1">Email Address</label>
-            <input
-              id="invite-email"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              className={FIELD_CLASS}
-              placeholder="user@company.com"
-            />
-          </div>
-          <RoleSelect id="invite-role" value={inviteRole} onChange={setInviteRole} />
-          <div className="flex gap-3 justify-end">
-            <Button variant="secondary" onClick={closeInvite}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={inviting}>
-              {inviting ? "Sending…" : "Send Invitation"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Edit Modal */}
       <Modal open={!!editUser} onClose={closeEdit} title="Edit User">
