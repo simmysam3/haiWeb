@@ -121,12 +121,24 @@ export function toProfileData(raw: unknown): ProfileData {
   };
 }
 
-/** Sets `body[key] = current` unless the field is empty on both the current form and the loaded
- *  value — haiCore's `updateProfile` writes every key that is not `undefined`, so sending an empty
- *  string for an untouched field would wipe it (see registration-service.ts:178-196). */
-function setIfNotBothEmpty(body: Record<string, unknown>, key: string, current: string, loaded: string) {
-  if (current === "" && loaded === "") return;
+/** `legal_name` and `business_type` are `.notNull()` columns (haiCore `db/schema/participants.ts`).
+ *  A blank input is never a legitimate value for either — however it got blank — so the key is
+ *  OMITTED from the PUT rather than sent, regardless of what was loaded: sending `''` would land in
+ *  the NOT NULL column as an empty string with no validation error from haiCore. */
+function requiredField(body: Record<string, unknown>, key: string, current: string) {
+  if (current.trim() === "") return;
   body[key] = current;
+}
+
+/** The remaining mapped scalar columns are nullable. Both the current input and the loaded value
+ *  being empty means the field was never touched — omit it (haiCore's `updateProfile` writes every
+ *  key that is not `undefined`, so an omitted key leaves the column alone; see
+ *  registration-service.ts:178-196). A non-empty current value is sent as-is. Otherwise the field HAD
+ *  a loaded value and was just cleared — send `null` explicitly, the same encoding a cleared location
+ *  field gets (`toLocationPayload`'s `|| null`), never `''`. */
+function nullableField(body: Record<string, unknown>, key: string, current: string, loaded: string) {
+  if (current === "" && loaded === "") return;
+  body[key] = current === "" ? null : current;
 }
 
 function toLocationPayload(
@@ -152,16 +164,16 @@ function toLocationPayload(
  *  `address`, `phone`, …) are never sent; haiCore ignores keys it doesn't recognize. */
 export function toProfileUpdate(form: ProfileData, loaded: ProfileData): Record<string, unknown> {
   const body: Record<string, unknown> = {};
-  setIfNotBothEmpty(body, "legal_name", form.company_name, loaded.company_name);
-  setIfNotBothEmpty(body, "dba_name", form.dba, loaded.dba);
-  setIfNotBothEmpty(body, "website_url", form.website, loaded.website);
-  setIfNotBothEmpty(body, "vendor_description", form.description, loaded.description);
-  setIfNotBothEmpty(body, "primary_contact_email", form.email, loaded.email);
-  setIfNotBothEmpty(body, "primary_contact_phone", form.phone, loaded.phone);
-  setIfNotBothEmpty(body, "business_type", form.business_type, loaded.business_type);
-  setIfNotBothEmpty(body, "business_address_city", form.address.city, loaded.address.city);
-  setIfNotBothEmpty(body, "business_address_state", form.address.state, loaded.address.state);
-  setIfNotBothEmpty(body, "business_address_country", form.address.country, loaded.address.country);
+  requiredField(body, "legal_name", form.company_name);
+  requiredField(body, "business_type", form.business_type);
+  nullableField(body, "dba_name", form.dba, loaded.dba);
+  nullableField(body, "website_url", form.website, loaded.website);
+  nullableField(body, "vendor_description", form.description, loaded.description);
+  nullableField(body, "primary_contact_email", form.email, loaded.email);
+  nullableField(body, "primary_contact_phone", form.phone, loaded.phone);
+  nullableField(body, "business_address_city", form.address.city, loaded.address.city);
+  nullableField(body, "business_address_state", form.address.state, loaded.address.state);
+  nullableField(body, "business_address_country", form.address.country, loaded.address.country);
 
   const hq = toLocationPayload("headquarters", form.hqId || undefined, "Headquarters", form.address);
   const plants = form.plants.map((p) =>

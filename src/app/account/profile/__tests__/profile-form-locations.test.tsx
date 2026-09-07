@@ -74,6 +74,26 @@ const PROFILE_ROUND_TRIP = {
   ],
 };
 
+const PROFILE_FOR_CLEARING = {
+  participant_id: "P3",
+  legal_name: "Acme Corporation",
+  dba_name: "Acme",
+  business_type: "Corporation",
+  website_url: "https://acme.example",
+  locations: [
+    {
+      id: "L1",
+      kind: "headquarters",
+      label: "Headquarters",
+      address_line1: "1 Main St",
+      city: "Akron",
+      state: "OH",
+      postal_code: "44301",
+      country: "US",
+    },
+  ],
+};
+
 const PROFILE_DEV_SHIM = {
   id: "8b7ecca6-b704-4d2b-896c-801898135fdf",
   company_name: "Apex Manufacturing",
@@ -221,5 +241,32 @@ describe("ProfileForm locations", () => {
     // only the initial GET happened — the confirm-modal path never reached a PUT
     const profileCalls = fetchMock.mock.calls.filter(([u]) => String(u) === "/api/account/profile");
     expect(profileCalls).toHaveLength(1);
+  });
+
+  it("a cleared field is sent as null (nullable) or omitted (required) — never as ''", async () => {
+    const fetchMock = mockFetchImpl(PROFILE_FOR_CLEARING);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProfileForm readOnly={false} />);
+
+    await waitFor(() => expect(screen.getByDisplayValue("Acme Corporation")).toBeInTheDocument());
+
+    // clear legal_name (required, NOT NULL), dba_name (nullable), and the HQ city (nullable, also a
+    // location field) — the company-name change also routes Save through the confirm modal.
+    fireEvent.change(screen.getByDisplayValue("Acme Corporation"), { target: { value: "" } });
+    fireEvent.change(screen.getByDisplayValue("Acme"), { target: { value: "" } });
+    fireEvent.change(screen.getByDisplayValue("Akron"), { target: { value: "" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Changes" }));
+
+    await waitFor(() => putCall(fetchMock));
+    const body = putCall(fetchMock);
+
+    expect(body).not.toHaveProperty("legal_name"); // required + blank → OMITTED, never sent as ''
+    expect(body.dba_name).toBeNull(); // nullable + cleared → null, never ''
+    expect(body.business_address_city).toBeNull();
+    expect(body.locations[0].city).toBeNull();
+    // present control: an untouched field is still sent with its loaded value
+    expect(body.website_url).toBe("https://acme.example");
   });
 });
