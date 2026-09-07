@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers';
+import { fetchBffJson } from '@/lib/server-fetch';
 import type { ParticipantModalityPosture, Modality, Posture, TrustClass } from '@haiwave/protocol';
 import { PageHeader } from '@/components/page-header';
 import { PostureGrid } from './_components/posture-grid';
@@ -55,31 +55,25 @@ interface LoadResult {
 }
 
 async function loadPostures(): Promise<LoadResult> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  try {
-    const res = await fetch(`${proto}://${host}/api/account/settings/trust-posture`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (!res.ok) {
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header; `fetchBffJson` forwards the cookie and never throws — a
+  // network failure is `status: 0`.
+  const result = await fetchBffJson<PostureGridResponse>('/api/account/settings/trust-posture');
+  if (result.kind === 'error') {
+    if (result.status === 0) {
+      console.error('[trust-posture] fetch failed', result.message);
       return {
         postures: synthesizeDefaultGrid(),
-        error: `Unable to load trust posture (status ${res.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
+        error:
+          'Unable to reach the trust posture service. Showing spec defaults — saves may fail until the backend is reachable.',
       };
     }
-    const payload = (await res.json()) as PostureGridResponse;
-    return { postures: payload.postures ?? [], error: null };
-  } catch (err) {
-    console.error('[trust-posture] fetch failed', err);
     return {
       postures: synthesizeDefaultGrid(),
-      error:
-        'Unable to reach the trust posture service. Showing spec defaults — saves may fail until the backend is reachable.',
+      error: `Unable to load trust posture (status ${result.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
     };
   }
+  return { postures: result.data.postures ?? [], error: null };
 }
 
 /**

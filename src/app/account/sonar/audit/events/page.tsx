@@ -2,6 +2,7 @@ import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
+import { resolveKindFilter } from '../../_lib/resolve-kind-filter';
 import { DEFAULT_SEVERITY, SEVERITY_VALUES } from './_lib/severity';
 import { describeAuditServiceError } from './_lib/describe-audit-service-error';
 import { BacklogTabs } from '../_components/backlog-tabs';
@@ -32,20 +33,11 @@ interface SearchParams {
 async function fetchChanges(searchParams: SearchParams, offset: number) {
   const sp = new URLSearchParams();
   // v.1.43: Event Backlog is audit-only. If the user picked specific kinds,
-  // honor them but filter out the two watcher-side LT kinds (in case they
-  // arrive via a stale URL). If no kind filter at all, default to the audit
-  // pill set so LT rows never bleed into this surface.
-  const rawKinds = searchParams.kind;
-  const requested: string[] = Array.isArray(rawKinds)
-    ? rawKinds
-    : rawKinds
-      ? [rawKinds]
-      : [];
-  const allowed = new Set<string>(EVENT_KIND_PILLS);
-  const filteredKinds = requested.length
-    ? requested.filter((k) => allowed.has(k))
-    : [...EVENT_KIND_PILLS];
-  filteredKinds.forEach((k) => sp.append('kind', k));
+  // honor them but drop the watcher-side kinds (in case they arrive via a
+  // stale URL). When no requested kind survives — or none was requested —
+  // the full audit pill set goes on the wire, so watcher rows never bleed
+  // into this surface (resolveKindFilter never returns empty).
+  resolveKindFilter(searchParams.kind, EVENT_KIND_PILLS).forEach((k) => sp.append('kind', k));
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);

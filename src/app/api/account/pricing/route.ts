@@ -20,7 +20,7 @@ export const GET = withHaiCore(
 export const PUT = withHaiCore(async ({ client, request }) => {
   const body = await request.json();
   return client.upsertPricingLevel(body);
-});
+}, { role: 'account_admin' });
 
 /**
  * DELETE /api/account/pricing?manifest_id=xxx
@@ -36,4 +36,4 @@ export const DELETE = withHaiCore(async ({ client, request }) => {
     );
   }
   return client.deletePricingLevel(manifestId);
-});
+}, { role: 'account_admin' });

@@ -12,8 +12,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
  * `Promise.all` (assigned to `coveragePromise` first) so its two internal
  * `fetchBffJson` calls fire first, then the four best-effort lanes inside
  * the Promise.all (cross-modality / activity / throttled / templates).
- * The raw `loadAuditChartData` lane keeps its `global.fetch` mock since
- * it operates against a different API prefix.
+ * `loadAuditChartData` also goes through `fetchBffJson` (D-62), so a default
+ * ok-empty runs payload is installed for every call after the queued ones.
  */
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
 
@@ -92,20 +92,9 @@ function queueDefaultBestEffortLanes() {
 
 beforeEach(() => {
   fetchBffJson.mockReset();
-  // `loadAuditChartData` still uses raw `fetch` against a different API
-  // prefix; keep the runs lane empty so the chart shells render.
-  global.fetch = vi.fn().mockImplementation(async (url: string) => {
-    if (url.includes('/api/account/audit-runs?limit=25')) {
-      return new Response(JSON.stringify({ runs: [] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    return new Response('null', {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  });
+  // Default for any lane not explicitly queued (the audit-runs chart lane):
+  // ok + empty runs so the chart shells render.
+  fetchBffJson.mockResolvedValue({ kind: 'ok', data: { runs: [] } });
 });
 
 describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify', () => {
@@ -226,4 +215,25 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     expect(consoleWarnSpy).toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
+});
+
+describe('UnifiedDashboardPage — a best-effort lane that did not answer (SEC-web-sonar-4-04)', () => {
+  it('renders the unavailable copy, never "No partners observed yet.", when the cross-modality lane fails', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { points: [snapshot(25)] } })
+      // the four best-effort lanes, cross-modality first — refused
+      .mockResolvedValueOnce({ kind: 'error', status: 403, message: 'forbidden' })
+      .mockResolvedValueOnce({ kind: 'ok', data: { events: [] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { audit: 0, watcher: 0, total: 0 } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { templates: [] } });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { default: Page } = await import('../page');
+    render(await Page());
+    fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
+
+    expect(screen.getAllByText(/could not be loaded/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/No partners observed yet/i)).not.toBeInTheDocument();
+  }, 10_000);
 });

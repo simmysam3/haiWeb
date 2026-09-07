@@ -16,7 +16,9 @@ export function NoScopesCTA({
       </h2>
       <p className="text-sm text-slate max-w-md mx-auto mb-6">{copy}</p>
       <Link
-        href="/account/sonar/observations?tab=audit"
+        // Scopes are created by nominating a counterparty; the observations
+        // page reads no ?tab= (its v1.45 rewrite made it the Phantom Demand queue).
+        href="/account/sonar/requests/new-nomination"
         className="inline-flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white hover:bg-charcoal transition-colors"
       >
         Add your first scope →

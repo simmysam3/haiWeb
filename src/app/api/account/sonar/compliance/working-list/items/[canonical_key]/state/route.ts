@@ -17,4 +17,4 @@ export const PUT = withHaiCore<{ canonical_key: string }>(async ({ client, reque
   return NextResponse.json(
     await client.transitionWorkingListItem(params.canonical_key, body),
   );
-});
+}, { role: 'account_admin' });

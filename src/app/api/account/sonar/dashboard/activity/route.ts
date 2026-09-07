@@ -95,12 +95,20 @@ function summarizePhantomDemand(r: PhantomDemandRun): string {
   return joinSummary([skuLabel, qtyLabel]);
 }
 
+/** A lane whose haiCore read failed — said on the wire, never rendered as "no runs". */
+type Lane = Modality | 'templates';
+
 export const GET = withHaiCore(async ({ client }) => {
+  // W-F1 (2026-09-05): a lane failure is recorded, not swallowed. The feed
+  // still carries what the other lanes answered; when no modality answered
+  // the route is a 502, not an empty success.
+  const failed: Lane[] = [];
   const auditP = client
     .listAuditRuns({ limit: MODALITY_LIMIT })
     .then((r: { runs: AuditRun[] }) => r.runs)
     .catch((err) => {
       console.error('[dashboard/activity] auditP failed:', err);
+      failed.push('audit');
       return [] as AuditRun[];
     });
 
@@ -109,6 +117,7 @@ export const GET = withHaiCore(async ({ client }) => {
     .then((r: { runs: WatcherRun[] }) => r.runs.slice(0, MODALITY_LIMIT))
     .catch((err) => {
       console.error('[dashboard/activity] watcherP failed:', err);
+      failed.push('watcher');
       return [] as WatcherRun[];
     });
 
@@ -117,6 +126,7 @@ export const GET = withHaiCore(async ({ client }) => {
     .listPhantomDemandRuns({ limit: MODALITY_LIMIT })
     .catch((err) => {
       console.error('[dashboard/activity] pdP failed:', err);
+      failed.push('phantom_demand');
       return [] as PhantomDemandRun[];
     });
 
@@ -127,10 +137,22 @@ export const GET = withHaiCore(async ({ client }) => {
     )
     .catch((err) => {
       console.error('[dashboard/activity] templatesP failed:', err);
+      failed.push('templates');
       return new Map<string, string>();
     });
 
   const [audits, watchers, pds, templateNames] = await Promise.all([auditP, watcherP, pdP, templatesP]);
+
+  const MODALITIES: Modality[] = ['audit', 'watcher', 'phantom_demand'];
+  // Settlement order is incidental; the wire order is fixed.
+  const failedLanes: Lane[] = [...MODALITIES, 'templates'].filter((l) => failed.includes(l as Lane)) as Lane[];
+  if (MODALITIES.every((m) => failed.includes(m))) {
+    // Nothing answered: refuse, so the feed can say so instead of "no runs".
+    return NextResponse.json(
+      { error: 'Activity could not be loaded — the monitoring service did not answer.', failed: failedLanes },
+      { status: 502 },
+    );
+  }
 
   const auditEvents: ActivityEvent[] = audits.map((r) => {
     const templateId = (r as { template_id?: string | null }).template_id ?? null;
@@ -220,6 +242,8 @@ export const GET = withHaiCore(async ({ client }) => {
 
   return NextResponse.json({
     events: all.slice(0, MAX_EVENTS),
+    // The lanes that did not answer; the feed says so beside what it has.
+    failed: failedLanes,
     generated_at: new Date().toISOString(),
   });
 });

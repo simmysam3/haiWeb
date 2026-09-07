@@ -2,8 +2,13 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { AuditRun, AuditRunResult, ObservationNode } from '@haiwave/protocol';
 import { loadAuditChartData } from '../load-audit-charts';
 
-const BASE = 'http://test.local';
-const COOKIE = 'session=abc';
+// `fetchBffJson` reads the cookie from the request context and the origin from
+// PORTAL_BASE_URL (default http://localhost:3001 under test) — D-62.
+vi.mock('next/headers', () => ({
+  headers: async () => ({ get: (name: string) => (name === 'cookie' ? 'session=abc' : null) }),
+}));
+
+const BASE = 'http://localhost:3001';
 const RUN_ID = '11111111-1111-1111-1111-111111111111';
 const VENDOR_ID = '22222222-2222-2222-2222-222222222222';
 
@@ -86,7 +91,9 @@ function stubFetch(routes: Record<string, { ok: boolean; body?: unknown }>) {
       }
       return {
         ok: match.ok,
+        status: match.ok ? 200 : 500,
         json: async () => match.body ?? {},
+        text: async () => '',
       } as Response;
     }),
   );
@@ -125,7 +132,7 @@ describe('loadAuditChartData', () => {
       },
     });
 
-    const out = await loadAuditChartData(BASE, COOKIE);
+    const out = await loadAuditChartData();
 
     // CN accumulated 3 + 5 = 8 (now first), US = 1 (second).
     expect(out.rollup.map((e) => e.country_of_origin)).toEqual(['CN', 'US']);
@@ -143,7 +150,7 @@ describe('loadAuditChartData', () => {
       '/api/account/audit-runs?limit=25': { ok: false },
     });
 
-    const out = await loadAuditChartData(BASE, COOKIE);
+    const out = await loadAuditChartData();
 
     expect(out).toEqual({
       rollup: [],
@@ -166,7 +173,7 @@ describe('loadAuditChartData', () => {
       },
     });
 
-    const out = await loadAuditChartData(BASE, COOKIE);
+    const out = await loadAuditChartData();
 
     expect(out).toEqual({
       rollup: [],

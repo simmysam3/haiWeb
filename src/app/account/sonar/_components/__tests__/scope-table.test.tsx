@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { AuditScope } from '@haiwave/protocol';
 import { ScopeTable } from '../scope-table';
 
@@ -55,5 +55,33 @@ describe('ScopeTable', () => {
       />,
     );
     expect(screen.getByText(/SKU-4711/)).toBeInTheDocument();
+  });
+});
+
+describe('ScopeTable — Disable reports the response (SEC-web-sonar-3-07)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('a 403 keeps the scope active and shows the error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'content-type': 'application/json' } }),
+    );
+    render(<ScopeTable initialScopes={[scope({})]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^disable$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/forbidden|permission/i);
+    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.queryByText('disabled')).not.toBeInTheDocument();
+  });
+
+  // Pin: the catch branch landed with the 403 fix; this keeps it honest.
+  it('a request that never reaches the server says so and keeps the scope active', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    render(<ScopeTable initialScopes={[scope({})]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^disable$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not reach the server/i);
+    expect(screen.getByText('active')).toBeInTheDocument();
   });
 });

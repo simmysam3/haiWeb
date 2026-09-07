@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { RunTemplate } from '@haiwave/protocol';
+import type { RunTemplate, RunTemplateEvent } from '@haiwave/protocol';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
 import { formatCadence } from '../../../templates/_lib/format-cadence';
@@ -47,6 +47,13 @@ export default async function AuditDefinitionDetailPage({ params, searchParams }
   const runs = runsResult.kind === 'ok' ? runsResult.data.runs : [];
   const auditorCountry =
     runsResult.kind === 'ok' ? runsResult.data.auditor_country : undefined;
+
+  // Lifecycle history for the History step. A lane that did not answer is
+  // passed as null so the step says so, instead of "no events recorded yet".
+  const eventsResult = await fetchBffJson<{ events: RunTemplateEvent[] }>(
+    `/api/account/sonar/audit/definitions/${encodeURIComponent(template_id)}/events`,
+  );
+  const events = eventsResult.kind === 'ok' ? eventsResult.data.events : null;
 
   return (
     <div className="space-y-6">
@@ -110,7 +117,7 @@ export default async function AuditDefinitionDetailPage({ params, searchParams }
             />
           </section>
         }
-        configuration={<AuditDefinitionDetail template={tpl} />}
+        configuration={<AuditDefinitionDetail template={tpl} events={events} />}
       />
     </div>
   );

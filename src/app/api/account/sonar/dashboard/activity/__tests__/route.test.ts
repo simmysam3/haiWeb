@@ -41,6 +41,29 @@ describe('GET /api/account/sonar/dashboard/activity', () => {
     expect(body.events).toEqual([]);
   });
 
+  // Walk finding W-F1 (2026-09-05): every lane failure was swallowed into []
+  // and the route answered 200 { events: [] } with haiCore dead — the
+  // Activity tab looked healthy and empty. A failed read is said, never
+  // rendered as "no activity" (D-59 class).
+  it('names a lane that failed instead of pretending it had no runs', async () => {
+    setMockClient({ listAuditRuns: vi.fn().mockRejectedValue(new Error('fetch failed')) });
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.failed).toEqual(['audit']);
+    expect(body.events).toEqual([]);
+  });
+
+  it('is a 502, not an empty success, when no modality lane answered', async () => {
+    const down = () => vi.fn().mockRejectedValue(new Error('fetch failed'));
+    setMockClient({ listAuditRuns: down(), listWatcherRuns: down(), listPhantomDemandRuns: down() });
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.failed).toEqual(['audit', 'watcher', 'phantom_demand']);
+    expect(body.events).toBeUndefined();
+  });
+
   it('merges audit + watcher runs sorted by triggered_at desc', async () => {
     setMockClient({
       listAuditRuns: vi.fn().mockResolvedValue({

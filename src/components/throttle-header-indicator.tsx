@@ -3,13 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import { jsonFetcher } from '@/lib/swr-fetcher';
 
 interface ThrottleStatus {
   count: number;
   most_recent_modality: 'audit' | 'watcher' | 'phantom_demand' | null;
 }
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const DISMISS_KEY = 'haiwave.throttle.dismissed';
 
@@ -23,7 +22,8 @@ const DISMISS_KEY = 'haiwave.throttle.dismissed';
  * v1.30 PR-6 Phase 8.
  */
 export function ThrottleHeaderIndicator() {
-  const { data } = useSWR<ThrottleStatus>('/api/account/throttle-status', fetcher, {
+  // jsonFetcher throws on a non-2xx, so an error body is never read as a status.
+  const { data } = useSWR<ThrottleStatus>('/api/account/throttle-status', jsonFetcher, {
     refreshInterval: 30000,
   });
   const [dismissed, setDismissed] = useState(false);

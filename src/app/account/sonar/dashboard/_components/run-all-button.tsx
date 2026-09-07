@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useSWRConfig } from 'swr';
 
 interface Props {
-  enabledTemplateCount: number;
+  /** `null` = the templates lane did not answer; Run all stays disabled with an honest reason. */
+  enabledTemplateCount: number | null;
 }
 
 interface RunAllResponse {
@@ -18,7 +19,13 @@ export function RunAllButton({ enabledTemplateCount }: Props) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const { mutate } = useSWRConfig();
 
-  const disabled = isPending || enabledTemplateCount === 0;
+  const disabled = isPending || enabledTemplateCount === null || enabledTemplateCount === 0;
+  const title =
+    enabledTemplateCount === null
+      ? 'Configurations could not be loaded — Run all is unavailable until they are'
+      : enabledTemplateCount === 0
+        ? 'No enabled configurations yet — create one in Configurations'
+        : undefined;
 
   const onClick = async () => {
     setIsPending(true);
@@ -47,7 +54,7 @@ export function RunAllButton({ enabledTemplateCount }: Props) {
         type="button"
         onClick={onClick}
         disabled={disabled}
-        title={enabledTemplateCount === 0 ? 'No enabled configurations yet — create one in Configurations' : undefined}
+        title={title}
         className="rounded-md bg-teal text-white px-4 py-1.5 text-sm font-medium hover:bg-teal/90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isPending ? 'Triggering…' : 'Run all'}

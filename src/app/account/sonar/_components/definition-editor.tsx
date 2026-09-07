@@ -50,7 +50,14 @@ const EVENT_LABEL: Record<RunTemplateEvent['event_kind'], string> = {
 // per event, newest-first, formatted as 'Suspended · 2026-05-26 14:32 ·
 // authorized by <actor>'. Suspended events also get a leading dim badge
 // so the audit-trail-relevant row is scannable from a long history.
-function HistoryList({ events }: { events: RunTemplateEvent[] }) {
+function HistoryList({ events }: { events: RunTemplateEvent[] | null }) {
+  if (events === null) {
+    return (
+      <p className="text-xs text-slate" role="status">
+        History could not be loaded. This is not a statement about the definition&apos;s past — refresh to try again.
+      </p>
+    );
+  }
   if (events.length === 0) {
     return (
       <p className="text-xs italic text-slate">
@@ -123,9 +130,9 @@ const SCOPE_TITLE_BY_CLASS: Record<ObservationClass, string> = {
 interface Props {
   template: RunTemplate;
   // v.1.42 — lifecycle history fetched server-side in the page wrapper.
-  // Empty array is a valid state (template predates this surface, or BFF
-  // fetch failed open).
-  events?: RunTemplateEvent[];
+  // Empty array = the BFF answered and there are no events. `null` = the
+  // events lane did not answer; rendered as unavailable, never as "no events".
+  events?: RunTemplateEvent[] | null;
   /**
    * Modality discriminator. Selects nouns and copy. Plan 2 will use this to
    * select scope-write protocol variants too.

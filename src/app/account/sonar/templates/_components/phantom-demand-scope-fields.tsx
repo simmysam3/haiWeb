@@ -32,6 +32,12 @@ interface CatalogProductRow {
   product_name: string | null;
 }
 
+/**
+ * Suggestions for a partner's catalog come from haiCore's server-side search
+ * (`?q=`), one small page per keystroke — catalog size never matters.
+ */
+const SUGGESTION_PAGE_SIZE = 20;
+
 // Both catalog endpoints return the full product list; filter + cap client-side
 // to the autocomplete's needs (the input only queries at length >= 2).
 function toHits(products: CatalogProductRow[], q: string): CatalogHit[] {
@@ -75,11 +81,12 @@ export function PhantomDemandScopeFields({ value, onChange }: Props) {
     async (q: string): Promise<CatalogHit[]> => {
       if (!counterpartyId) return [];
       const res = await fetch(
-        `/api/account/partners/${encodeURIComponent(counterpartyId)}/catalog/products?page=1&size=500`,
+        `/api/account/partners/${encodeURIComponent(counterpartyId)}/catalog/products?q=${encodeURIComponent(q.trim())}&page=1&size=${SUGGESTION_PAGE_SIZE}`,
       );
       if (!res.ok) return [];
       const body = (await res.json()) as { products?: CatalogProductRow[] };
-      return toHits(body.products ?? [], q);
+      // haiCore already matched on SKU / product name; no client-side filter.
+      return toHits(body.products ?? [], '');
     },
     [counterpartyId],
   );

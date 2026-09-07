@@ -12,6 +12,7 @@
  */
 
 import { loadEnv } from "@/config/env";
+import { isAssignableRole } from "@/lib/auth";
 
 const env = loadEnv();
 const KEYCLOAK_URL = env.KEYCLOAK_URL;
@@ -177,7 +178,20 @@ export async function endSession(token: string): Promise<void> {
 
 // ─── Admin User Operations ──────────────────────────────────
 
-export async function listUsers(participantId: string): Promise<unknown[]> {
+export interface KeycloakUser {
+  id: string;
+  email?: string;
+  attributes?: Record<string, string[]>;
+}
+
+/**
+ * The participant's users, each carrying the realm role names mapped to them
+ * (D-212: the realm role is the governing record; the `role` attribute is not
+ * read). One role-mappings call per user, bounded by the `max=100` page.
+ */
+export async function listUsers(
+  participantId: string,
+): Promise<Array<KeycloakUser & { realmRoles: string[] }>> {
   const token = await getAdminToken();
 
   const res = await fetch(
@@ -187,13 +201,18 @@ export async function listUsers(participantId: string): Promise<unknown[]> {
     },
   );
 
-  if (!res.ok) return [];
-  return res.json();
-}
-
-export interface KeycloakUser {
-  id: string;
-  attributes?: Record<string, string[]>;
+  // A refused or failed read is an outage the route reports (502), never an
+  // empty roster shown as fact (SEC-web-core-1-04).
+  if (!res.ok) {
+    throw new Error(`Keycloak list users failed: ${res.status} ${await res.text()}`);
+  }
+  const users = (await res.json()) as KeycloakUser[];
+  return Promise.all(
+    users.map(async (user) => ({
+      ...user,
+      realmRoles: (await getUserRealmRoles(user.id)).map((r) => r.name),
+    })),
+  );
 }
 
 export async function getUser(userId: string): Promise<KeycloakUser> {
@@ -208,41 +227,124 @@ export async function getUser(userId: string): Promise<KeycloakUser> {
   return res.json();
 }
 
+export interface RealmRole {
+  id: string;
+  name: string;
+}
+
+/** The realm roles currently mapped to the user — the governing record (D-212). */
+export async function getUserRealmRoles(userId: string): Promise<RealmRole[]> {
+  const token = await getAdminToken();
+  const res = await fetch(
+    `${keycloakAdminUrl}/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Keycloak role-mappings lookup failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+/**
+ * The requested realm role does not exist. Distinguished from a transport or
+ * permission failure so callers can say which one happened without matching on
+ * message text.
+ */
+export class RealmRoleNotFoundError extends Error {
+  readonly roleName: string;
+  constructor(roleName: string) {
+    super(`Keycloak realm role not found: ${roleName}`);
+    this.name = "RealmRoleNotFoundError";
+    this.roleName = roleName;
+  }
+}
+
+/**
+ * The realm role named `roleName`. Resolved through the searchable list
+ * endpoint (`/roles?search=`), which the portal-admin service account reaches
+ * with its query-users/view-users grants — the single-role endpoint
+ * (`/roles/{name}`) requires `view-realm`, which it is deliberately not given
+ * (least privilege). `search` is a substring match, so the exact name is
+ * picked out of the results; anything else is a missing role, not a match.
+ */
+export async function getRealmRole(roleName: string): Promise<RealmRole> {
+  const token = await getAdminToken();
+  const res = await fetch(
+    `${keycloakAdminUrl}/roles?search=${encodeURIComponent(roleName)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Keycloak role lookup failed: ${res.status} ${await res.text()}`);
+  }
+  const matches = await res.json();
+  // A 200 that is not a list is a broken response, not a missing role: saying
+  // "not defined in the realm" would be a false statement about the realm.
+  if (!Array.isArray(matches)) {
+    throw new Error(`Keycloak role lookup failed: unexpected response for ${roleName}`);
+  }
+  const role = (matches as RealmRole[]).find((r) => r.name === roleName);
+  if (!role) {
+    throw new RealmRoleNotFoundError(roleName);
+  }
+  return role;
+}
+
+/**
+ * Make `roleName` the user's one assignable realm role (D-212): every other
+ * ASSIGNABLE realm role is removed first, then the new one is added. Roles
+ * outside the assignable set (the realm default composite, account_owner,
+ * haiwave_admin) are never touched. The role is resolved before either step,
+ * so a failed lookup leaves the user exactly as it was. Remove-first means a
+ * failure between the two steps leaves the user with less privilege, never
+ * more. Throws on any Keycloak refusal. Returns the realm role names that
+ * govern afterwards, so the caller reports the role that actually applies (a
+ * non-assignable role such as account_owner is untouched and still wins).
+ */
 export async function updateUserRole(
   userId: string,
   roleName: string,
-): Promise<void> {
+): Promise<string[]> {
   const token = await getAdminToken();
+  const mappingsUrl = `${keycloakAdminUrl}/users/${encodeURIComponent(userId)}/role-mappings/realm`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 
-  const rolesRes = await fetch(
-    `${keycloakAdminUrl}/roles/${roleName}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!rolesRes.ok) {
-    throw new Error(`Keycloak role lookup failed: ${rolesRes.status} ${await rolesRes.text()}`);
+  // Resolve before touching anything: a lookup that fails must leave the user
+  // exactly as it was, never stripped of the role they had.
+  const role = await getRealmRole(roleName);
+
+  const current = await getUserRealmRoles(userId);
+  const stale = current.filter((r) => r.name !== roleName && isAssignableRole(r.name));
+  if (stale.length > 0) {
+    const del = await fetch(mappingsUrl, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify(stale),
+    });
+    if (!del.ok) {
+      throw new Error(`Keycloak role removal failed: ${del.status} ${await del.text()}`);
+    }
   }
-  const role = await rolesRes.json();
 
-  const res = await fetch(
-    `${keycloakAdminUrl}/users/${userId}/role-mappings/realm`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify([role]),
-    },
-  );
+  const res = await fetch(mappingsUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify([role]),
+  });
   if (!res.ok) {
     throw new Error(`Keycloak role assignment failed: ${res.status} ${await res.text()}`);
   }
+
+  const kept = current.filter((r) => !stale.includes(r)).map((r) => r.name);
+  return Array.from(new Set([...kept, roleName]));
 }
 
 export async function disableUser(userId: string): Promise<void> {
   const token = await getAdminToken();
 
-  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -255,10 +357,35 @@ export async function disableUser(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Set the user's first and last name. The body carries those two fields and
+ * nothing else: the email is the login and is never edited from the portal —
+ * a wrong email is a delete + re-invite (owner ruling 2026-09-06).
+ */
+export async function updateUserName(
+  userId: string,
+  firstName: string,
+  lastName: string,
+): Promise<void> {
+  const token = await getAdminToken();
+
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ firstName, lastName }),
+  });
+  if (!res.ok) {
+    throw new Error(`Keycloak update user name failed: ${res.status} ${await res.text()}`);
+  }
+}
+
 export async function deleteUser(userId: string): Promise<void> {
   const token = await getAdminToken();
 
-  const res = await fetch(`${keycloakAdminUrl}/users/${userId}`, {
+  const res = await fetch(`${keycloakAdminUrl}/users/${encodeURIComponent(userId)}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,

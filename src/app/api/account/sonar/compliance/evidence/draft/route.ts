@@ -9,4 +9,4 @@ import { withHaiCore } from '@/lib/with-hai-core';
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = await request.json();
   return NextResponse.json(await client.createEvidenceDraft(body));
-});
+}, { role: 'account_admin' });

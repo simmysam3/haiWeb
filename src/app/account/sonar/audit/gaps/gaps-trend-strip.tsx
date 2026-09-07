@@ -16,7 +16,7 @@
  * subtext); the canonical gap list below still loads independently.
  */
 
-import { headers, cookies } from 'next/headers';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 interface TrendPoint {
   at: string;
@@ -32,20 +32,12 @@ interface TrendResponse {
 }
 
 async function fetchTrend(): Promise<TrendResponse | null> {
-  const h = await headers();
-  const cookie = (await cookies()).toString();
-  const protocol = h.get('x-forwarded-proto') ?? 'http';
-  const host = h.get('host') ?? 'localhost:3001';
-  try {
-    const res = await fetch(
-      `${protocol}://${host}/api/account/sonar/working-list/gap-count-trend?window=28`,
-      { headers: { cookie }, cache: 'no-store' },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as TrendResponse;
-  } catch {
-    return null;
-  }
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header; `fetchBffJson` forwards the cookie and never throws.
+  const result = await fetchBffJson<TrendResponse>(
+    '/api/account/sonar/working-list/gap-count-trend?window=28',
+  );
+  return result.kind === 'ok' ? result.data : null;
 }
 
 /**

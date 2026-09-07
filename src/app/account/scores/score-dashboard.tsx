@@ -59,23 +59,43 @@ export function ScoreDashboard() {
     fetcher,
   );
 
+  const quarterlyError = myQuarters.error
+    ? String((myQuarters.error as Error).message ?? myQuarters.error)
+    : undefined;
+  const peerError = peer.error ? String((peer.error as Error).message ?? peer.error) : undefined;
+  // A failed peer read shows no peer values at all. On a failed revalidation swr sets
+  // `error` and keeps the last good `data`; rendering that stale cohort beside
+  // "Couldn't load" would state as current a number we could not confirm
+  // (SEC-web-account-2-06).
+  const peerData = peerError ? undefined : peer.data;
+
   const myHistory = myQuarters.data?.quarters ?? [];
   const myCurrent = myHistory[myHistory.length - 1];
-  const peerCurrent = peer.data?.quarters?.[peer.data.quarters.length - 1];
+  const peerCurrent = peerData?.quarters?.[peerData.quarters.length - 1];
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MyScoreCard current={myCurrent} loading={myQuarters.isLoading} />
+        <MyScoreCard
+          current={myCurrent}
+          loading={myQuarters.isLoading}
+          error={quarterlyError}
+        />
         <PeerBenchmarkCard
           peerCurrent={peerCurrent}
           myCurrent={myCurrent}
-          cohortSize={peer.data?.cohort_size ?? 0}
+          cohortSize={peerData?.cohort_size}
           loading={peer.isLoading}
+          error={peerError}
         />
       </div>
 
-      <MyTrendCard history={myHistory} peerHistory={peer.data?.quarters ?? []} />
+      <MyTrendCard
+        history={myHistory}
+        peerHistory={peerData?.quarters ?? []}
+        error={quarterlyError}
+        peerError={peerError}
+      />
 
       <VendorRiskRegister />
     </div>
@@ -85,9 +105,12 @@ export function ScoreDashboard() {
 function MyScoreCard({
   current,
   loading,
+  error,
 }: {
   current: QuarterlyScore | undefined;
   loading: boolean;
+  /** The read failed (HTTP status or message); shown as such, never as "no score" (SEC-web-account-2-06). */
+  error?: string;
 }) {
   return (
     <Card>
@@ -101,6 +124,10 @@ function MyScoreCard({
       </div>
       {loading ? (
         <p className="text-sm text-slate">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load your score — haiCore answered {error}. This is not a statement about your score.
+        </p>
       ) : !current ? (
         <p className="text-sm text-slate">No score available yet.</p>
       ) : (
@@ -135,11 +162,15 @@ function PeerBenchmarkCard({
   myCurrent,
   cohortSize,
   loading,
+  error,
 }: {
   peerCurrent: PeerAggregateResponse['quarters'][number] | undefined;
   myCurrent: QuarterlyScore | undefined;
-  cohortSize: number;
+  /** Undefined until the peer lane has data — a count is never shown for a read that failed or is in flight. */
+  cohortSize: number | undefined;
   loading: boolean;
+  /** The read failed (HTTP status or message); shown as such, never as an empty cohort (SEC-web-account-2-06). */
+  error?: string;
 }) {
   const delta =
     peerCurrent && myCurrent
@@ -152,12 +183,18 @@ function PeerBenchmarkCard({
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy">
           Vendor cohort benchmark
         </h2>
-        <span className="text-xs text-slate">
-          {cohortSize} vendor{cohortSize === 1 ? '' : 's'}
-        </span>
+        {cohortSize !== undefined && (
+          <span className="text-xs text-slate">
+            {cohortSize} vendor{cohortSize === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
       {loading ? (
         <p className="text-sm text-slate">Loading…</p>
+      ) : error ? (
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load the vendor cohort benchmark — haiCore answered {error}. This is not a statement about your cohort.
+        </p>
       ) : !peerCurrent ? (
         <p className="text-sm text-slate">
           No vendor cohort yet. Add trading partners with origin manifests to populate this benchmark.
@@ -203,9 +240,15 @@ function PeerBenchmarkCard({
 function MyTrendCard({
   history,
   peerHistory,
+  error,
+  peerError,
 }: {
   history: QuarterlyScore[];
   peerHistory: PeerAggregateResponse['quarters'];
+  /** The quarterly read failed; shown as such, never as an empty history (SEC-web-account-2-06). */
+  error?: string;
+  /** The peer read failed; the Cohort column is empty for that reason, and says so rather than a bare "—". */
+  peerError?: string;
 }) {
   const myValues = history.map((q) => q.overall_score);
   const partialIdx = history.findIndex((q) => q.partial);
@@ -214,13 +257,22 @@ function MyTrendCard({
     <Card>
       <div className="flex items-baseline justify-between mb-4">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy">
-          Your trend, last {history.length} quarters
+          {error ? 'Your trend' : `Your trend, last ${history.length} quarters`}
         </h2>
       </div>
-      {history.length === 0 ? (
+      {error ? (
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load your trend — haiCore answered {error}. This is not a statement about your score.
+        </p>
+      ) : history.length === 0 ? (
         <p className="text-sm text-slate">No history.</p>
       ) : (
         <div className="space-y-3">
+          {peerError && (
+            <p className="text-sm text-problem" role="alert">
+              Cohort unavailable — haiCore answered {peerError}.
+            </p>
+          )}
           <div className="flex items-end gap-2">
             <Sparkline
               values={myValues}
@@ -319,6 +371,11 @@ function VendorRiskRegister() {
 
       {risk.isLoading ? (
         <p className="text-sm text-slate">Loading…</p>
+      ) : risk.error ? (
+        // A failed read is said, never rendered as an empty cohort (SEC-web-account-2-06).
+        <p className="text-sm text-problem" role="alert">
+          Couldn&apos;t load the vendor risk register — haiCore answered {String((risk.error as Error).message ?? risk.error)}. This is not a statement about your cohort.
+        </p>
       ) : vendors.length === 0 ? (
         <p className="text-sm text-slate">No vendors in your cohort yet.</p>
       ) : (

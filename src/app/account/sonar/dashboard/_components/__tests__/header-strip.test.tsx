@@ -50,3 +50,19 @@ describe('HeaderStrip', () => {
     expect(screen.getByText(/Never/i)).toBeInTheDocument();
   });
 });
+
+describe('HeaderStrip — a lane that did not answer (SEC-web-sonar-4-04)', () => {
+  it('shows a dash, not 0, for total partners when the cross-modality lane is unavailable', () => {
+    render(
+      <HeaderStrip
+        totalPartners={null}
+        lastRunAt={null}
+        throttledCounts={null}
+        failedRunsLast30d={null}
+      />,
+    );
+    const label = screen.getByText(/Total partners observed/i);
+    expect(label.parentElement).toHaveTextContent('—');
+    expect(label.parentElement).not.toHaveTextContent(/\b0\b/);
+  });
+});

@@ -29,4 +29,4 @@ export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json().catch(() => ({}))) as CreateRunTemplateRequest;
   const payload = { ...body, observation_class: 'watcher' as const } as unknown as CreateRunTemplateRequest;
   return NextResponse.json(await client.createRunTemplate(payload));
-});
+}, { role: 'account_admin' });

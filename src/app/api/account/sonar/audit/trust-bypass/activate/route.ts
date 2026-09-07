@@ -14,4 +14,4 @@ import type { TrustBypassActivationRequest } from '@haiwave/protocol';
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json()) as TrustBypassActivationRequest;
   return NextResponse.json(await client.activateTrustBypass(body));
-});
+}, { role: 'account_admin' });

@@ -1,4 +1,3 @@
-import { cookies, headers } from 'next/headers';
 import { PageIntro } from '@/components/page-intro';
 import { Panel, PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
@@ -46,7 +45,8 @@ interface DashboardData {
   crossModality: CrossModalityResponse | null;
   initialActivity: ActivityResponse | null;
   throttledCounts: { audit: number; watcher: number; total: number } | null;
-  enabledTemplateCount: number;
+  /** `null` = the templates lane did not answer (distinct from zero enabled). */
+  enabledTemplateCount: number | null;
   failedRunsLast30d: number | null;
   coverageCurrent: FetchResult<CoverageCurrentResponse>;
   coverageTrend: FetchResult<CoverageTrend>;
@@ -83,19 +83,12 @@ function unwrapBestEffort<T>(result: FetchResult<T>, lane: string): T | null {
 }
 
 async function loadDashboard(): Promise<DashboardData> {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-
-  // v1.37 polish item 1: all BFF lanes now go through `fetchBffJson` so the
+  // v1.37 polish item 1: all BFF lanes go through `fetchBffJson` so the
   // dashboard speaks a single fetch dialect. Coverage uses the discriminated
   // result directly (status-aware banner); the best-effort lanes adapt to
   // `T | null` via `unwrapBestEffort` so the existing downstream null
-  // handling stays intact. `loadAuditChartData` keeps its raw `fetch`
-  // because it operates against the broader audit-runs API on a different
-  // path prefix and has lane-specific recovery logic.
+  // handling stays intact. `loadAuditChartData` resolves its own origin the
+  // same way (D-62), so nothing here is derived from the request headers.
   const coveragePromise = loadCoverage();
   const [
     crossModalityRes,
@@ -110,7 +103,7 @@ async function loadDashboard(): Promise<DashboardData> {
     fetchBffJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
     fetchBffJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
     coveragePromise,
-    loadAuditChartData(baseUrl, cookieHeader),
+    loadAuditChartData(),
   ]);
 
   const crossModality = unwrapBestEffort(crossModalityRes, 'cross-modality');
@@ -118,7 +111,7 @@ async function loadDashboard(): Promise<DashboardData> {
   const throttledCounts = unwrapBestEffort(throttledCountsRes, 'throttled-counts');
   const templates = unwrapBestEffort(templatesRes, 'templates');
 
-  const enabledTemplateCount = templates?.templates.filter((t) => t.enabled).length ?? 0;
+  const enabledTemplateCount = templates ? templates.templates.filter((t) => t.enabled).length : null;
 
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const failedRunsLast30d = initialActivity
@@ -150,7 +143,9 @@ export default async function UnifiedDashboardPage() {
 
   const data = await loadDashboard();
 
-  const totalPartners = data.crossModality?.partners.length ?? 0;
+  // A lane that did not answer stays null all the way to the render: '—', an
+  // 'unavailable' state, never an affirmative zero or 'nothing observed'.
+  const totalPartners = data.crossModality ? data.crossModality.partners.length : null;
   const lastRunAt =
     data.initialActivity && data.initialActivity.events.length > 0
       ? data.initialActivity.events[0].triggered_at
@@ -295,8 +290,8 @@ export default async function UnifiedDashboardPage() {
                   failedRunsLast30d={data.failedRunsLast30d}
                   enabledTemplateCount={data.enabledTemplateCount}
                 />
-                <ModalityLens partners={data.crossModality?.partners ?? []} />
-                <CrossModalityTable partners={data.crossModality?.partners ?? []} />
+                <ModalityLens partners={data.crossModality?.partners ?? null} />
+                <CrossModalityTable partners={data.crossModality?.partners ?? null} />
               </section>
             ),
           },

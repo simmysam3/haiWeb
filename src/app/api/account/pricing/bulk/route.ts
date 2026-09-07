@@ -15,4 +15,4 @@ export const POST = withHaiCore(async ({ client, request }) => {
     );
   }
   return client.bulkUploadPricing(body.entries);
-});
+}, { role: 'account_admin' });

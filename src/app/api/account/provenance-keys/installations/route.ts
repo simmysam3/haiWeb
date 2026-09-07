@@ -21,4 +21,4 @@ export const GET = withHaiCore(async ({ client, request }: { client: HaiwaveClie
 export const POST = withHaiCore(async ({ client, request }: { client: HaiwaveClient; request: Request }) => {
   const body = (await request.json()) as InstallationCreationRequest;
   return NextResponse.json(await client.installKey(body));
-});
+}, { role: 'account_admin' });

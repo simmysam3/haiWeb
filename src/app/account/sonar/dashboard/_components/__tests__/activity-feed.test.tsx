@@ -52,6 +52,19 @@ describe('ActivityFeed', () => {
     await waitFor(() => screen.getByText(/Failed to load activity/i));
   });
 
+  // W-F1 (2026-09-05): a lane the route could not read is said, never shown
+  // as "no runs". With nothing else to show, the notice replaces the empty
+  // state; with rows from the other lanes, it sits beside them.
+  it('says which lanes could not be loaded instead of rendering the empty state', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ events: [], failed: ['audit', 'watcher'] }), { status: 200 }),
+    );
+    render(wrap(<ActivityFeed initial={null} />));
+    await waitFor(() => screen.getByRole('status'));
+    expect(screen.getByRole('status')).toHaveTextContent(/audit.*watcher.*could not be loaded/i);
+    expect(screen.queryByText(/No recent runs/i)).not.toBeInTheDocument();
+  });
+
   it('renders "unknown time" for malformed triggered_at', async () => {
     const initial = {
       events: [

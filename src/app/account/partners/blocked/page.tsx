@@ -8,6 +8,8 @@ import { Modal } from "@/components/modal";
 import { DataTable, Column } from "@/components/data-table";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
+import { describeApiError, type ApiErrorInfo } from "@/lib/api-error";
+import { FormError } from "@/components/form-error";
 import type { MockBlockedCompany } from "@/lib/mock-types";
 
 export default function BlockedCompaniesPage() {
@@ -15,6 +17,7 @@ export default function BlockedCompaniesPage() {
   const [unblockTarget, setUnblockTarget] = useState<MockBlockedCompany | null>(null);
   const { toast, showToast } = useToast();
   const [processing, setProcessing] = useState(false);
+  const [actionError, setActionError] = useState<ApiErrorInfo | null>(null);
 
   const blockedApi = useApi<MockBlockedCompany[]>({
     url: "/api/account/connections/blocked",
@@ -27,20 +30,33 @@ export default function BlockedCompaniesPage() {
     }
   }, [blockedApi.data, blockedApi.loading]);
 
+  // The BFF's answer is the fact: the row leaves the list and the toast shows
+  // only after a 2xx; a refusal or an unreachable server is surfaced instead.
   async function handleUnblock() {
     if (!unblockTarget) return;
     setProcessing(true);
+    setActionError(null);
 
+    let res: Response;
     try {
-      await fetch(
+      res = await fetch(
         `/api/account/connections/blocked?blocked_participant_id=${encodeURIComponent(unblockTarget.participant_id)}`,
         { method: "DELETE" },
       );
     } catch {
-      // Fire-and-forget: UI updates optimistically
+      setActionError({ status: 0, sessionExpired: false, message: "Could not reach the server. Please try again." });
+      setUnblockTarget(null);
+      setProcessing(false);
+      return;
+    }
+    if (!res.ok) {
+      setActionError(await describeApiError(res));
+      setUnblockTarget(null);
+      setProcessing(false);
+      return;
     }
 
-    setBlocked(blocked.filter((b) => b.participant_id !== unblockTarget.participant_id));
+    setBlocked((prev) => prev.filter((b) => b.participant_id !== unblockTarget.participant_id));
     showToast(`Unblocked ${unblockTarget.company_name}`);
     setUnblockTarget(null);
     setProcessing(false);
@@ -100,6 +116,11 @@ export default function BlockedCompaniesPage() {
       {toast && (
         <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success mb-4">
           {toast}
+        </div>
+      )}
+      {actionError && (
+        <div className="mb-4">
+          <FormError message={actionError.message} sessionExpired={actionError.sessionExpired} />
         </div>
       )}
 

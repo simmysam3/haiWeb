@@ -6,7 +6,7 @@ import { ScopeSummary } from '../../../../templates/_components/scope-summary';
 
 interface Props {
   template: RunTemplate;
-  events?: RunTemplateEvent[];
+  events?: RunTemplateEvent[] | null;
 }
 
 /**

@@ -18,7 +18,8 @@ export interface CrossModalityPartner {
 }
 
 interface Props {
-  partners: CrossModalityPartner[];
+  /** `null` = the cross-modality lane did not answer (401/403/5xx); distinct from an empty list. */
+  partners: CrossModalityPartner[] | null;
 }
 
 type SortKey = 'partner' | 'audit' | 'pd' | 'capacity' | 'lead_time' | 'risk';
@@ -63,7 +64,7 @@ export function CrossModalityTable({ partners }: Props) {
   };
 
   const sorted = useMemo(() => {
-    const copy = [...partners];
+    const copy = [...(partners ?? [])];
     copy.sort((a, b) => {
       switch (sortKey) {
         case 'partner':
@@ -89,6 +90,19 @@ export function CrossModalityTable({ partners }: Props) {
     });
     return copy;
   }, [partners, sortKey, dir]);
+
+  if (partners === null) {
+    return (
+      <div className="rounded-md border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 px-4 py-2">
+          <h2 className="text-sm font-semibold text-charcoal">Partners observed by Sonar</h2>
+        </div>
+        <p className="p-6 text-sm text-slate" role="status">
+          Cross-modality data could not be loaded. This is not a statement about your partners — refresh to try again.
+        </p>
+      </div>
+    );
+  }
 
   if (partners.length === 0) {
     return (

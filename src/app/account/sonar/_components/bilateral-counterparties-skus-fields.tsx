@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { AuditWizardOptionsResponse, SkuAsk } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
+import { fetchAllCatalogProducts } from '@/lib/catalog-products';
 import {
   GroupedAccordion,
   AccordionGroupRow,
@@ -221,19 +222,14 @@ export function BilateralCounterpartiesSkusFields({
         return next;
       });
       try {
-        const [classesRes, productsRes] = await Promise.all([
+        // The whole catalog, paged to haiCore's `total` — a single page of 500
+        // silently dropped SKUs 501+ from the picker (SEC-web-sonar-3-06).
+        const [classesRes, productsBody] = await Promise.all([
           fetch(`/api/account/partners/${encodeURIComponent(cp.counterparty_id)}/catalog/classes`),
-          fetch(
-            `/api/account/partners/${encodeURIComponent(cp.counterparty_id)}/catalog/products?page=1&size=500`,
-          ),
+          fetchAllCatalogProducts(cp.counterparty_id),
         ]);
         if (!classesRes.ok) throw new Error(`classes ${classesRes.status}`);
-        if (!productsRes.ok) throw new Error(`products ${productsRes.status}`);
         const classesBody = (await classesRes.json()) as { classes: CatalogClass[] };
-        const productsBody = (await productsRes.json()) as {
-          products: CatalogProduct[];
-          total: number;
-        };
 
         // Audit universe: only accepted-scope SKUs are selectable (intersection).
         // Bilateral universe: the whole public catalog is selectable.

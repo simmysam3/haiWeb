@@ -1,5 +1,4 @@
-import { cookies } from 'next/headers';
-import { headers } from 'next/headers';
+import { fetchBffJson } from '@/lib/server-fetch';
 import { PageHeader } from '@/components/page-header';
 import { PageIntro } from '@/components/page-intro';
 import { ProvenanceKeysDashboard, type DashboardPayload } from './provenance-keys-dashboard';
@@ -18,24 +17,11 @@ const EMPTY_PAYLOAD: DashboardPayload = {
 };
 
 export default async function ProvenanceKeysPage() {
-  const cookieHeader = (await cookies()).toString();
-  const reqHeaders = await headers();
-  const host = reqHeaders.get('host') ?? 'localhost:3001';
-  const proto = reqHeaders.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = `${proto}://${host}`;
-
-  let initial: DashboardPayload = EMPTY_PAYLOAD;
-  try {
-    const res = await fetch(`${baseUrl}/api/account/provenance-keys/dashboard`, {
-      headers: { cookie: cookieHeader },
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      initial = await res.json();
-    }
-  } catch {
-    // Fallback to empty payload; the dashboard handles empty state gracefully.
-  }
+  // D-62: origin from the configured PORTAL_BASE_URL, never the request's
+  // Host header. On any failure fall back to the empty payload; the
+  // dashboard handles the empty state gracefully.
+  const result = await fetchBffJson<DashboardPayload>('/api/account/provenance-keys/dashboard');
+  const initial: DashboardPayload = result.kind === 'ok' ? result.data : EMPTY_PAYLOAD;
 
   return (
     <div>

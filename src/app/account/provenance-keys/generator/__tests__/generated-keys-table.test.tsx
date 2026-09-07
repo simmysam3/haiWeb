@@ -48,4 +48,15 @@ describe('GeneratedKeysTable', () => {
     await userEvent.click(screen.getByText('USAGOV Audit'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  // QUA-web-account-1-14 (owner ruling R-5a, 2026-09-05): the row selected on
+  // click only — no focusable control, so a keyboard user could not open a key.
+  it('opens the key-details drawer from the keyboard: the key name is a focusable control that answers Enter', async () => {
+    render(<GeneratedKeysTable keys={[SAMPLE]} onRefresh={() => {}} />);
+    const control = screen.getByRole('button', { name: 'USAGOV Audit' });
+    control.focus();
+    expect(control).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
 });

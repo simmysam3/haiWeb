@@ -277,6 +277,16 @@ export interface SelfParticipant {
   status: string;
 }
 
+export type ConnectionDowngradeTarget = 'approved' | 'none';
+
+/** haiCore's DowngradeResponse (packages/protocol connections/connection.ts). */
+export interface ConnectionDowngradeResult {
+  connection_id: string;
+  previous_state: string;
+  new_state: ConnectionDowngradeTarget;
+  invite_status: { requestor_invite: boolean; counterparty_invite: boolean };
+}
+
 export interface ConnectionRecord {
   id: string;
   target_participant_id: string;
@@ -547,7 +557,14 @@ export interface HaiwaveClient {
   listBlocked(): Promise<Record<string, unknown>[]>;
   blockParticipant(targetId: string): Promise<{ success: boolean }>;
   unblockParticipant(blockedId: string): Promise<{ success: boolean }>;
-  downgradeConnection(connectionId: string): Promise<ConnectionRecord>;
+  /**
+   * haiCore `PATCH /connections/:id/downgrade` — `target_state` 'approved'
+   * (trading_pair → approved) or 'none' (the connection row is deleted).
+   */
+  downgradeConnection(
+    connectionId: string,
+    targetState: ConnectionDowngradeTarget,
+  ): Promise<ConnectionDowngradeResult>;
   // Payments (v1.11)
   getWallet(participantId: string): Promise<Record<string, unknown>>;
   getWalletBalance(walletId: string): Promise<{ balance: number; currency: string }>;
@@ -623,7 +640,7 @@ export interface HaiwaveClient {
   listCatalogClasses(vendorId: string): Promise<{ classes: CatalogClass[] }>;
   listCatalogProducts(
     vendorId: string,
-    opts?: { classId?: string; page?: number; size?: number },
+    opts?: { classId?: string; page?: number; size?: number; q?: string },
   ): Promise<{ products: CatalogProduct[]; total: number }>;
   // Audit Scopes (v1.25)
   createAuditScope(body: AuditScopeCreationRequest): Promise<AuditScope>;
@@ -1259,8 +1276,12 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
         `/connections/block?${new URLSearchParams({ blocked_participant_id: blockedId })}`,
       );
     },
-    downgradeConnection(connectionId: string) {
-      return request<ConnectionRecord>("POST", `/connections/${connectionId}/downgrade`);
+    downgradeConnection(connectionId, targetState) {
+      return request<ConnectionDowngradeResult>(
+        "PATCH",
+        `/connections/${encodeURIComponent(connectionId)}/downgrade`,
+        { target_state: targetState },
+      );
     },
 
     // ─── Payments (v1.11) ────────────────────────────────
@@ -1510,6 +1531,8 @@ export function createHaiwaveClient(token: string, participantId: string): Haiwa
     listCatalogProducts(vendorId, opts = {}) {
       const params = new URLSearchParams();
       if (opts.classId) params.set('class_id', opts.classId);
+      // Server-side SKU / product-name match; total is then bounded at 1,000.
+      if (opts.q) params.set('q', opts.q);
       if (opts.page !== undefined) params.set('page', String(opts.page));
       if (opts.size !== undefined) params.set('size', String(opts.size));
       const q = params.toString();

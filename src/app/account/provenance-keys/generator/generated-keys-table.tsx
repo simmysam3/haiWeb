@@ -50,7 +50,20 @@ export function GeneratedKeysTable({ keys, onRefresh }: GeneratedKeysTableProps)
                 className="border-b border-slate/10 cursor-pointer hover:bg-navy/5"
                 onClick={() => setSelected(k)}
               >
-                <td className="py-3 text-charcoal">{k.friendly_name}</td>
+                <td className="py-3 text-charcoal">
+                  {/* The row opens on click for mouse users; this control is the
+                      keyboard route to the same drawer (tab, Enter/Space). */}
+                  <button
+                    type="button"
+                    className="text-left hover:underline focus:outline-none focus:ring-2 focus:ring-teal rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelected(k);
+                    }}
+                  >
+                    {k.friendly_name}
+                  </button>
+                </td>
                 <td className="py-3 text-slate">
                   {k.active_compliant} compliant, {k.active_grace_pending} grace, {k.active_non_compliant} non-compliant
                 </td>

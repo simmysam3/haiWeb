@@ -20,4 +20,4 @@ export const GET = withHaiCore(async ({ client, request }) => {
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json()) as AuditScopeCreationRequest;
   return NextResponse.json(await client.createAuditScope(body));
-});
+}, { role: 'account_admin' });

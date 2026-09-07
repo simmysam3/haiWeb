@@ -29,7 +29,7 @@ export const PATCH = withHaiCore<RouteParams>(async ({ client, request, params }
   }
   const body = (await request.json().catch(() => ({}))) as UpdateRunTemplateRequest;
   return NextResponse.json(await client.updateRunTemplate(params.template_id, body));
-});
+}, { role: 'account_admin' });
 
 // v1.85 (2026-09-02): D-206 — ?runs= carries the caller's disposition for the
 // template's prior runs (delete | archive | keep). Validated here against the
@@ -46,4 +46,4 @@ export const DELETE = withHaiCore<RouteParams>(async ({ client, request, params 
     return NextResponse.json({ error: 'invalid_runs' }, { status: 400 });
   }
   return NextResponse.json(await client.deleteRunTemplate(params.template_id, { runs: parsedRuns.data }));
-});
+}, { role: 'account_admin' });

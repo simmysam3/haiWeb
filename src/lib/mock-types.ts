@@ -37,7 +37,6 @@ export interface MockPartner {
   id: string;
   company_name: string;
   status: "approved" | "trading_pair";
-  manifest_progress: number;
   established_at: string;
   location: string;
   industry: string;

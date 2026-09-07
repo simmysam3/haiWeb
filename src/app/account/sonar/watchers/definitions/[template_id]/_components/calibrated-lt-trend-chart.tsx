@@ -1,14 +1,22 @@
 'use client';
 
-import type { WatcherRun, WatcherResult } from '@haiwave/protocol';
+import type { WatcherResult } from '@haiwave/protocol';
 import { useMemo } from 'react';
 
-interface Run extends WatcherRun {
-  results?: WatcherResult[];
+/**
+ * One run of the trailing-history lane with the results haiCore recorded for
+ * it. A bare WatcherRun carries no results; the page groups the lane's
+ * `results` by `run_id` before handing them here.
+ */
+export interface TrendRun {
+  run_id: string;
+  triggered_at: string;
+  results: WatcherResult[];
 }
 
 interface Props {
-  runs: Run[];
+  /** `null` = the trailing-history lane did not answer; distinct from runs without lead-time results. */
+  runs: TrendRun[] | null;
 }
 
 const PAD = { top: 12, right: 12, bottom: 24, left: 36 };
@@ -25,11 +33,11 @@ function ltP50(r: WatcherResult): number | null {
 export function CalibratedLTTrendChart({ runs }: Props) {
   const series = useMemo(() => {
     const byCounterparty = new Map<string, { x: number; y: number }[]>();
-    const sortedRuns = [...runs].sort((a, b) =>
+    const sortedRuns = [...(runs ?? [])].sort((a, b) =>
       a.triggered_at.localeCompare(b.triggered_at),
     );
     sortedRuns.forEach((run, i) => {
-      for (const r of run.results ?? []) {
+      for (const r of run.results) {
         if (!r.counterparty_participant_id) continue;
         const v = ltP50(r);
         if (v === null) continue;
@@ -40,6 +48,14 @@ export function CalibratedLTTrendChart({ runs }: Props) {
     });
     return { byCounterparty, runCount: sortedRuns.length };
   }, [runs]);
+
+  if (runs === null) {
+    return (
+      <p className="text-sm text-slate" role="status">
+        Trend data could not be loaded. This is not a statement about the runs — refresh to try again.
+      </p>
+    );
+  }
 
   if (series.byCounterparty.size === 0) {
     return (

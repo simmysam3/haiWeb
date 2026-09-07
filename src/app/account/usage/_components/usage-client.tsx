@@ -68,10 +68,19 @@ export function UsageClient({ initialCurrent }: Props) {
     );
   }
 
-  const totalHops = (timeseriesData?.buckets ?? []).reduce(
-    (sum: number, b: TimeseriesBucket) => sum + (b.hops_consumed ?? 0),
-    0,
+  // Modality breakdown from the SAME window's counterparty rows: the three
+  // modality sums and the total they add up to agree by construction. Until
+  // the rows arrive the widget says so rather than drawing zeros
+  // (QUA-web-account-2-02).
+  const modality = (counterpartiesData?.counterparties ?? []).reduce(
+    (acc, r: CounterpartyRow) => ({
+      audit: acc.audit + (r.audit_hops ?? 0),
+      watcher: acc.watcher + (r.watcher_hops ?? 0),
+      phantom_demand: acc.phantom_demand + (r.phantom_demand_hops ?? 0),
+    }),
+    { audit: 0, watcher: 0, phantom_demand: 0 },
   );
+  const modalityTotal = modality.audit + modality.watcher + modality.phantom_demand;
 
   return (
     <div className="space-y-4">
@@ -81,7 +90,18 @@ export function UsageClient({ initialCurrent }: Props) {
         windowStart={current.window_start}
       />
 
-      <CompositionBar audit={0} watcher={0} phantom_demand={0} total={totalHops} />
+      {counterpartiesData ? (
+        <CompositionBar
+          audit={modality.audit}
+          watcher={modality.watcher}
+          phantom_demand={modality.phantom_demand}
+          total={modalityTotal}
+        />
+      ) : (
+        <section className="bg-white border border-slate-200 rounded p-4 text-sm text-slate">
+          Loading modality breakdown…
+        </section>
+      )}
 
       <TimeseriesChart
         buckets={timeseriesData?.buckets ?? []}

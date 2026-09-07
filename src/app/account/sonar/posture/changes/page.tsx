@@ -2,6 +2,7 @@ import type { ComplianceChangeFeedResponse } from '@haiwave/protocol';
 import { ChangesFeed } from './changes-feed';
 import { FilterPills } from './filter-pills';
 import { EVENT_KIND_PILLS } from './_lib/event-kind-pills';
+import { resolveKindFilter } from '../../_lib/resolve-kind-filter';
 import { RefreshButton } from '@/components/refresh-button';
 import { PageIntro } from '@/components/page-intro';
 import { PageHeader } from '@/components';
@@ -29,20 +30,11 @@ async function fetchChanges(searchParams: SearchParams, offset: number) {
   // v.1.43: Watcher Backlog requests the full watcher-side pill set
   // (lead-time AND, since v1.69 slice D, promise-drift kinds). If the user
   // picked specific kinds, honor them but drop anything outside that
-  // allowlist (in case an audit-side kind arrives via a stale URL). If no
-  // kind filter at all, default to the full watcher-side pill set so
-  // audit-data rows never bleed into this watcher-side surface.
-  const rawKinds = searchParams.kind;
-  const requested: string[] = Array.isArray(rawKinds)
-    ? rawKinds
-    : rawKinds
-      ? [rawKinds]
-      : [];
-  const allowed = new Set<string>(EVENT_KIND_PILLS);
-  const filteredKinds = requested.length
-    ? requested.filter((k) => allowed.has(k))
-    : [...EVENT_KIND_PILLS];
-  filteredKinds.forEach((k) => sp.append('kind', k));
+  // allowlist (in case an audit-side kind arrives via a stale URL). When no
+  // requested kind survives — or none was requested — the full watcher-side
+  // pill set goes on the wire, so audit-data rows never bleed into this
+  // watcher-side surface (resolveKindFilter never returns empty).
+  resolveKindFilter(searchParams.kind, EVENT_KIND_PILLS).forEach((k) => sp.append('kind', k));
   if (searchParams.partner) sp.set('partner', searchParams.partner);
   if (searchParams.from) sp.set('from', searchParams.from);
   if (searchParams.to) sp.set('to', searchParams.to);

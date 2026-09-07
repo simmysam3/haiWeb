@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AuditScopeCoverage } from '@haiwave/protocol';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
+import { fetchAllCatalogProducts } from '@/lib/catalog-products';
 import type { FormSelections, PartnerSummary } from './types';
 import { DetailChevron } from '@/components/sonar/observations';
 
@@ -66,11 +67,8 @@ export function CatalogStep({ vendor, selections, onChange, onAdvance, onBack }:
         [classId]: { loading: true, loaded: prev[classId]?.loaded ?? false, products: prev[classId]?.products ?? [] },
       }));
       try {
-        const res = await fetch(
-          `/api/account/partners/${encodeURIComponent(vendor.id)}/catalog/products?class_id=${encodeURIComponent(classId)}&page=1&size=500`,
-        );
-        if (!res.ok) throw new Error(`products ${res.status}`);
-        const body = (await res.json()) as { products: CatalogProduct[]; total: number };
+        // The whole class, paged to haiCore's `total` (SEC-web-sonar-3-06).
+        const body = await fetchAllCatalogProducts(vendor.id, { classId });
         setProducts((prev) => ({
           ...prev,
           [classId]: { loading: false, loaded: true, products: body.products ?? [] },

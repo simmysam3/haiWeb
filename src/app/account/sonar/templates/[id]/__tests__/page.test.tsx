@@ -57,7 +57,7 @@ describe('TemplateDetailPage', () => {
   });
 
   it('throws NEXT_NOT_FOUND when haiCore returns 404', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 } as Response);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404, text: async () => '' } as Response);
     const Page = (await import('../page')).default;
     await expect(Page({ params: Promise.resolve({ id: 'missing' }) })).rejects.toThrow(
       'NEXT_NOT_FOUND',
@@ -65,7 +65,7 @@ describe('TemplateDetailPage', () => {
   });
 
   it('propagates a non-404 failure instead of masking it as not-found', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 500 } as Response);
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, text: async () => '' } as Response);
     const Page = (await import('../page')).default;
     const err = await Page({ params: Promise.resolve({ id: 'abc' }) }).then(
       () => null,

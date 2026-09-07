@@ -152,12 +152,12 @@ export const MOCK_SCORE_HISTORY = {
 // ─── Mock Trading Partners ───────────────────────────────────
 
 export const MOCK_PARTNERS: MockPartner[] = [
-  { id: "e755e710-0680-42d2-a9ee-938456ec7e69", company_name: "MidWest Fastener Corp", status: "trading_pair", manifest_progress: 100, established_at: "2025-11-15T00:00:00Z", location: "Chicago, IL", industry: "Fastener Manufacturing", invite_yours: true, invite_theirs: true, connection_id: "conn-mw" },
-  { id: "ec2308a1-08e4-4f87-bf39-43fb98bef8ff", company_name: "Great Lakes Hardware", status: "trading_pair", manifest_progress: 100, established_at: "2025-12-01T00:00:00Z", location: "Detroit, MI", industry: "Hardware Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-gl" },
-  { id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", company_name: "National Industrial Supply", status: "trading_pair", manifest_progress: 100, established_at: "2025-10-10T00:00:00Z", location: "Columbus, OH", industry: "Industrial Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-ni" },
-  { id: "62124d68-7590-4a4c-a961-5e7d733fcb60", company_name: "Pacific Safety Products", status: "trading_pair", manifest_progress: 100, established_at: "2025-11-20T00:00:00Z", location: "Portland, OR", industry: "Safety Equipment", invite_yours: true, invite_theirs: true, connection_id: "conn-ps" },
-  { id: "16b2784a-d331-46c6-9fcd-df063b895a6e", company_name: "Precision Plastics Inc", status: "approved", manifest_progress: 60, established_at: "2026-01-20T00:00:00Z", location: "Fort Wayne, IN", industry: "Plastics Manufacturing", invite_yours: true, invite_theirs: false, connection_id: "conn-pp" },
-  { id: "cb5101dc-2628-426d-99a5-045f7f738f00", company_name: "Summit Electrical Components", status: "approved", manifest_progress: 30, established_at: "2026-02-05T00:00:00Z", location: "Indianapolis, IN", industry: "Electrical Components", invite_yours: false, invite_theirs: false, connection_id: "conn-se" },
+  { id: "e755e710-0680-42d2-a9ee-938456ec7e69", company_name: "MidWest Fastener Corp", status: "trading_pair", established_at: "2025-11-15T00:00:00Z", location: "Chicago, IL", industry: "Fastener Manufacturing", invite_yours: true, invite_theirs: true, connection_id: "conn-mw" },
+  { id: "ec2308a1-08e4-4f87-bf39-43fb98bef8ff", company_name: "Great Lakes Hardware", status: "trading_pair", established_at: "2025-12-01T00:00:00Z", location: "Detroit, MI", industry: "Hardware Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-gl" },
+  { id: "3513cae6-f196-4c79-b2cd-3a508770ad5c", company_name: "National Industrial Supply", status: "trading_pair", established_at: "2025-10-10T00:00:00Z", location: "Columbus, OH", industry: "Industrial Distribution", invite_yours: true, invite_theirs: true, connection_id: "conn-ni" },
+  { id: "62124d68-7590-4a4c-a961-5e7d733fcb60", company_name: "Pacific Safety Products", status: "trading_pair", established_at: "2025-11-20T00:00:00Z", location: "Portland, OR", industry: "Safety Equipment", invite_yours: true, invite_theirs: true, connection_id: "conn-ps" },
+  { id: "16b2784a-d331-46c6-9fcd-df063b895a6e", company_name: "Precision Plastics Inc", status: "approved", established_at: "2026-01-20T00:00:00Z", location: "Fort Wayne, IN", industry: "Plastics Manufacturing", invite_yours: true, invite_theirs: false, connection_id: "conn-pp" },
+  { id: "cb5101dc-2628-426d-99a5-045f7f738f00", company_name: "Summit Electrical Components", status: "approved", established_at: "2026-02-05T00:00:00Z", location: "Indianapolis, IN", industry: "Electrical Components", invite_yours: false, invite_theirs: false, connection_id: "conn-se" },
 ];
 
 // ─── Mock Approval Rules ────────────────────────────────────

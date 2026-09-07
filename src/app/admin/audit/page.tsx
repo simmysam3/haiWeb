@@ -24,30 +24,43 @@ interface AuditResponse {
   page_size: number;
 }
 
-const MOCK_AUDIT: AuditResponse = {
-  events: [
-    { id: "1", event_type: "connection.approved", actor_id: "system", actor_type: "system", participant_id: null, action: "auto_approved_bulk_criteria", timestamp: new Date().toISOString(), retention_class: "standard" },
-    { id: "2", event_type: "admin.suspend", actor_id: "admin-1", actor_type: "admin", participant_id: "p-1", action: "suspended_account", timestamp: new Date(Date.now() - 86400000).toISOString(), retention_class: "critical" },
-    { id: "3", event_type: "connection.blocked", actor_id: "p-2", actor_type: "participant", participant_id: "p-3", action: "blocked_participant", timestamp: new Date(Date.now() - 172800000).toISOString(), retention_class: "standard" },
-  ],
-  total: 3,
-  page: 1,
-  page_size: 50,
-};
+// Absence surfaces as absence (admin-dashboard.tsx): the page starts empty and
+// a failed read is a visible notice — never seeded rows standing in for the
+// network's audit trail (SEC-web-admin-ops-1-05).
+const EMPTY: AuditResponse = { events: [], total: 0, page: 1, page_size: 50 };
 
 export default function AuditPage() {
-  const [data, setData] = useState<AuditResponse>(MOCK_AUDIT);
+  const [data, setData] = useState<AuditResponse>(EMPTY);
+  // HTTP status of a refused read; 0 = the server could not be reached.
+  const [loadError, setLoadError] = useState<number | null>(null);
   const [eventTypeFilter, setEventTypeFilter] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     const params = new URLSearchParams({ page: String(page), page_size: "50" });
     if (eventTypeFilter) params.set("event_type", eventTypeFilter);
+    let cancelled = false;
 
     fetch(`/api/admin/audit?${params}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setData(d); })
-      .catch(() => {});
+      .then(async (r) => {
+        if (cancelled) return;
+        if (!r.ok) {
+          setLoadError(r.status);
+          setData(EMPTY);
+          return;
+        }
+        setLoadError(null);
+        setData((await r.json()) as AuditResponse);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError(0);
+          setData(EMPTY);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [page, eventTypeFilter]);
 
   const totalPages = Math.ceil(data.total / data.page_size);
@@ -59,6 +72,11 @@ export default function AuditPage() {
         description="Searchable, filterable audit event viewer."
       />
 
+      {loadError !== null && (
+        <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load the audit log — {loadError === 0 ? "the server could not be reached" : `haiCore answered ${loadError}`}. Nothing below is a record.
+        </div>
+      )}
       <Card>
         <div className="flex items-center gap-4 mb-6">
           <select

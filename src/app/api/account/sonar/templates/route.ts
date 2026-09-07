@@ -15,4 +15,4 @@ export const GET = withHaiCore(async ({ client }) => {
 export const POST = withHaiCore(async ({ client, request }) => {
   const body = (await request.json().catch(() => ({}))) as CreateRunTemplateRequest;
   return NextResponse.json(await client.createRunTemplate(body));
-});
+}, { role: 'account_admin' });

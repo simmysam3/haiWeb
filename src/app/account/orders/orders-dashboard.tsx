@@ -5,6 +5,8 @@ import { Tabs } from "@/components/tabs";
 import { Card } from "@/components/card";
 import { StatusBadge } from "@/components/status-badge";
 import { useApi } from "@/lib/use-api";
+import { describeApiError, type ApiErrorInfo } from "@/lib/api-error";
+import { FormError } from "@/components/form-error";
 
 interface SellSideOrder {
   id: string;
@@ -47,8 +49,9 @@ export function OrdersDashboard() {
   const [activeTab, setActiveTab] = useState("sell_side");
   const [statusFilter, setStatusFilter] = useState("all");
   const [processing, setProcessing] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<ApiErrorInfo | null>(null);
 
-  const { data, loading, refetch } = useApi<OrdersApiResponse>({
+  const { data, loading, error, refetch } = useApi<OrdersApiResponse>({
     url: "/api/account/orders",
     fallback: FALLBACK,
   });
@@ -57,8 +60,11 @@ export function OrdersDashboard() {
     (o) => statusFilter === "all" || o.status === statusFilter,
   );
 
+  // A refused or failed action is shown, not logged: the row is re-read only
+  // after the server accepted the action, so it never flickers as if it had.
   async function handleAction(orderId: string, action: "process" | "complete") {
     setProcessing(orderId);
+    setActionError(null);
     try {
       const res = await fetch(`/api/account/orders/${orderId}`, {
         method: "POST",
@@ -66,10 +72,12 @@ export function OrdersDashboard() {
         body: JSON.stringify({ action }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        console.error(`Order action failed: ${text}`);
+        setActionError(await describeApiError(res));
+        return;
       }
       refetch();
+    } catch {
+      setActionError({ status: 0, sessionExpired: false, message: "Could not reach the server. Please try again." });
     } finally {
       setProcessing(null);
     }
@@ -81,6 +89,9 @@ export function OrdersDashboard() {
 
       {activeTab === "sell_side" && (
         <>
+          {actionError && (
+            <FormError message={actionError.message} sessionExpired={actionError.sessionExpired} />
+          )}
           <div className="flex gap-2">
             {STATUS_FILTERS.map((f) => (
               <button
@@ -101,6 +112,13 @@ export function OrdersDashboard() {
             <Card>
               <p className="text-slate text-sm">Loading orders...</p>
             </Card>
+          ) : error ? (
+            // A failed read is a distinct state with Retry, never the empty
+            // order book (SEC-web-account-2-06).
+            <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem flex items-center justify-between gap-4">
+              <span>Couldn&apos;t load orders — haiCore answered {error}. Nothing here is a statement about your order book.</span>
+              <button type="button" onClick={refetch} className="px-3 py-1.5 text-xs font-medium rounded border border-problem/30 hover:bg-problem/10">Retry</button>
+            </div>
           ) : filteredOrders.length === 0 ? (
             <Card>
               <p className="text-slate text-sm">

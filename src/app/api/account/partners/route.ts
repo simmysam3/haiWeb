@@ -26,7 +26,6 @@ export const GET = withHaiCore(
       id: c.partner_participant_id,
       company_name: c.partner_name,
       status: c.relationship_state,
-      manifest_progress: c.relationship_state === "trading_pair" ? 100 : 50,
       established_at: c.established_at,
       location: c.partner_location,
       industry: c.partner_industry,

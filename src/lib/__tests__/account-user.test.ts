@@ -9,7 +9,8 @@ describe('toAccountUser', () => {
       firstName: 'Ada',
       lastName: 'Lovelace',
       enabled: true,
-      attributes: { role: ['procurement_transact'], participant_id: ['p1'] },
+      realmRoles: ['default-roles-haiwave-network', 'procurement_transact'],
+      attributes: { participant_id: ['p1'] },
     });
     expect(dto).toMatchObject({
       id: 'kc1',
@@ -27,5 +28,14 @@ describe('toAccountUser', () => {
     expect(dto.role).toBe('buyer_view_only');
     expect(dto.first_name).toBe('');
     expect(dto.email).toBe('');
+  });
+
+  it('derives the role from the realm role-mappings, never from the role attribute (D-212)', () => {
+    const dto = toAccountUser({
+      id: 'kc3',
+      realmRoles: ['default-roles-haiwave-network', 'buyer_view_only'],
+      attributes: { role: ['account_admin'] },
+    });
+    expect(dto.role).toBe('buyer_view_only');
   });
 });

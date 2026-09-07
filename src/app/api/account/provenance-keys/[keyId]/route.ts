@@ -6,8 +6,8 @@ import type { ProvenanceKeyPatch } from '@haiwave/protocol';
 export const PATCH = withHaiCore(async ({ client, request, params }: { client: HaiwaveClient; request: Request; params: { keyId: string } }) => {
   const body = (await request.json()) as ProvenanceKeyPatch;
   return NextResponse.json(await client.updateKey(params.keyId, body));
-});
+}, { role: 'account_admin' });
 
 export const DELETE = withHaiCore(async ({ client, params }: { client: HaiwaveClient; params: { keyId: string } }) => {
   return NextResponse.json(await client.revokeKey(params.keyId));
-});
+}, { role: 'account_admin' });

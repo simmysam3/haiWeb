@@ -7,8 +7,10 @@ export const GET = withHaiCore(
 
 export const POST = withHaiCore(async ({ client, session, request }) => {
   const body = await request.json();
+  // The verified session is the subject of the write; a body naming another
+  // participant must not win (D-210's rule, applied at the BFF).
   return client.registerWallet({
-    participant_id: session.participant.id,
     ...body,
+    participant_id: session.participant.id,
   });
-});
+}, { role: 'account_admin' });

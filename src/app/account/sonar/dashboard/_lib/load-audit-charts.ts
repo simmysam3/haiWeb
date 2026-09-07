@@ -1,5 +1,6 @@
 import type { AuditRun, AuditRunResult, ClassRollupEntry, GeoRollupEntry } from '@haiwave/protocol';
 import { buildPartnerCompliance, type PartnerComplianceData } from './partner-compliance';
+import { fetchBffJson } from '@/lib/server-fetch';
 
 /**
  * v1.34 P6 — shared loader for the audit-run-derived charts (Geo / Class /
@@ -21,22 +22,17 @@ const EMPTY: AuditChartData = {
   partnerCompliance: null,
 };
 
-export async function loadAuditChartData(
-  baseUrl: string,
-  cookieHeader: string,
-): Promise<AuditChartData> {
+export async function loadAuditChartData(): Promise<AuditChartData> {
+  // D-62: the BFF origin comes from the configured PORTAL_BASE_URL inside
+  // `fetchBffJson` (never from the request's Host header); the cookie is
+  // forwarded there too, so callers pass nothing request-derived.
   const fetchJson = async <T,>(path: string): Promise<T | null> => {
-    try {
-      const res = await fetch(`${baseUrl}${path}`, {
-        headers: { cookie: cookieHeader },
-        cache: 'no-store',
-      });
-      if (!res.ok) return null;
-      return (await res.json()) as T;
-    } catch (err) {
-      console.error('[loadAuditChartData] network failure', { path, err });
-      return null;
+    const result = await fetchBffJson<T>(path);
+    if (result.kind === 'ok') return result.data;
+    if (result.status === 0) {
+      console.error('[loadAuditChartData] network failure', { path, err: result.message });
     }
+    return null;
   };
 
   const runsRes = await fetchJson<{ runs: AuditRun[] }>('/api/account/audit-runs?limit=25');

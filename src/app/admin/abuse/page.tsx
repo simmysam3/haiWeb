@@ -13,17 +13,13 @@ interface AbuseMonitoring {
   trust_anomalies: { participant_id: string; name: string; anomaly: string }[];
 }
 
-const MOCK_ABUSE: AbuseMonitoring = {
-  active_blocks: 3,
-  blocks_30d: 2,
-  spam_signals: [],
-  trust_anomalies: [],
-};
-
 export default function AbusePage() {
-  const { data } = useApi<AbuseMonitoring>({
+  // Absence surfaces as absence (admin-dashboard.tsx): no seeded counts; a
+  // failed read is a visible notice and the tiles show "Not Available"
+  // (SEC-web-admin-ops-1-05).
+  const { data, error } = useApi<AbuseMonitoring | null>({
     url: "/api/admin/dashboard?type=abuse",
-    fallback: MOCK_ABUSE,
+    fallback: null,
   });
 
   return (
@@ -33,14 +29,21 @@ export default function AbusePage() {
         description="Detect abuse patterns and monitor block activity."
       />
 
+      {error && (
+        <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
+          Couldn&apos;t load abuse monitoring — haiCore answered {error}. Tiles show absence rather than stale or fabricated numbers.
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-6">
-        <StatCard label="Active Blocks" value={data.active_blocks.toString()} color="text-problem" />
-        <StatCard label="Blocks (30d)" value={data.blocks_30d.toString()} color="text-warning" />
-        <StatCard label="Spam Signals" value={data.spam_signals.length.toString()} color={data.spam_signals.length > 0 ? "text-problem" : "text-success"} />
+        <StatCard label="Active Blocks" value={data ? data.active_blocks.toString() : null} color="text-problem" />
+        <StatCard label="Blocks (30d)" value={data ? data.blocks_30d.toString() : null} color="text-warning" />
+        <StatCard label="Spam Signals" value={data ? data.spam_signals.length.toString() : null} color={(data?.spam_signals.length ?? 0) > 0 ? "text-problem" : "text-success"} />
       </div>
 
       <Card title="High-Volume Connection Requests">
-        {data.spam_signals.length === 0 ? (
+        {!data ? (
+          <p className="text-sm text-slate text-center py-8">Spam signals could not be loaded.</p>
+        ) : data.spam_signals.length === 0 ? (
           <p className="text-sm text-slate text-center py-8">No spam signals detected.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -67,7 +70,9 @@ export default function AbusePage() {
       </Card>
 
       <Card title="Trust Anomalies">
-        {data.trust_anomalies.length === 0 ? (
+        {!data ? (
+          <p className="text-sm text-slate text-center py-8">Trust anomalies could not be loaded.</p>
+        ) : data.trust_anomalies.length === 0 ? (
           <p className="text-sm text-slate text-center py-8">No trust anomalies detected.</p>
         ) : (
           <div className="overflow-x-auto">

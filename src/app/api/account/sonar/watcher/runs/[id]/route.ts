@@ -16,4 +16,4 @@ export const GET = withHaiCore<{ id: string }>(async ({ client, params }) => {
  */
 export const DELETE = withHaiCore<{ id: string }>(async ({ client, params }) => {
   return NextResponse.json(await client.deleteWatcherRun(params.id));
-});
+}, { role: 'account_admin' });
