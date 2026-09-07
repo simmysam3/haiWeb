@@ -137,8 +137,9 @@ function requiredField(body: Record<string, unknown>, key: string, current: stri
  *  a loaded value and was just cleared — send `null` explicitly, the same encoding a cleared location
  *  field gets (`toLocationPayload`'s `|| null`), never `''`. */
 function nullableField(body: Record<string, unknown>, key: string, current: string, loaded: string) {
-  if (current === "" && loaded === "") return;
-  body[key] = current === "" ? null : current;
+  const trimmedCurrent = current.trim();
+  if (trimmedCurrent === "" && loaded.trim() === "") return;
+  body[key] = trimmedCurrent === "" ? null : trimmedCurrent;
 }
 
 function toLocationPayload(

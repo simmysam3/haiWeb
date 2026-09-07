@@ -243,27 +243,44 @@ describe("ProfileForm locations", () => {
     expect(profileCalls).toHaveLength(1);
   });
 
-  it("a cleared field is sent as null (nullable) or omitted (required) — never as ''", async () => {
+  it("clearing the legal company name refuses to save instead of silently discarding the change and reporting success", async () => {
     const fetchMock = mockFetchImpl(PROFILE_FOR_CLEARING);
     vi.stubGlobal("fetch", fetchMock);
     render(<ProfileForm readOnly={false} />);
 
     await waitFor(() => expect(screen.getByDisplayValue("Acme Corporation")).toBeInTheDocument());
 
-    // clear legal_name (required, NOT NULL), dba_name (nullable), and the HQ city (nullable, also a
-    // location field) — the company-name change also routes Save through the confirm modal.
     fireEvent.change(screen.getByDisplayValue("Acme Corporation"), { target: { value: "" } });
-    fireEvent.change(screen.getByDisplayValue("Acme"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Changes" }));
+
+    await waitFor(() => expect(screen.getByText("Legal company name is required.")).toBeInTheDocument());
+
+    // only the initial GET happened — the confirm-modal path never reached a PUT
+    const profileCalls = fetchMock.mock.calls.filter(([u]) => String(u) === "/api/account/profile");
+    expect(profileCalls).toHaveLength(1);
+  });
+
+  it("a cleared nullable field is sent as null, never as '' — legal_name (required) is left untouched here; blanking it now refuses the save outright, covered by the dedicated guard test above", async () => {
+    const fetchMock = mockFetchImpl(PROFILE_FOR_CLEARING);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ProfileForm readOnly={false} />);
+
+    await waitFor(() => expect(screen.getByDisplayValue("Acme Corporation")).toBeInTheDocument());
+
+    // clear dba_name (nullable, to whitespace-only — a trimmed clear, not a literal '') and the HQ
+    // city (nullable, also a location field). Neither touches company_name, so Save goes straight to
+    // doSave — no confirm modal needed.
+    fireEvent.change(screen.getByDisplayValue("Acme"), { target: { value: "   " } });
     fireEvent.change(screen.getByDisplayValue("Akron"), { target: { value: "" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
-    fireEvent.click(screen.getByRole("button", { name: "Confirm Changes" }));
 
     await waitFor(() => putCall(fetchMock));
     const body = putCall(fetchMock);
 
-    expect(body).not.toHaveProperty("legal_name"); // required + blank → OMITTED, never sent as ''
-    expect(body.dba_name).toBeNull(); // nullable + cleared → null, never ''
+    expect(body.legal_name).toBe("Acme Corporation"); // untouched, present control
+    expect(body.dba_name).toBeNull(); // nullable + cleared (even whitespace-only) → null, never ''
     expect(body.business_address_city).toBeNull();
     expect(body.locations[0].city).toBeNull();
     // present control: an untouched field is still sent with its loaded value

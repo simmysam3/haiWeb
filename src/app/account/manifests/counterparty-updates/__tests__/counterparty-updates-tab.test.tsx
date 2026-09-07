@@ -451,6 +451,103 @@ describe('CounterpartyUpdatesTab', () => {
     expect(listCalls).toBe(callsAfterStop);
   });
 
+  it('a poll that fails to fetch never reads as the run finishing — polling holds until a real state arrives', async () => {
+    vi.useFakeTimers();
+    let listCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      if (typeof url === 'string' && url.includes('/sync-now')) {
+        return Promise.resolve(jsonResponse({ status: 'started', run_id: 'run-2' }));
+      }
+      listCalls += 1;
+      // Calls 1-2: initial load + the immediate refetch right after start — a prior sync already
+      // landed, so last_run_id is non-null ('run-1') from the very first fetch.
+      // Call 3 (first poll tick): the list fetch itself fails.
+      // Call 4 (second poll tick): last_run_id finally moves on to 'run-2' -> polling stops.
+      if (listCalls === 3) return Promise.reject(new Error('network error'));
+      const last_run_id = listCalls >= 4 ? 'run-2' : 'run-1';
+      const syncState: CounterpartySyncState = {
+        slot_utc: '03:00',
+        last_checkin_at: null,
+        last_run_id,
+        last_run_status: null,
+        write_capabilities: null,
+        agent_version: null,
+        in_flight_since: null,
+      };
+      return Promise.resolve(jsonResponse(makeList([], { sync_state: syncState })));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CounterpartyUpdatesTab />);
+    await flushMicrotasks();
+
+    const button = screen.getByRole('button', { name: 'Sync all now' });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    await flushMicrotasks();
+
+    expect(screen.getByRole('button', { name: 'Sync all now' })).toBeDisabled();
+    const callsAfterStart = listCalls;
+
+    // First poll tick: the list fetch rejects. This must never read as the run finishing.
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    await flushMicrotasks();
+    expect(listCalls).toBe(callsAfterStart + 1);
+    expect(screen.getByRole('button', { name: 'Sync all now' })).toBeDisabled();
+
+    // Second poll tick: a real state finally arrives with a new last_run_id -> polling stops.
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+    });
+    await flushMicrotasks();
+    expect(listCalls).toBe(callsAfterStart + 2);
+    expect(screen.getByRole('button', { name: 'Sync all now' })).not.toBeDisabled();
+  });
+
+  it('polls exactly maxTicks (30) times over the advertised 5-minute window, not 29', async () => {
+    vi.useFakeTimers();
+    let listCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      if (typeof url === 'string' && url.includes('/sync-now')) {
+        return Promise.resolve(jsonResponse({ status: 'started', run_id: 'run-9' }));
+      }
+      listCalls += 1;
+      // last_run_id never changes, so only maxTicks (not a run-id change) stops polling.
+      const syncState: CounterpartySyncState = {
+        slot_utc: '03:00',
+        last_checkin_at: null,
+        last_run_id: null,
+        last_run_status: null,
+        write_capabilities: null,
+        agent_version: null,
+        in_flight_since: null,
+      };
+      return Promise.resolve(jsonResponse(makeList([], { sync_state: syncState })));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<CounterpartyUpdatesTab />);
+    await flushMicrotasks();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync all now' }));
+    await flushMicrotasks();
+
+    const callsAfterStart = listCalls;
+
+    for (let tick = 0; tick < 30; tick += 1) {
+      await act(async () => {
+        vi.advanceTimersByTime(10_000);
+      });
+      await flushMicrotasks();
+    }
+
+    expect(listCalls).toBe(callsAfterStart + 30);
+    expect(screen.getByRole('button', { name: 'Sync all now' })).not.toBeDisabled();
+  });
+
   it.each([
     ['already_running', 'A sync is already running'],
     ['no_endpoint', 'Your agent has not registered an endpoint yet'],
@@ -473,6 +570,28 @@ describe('CounterpartyUpdatesTab', () => {
 
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sync all now' })).not.toBeDisabled();
+  });
+
+  it('a failed sync-now (e.g. a role-gate 403) shows an alert, re-enables the button, and never starts polling', async () => {
+    let listCalls = 0;
+    const fetchMock = vi.fn((url: string) => {
+      if (typeof url === 'string' && url.includes('/sync-now')) {
+        return Promise.resolve(jsonResponse({ error: 'Forbidden' }, 403));
+      }
+      listCalls += 1;
+      return Promise.resolve(jsonResponse(EMPTY_LIST));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<CounterpartyUpdatesTab />);
+    await screen.findByText('No counterparty updates.');
+
+    const callsBeforeClick = listCalls;
+    fireEvent.click(screen.getByRole('button', { name: 'Sync all now' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Forbidden');
+    expect(screen.getByRole('button', { name: 'Sync all now' })).not.toBeDisabled();
+    expect(listCalls).toBe(callsBeforeClick);
   });
 
   it('filter changes the query string and rows reflect the new response', async () => {

@@ -27,7 +27,8 @@ const PROFILE_HAICORE_SHAPE = {
   primary_contact_phone: "+1 555 0100",
 };
 
-const CAPTION = "Not saved from this form — your profile on HAIWAVE has no editable field for this.";
+const CAPTION =
+  "Not saved from this form — HAIWAVE does not show this value back, so it cannot be edited here.";
 
 afterEach(() => {
   vi.unstubAllGlobals();

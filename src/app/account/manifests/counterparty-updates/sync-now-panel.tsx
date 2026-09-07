@@ -40,7 +40,7 @@ export function formatRelative(iso: string | null | undefined): { text: string; 
   return { text, title: then.toLocaleString() };
 }
 
-function messageFor(status: SyncNowResponse["status"]): string | null {
+function messageFor(status: string | undefined): string {
   switch (status) {
     case "already_running":
       return "A sync is already running";
@@ -49,7 +49,7 @@ function messageFor(status: SyncNowResponse["status"]): string | null {
     case "agent_unreachable":
       return "Your agent could not be reached";
     default:
-      return null;
+      return "Sync failed";
   }
 }
 
@@ -63,19 +63,21 @@ export function SyncNowPanel({ state, onStarted }: SyncNowPanelProps) {
 
   useEffect(() => {
     if (!polling) return;
-    if ((state?.last_run_id ?? null) !== startRunIdRef.current) {
+    // A null state means the poll's own fetch failed — never read as the run finishing (or as
+    // any run-id change at all); hold polling until a real state arrives, still bounded below by
+    // maxTicks.
+    if (state && (state.last_run_id ?? null) !== startRunIdRef.current) {
       setPolling(false);
       ticksRef.current = 0;
       return;
     }
     const id = setInterval(() => {
+      onStarted();
       ticksRef.current += 1;
       if (ticksRef.current >= SYNC_NOW_POLL.maxTicks) {
         setPolling(false);
         ticksRef.current = 0;
-        return;
       }
-      onStarted();
     }, SYNC_NOW_POLL.intervalMs);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,6 +89,11 @@ export function SyncNowPanel({ state, onStarted }: SyncNowPanelProps) {
     setNotice(null);
     try {
       const res = await fetch("/api/account/counterparty-updates/sync-now", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message = typeof body?.error === "string" ? body.error : `Sync failed (${res.status})`;
+        throw new Error(message);
+      }
       const json: SyncNowResponse = await res.json();
       if (json.status === "started") {
         setNotice("Sync started");

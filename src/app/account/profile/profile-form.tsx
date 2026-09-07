@@ -148,6 +148,19 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
       return;
     }
 
+    // legal_name and business_type are `.notNull()` columns (see profile-mapping.ts's
+    // requiredField). Blanking either must refuse the save outright — omitting the key from the PUT
+    // (requiredField's own encoding) would otherwise silently discard the clear while haiCore 200s,
+    // reporting success for a change that never happened.
+    if (form.company_name.trim() === "") {
+      setSaveError("Legal company name is required.");
+      return;
+    }
+    if (form.business_type.trim() === "") {
+      setSaveError("Business type is required.");
+      return;
+    }
+
     setSaving(true);
 
     const payload = toProfileUpdate(form, profile);
@@ -225,14 +238,14 @@ export function ProfileForm({ readOnly }: ProfileFormProps) {
               <label htmlFor="tax-id" className="block text-sm font-medium text-charcoal mb-1">Tax ID / EIN</label>
               <input id="tax-id" type="text" value={form.tax_id} disabled className={unbackedInputClass} />
               <p className="text-xs text-slate mt-1">
-                Not saved from this form — your profile on HAIWAVE has no editable field for this.
+                Not saved from this form — HAIWAVE does not show this value back, so it cannot be edited here.
               </p>
             </div>
             <div>
               <label htmlFor="duns" className="block text-sm font-medium text-charcoal mb-1">DUNS Number</label>
               <input id="duns" type="text" value={form.duns} disabled className={unbackedInputClass} />
               <p className="text-xs text-slate mt-1">
-                Not saved from this form — your profile on HAIWAVE has no editable field for this.
+                Not saved from this form — HAIWAVE does not show this value back, so it cannot be edited here.
               </p>
             </div>
             <div>

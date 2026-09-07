@@ -204,7 +204,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/app/account/profile/profile-form.tsx`
 
-**Rule:** A `ProfileData` key with no corresponding haiCore profile field (per Task 3 Step 3's load mapping) renders read-only with a caption explaining it does not persist to your ERP-facing profile, or does not render at all; a key backed by a haiCore field (e.g. `phone`, mapped from `primary_contact_phone`) stays fully editable. `tax_id` is the unbacked key named in this plan's own review observation (owner ruling #5, 2026-09-05); any other key found unbacked at implementation time (e.g. `duns`) gets the same treatment.
+**Rule:** A `ProfileData` key with no corresponding haiCore profile field (per Task 3 Step 3's load mapping) renders read-only with a caption explaining it does not persist to your ERP-facing profile (measured 2026-09-07: haiCore accepts `tax_id_ein`/`duns_number` on PUT as encrypted PII but never returns them — the keys lack a READ path, not a column), or does not render at all; a key backed by a haiCore field (e.g. `phone`, mapped from `primary_contact_phone`) stays fully editable. `tax_id` is the unbacked key named in this plan's own review observation (owner ruling #5, 2026-09-05); any other key found unbacked at implementation time (e.g. `duns`) gets the same treatment.
 
 - [ ] **Step 1: Write the failing test.**
 ```ts
