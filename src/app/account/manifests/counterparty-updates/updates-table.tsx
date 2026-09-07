@@ -163,17 +163,11 @@ function RowActions({ row, onDecide }: { row: CounterpartyUpdateRow; onDecide: O
     );
   }
 
-  if (row.kind === "location" && row.mine === null) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-slate">Not in your ERP</span>
-        <Button size="sm" onClick={() => onDecide(row.id, { keep: "theirs" })}>
-          Create in ERP
-        </Button>
-      </div>
-    );
-  }
-
+  // Ambiguous match takes precedence over "mine === null": the real producer
+  // (haiClient differ.ts) emits an ambiguous location match as `mine: null` +
+  // populated `candidates` together, not `mine` populated. Checking
+  // `mine === null` first would misread every real ambiguous row as
+  // "no ERP record at all" and offer a Create-in-ERP write it never meant.
   const locationCandidates =
     row.kind === "location"
       ? (row.candidates ?? []).filter((c): c is CounterpartyLocationCandidate => !isIdentityCandidate(c))
@@ -195,6 +189,17 @@ function RowActions({ row, onDecide }: { row: CounterpartyUpdateRow; onDecide: O
         <p className="text-xs text-slate italic">
           Keeping yours suppresses this represented address until it changes.
         </p>
+      </div>
+    );
+  }
+
+  if (row.kind === "location" && row.mine === null) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-slate">Not in your ERP</span>
+        <Button size="sm" onClick={() => onDecide(row.id, { keep: "theirs" })}>
+          Create in ERP
+        </Button>
       </div>
     );
   }

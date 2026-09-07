@@ -197,14 +197,17 @@ describe('CounterpartyUpdatesTab', () => {
     expect(screen.queryByRole('button', { name: 'Take theirs' })).toBeNull();
   });
 
-  it('an ambiguously matched location row lists candidates and offers no Take theirs, but still offers Keep mine', async () => {
+  it('an ambiguously matched location row (mine: null, the real producer shape) lists candidates, never Create in ERP', async () => {
+    // haiClient's differ (packages/reference-agent/src/services/counterparty-sync/differ.ts:338)
+    // emits an ambiguous location match as `mine: null` + populated `candidates` —
+    // NOT a populated `mine`. The mine===null branch must not shadow this case.
     const rows = [
       makeRow({
         id: 'loc2',
         kind: 'location',
         label: 'Ship-To: Plant 9',
         source: 'locations',
-        mine: { lines: ['1 Main St'], city: 'Dallas', state: 'TX', postal_code: '75201', country: 'US' },
+        mine: null,
         theirs: { lines: ['2 Main St'], city: 'Dallas', state: 'TX', postal_code: '75202', country: 'US' },
         candidates: [
           { location_ref: 'L1', name: 'Plant A', city: 'Dallas', state: 'TX' },
@@ -218,9 +221,11 @@ describe('CounterpartyUpdatesTab', () => {
     await screen.findByText('Ship-To: Plant 9');
     expect(screen.getByText('Plant A · L1 · Dallas, TX')).toBeInTheDocument();
     expect(screen.getByText('Plant B · L2 · Dallas, TX')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Take theirs' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Keep mine' })).toBeInTheDocument();
     expect(screen.getByText(/suppresses this represented address until it changes/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Take theirs' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Create in ERP' })).toBeNull();
+    expect(screen.queryByText('Not in your ERP')).toBeNull();
   });
 
   it("an identity row's Link POSTs { link: 7 } for the selected candidate", async () => {
