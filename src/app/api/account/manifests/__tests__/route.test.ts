@@ -77,8 +77,19 @@ describe('/api/account/manifests PUT counterparty', () => {
     expect(res.status).toBe(200);
   });
 
-  it('returns a 4xx JSON error when no counterparty manifest exists yet', async () => {
-    client.getCounterpartyManifest.mockResolvedValueOnce(null);
+  it('answers 409 with the on-file sentence when haiCore has no counterparty manifest (the client rejects with its 404)', async () => {
+    // O-5 (hw-d6 walk 2026-09-07): `request()` REJECTS on haiCore's 404 — it never
+    // resolves null — so a guard on `!current` is dead and the raw 404 envelope
+    // escaped to the console. The BFF must catch that rejection and answer the
+    // handled status with a sentence the console can render.
+    const notFound = Object.assign(
+      new Error("haiCore GET /manifest/counterparty/pid: 404 {\"error\":{\"code\":\"NOT_FOUND\"}}"),
+      {
+        status: 404,
+        haiCoreBody: { error: { code: 'NOT_FOUND', message: "No counterparty manifest found for participant 'pid'" } },
+      },
+    );
+    client.getCounterpartyManifest.mockRejectedValueOnce(notFound);
     const { PUT } = await import('../route');
     const res = await PUT(
       new NextRequest('http://localhost/x', {
@@ -88,11 +99,29 @@ describe('/api/account/manifests PUT counterparty', () => {
       }),
       { params: Promise.resolve({}) },
     );
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
+    expect(res.status).toBe(409);
     expect(client.updateCounterpartyManifest).not.toHaveBeenCalled();
     const json = await res.json();
-    expect(json.error).toMatch(/no counterparty manifest/i);
+    expect(json.error).toBe('No counterparty manifest on file yet');
+  });
+
+  it('still relays any other haiCore 4xx verbatim (a 403 is not a missing manifest)', async () => {
+    const forbidden = Object.assign(new Error('haiCore GET /manifest/counterparty/pid: 403'), {
+      status: 403,
+      haiCoreBody: { error: { code: 'FORBIDDEN', message: 'nope' } },
+    });
+    client.getCounterpartyManifest.mockRejectedValueOnce(forbidden);
+    const { PUT } = await import('../route');
+    const res = await PUT(
+      new NextRequest('http://localhost/x', {
+        method: 'PUT',
+        body: JSON.stringify({ type: 'counterparty', data: { lead_time_trend_sharing: 'prefer' } }),
+        headers: { 'content-type': 'application/json' },
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(403);
+    expect(client.updateCounterpartyManifest).not.toHaveBeenCalled();
   });
 
   it('pricing type still forwards data directly to updatePricingManifest', async () => {

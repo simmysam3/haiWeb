@@ -44,7 +44,17 @@ export const PUT = withHaiCore(
     }
 
     if (type === "counterparty") {
-      const current = await client.getCounterpartyManifest(session.participant.id);
+      // haiCore answers 404 when the participant has no counterparty manifest
+      // on file, and the client REJECTS on it (`request()` never resolves
+      // null for a 404) — so the "nothing on file" case is caught here and
+      // answered as a handled 409 with a sentence the console renders in
+      // place. Any other haiCore status keeps propagating verbatim.
+      const current = await client
+        .getCounterpartyManifest(session.participant.id)
+        .catch((err: { status?: number }) => {
+          if (err?.status === 404) return null;
+          throw err;
+        });
       if (!current) {
         return NextResponse.json(
           { error: "No counterparty manifest on file yet" },
