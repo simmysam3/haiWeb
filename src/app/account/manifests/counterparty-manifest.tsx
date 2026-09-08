@@ -45,8 +45,11 @@ export function CounterpartyManifest() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Save failed" }));
-        showToast(err.error ?? "Save failed");
+        // A handled answer carries a sentence in `error`; a relayed haiCore
+        // envelope carries an object there. Only a string is renderable —
+        // anything else degrades to one sentence instead of the error boundary.
+        const err = await res.json().catch(() => ({}));
+        showToast(typeof err?.error === "string" ? err.error : "The manifest could not be saved.");
         return;
       }
       showToast("Counterparty manifest saved.");
