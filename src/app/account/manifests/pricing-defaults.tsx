@@ -5,6 +5,7 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
+import { bffErrorSentence } from "@/lib/bff-error-sentence";
 
 interface VolumeTier {
   min_qty: number;
@@ -118,8 +119,8 @@ export function PricingDefaults() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Save failed" }));
-        showToast(err.error ?? "Save failed");
+        const body = await res.json().catch(() => null);
+        showToast(bffErrorSentence(body, "The pricing defaults could not be saved."));
         return;
       }
       showToast("Pricing defaults saved.");

@@ -5,6 +5,7 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "@/lib/use-toast";
+import { bffErrorSentence } from "@/lib/bff-error-sentence";
 import type { LeadTimeTrendSharingPosture } from "@/lib/mock-types";
 
 interface ManifestData {
@@ -45,11 +46,8 @@ export function CounterpartyManifest() {
         }),
       });
       if (!res.ok) {
-        // A handled answer carries a sentence in `error`; a relayed haiCore
-        // envelope carries an object there. Only a string is renderable —
-        // anything else degrades to one sentence instead of the error boundary.
-        const err = await res.json().catch(() => ({}));
-        showToast(typeof err?.error === "string" ? err.error : "The manifest could not be saved.");
+        const body = await res.json().catch(() => null);
+        showToast(bffErrorSentence(body, "The manifest could not be saved."));
         return;
       }
       showToast("Counterparty manifest saved.");
