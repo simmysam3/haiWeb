@@ -417,9 +417,26 @@ export function BilateralCounterpartiesSkusFields({
       const catalog = catalogs.get(request.counterpartyId);
       // Still loading — leave it queued for a later pass.
       if (!catalog || catalog.loading) continue;
-      settled.add(request.id);
       const cp = options.counterparties.find((c) => c.counterparty_id === request.counterpartyId);
-      if (!cp) continue;
+      // The counterparty left the universe while this request sat in the queue
+      // (a universe switch). Report it the way effect A reports the same
+      // condition — dropped silently, it left the panel's `importing` stuck
+      // true for ever, waiting on a result for an id that never came. It is
+      // still added to `settled`: leaving it queued would make settled.size 0
+      // and suppress every other report settling in this same pass.
+      if (!cp) {
+        settled.add(request.id);
+        reports.push({
+          id: request.id,
+          counterpartyId: request.counterpartyId,
+          matched: [],
+          notInCatalog: request.skus,
+          notAccepted: [],
+          error: 'not_a_counterparty',
+        });
+        continue;
+      }
+      settled.add(request.id);
       if (catalog.error) {
         reports.push({
           id: request.id,

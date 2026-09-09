@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BilateralCounterpartiesSkusFields,
@@ -9,6 +9,7 @@ import {
 afterEach(() => vi.unstubAllGlobals());
 
 const PW = 'cccccccc-0000-0000-0000-000000000002';
+const THALES = 'cccccccc-0000-0000-0000-000000000003';
 
 /**
  * Stubs partners (bilateral) / wizard-options (audit) + P&W's catalog:
@@ -380,5 +381,79 @@ describe('BilateralCounterpartiesSkusFields — importRequest', () => {
     });
     // Neither request's SKUs are lost to the other.
     expect([...emitted[emitted.length - 1].skus].sort()).toEqual(['GLB-77', 'GLB-88']);
+  });
+});
+
+describe('BilateralCounterpartiesSkusFields — a queued request whose counterparty leaves the universe', () => {
+  it('settles it with not_a_counterparty instead of dropping it silently', async () => {
+    // The catalog load is held open so the request is still QUEUED when the
+    // universe changes under it — the only way to reach the second effect's
+    // missing-counterparty branch.
+    const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+    let releaseCatalog: () => void = () => {};
+    const catalogGate = new Promise<void>((resolve) => {
+      releaseCatalog = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        const url = new URL(String(input), 'http://localhost');
+        if (url.pathname === '/api/account/partners') {
+          return json([{ id: PW, company_name: 'Pratt & Whitney (Demo)', status: 'trading_pair' }]);
+        }
+        if (url.pathname.endsWith('/audit/wizard-options')) {
+          // A different universe entirely: P&W is not in it.
+          return json({
+            counterparties: [
+              { counterparty_id: THALES, counterparty_legal_name: 'Thales Avionics (Demo)', product_ids: [] },
+            ],
+          });
+        }
+        if (url.pathname.endsWith('/catalog/classes')) return json({ classes: [] });
+        if (url.pathname.endsWith('/catalog/products')) {
+          await catalogGate;
+          return json({ products: [], total: 0 });
+        }
+        throw new Error(`unexpected fetch ${url.pathname}`);
+      }),
+    );
+
+    const request = { id: 7, counterpartyId: PW, skus: ['5328285', '5331092'] };
+    const results: ImportResult[] = [];
+    const view = render(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={request}
+        onImportResult={(r) => results.push(r)}
+        onEmit={() => {}}
+      />,
+    );
+    // Queued, and P&W's catalog is still loading.
+    await screen.findByRole('button', { name: /Pratt & Whitney/ });
+
+    view.rerender(
+      <Harness
+        universe="accepted_audit_scopes"
+        importRequest={request}
+        onImportResult={(r) => results.push(r)}
+        onEmit={() => {}}
+      />,
+    );
+    await screen.findByRole('button', { name: /Thales/ });
+
+    await act(async () => {
+      releaseCatalog();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    await waitFor(() => expect(results).toHaveLength(1));
+    expect(results[0]).toEqual({
+      id: 7,
+      counterpartyId: PW,
+      matched: [],
+      notInCatalog: ['5328285', '5331092'],
+      notAccepted: [],
+      error: 'not_a_counterparty',
+    });
   });
 });
