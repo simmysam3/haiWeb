@@ -5,6 +5,8 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 export const SELECT_LABEL = 'Import products for';
 export const SELECT_PLACEHOLDER = 'Choose a company…';
 export const READING = (fileName: string) => `Reading ${fileName}…`;
+/** Between a successful parse and the classified result — the panel is never silent. */
+export const CHECKING = 'Checking companies against the network…';
 
 export function parsedSummary(fileName: string, products: number, companies: number, skipped: number): string {
   const base = `${fileName}: ${products} ${plural(products, 'product', 'products')} across ${companies} ${plural(companies, 'company', 'companies')}.`;

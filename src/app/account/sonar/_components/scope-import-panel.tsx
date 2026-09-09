@@ -1,14 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { parseWorkbook, MAX_IMPORT_BYTES, type ParsedDocument } from '@/lib/scope-import/parse-workbook';
+import {
+  parseWorkbook,
+  tooLargeDetail,
+  unreadableDetail,
+  MAX_IMPORT_BYTES,
+  type ParsedDocument,
+} from '@/lib/scope-import/parse-workbook';
 import {
   classifyCompanies,
+  groupByCompany,
   type CompanyClassification,
   type DirectoryHit,
   type UniverseOption,
 } from '@/lib/scope-import/classify-companies';
 import {
+  CHECKING,
   READING,
   SELECT_LABEL,
   SELECT_PLACEHOLDER,
@@ -38,10 +46,17 @@ export interface ScopeImportPanelProps {
   importing: boolean;
 }
 
+/**
+ * `parsed` sits between `reading` and `ready` deliberately: the file is read and
+ * understood, but the picker's counterparty universe may not have arrived (or
+ * may never arrive, if the tree's fetch failed). Without it the panel said
+ * "Reading …" for ever on a universe that never came.
+ */
 type Phase =
   | { kind: 'idle' }
   | { kind: 'reading'; fileName: string }
   | { kind: 'refused'; detail: string }
+  | { kind: 'parsed'; fileName: string; document: ParsedDocument }
   | { kind: 'ready'; fileName: string; document: ParsedDocument; companies: CompanyClassification[] };
 
 const ACCEPT =
@@ -88,38 +103,57 @@ export function ScopeImportPanel({ universe, options, onImport, result, importin
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const [choice, setChoice] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  // Re-classify if the universe arrives after the file was parsed.
-  const [rawDoc, setRawDoc] = useState<{ fileName: string; document: ParsedDocument } | null>(null);
+  // Which pick is current. Two rapid picks race through two awaits each, so a
+  // slower earlier file could otherwise land last and overwrite the newer one.
+  const pickSeq = useRef(0);
 
+  // Classify once the universe is there — which may be after the parse, so the
+  // parsed phase is the holding state rather than a stuck "Reading …".
   useEffect(() => {
-    if (!rawDoc || !options) return;
+    if (phase.kind !== 'parsed' || !options) return;
+    const { fileName, document: parsedDoc } = phase;
     let cancelled = false;
     (async () => {
       const selfNames = await fetchSelfNames();
-      const companies = await classifyCompanies(rawDoc.document, { universe: options, selfNames, lookup: directoryLookup });
-      if (!cancelled) setPhase({ kind: 'ready', fileName: rawDoc.fileName, document: rawDoc.document, companies });
+      const companies = await classifyCompanies(parsedDoc, { universe: options, selfNames, lookup: directoryLookup });
+      if (!cancelled) setPhase({ kind: 'ready', fileName, document: parsedDoc, companies });
     })();
     return () => {
       cancelled = true;
     };
-  }, [rawDoc, options]);
+  }, [phase, options]);
 
   async function onFile(file: File | undefined) {
+    const seq = ++pickSeq.current;
     setChoice('');
     if (!file) {
-      setRawDoc(null);
       setPhase({ kind: 'idle' });
       return;
     }
+    // BEFORE the read: an over-ceiling file whose read then fails would leave
+    // "Reading …" on screen for ever, and reading 10 MB+ to refuse it is waste.
+    if (file.size > MAX_IMPORT_BYTES) {
+      setPhase({ kind: 'refused', detail: tooLargeDetail(file.name, file.size) });
+      return;
+    }
     setPhase({ kind: 'reading', fileName: file.name });
-    const bytes = await file.arrayBuffer();
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch {
+      // A read the browser refuses (file moved, permission revoked, device
+      // gone) is a refusal like any other — said in place, never a stuck phase.
+      if (pickSeq.current === seq) setPhase({ kind: 'refused', detail: unreadableDetail(file.name) });
+      return;
+    }
+    if (pickSeq.current !== seq) return;
     const out = await parseWorkbook(bytes, { fileName: file.name, maxBytes: MAX_IMPORT_BYTES });
+    if (pickSeq.current !== seq) return;
     if (!out.ok) {
-      setRawDoc(null);
       setPhase({ kind: 'refused', detail: out.detail });
       return;
     }
-    setRawDoc({ fileName: file.name, document: out.document });
+    setPhase({ kind: 'parsed', fileName: file.name, document: out.document });
   }
 
   const ready = phase.kind === 'ready' ? phase : null;
@@ -158,6 +192,22 @@ export function ScopeImportPanel({ universe, options, onImport, result, importin
 
       {phase.kind === 'reading' && <p className="text-sm text-slate italic">{READING(phase.fileName)}</p>}
       {phase.kind === 'refused' && <p className="text-sm text-charcoal">{phase.detail}</p>}
+
+      {phase.kind === 'parsed' && (
+        <div className="space-y-1 text-sm text-slate">
+          {/* classifyCompanies maps 1:1 over groupByCompany, so this sentence is
+              the same one the ready phase renders — the count does not move. */}
+          <p>
+            {parsedSummary(
+              phase.fileName,
+              phase.document.rows.length,
+              groupByCompany(phase.document).length,
+              phase.document.skipped,
+            )}
+          </p>
+          <p className="italic">{CHECKING}</p>
+        </div>
+      )}
 
       {ready && (
         <div className="space-y-1 text-sm text-slate">

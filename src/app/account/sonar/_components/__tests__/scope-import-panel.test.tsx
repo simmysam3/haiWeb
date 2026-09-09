@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as XLSX from 'xlsx';
 import { ScopeImportPanel } from '../scope-import-panel';
@@ -26,6 +26,16 @@ function demoFile(): File {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Products');
   const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
   return new File([bytes], 'airbus-pw-demo.xlsx', {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+}
+
+/** A one-sheet workbook under a chosen file name. */
+function sheetFile(name: string, rows: unknown[][]): File {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Products');
+  const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  return new File([bytes], name, {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
 }
@@ -109,6 +119,81 @@ describe('ScopeImportPanel', () => {
     await waitFor(() => expect(screen.queryByText(/Reading/)).not.toBeInTheDocument());
     expect(screen.getByText(/Could not read x\.pdf as a spreadsheet\.|No sheet has both a company column/)).toBeInTheDocument();
     expect(screen.queryByLabelText('Import products for')).not.toBeInTheDocument();
+  });
+
+  it('refuses an over-ceiling file before reading it, so a failing read cannot strand the panel', async () => {
+    stubFetch();
+    render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);
+    const big = new File([new Uint8Array(MAX_IMPORT_BYTES + 1)], 'big.xlsx');
+    const arrayBuffer = vi.fn(() => Promise.reject(new Error('NotReadableError')));
+    Object.defineProperty(big, 'arrayBuffer', { value: arrayBuffer });
+    chooseFile(big);
+
+    expect(await screen.findByText('big.xlsx is 10.0 MB; the limit is 10 MB.')).toBeInTheDocument();
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  it('says a failed read in place instead of leaving “Reading …” on screen', async () => {
+    stubFetch();
+    render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);
+    const locked = new File([new Uint8Array(64)], 'locked.xlsx');
+    Object.defineProperty(locked, 'arrayBuffer', {
+      value: vi.fn(() => Promise.reject(new Error('NotReadableError'))),
+    });
+    chooseFile(locked);
+
+    expect(await screen.findByText('Could not read locked.xlsx as a spreadsheet.')).toBeInTheDocument();
+    expect(screen.queryByText(/Reading/)).not.toBeInTheDocument();
+  });
+
+  it('shows the parse summary and says it is checking while the universe has not arrived', async () => {
+    stubFetch();
+    // options=null is the tree's universe still loading — or failed for good.
+    render(<ScopeImportPanel universe="bilateral_connections" options={null} onImport={() => {}} result={null} importing={false} />);
+    chooseFile(demoFile());
+
+    expect(
+      await screen.findByText('airbus-pw-demo.xlsx: 7 products across 6 companies. 1 row skipped (no company or no SKU).'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Checking companies against the network…')).toBeInTheDocument();
+    expect(screen.queryByText(/Reading/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the newest pick’s summary when an earlier, slower read finishes last', async () => {
+    stubFetch();
+    render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);
+
+    const first = sheetFile('first.xlsx', [
+      ['Company Name', 'Product ID'],
+      ['Meridian Aerospace Fasteners', 'MAF-1'],
+    ]);
+    const second = sheetFile('second.xlsx', [
+      ['Company Name', 'Product ID'],
+      ['Nordkapp Sensor Systems', 'NKS-1'],
+      ['Nordkapp Sensor Systems', 'NKS-2'],
+    ]);
+
+    // Hold the first file's read open until after the second has landed.
+    const firstBytes = await first.arrayBuffer();
+    let releaseFirst = () => {};
+    Object.defineProperty(first, 'arrayBuffer', {
+      value: () =>
+        new Promise<ArrayBuffer>((resolve) => {
+          releaseFirst = () => resolve(firstBytes);
+        }),
+    });
+
+    chooseFile(first);
+    chooseFile(second);
+    expect(await screen.findByText('second.xlsx: 2 products across 1 company.')).toBeInTheDocument();
+
+    // The stale read lands now; its result must be discarded, not rendered.
+    await act(async () => {
+      releaseFirst();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(screen.getByText('second.xlsx: 2 products across 1 company.')).toBeInTheDocument();
+    expect(screen.queryByText(/first\.xlsx/)).not.toBeInTheDocument();
   });
 
   it('says the byte ceiling in place without parsing', async () => {

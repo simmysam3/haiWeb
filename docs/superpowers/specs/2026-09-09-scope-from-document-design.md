@@ -92,6 +92,8 @@ SheetJS Community Edition `xlsx` **0.20.3**, declared exactly as the reference a
 
 Nothing is truncated silently; the framework never decides a limit.
 
+The panel checks `File.size` against the byte ceiling **before** it reads the file, saying the same sentence `parseWorkbook` would (one exported source, `tooLargeDetail`): reading 10 MB+ only to refuse it is waste, and a read that then fails would have left the panel on "Reading …" for ever. A read the browser refuses is caught and said as `unreadable` (`unreadableDetail`).
+
 ## 6. Membership classification
 
 ### 6.1 Module
@@ -172,6 +174,9 @@ The panel needs the picker's universe options for the select and for rule 6.2.2.
 - Parse refusals (§5.4) name the ceiling or the missing columns.
 - Directory lookup failures degrade to "Could not be verified" for the affected names only; the other names still classify.
 - Catalog load failure during import checks nothing and says so; the tree shows its own existing error state.
+- Counterparty-universe failure: the panel holds at the `parsed` phase — the parse summary plus "Checking companies against the network…" — and the tree below shows its own universe error. The parse is never lost and the panel never sits on "Reading …" waiting for a universe that is not coming. The `parsed` phase exists for exactly this: parsed-but-not-yet-classified is a state the user can be told about.
+- A file read that fails (file moved, permission revoked) is caught and said as `unreadable`; the byte ceiling is checked before the read (§5.4).
+- Two rapid picks: each pick takes a sequence number and a result from a superseded pick is discarded, so a slower earlier file can never overwrite the newer one's summary.
 - Import is additive and idempotent: importing the same company twice checks the same SKUs and emits the same selection.
 - Clearing or replacing the file resets the panel, never the selection.
 - No pill is introduced (the lines are prose, not status badges), so `PILL_DEFINITIONS` is untouched; no drill-down row is introduced, so `DetailChevron` is not needed.

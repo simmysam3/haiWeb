@@ -86,6 +86,20 @@ function formatMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * The two refusal sentences the panel also has to say — it checks `File.size`
+ * BEFORE reading (a rejected read on an over-ceiling file would otherwise
+ * strand it) and catches a failed read itself. Exported so there is exactly
+ * one source of each sentence, never a duplicated format string.
+ */
+export function tooLargeDetail(fileName: string, byteLength: number, maxBytes: number = MAX_IMPORT_BYTES): string {
+  return `${fileName} is ${formatMb(byteLength)}; the limit is ${Math.round(maxBytes / (1024 * 1024))} MB.`;
+}
+
+export function unreadableDetail(fileName: string): string {
+  return `Could not read ${fileName} as a spreadsheet.`;
+}
+
 export async function parseWorkbook(
   bytes: ArrayBuffer,
   opts: { fileName?: string; maxBytes?: number; maxRows?: number } = {},
@@ -95,11 +109,7 @@ export async function parseWorkbook(
   const maxRows = opts.maxRows ?? MAX_IMPORT_ROWS;
 
   if (bytes.byteLength > maxBytes) {
-    return {
-      ok: false,
-      reason: 'too_large',
-      detail: `${fileName} is ${formatMb(bytes.byteLength)}; the limit is ${Math.round(maxBytes / (1024 * 1024))} MB.`,
-    };
+    return { ok: false, reason: 'too_large', detail: tooLargeDetail(fileName, bytes.byteLength, maxBytes) };
   }
 
   const XLSX = await import('xlsx');
@@ -107,7 +117,7 @@ export async function parseWorkbook(
   try {
     wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true });
   } catch {
-    return { ok: false, reason: 'unreadable', detail: `Could not read ${fileName} as a spreadsheet.` };
+    return { ok: false, reason: 'unreadable', detail: unreadableDetail(fileName) };
   }
 
   for (const sheetName of wb.SheetNames) {
