@@ -285,4 +285,12 @@ describe('TreeView design + firmware origin chips', () => {
     render(<TreeView node={withDimensions({ design: 'CN', country: 'XX', state: null })} />);
     expect(screen.getByTestId('origin-chip-design')).toBeInTheDocument();
   });
+
+  // D-218 (2026-09-08): the widened guard must not render an empty Origin row.
+  it('renders no Origin row at all when nothing resolves', () => {
+    render(<TreeView node={withDimensions({ country: 'XX', state: null })} />);
+    expect(screen.queryByTestId('origin-chip-design')).toBeNull();
+    expect(screen.queryByTestId('origin-chip-firmware')).toBeNull();
+    expect(screen.queryByText('Origin')).toBeNull();
+  });
 });
