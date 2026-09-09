@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { AuditWizardOptionsResponse, SkuAsk } from '@haiwave/protocol';
+import type { ImportRequest, ImportResult } from '@/lib/scope-import/import-types';
 import type { CatalogClass, CatalogProduct } from '@/lib/haiwave-api';
 import { fetchAllCatalogProducts } from '@/lib/catalog-products';
 import {
@@ -48,6 +49,13 @@ import { TristateCheckbox } from '@/components/tristate-checkbox';
  * counterparty is expanded so we don't fan out to every partner on mount.
  */
 
+/**
+ * The import request/result shapes are declared in their own module so the
+ * import panel and this tree could be built in parallel; re-exported here so a
+ * consumer can name them from the component it hands them to.
+ */
+export type { ImportRequest, ImportResult } from '@/lib/scope-import/import-types';
+
 interface Props {
   skus: string[];
   // Saved asks to hydrate the per-SKU drafts from (edit flow). Without this,
@@ -88,6 +96,24 @@ interface Props {
    * Unused (and unnecessary) under 'accepted_audit_scopes'.
    */
   counterparties?: string[];
+  /**
+   * v1.90 scope-from-document: fired once when the counterparty universe has
+   * loaded, with (id, legal name) pairs, so the import panel can offer the
+   * file's pickable companies without a second request.
+   */
+  onOptionsLoaded?: (
+    options: Array<{ counterparty_id: string; counterparty_legal_name: string }>,
+  ) => void;
+  /**
+   * v1.90 scope-from-document: a request to check the given SKUs of one
+   * counterparty as if by hand. Each new `id` is handled exactly once: the
+   * counterparty is expanded, its catalog loaded through loadCatalog, the SKUs
+   * intersected with the catalog (and, under 'accepted_audit_scopes', with the
+   * accepted product_ids), the matches applied through the same applySelection
+   * path a click uses, and the outcome reported through onImportResult.
+   */
+  importRequest?: ImportRequest | null;
+  onImportResult?: (result: ImportResult) => void;
 }
 
 // Per-SKU ask draft held in local state. Both fields are NaN until the user
@@ -135,6 +161,9 @@ export function BilateralCounterpartiesSkusFields({
   collectAsks = false,
   universe = 'accepted_audit_scopes',
   counterparties: scopedCounterparties,
+  onOptionsLoaded,
+  importRequest,
+  onImportResult,
 }: Props) {
   const [options, setOptions] = useState<WizardOptions | null>(null);
   // sku → forward-demand ask draft. Kept even for currently-deselected SKUs so
@@ -179,12 +208,28 @@ export function BilateralCounterpartiesSkusFields({
                 product_ids: [],
               })),
           };
-          if (!cancelled) setOptions(body);
+          if (!cancelled) {
+            setOptions(body);
+            onOptionsLoaded?.(
+              body.counterparties.map((c) => ({
+                counterparty_id: c.counterparty_id,
+                counterparty_legal_name: c.counterparty_legal_name ?? c.counterparty_id,
+              })),
+            );
+          }
         } else {
           const res = await fetch('/api/account/sonar/audit/wizard-options');
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const body = (await res.json()) as WizardOptions;
-          if (!cancelled) setOptions(body);
+          if (!cancelled) {
+            setOptions(body);
+            onOptionsLoaded?.(
+              body.counterparties.map((c) => ({
+                counterparty_id: c.counterparty_id,
+                counterparty_legal_name: c.counterparty_legal_name ?? c.counterparty_id,
+              })),
+            );
+          }
         }
       } catch {
         if (!cancelled)
@@ -200,6 +245,9 @@ export function BilateralCounterpartiesSkusFields({
     return () => {
       cancelled = true;
     };
+    // onOptionsLoaded is deliberately not a dependency: callers pass it inline,
+    // so including it would re-run the universe fetch on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [universe]);
 
   // Selected SKUs as a Set for O(1) checks; derived counterparties below.
