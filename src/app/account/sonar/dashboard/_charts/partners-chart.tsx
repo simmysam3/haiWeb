@@ -28,13 +28,15 @@ function StatItem({ label, value }: { label: string; value: number }) {
 
 // D-219 (2026-09-08): the lens passes a dimension-specific footnote and, for an auditor with a run
 // but no known country, a message naming the fix instead of the generic empty copy.
+// Final review N1 (2026-09-08): `footnote` is required (not optional) so a stale default can never
+// silently reappear — the sole caller, DimensionLens, always passes one, undefined included.
 export function PartnersChart({
   data,
-  footnote = '* Non US Based Components',
+  footnote,
   emptyMessage = 'No audit data yet. Run an audit to populate the dashboard.',
 }: {
   data: PartnerComplianceData | null;
-  footnote?: string;
+  footnote: string | undefined;
   emptyMessage?: string;
 }) {
   if (data === null) {
