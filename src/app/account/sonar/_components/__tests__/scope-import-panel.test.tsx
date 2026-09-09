@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as XLSX from 'xlsx';
 import { ScopeImportPanel } from '../scope-import-panel';
+import { MAX_IMPORT_BYTES } from '@/lib/scope-import/parse-workbook';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -74,5 +75,47 @@ describe('ScopeImportPanel', () => {
     const select = screen.getByLabelText('Import products for') as HTMLSelectElement;
     const labels = Array.from(select.options).map((o) => o.textContent);
     expect(labels).toEqual(['Choose a company…', 'Pratt & Whitney (Demo) (2 SKUs in file)']);
+  });
+
+  it('fires onImport with the chosen company’s file SKUs and renders the result summary', async () => {
+    stubFetch();
+    const onImport = vi.fn();
+    const { rerender } = render(
+      <ScopeImportPanel universe="bilateral_connections" options={options} onImport={onImport} result={null} importing={false} />,
+    );
+    chooseFile(demoFile());
+    const select = (await screen.findByLabelText('Import products for')) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: PW } });
+    expect(onImport).toHaveBeenCalledWith(PW, ['5328285', '5331092'], 'Pratt & Whitney (Demo)');
+
+    rerender(
+      <ScopeImportPanel
+        universe="bilateral_connections"
+        options={options}
+        onImport={onImport}
+        importing={false}
+        result={{ id: 1, counterpartyId: PW, companyName: 'Pratt & Whitney (Demo)', matched: ['5328285'], notInCatalog: ['5331092'], notAccepted: [] }}
+      />,
+    );
+    expect(screen.getByText('1 of 2 SKUs for Pratt & Whitney (Demo) matched and were checked below.')).toBeInTheDocument();
+    expect(screen.getByText("Not in Pratt & Whitney (Demo)'s catalog: 5331092.")).toBeInTheDocument();
+  });
+
+  it('says a refusal in place and offers no select', async () => {
+    stubFetch();
+    render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);
+    const pdf = new File([new TextEncoder().encode('%PDF-1.4')], 'x.pdf', { type: 'application/pdf' });
+    chooseFile(pdf);
+    await waitFor(() => expect(screen.queryByText(/Reading/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Could not read x\.pdf as a spreadsheet\.|No sheet has both a company column/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Import products for')).not.toBeInTheDocument();
+  });
+
+  it('says the byte ceiling in place without parsing', async () => {
+    stubFetch();
+    render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);
+    const big = new File([new Uint8Array(MAX_IMPORT_BYTES + 1)], 'big.xlsx');
+    chooseFile(big);
+    expect(await screen.findByText('big.xlsx is 10.0 MB; the limit is 10 MB.')).toBeInTheDocument();
   });
 });
