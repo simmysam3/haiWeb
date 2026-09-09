@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { GeoRollupEntry } from '@haiwave/protocol';
 import { DimensionLens } from '../dimension-lens';
 import type { AuditChartData } from '../../_lib/load-audit-charts';
@@ -33,7 +33,7 @@ describe('DimensionLens', () => {
     render(<DimensionLens charts={charts} classChart={null} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Design' }));
     expect(screen.getByText('Components by design country')).toBeInTheDocument();
-    expect(screen.getByText('Total non-compliant').closest('div')).toHaveTextContent('2'); // Total non-compliant under the design lens
+    expect(within(screen.getByText('Total non-compliant').closest('div')!).getByText('2')).toBeInTheDocument(); // Total non-compliant under the design lens, exact
     fireEvent.click(screen.getByRole('tab', { name: 'Firmware' }));
     expect(screen.getByText('Components by firmware country')).toBeInTheDocument();
     expect(screen.getByText('No audit data yet. Run an audit to populate the dashboard.')).toBeInTheDocument();
@@ -45,5 +45,15 @@ describe('DimensionLens', () => {
   it('no run at all keeps today\'s empty copy', () => {
     render(<DimensionLens charts={{ ...charts, latestRunId: null, auditorCountry: undefined, rollup: [], rollupByDimension: { manufacturing: [], design: [], firmware: [] }, partnerCompliance: null, partnerComplianceByDimension: { manufacturing: null, design: null, firmware: null } }} classChart={null} />);
     expect(screen.getAllByText('No audit data yet. Run an audit to populate the dashboard.')).toHaveLength(2);
+  });
+  // Ruling HW2 (2026-09-08): the charts that visibly change on tab selection must live inside the
+  // active tab's own `role="tabpanel"` (WCAG 2.1 AA — a screen reader landing on a panel needs its
+  // content programmatically associated, not merely visible below the tablist).
+  it('the active tab panel holds the visible charts, not a sibling outside any tabpanel', () => {
+    render(<DimensionLens charts={charts} classChart={<div data-testid="class-chart" />} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Design' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Design' });
+    expect(within(panel).getByText('Components by design country')).toBeInTheDocument();
+    expect(within(panel).getByTestId('class-chart')).toBeInTheDocument();
   });
 });
