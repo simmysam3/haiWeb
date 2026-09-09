@@ -11,6 +11,9 @@ export interface PartnerAuditWeight {
 export function buildPerPartnerAuditWeights(
   latestRun: AuditRun,
   results: AuditRunResult[],
+  // D-219 (2026-09-08): the compliant country is the auditor's own (it was the literal 'US');
+  // manufacturing only — the risk pill does not take the origin-dimension lens (spec R4).
+  auditorCountry: string,
 ): Map<string, PartnerAuditWeight> {
   const vendorIdsInScope = new Set(
     latestRun.scope_snapshot.resolved_products.map((p) => p.vendor_id),
@@ -34,7 +37,7 @@ export function buildPerPartnerAuditWeights(
     }
     for (const e of r.geo_rollup) {
       cur.total += e.component_count;
-      if (e.country_of_origin !== 'US') cur.nc += e.component_count;
+      if (e.country_of_origin !== auditorCountry) cur.nc += e.component_count;
     }
     byVendor.set(r.vendor_participant_id, cur);
   }

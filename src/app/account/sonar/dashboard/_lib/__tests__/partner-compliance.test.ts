@@ -89,7 +89,7 @@ function makeResult(args: {
 describe('buildPartnerCompliance', () => {
   it('returns empty data shape for an empty run', () => {
     const run = makeRun([]);
-    const data = buildPartnerCompliance(run, []);
+    const data = buildPartnerCompliance(run, [], 'US');
     expect(data).toEqual({
       rows: [],
       total_vendors_in_scope: 0,
@@ -110,7 +110,7 @@ describe('buildPartnerCompliance', () => {
         ['<unknown>', 3],
       ]),
     });
-    const data = buildPartnerCompliance(run, [result]);
+    const data = buildPartnerCompliance(run, [result], 'US');
     expect(data.rows).toEqual([
       {
         vendor_participant_id: VENDOR_A,
@@ -135,7 +135,7 @@ describe('buildPartnerCompliance', () => {
       vendor_legal_name: 'Acme Corp.',
       rollup: makeRollup([['DE', 3], ['<unknown>', 1]]),
     });
-    const data = buildPartnerCompliance(run, [r1, r2]);
+    const data = buildPartnerCompliance(run, [r1, r2], 'US');
     expect(data.rows).toHaveLength(1);
     expect(data.rows[0]).toMatchObject({
       vendor_participant_id: VENDOR_A,
@@ -150,7 +150,7 @@ describe('buildPartnerCompliance', () => {
       vendor_legal_name: 'Acme Corp.',
       rollup: makeRollup([['CN', 1]]),
     });
-    const data = buildPartnerCompliance(run, [result]);
+    const data = buildPartnerCompliance(run, [result], 'US');
     expect(data.total_vendors_in_scope).toBe(3); // A, B, C — duplicates collapse
   });
 
@@ -168,7 +168,7 @@ describe('buildPartnerCompliance', () => {
         vendor_legal_name: 'B',
         rollup: makeRollup([['DE', 4]]),
       }),
-    ]);
+    ], 'US');
     // Sorted [0, 4, 10] -> median 4
     expect(data.median_per_vendor).toBe(4);
   });
@@ -187,7 +187,7 @@ describe('buildPartnerCompliance', () => {
         rollup: makeRollup([['DE', 4]]),
       }),
       // C, D: no results -> 0, 0
-    ]);
+    ], 'US');
     // Sorted [0, 0, 4, 8] -> median (0 + 4) / 2 = 2
     expect(data.median_per_vendor).toBe(2);
   });
@@ -200,7 +200,7 @@ describe('buildPartnerCompliance', () => {
         vendor_legal_name: 'A',
         rollup: makeRollup([['CN', 6]]),
       }),
-    ]);
+    ], 'US');
     expect(data.rows).toHaveLength(1);
     expect(data.rows[0].vendor_participant_id).toBe(VENDOR_A);
     // Sorted [0, 6] -> median (0 + 6) / 2 = 3
@@ -225,7 +225,7 @@ describe('buildPartnerCompliance', () => {
         vendor_legal_name: 'Beta',
         rollup: makeRollup([['CN', 10]]),
       }),
-    ]);
+    ], 'US');
     expect(data.rows.map((r) => r.vendor_legal_name)).toEqual([
       'Beta',  // 10
       'Alpha', // 5 (ties resolved by name asc)
@@ -241,11 +241,36 @@ describe('buildPartnerCompliance', () => {
         vendor_legal_name: null,
         rollup: makeRollup([['CN', 2]]),
       }),
-    ]);
+    ], 'US');
     expect(data.rows[0]).toEqual({
       vendor_participant_id: VENDOR_A,
       vendor_legal_name: null,
       non_compliant_count: 2,
     });
+  });
+
+  // D-219 (2026-09-08): the compliant country is the auditor's, not US; the lens picks the rollup.
+  it('a DE auditor counts US components as non-compliant', () => {
+    const run = makeRun([VENDOR_A]);
+    const result = makeResult({
+      vendor_participant_id: VENDOR_A,
+      vendor_legal_name: 'A Co',
+      rollup: makeRollup([['US', 4], ['DE', 2]]),
+    });
+    expect(buildPartnerCompliance(run, [result], 'DE').total_non_compliant).toBe(4);
+    expect(buildPartnerCompliance(run, [result], 'US').total_non_compliant).toBe(2);
+  });
+
+  it("dimension: 'design' reads the design rollup and ignores the manufacturing one", () => {
+    const run = makeRun([VENDOR_A]);
+    const r = makeResult({
+      vendor_participant_id: VENDOR_A,
+      vendor_legal_name: 'A Co',
+      rollup: makeRollup([['US', 4]]),
+    });
+    const results = [{ ...r, design_geo_rollup: makeRollup([['CN', 3], ['US', 1]]) } as typeof r];
+    expect(buildPartnerCompliance(run, results, 'US', 'design').total_non_compliant).toBe(3);
+    expect(buildPartnerCompliance(run, results, 'US', 'firmware').total_non_compliant).toBe(0);   // no firmware rollup → nothing to count
+    expect(buildPartnerCompliance(run, results, 'US').total_non_compliant).toBe(0);
   });
 });

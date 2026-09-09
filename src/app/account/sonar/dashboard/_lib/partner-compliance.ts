@@ -1,4 +1,5 @@
 import type { AuditRun, AuditRunResult } from '@haiwave/protocol';
+import { rollupFor, type Dimension } from '@/app/account/sonar/_lib/origin-dimension';
 
 export interface PartnerRow {
   vendor_participant_id: string;
@@ -24,6 +25,10 @@ function computeMedian(values: number[]): number {
 export function buildPartnerCompliance(
   latestRun: AuditRun,
   results: AuditRunResult[],
+  // D-219 (2026-09-08): the compliant country is the auditor's own (it was the literal 'US'), and the
+  // lens chooses which origin dimension's rollup is counted.
+  auditorCountry: string,
+  dimension: Dimension = 'manufacturing',
 ): PartnerComplianceData {
   const vendorIdsInScope = new Set(
     latestRun.scope_snapshot.resolved_products.map((p) => p.vendor_id),
@@ -39,8 +44,8 @@ export function buildPartnerCompliance(
     // 3.26.0). Same rationale as buildPerPartnerAuditWeights — un-attributable
     // rows are dropped here; they can't appear in the per-partner rollup.
     if (r.vendor_participant_id === null) continue;
-    const nonCompliant = r.geo_rollup.reduce(
-      (sum, e) => (e.country_of_origin === 'US' ? sum : sum + e.component_count),
+    const nonCompliant = rollupFor(r, dimension).reduce(
+      (sum, e) => (e.country_of_origin === auditorCountry ? sum : sum + e.component_count),
       0,
     );
     const existing = byVendor.get(r.vendor_participant_id);
