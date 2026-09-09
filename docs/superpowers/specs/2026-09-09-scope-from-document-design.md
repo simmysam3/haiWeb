@@ -105,7 +105,7 @@ export async function classifyCompanies(
   ctx: {
     universe: { counterparty_id: string; counterparty_legal_name: string }[];   // the picker's options
     selfNames: string[];                                                          // the session company's names
-    lookup: (name: string) => Promise<{ company_name: string }[]>;               // directory search, throws on failure
+    lookup: (name: string) => Promise<{ company_name: string; legal_name?: string; dba_name?: string }[]>;  // directory search, throws on failure
     concurrency?: number;                                                         // default 4
   },
 ): Promise<CompanyClassification[]>;
@@ -115,11 +115,13 @@ export const normalizeCompanyName = (s: string) => s.trim().replace(/\s+/g, ' ')
 ### 6.2 Rules (applied per distinct normalized company name, in file order)
 1. Equal to one of `selfNames` → `self` (omitted from every line and from the select).
 2. Equal to a universe option's `counterparty_legal_name` → `pickable` (carries `counterpartyId`).
-3. Otherwise call `lookup(name)`; if any result's `company_name` normalizes equal → `on_network_unconnected`.
+3. Otherwise call `lookup(name)`; if the normalized file name is equal to any of a returned result's `company_name`, `legal_name` or `dba_name` → `on_network_unconnected`. All three, because the BFF's `company_name` is `dba_name ?? legal_name`: comparing against it alone reported a participant spelled by its other name as not on the network. Still an equality, never "any hit at all" — the directory search is similarity-based, so a hit threshold would swallow the not-on-network line.
 4. Otherwise → `not_on_network`.
 5. If `lookup` throws or the response is not OK → `unverified`. A network fault never produces a false membership claim.
 
-Notes: the directory route needs `q ≥ 2` characters; a one-character company name goes straight to `not_on_network` without a lookup. haiCore already matches registered aliases, so a file that uses an alias still finds the participant; the exact comparison is against the returned `company_name`. Ruling R3: suspended participants are not returned and therefore read as `not_on_network`.
+Notes: the directory route needs `q ≥ 2` characters; a one-character company name goes straight to `not_on_network` without a lookup. Ruling R3: suspended participants are not returned and therefore read as `not_on_network`.
+
+**Known residual (follow-up, not fixed in v1.90):** haiCore's search *matches* registered aliases, but the search result shape carries only the participant's `legal_name` and `dba_name` — an alias is not among the returned names. So a file spelling a participant by an alias alone produces a hit whose three names all differ from the file's, and the company still reads `not_on_network`. Closing it needs the alias set on the search result (a haiCore change), not a console change.
 
 ### 6.3 Self names
 No client-side session context exists in the console (measured: no `useSession`/account context hook). The panel fetches `GET /api/account/profile` once when a file is chosen and takes `legal_name` and `dba_name` (the `CompanyProfile` shape in `src/lib/haiwave-api.ts`) as `selfNames`. If that request fails, `selfNames` is empty and rule 6.2.1 is skipped: an own-company row would then read as `not_on_network` because the directory route excludes the caller. That degradation is accepted and tested; it never blocks the import.

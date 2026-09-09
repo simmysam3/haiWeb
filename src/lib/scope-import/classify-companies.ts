@@ -5,7 +5,8 @@
  * Rules, per distinct normalized company name, in file order:
  *  1. one of selfNames                          → 'self' (omitted from every line)
  *  2. a universe counterparty's legal name      → 'pickable'
- *  3. directory lookup returns an exact name    → 'on_network_unconnected'
+ *  3. a directory hit's company_name, legal_name
+ *     or dba_name equals it                     → 'on_network_unconnected'
  *  4. otherwise                                 → 'not_on_network'
  *  5. the lookup threw                          → 'unverified' (never a false claim)
  * Owner ruling R3 (2026-09-09): haiCore's search returns active participants
@@ -27,7 +28,18 @@ export interface UniverseOption {
   counterparty_legal_name: string;
 }
 
-export type DirectoryLookup = (name: string) => Promise<Array<{ company_name: string }>>;
+/**
+ * One participant-directory search result. `company_name` is the BFF's display
+ * name (`dba_name ?? legal_name`), so a participant found by the OTHER of its
+ * two names would fail an equality against it alone — hence both are carried.
+ */
+export interface DirectoryHit {
+  company_name: string;
+  legal_name?: string;
+  dba_name?: string;
+}
+
+export type DirectoryLookup = (name: string) => Promise<DirectoryHit[]>;
 
 export function groupByCompany(doc: ParsedDocument): Array<{ name: string; skus: string[] }> {
   const groups = new Map<string, { name: string; skus: string[]; seen: Set<string> }>();
@@ -77,7 +89,14 @@ export async function classifyCompanies(
     if (name.trim().length < MIN_LOOKUP_LENGTH) return { name, membership: 'not_on_network', skus };
     try {
       const hits = await ctx.lookup(name);
-      const found = hits.some((h) => normalizeCompanyName(h.company_name) === key);
+      // ANY of the hit's names, not just the display one. Deliberately still an
+      // equality: the directory search is similarity-based, so "any hit at all"
+      // would swallow the not-on-network line.
+      const found = hits.some((h) =>
+        [h.company_name, h.legal_name, h.dba_name].some(
+          (n) => typeof n === 'string' && normalizeCompanyName(n) === key,
+        ),
+      );
       return { name, membership: found ? 'on_network_unconnected' : 'not_on_network', skus };
     } catch {
       return { name, membership: 'unverified', skus };

@@ -47,6 +47,26 @@ describe('classifyCompanies', () => {
     expect(out[0]).toMatchObject({ membership: 'on_network_unconnected' });
   });
 
+  it('matches a directory hit on its legal name when the display name is the DBA', async () => {
+    const lookup = vi.fn(async () => [{ company_name: 'Acme', legal_name: 'Acme Industrial Ltd' }]);
+    const out = await classifyCompanies(doc([['Acme Industrial Ltd', 'A-1']]), { universe: [], selfNames: [], lookup });
+    expect(out[0]).toMatchObject({ membership: 'on_network_unconnected' });
+  });
+
+  it('matches a directory hit on its DBA when the file spells the trading name', async () => {
+    const lookup = vi.fn(async () => [{ company_name: 'Nordkapp Sensor Systems AS', dba_name: 'Nordkapp Sensors' }]);
+    const out = await classifyCompanies(doc([['Nordkapp Sensors', 'N-1']]), { universe: [], selfNames: [], lookup });
+    expect(out[0]).toMatchObject({ membership: 'on_network_unconnected' });
+  });
+
+  it('leaves a similarity hit whose every name differs not on the network', async () => {
+    const lookup = vi.fn(async () => [
+      { company_name: 'Acme Holdings', legal_name: 'Acme Holdings Inc', dba_name: 'Acme H' },
+    ]);
+    const out = await classifyCompanies(doc([['Acme Industrial Ltd', 'A-1']]), { universe: [], selfNames: [], lookup });
+    expect(out[0]).toMatchObject({ membership: 'not_on_network' });
+  });
+
   it('marks a company unverified when the lookup throws, and still classifies the others', async () => {
     const lookup = vi.fn(async (name: string) => {
       if (name === 'Gore') throw new Error('HTTP 502');

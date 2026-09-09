@@ -5,6 +5,7 @@ import { parseWorkbook, MAX_IMPORT_BYTES, type ParsedDocument } from '@/lib/scop
 import {
   classifyCompanies,
   type CompanyClassification,
+  type DirectoryHit,
   type UniverseOption,
 } from '@/lib/scope-import/classify-companies';
 import {
@@ -57,15 +58,30 @@ async function fetchSelfNames(): Promise<string[]> {
   }
 }
 
-async function directoryLookup(name: string): Promise<Array<{ company_name: string }>> {
+/** The one optional string field, narrowed from an unknown record. */
+function optionalName(row: Record<string, unknown>, key: 'legal_name' | 'dba_name'): string | undefined {
+  const v = row[key];
+  return typeof v === 'string' && v.length > 0 ? v : undefined;
+}
+
+async function directoryLookup(name: string): Promise<DirectoryHit[]> {
   const res = await fetch(`/api/account/directory?q=${encodeURIComponent(name)}`);
   if (!res.ok) throw new Error(`directory ${res.status}`);
   const body: unknown = await res.json();
   if (!Array.isArray(body)) return [];
-  return body.filter(
-    (r): r is { company_name: string } =>
-      typeof r === 'object' && r !== null && typeof (r as { company_name?: unknown }).company_name === 'string',
-  );
+  const hits: DirectoryHit[] = [];
+  for (const row of body as unknown[]) {
+    if (typeof row !== 'object' || row === null) continue;
+    const record = row as Record<string, unknown>;
+    const companyName = record.company_name;
+    if (typeof companyName !== 'string') continue;
+    hits.push({
+      company_name: companyName,
+      legal_name: optionalName(record, 'legal_name'),
+      dba_name: optionalName(record, 'dba_name'),
+    });
+  }
+  return hits;
 }
 
 export function ScopeImportPanel({ universe, options, onImport, result, importing }: ScopeImportPanelProps) {
