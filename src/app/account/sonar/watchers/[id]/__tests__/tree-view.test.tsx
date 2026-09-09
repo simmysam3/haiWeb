@@ -229,3 +229,60 @@ describe('TreeView domestic vendor-line flag', () => {
     expect(screen.getAllByLabelText('Verified US origin')).toHaveLength(2);
   });
 });
+
+describe('TreeView design + firmware origin chips', () => {
+  // D-218 (2026-09-08): the two declared dimension countries ride beside the manufacturing
+  // origin. Unresolved is unresolved: the same 'XX' / '<unknown>' rule the sliver uses.
+  const withDimensions = (over: {
+    design?: string | null;
+    firmware?: string | null;
+    country?: string;
+    state?: string | null;
+  }): ObservationNode =>
+    node({
+      payload: {
+        kind: 'audit', product_id: null, disclosure_data: null, class_ids: [],
+        origin: {
+          country_of_origin: over.country ?? 'US',
+          state_province: over.state === undefined ? 'WA' : over.state,
+          city: null, plant_address: null, plant_identifier: null, vendor_name: null,
+          design_country_of_origin: over.design ?? null,
+          firmware_country_of_origin: over.firmware ?? null,
+        },
+        operational_status: { lead_time_meets: null, capacity: null, delivery_state: null },
+      } as ObservationNode['payload'],
+    });
+
+  it('renders both chips, each titled with its dimension and country', () => {
+    render(<TreeView node={withDimensions({ design: 'CN', firmware: 'CN' })} />);
+    expect(screen.getByTestId('origin-chip-design')).toHaveAttribute('title', 'Design origin: CN');
+    expect(screen.getByTestId('origin-chip-firmware')).toHaveAttribute('title', 'Firmware origin: CN');
+    expect(screen.getByTestId('origin-chip-design')).toHaveTextContent('Design CN');
+  });
+
+  it('renders only the dimension the vendor declared', () => {
+    render(<TreeView node={withDimensions({ design: 'CN' })} />);
+    expect(screen.getByTestId('origin-chip-design')).toBeInTheDocument();
+    expect(screen.queryByTestId('origin-chip-firmware')).toBeNull();
+  });
+
+  it('renders no chip when both are null (undeclared, or an older Central)', () => {
+    render(<TreeView node={withDimensions({})} />);
+    expect(screen.queryByTestId('origin-chip-design')).toBeNull();
+    expect(screen.queryByTestId('origin-chip-firmware')).toBeNull();
+  });
+
+  it("renders no chip for the 'XX' or '<unknown>' sentinels", () => {
+    render(<TreeView node={withDimensions({ design: 'XX', firmware: '<unknown>' })} />);
+    expect(screen.queryByTestId('origin-chip-design')).toBeNull();
+    expect(screen.queryByTestId('origin-chip-firmware')).toBeNull();
+  });
+
+  it('shows a chip even when the manufacturing origin resolves to nothing', () => {
+    // The Origin row previously rendered only with a manufacturing label. A node whose plant is
+    // the XX sentinel can still carry a declared design country, and hiding it would lose the
+    // one piece of provenance that node has.
+    render(<TreeView node={withDimensions({ design: 'CN', country: 'XX', state: null })} />);
+    expect(screen.getByTestId('origin-chip-design')).toBeInTheDocument();
+  });
+});
