@@ -55,11 +55,20 @@ function industryOf(p: HaiCoreParticipant): string {
   return p.business_type ?? "";
 }
 
+/**
+ * `company_name` is the display name (`dba_name ?? legal_name`), so a consumer
+ * comparing a spelling against it alone misses a participant found by its OTHER
+ * name — v1.90 scope-from-document read a legal-name spelling as "not on the
+ * HAIWAVE network". Both names are carried through when the participant has
+ * them; absent ones emit no key at all.
+ */
 function mapHaiCoreResult(r: HaiCoreSearchResult): MockDirectoryCompany {
   const p = r.participant;
   return {
     id: p.id,
     company_name: p.dba_name ?? p.legal_name ?? "Unknown",
+    ...(p.legal_name ? { legal_name: p.legal_name } : {}),
+    ...(p.dba_name ? { dba_name: p.dba_name } : {}),
     location: locationOf(p),
     industry: industryOf(p),
     description: p.vendor_description ?? "",

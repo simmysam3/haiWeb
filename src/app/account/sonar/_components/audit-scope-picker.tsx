@@ -1,9 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { SYSTEM_AUDIT_HOP_BUDGET } from '../templates/_lib/system-config';
-import { BilateralCounterpartiesSkusFields } from './bilateral-counterparties-skus-fields';
+import {
+  BilateralCounterpartiesSkusFields,
+  type ImportRequest,
+  type ImportResult,
+} from './bilateral-counterparties-skus-fields';
+import { ScopeImportPanel } from './scope-import-panel';
+import type { UniverseOption } from '@/lib/scope-import/classify-companies';
 
 type AuditScope = Extract<RunTemplateScope, { kind: 'audit' }>;
 
@@ -20,6 +26,15 @@ export function AuditScopePicker({ value, onChange }: Props) {
   // fresh templates.
   const hopBudget =
     'hop_budget' in value ? (value.hop_budget ?? SYSTEM_AUDIT_HOP_BUDGET) : SYSTEM_AUDIT_HOP_BUDGET;
+
+  // v1.90 scope-from-document: the import panel above the tree. The tree
+  // reports its universe once; a chosen company becomes an importRequest the
+  // tree applies through its own selection path; the result feeds the panel.
+  const [importOptions, setImportOptions] = useState<UniverseOption[] | null>(null);
+  const [importRequest, setImportRequest] = useState<ImportRequest | null>(null);
+  const [importResult, setImportResult] = useState<(ImportResult & { companyName: string }) | null>(null);
+  const importSeq = useRef(0);
+  const pendingName = useRef('');
 
   return (
     <div className="space-y-3">
@@ -112,20 +127,41 @@ export function AuditScopePicker({ value, onChange }: Props) {
       />
 
       {authBasis === 'bilateral' && (
-        <BilateralCounterpartiesSkusFields
-          skus={'skus' in value ? value.skus : []}
-          onChange={({ counterparties, skus }) =>
-            onChange({
-              kind: 'audit',
-              authorization_basis: 'bilateral',
-              counterparties,
-              signal_types: 'signal_types' in value ? value.signal_types : [],
-              skus,
-              depth_limit: depthLimit,
-              hop_budget: hopBudget,
-            })
-          }
-        />
+        <>
+          <ScopeImportPanel
+            universe="accepted_audit_scopes"
+            onReset={() => {
+              setImportRequest(null);
+              setImportResult(null);
+            }}
+            options={importOptions}
+            importing={importRequest !== null && importResult?.id !== importRequest.id}
+            result={importResult}
+            onImport={(counterpartyId, skus, companyName) => {
+              importSeq.current += 1;
+              pendingName.current = companyName;
+              setImportResult(null);
+              setImportRequest({ id: importSeq.current, counterpartyId, skus });
+            }}
+          />
+          <BilateralCounterpartiesSkusFields
+            skus={'skus' in value ? value.skus : []}
+            onOptionsLoaded={setImportOptions}
+            importRequest={importRequest}
+            onImportResult={(r) => setImportResult({ ...r, companyName: pendingName.current })}
+            onChange={({ counterparties, skus }) =>
+              onChange({
+                kind: 'audit',
+                authorization_basis: 'bilateral',
+                counterparties,
+                signal_types: 'signal_types' in value ? value.signal_types : [],
+                skus,
+                depth_limit: depthLimit,
+                hop_budget: hopBudget,
+              })
+            }
+          />
+        </>
       )}
     </div>
   );

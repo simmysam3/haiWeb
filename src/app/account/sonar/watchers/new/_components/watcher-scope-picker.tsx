@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SignalType, WatcherScope } from '@haiwave/protocol';
 import { Pill } from '@/components/pill';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
 import { describeBaselineSignals, requestsSoftQuote } from '@/lib/soft-quote';
-import { BilateralCounterpartiesSkusFields } from '../../../_components/bilateral-counterparties-skus-fields';
+import {
+  BilateralCounterpartiesSkusFields,
+  type ImportRequest,
+  type ImportResult,
+} from '../../../_components/bilateral-counterparties-skus-fields';
+import { ScopeImportPanel } from '../../../_components/scope-import-panel';
+import type { UniverseOption } from '@/lib/scope-import/classify-companies';
 import { SIGNAL_TYPE_ABBREVIATIONS } from '../../_lib/signal-type-abbreviations';
 
 interface Props {
@@ -57,6 +63,15 @@ export function WatcherScopePicker({ value, onChange }: Props) {
   // that did not select those signals.
   const baseline = describeBaselineSignals(value.signal_types);
 
+  // v1.90 scope-from-document: the import panel above the tree. The tree
+  // reports its universe once; a chosen company becomes an importRequest the
+  // tree applies through its own selection path; the result feeds the panel.
+  const [importOptions, setImportOptions] = useState<UniverseOption[] | null>(null);
+  const [importRequest, setImportRequest] = useState<ImportRequest | null>(null);
+  const [importResult, setImportResult] = useState<(ImportResult & { companyName: string }) | null>(null);
+  const importSeq = useRef(0);
+  const pendingName = useRef('');
+
   function toggleSignal(sig: SignalType) {
     const next = new Set(value.signal_types);
     if (next.has(sig)) next.delete(sig);
@@ -67,6 +82,22 @@ export function WatcherScopePicker({ value, onChange }: Props) {
 
   return (
     <div className="space-y-4">
+      <ScopeImportPanel
+        universe="bilateral_connections"
+        onReset={() => {
+          setImportRequest(null);
+          setImportResult(null);
+        }}
+        options={importOptions}
+        importing={importRequest !== null && importResult?.id !== importRequest.id}
+        result={importResult}
+        onImport={(counterpartyId, skus, companyName) => {
+          importSeq.current += 1;
+          pendingName.current = companyName;
+          setImportResult(null);
+          setImportRequest({ id: importSeq.current, counterpartyId, skus });
+        }}
+      />
       <BilateralCounterpartiesSkusFields
         skus={value.skus}
         skuAsks={value.sku_asks}
@@ -77,6 +108,9 @@ export function WatcherScopePicker({ value, onChange }: Props) {
         // counterparty isn't silently dropped when a different one is
         // edited. See the prop's doc on BilateralCounterpartiesSkusFields.
         counterparties={value.counterparties}
+        onOptionsLoaded={setImportOptions}
+        importRequest={importRequest}
+        onImportResult={(r) => setImportResult({ ...r, companyName: pendingName.current })}
         onChange={({ counterparties, skus, sku_asks }) =>
           onChange({ ...value, counterparties, skus, sku_asks })
         }

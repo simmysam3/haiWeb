@@ -66,7 +66,12 @@ export interface MockAccessRequest {
 
 export interface MockDirectoryCompany {
   id: string;
+  /** Display name: the DBA when there is one, else the legal name. */
   company_name: string;
+  /** The registered legal name, when the source carries one (v1.90). */
+  legal_name?: string;
+  /** The trading (DBA) name, when the source carries one (v1.90). */
+  dba_name?: string;
   location: string;
   industry: string;
   description: string;
