@@ -350,13 +350,13 @@ describe('design and firmware dimensions (D-219)', () => {
   it('an all-US design rollup earns the Design badge; an unresolved firmware rollup earns none', () => {
     render(<TierGapGrid run={RUN} results={[allUs, cnDesign]} auditorCountry="US" />);
     expect(screen.getAllByTestId('domestic-badge-design')).toHaveLength(1);
-    expect(screen.getByTestId('domestic-badge-design')).toHaveAttribute('title', "Every design origin in this SKU's tree is domestic.");
+    expect(screen.getByText("Every design origin in this SKU's tree is domestic.")).toBeInTheDocument();
     expect(screen.getAllByTestId('domestic-badge-firmware')).toHaveLength(1);
   });
   it('chips list the resolved design countries; an unresolved firmware rollup gets no group; a plain row gets no chips row', () => {
     render(<TierGapGrid run={RUN} results={[cnDesign, plain]} auditorCountry="US" />);
     expect(screen.getAllByTestId('dimension-countries')).toHaveLength(1);
-    expect(screen.getByTitle('Design origin: China (CN)')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Design origin: China (CN)' })).toBeInTheDocument();
     expect(screen.getByTestId('dimension-countries')).not.toHaveTextContent('Firmware');
   });
   it('the summary line reports the three counts over the run', () => {

@@ -172,10 +172,13 @@ function SkuEvidenceRow({
                     key={d}
                     data-testid={`domestic-badge-${d}`}
                     className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate"
-                    title={`Every ${d} origin in this SKU's tree is domestic.`}
                   >
                     <DomesticFlagBadge country={auditorCountry} title={`Every ${d} origin in this SKU's tree is domestic.`} />
                     {DIMENSION_LABEL[d]}
+                    {/* D-219 (2026-09-08), WCAG 2.1 SC 1.1.1 (final review I1): the visible label is
+                        just the dimension name, so the qualifying sentence goes in a real text node
+                        for assistive tech rather than a duplicated `title` on this generic span. */}
+                    <span className="sr-only">{`Every ${d} origin in this SKU's tree is domestic.`}</span>
                   </span>
                 ) : null,
               )}

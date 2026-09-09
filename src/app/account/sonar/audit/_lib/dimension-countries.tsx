@@ -14,7 +14,9 @@ const CHIP_DIMENSIONS: readonly Dimension[] = ['design', 'firmware'];
 function CountryChip({ country, title }: { country: string; title: string }) {
   const Flag = FLAG_COMPONENTS[country];
   return (
-    <span className="inline-flex items-center rounded border border-slate/15 bg-white px-1 py-0.5" title={title} aria-label={title}>
+    // D-219 (2026-09-08), WCAG 2.1 SC 1.1.1 (final review I1): role="img" gives the flag graphic an
+    // accessible name via aria-label — a bare span is role="generic", which is name-prohibited.
+    <span role="img" className="inline-flex items-center rounded border border-slate/15 bg-white px-1 py-0.5" title={title} aria-label={title}>
       {Flag ? <Flag className="h-3 w-auto rounded-sm" /> : <span className="font-mono text-[10px] text-charcoal">{country}</span>}
     </span>
   );

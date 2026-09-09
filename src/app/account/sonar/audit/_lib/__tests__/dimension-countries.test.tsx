@@ -12,15 +12,15 @@ describe('DimensionCountryChips', () => {
     render(<DimensionCountryChips result={result({ design_geo_rollup: [entry('US', 1), entry('CN', 3)], firmware_geo_rollup: [entry('CN')] })} />);
     const row = screen.getByTestId('dimension-countries');
     expect(row).toHaveTextContent(/^Design.*Firmware/);
-    const chips = screen.getAllByTitle(/origin:/);
-    expect(chips.map((c) => c.getAttribute('title'))).toEqual([
+    const chips = screen.getAllByRole('img', { name: /origin:/ });
+    expect(chips.map((c) => c.getAttribute('aria-label'))).toEqual([
       'Design origin: China (CN)', 'Design origin: United States (US)', 'Firmware origin: China (CN)',
     ]);
   });
   it('an unresolved-only dimension renders no group; both unresolved renders nothing at all', () => {
     render(<DimensionCountryChips result={result({ design_geo_rollup: [entry('<unknown>')], firmware_geo_rollup: [entry('DE')] })} />);
     expect(screen.getByTestId('dimension-countries')).not.toHaveTextContent('Design');
-    expect(screen.getByTitle('Firmware origin: Germany (DE)')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Firmware origin: Germany (DE)' })).toBeInTheDocument();
   });
   it('renders null when neither dimension has a resolved country (undeclared, or a pre-3.86.0 row)', () => {
     const { container } = render(<DimensionCountryChips result={result({ design_geo_rollup: [entry('<unknown>')] })} />);
@@ -28,6 +28,6 @@ describe('DimensionCountryChips', () => {
   });
   it('a code without a flag asset renders as the code', () => {
     render(<DimensionCountryChips result={result({ firmware_geo_rollup: [entry('ZZ')] })} />);
-    expect(screen.getByTitle('Firmware origin: ZZ (ZZ)')).toHaveTextContent('ZZ');
+    expect(screen.getByRole('img', { name: 'Firmware origin: ZZ (ZZ)' })).toHaveTextContent('ZZ');
   });
 });
