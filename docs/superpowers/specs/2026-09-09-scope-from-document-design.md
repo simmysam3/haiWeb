@@ -90,6 +90,7 @@ SheetJS Community Edition `xlsx` **0.20.3**, declared exactly as the reference a
 | data rows on the chosen sheet | 5,000 (`MAX_IMPORT_ROWS`) | refused after header detection: "`Products` has 7,120 rows; the limit is 5,000." |
 | no qualifying sheet | — | "No sheet has both a company column and a SKU column. Looked for headers like Company Name / Supplier / Vendor and Product ID / SKU / Part Number." |
 | unreadable file | — | "Could not read `<file>` as a spreadsheet." |
+| directory lookups per file | 100 (`MAX_DIRECTORY_LOOKUPS`) | the first 100 distinct non-self, non-pickable companies **in file order** are checked; every later one reads "Could not be verified" without a request. One request per distinct company was otherwise uncapped — a 5,000-row file of 4,000 suppliers would fan 4,000 requests at the BFF. |
 
 Nothing is truncated silently; the framework never decides a limit.
 
@@ -121,6 +122,7 @@ export const normalizeCompanyName = (s: string) => s.trim().replace(/\s+/g, ' ')
 3. Otherwise call `lookup(name)`; if the normalized file name is equal to any of a returned result's `company_name`, `legal_name` or `dba_name` → `on_network_unconnected`. All three, because the BFF's `company_name` is `dba_name ?? legal_name`: comparing against it alone reported a participant spelled by its other name as not on the network. Still an equality, never "any hit at all" — the directory search is similarity-based, so a hit threshold would swallow the not-on-network line.
 4. Otherwise → `not_on_network`.
 5. If `lookup` throws or the response is not OK → `unverified`. A network fault never produces a false membership claim.
+6. Past the lookup ceiling (§5.4, `MAX_DIRECTORY_LOOKUPS` = 100) → `unverified` with no request issued. The budget is decided in one file-order pass before any lookup runs, so "the first 100" is exact rather than a race between workers, and it is spent only on names that actually issue a request: a `self`, `pickable` or too-short name burns no slot. "Could not be verified" is the honest line for a name that was never checked — §9's degradation, not a claim either way.
 
 Notes: the directory route needs `q ≥ 2` characters; a one-character company name goes straight to `not_on_network` without a lookup. Ruling R3: suspended participants are not returned and therefore read as `not_on_network`.
 

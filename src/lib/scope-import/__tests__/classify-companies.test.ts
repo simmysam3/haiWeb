@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ParsedDocument } from '../parse-workbook';
-import { classifyCompanies, groupByCompany } from '../classify-companies';
+import { classifyCompanies, groupByCompany, MAX_DIRECTORY_LOOKUPS } from '../classify-companies';
 
 function doc(pairs: Array<[string, string]>): ParsedDocument {
   return {
@@ -92,6 +92,39 @@ describe('classifyCompanies', () => {
     const out = await classifyCompanies(doc([['X', 'X-1']]), { universe: [], selfNames: [], lookup });
     expect(out[0]).toMatchObject({ membership: 'not_on_network' });
     expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('stops at the directory lookup ceiling and leaves the rest unverified', async () => {
+    const lookup = vi.fn(async () => []);
+    const pairs: Array<[string, string]> = Array.from({ length: 101 }, (_, i) => [`Vendor ${i}`, `V-${i}`]);
+    const out = await classifyCompanies(doc(pairs), { universe: [], selfNames: [], lookup });
+
+    // The number is a spec commitment (§5.4), so it is pinned literally here.
+    expect(MAX_DIRECTORY_LOOKUPS).toBe(100);
+    expect(lookup).toHaveBeenCalledTimes(100);
+    expect(out).toHaveLength(101);
+    expect(out.slice(0, 100).every((c) => c.membership === 'not_on_network')).toBe(true);
+    // Never checked, so never claimed: "Could not be verified" is the honest line.
+    expect(out[100]).toMatchObject({ name: 'Vendor 100', membership: 'unverified' });
+  });
+
+  it('spends the lookup ceiling only on names it actually looks up', async () => {
+    const lookup = vi.fn(async () => []);
+    const pairs: Array<[string, string]> = [
+      ['Pratt & Whitney (Demo)', 'P-1'],
+      ['Airbus (Demo)', 'A-1'],
+      ['X', 'X-1'],
+      ...Array.from({ length: 100 }, (_, i): [string, string] => [`Vendor ${i}`, `V-${i}`]),
+    ];
+    const out = await classifyCompanies(doc(pairs), {
+      universe: [PW],
+      selfNames: ['Airbus (Demo)'],
+      lookup,
+    });
+
+    // Pickable, self and the too-short name burn no slot, so all 100 vendors are checked.
+    expect(lookup).toHaveBeenCalledTimes(100);
+    expect(out[out.length - 1]).toMatchObject({ name: 'Vendor 99', membership: 'not_on_network' });
   });
 
   it('never runs more lookups at once than the concurrency limit', async () => {
