@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { OriginManifest, OriginEntry, SubcomponentReference } from '@haiwave/protocol';
+import type { OriginManifest, OriginEntry, SubcomponentReference, FacilityBlock } from '@haiwave/protocol';
 import { Drawer } from '@/components/drawer';
 import { IdChip } from '@/components/id-chip';
 import { StatusBadge } from '@/components/status-badge';
@@ -85,6 +85,16 @@ function ManifestBody({ manifest }: { manifest: OriginManifest }) {
         </dl>
       </section>
 
+      {/* D-218 (2026-09-08): the two declared dimensions read above the manufacturing entries
+          because they qualify the product as a whole, not one step of its route. The guard keeps
+          the parent's space-y-6 from opening a gap for an empty section when neither is declared. */}
+      {(manifest.design_origin || manifest.firmware_origin) && (
+        <section className="space-y-3">
+          <DimensionOriginCard label="Design origin" block={manifest.design_origin} />
+          <DimensionOriginCard label="Firmware origin" block={manifest.firmware_origin} />
+        </section>
+      )}
+
       <section>
         <h3 className="font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-wider text-navy mb-3">
           Origin entries ({manifest.origin_entries.length})
@@ -95,6 +105,67 @@ function ManifestBody({ manifest }: { manifest: OriginManifest }) {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+const DIMENSION_TEST_ID: Record<'Design origin' | 'Firmware origin', string> = {
+  'Design origin': 'dimension-origin-design',
+  'Firmware origin': 'dimension-origin-firmware',
+};
+
+/**
+ * D-218 (2026-09-08): a declared dimension is one FacilityBlock, so this shows the entry card's
+ * facility fields and nothing else — depth, batch, manufacturing date and subcomponents are
+ * properties of a manufacturing step that a design or firmware block does not carry. "Entity" and
+ * "Site" are the spec's own names for the block's facility_name and region_code (§2), and the
+ * names of the permission-ladder fields that gate them.
+ */
+function DimensionOriginCard({
+  label,
+  block,
+}: {
+  label: 'Design origin' | 'Firmware origin';
+  block: FacilityBlock | null | undefined;
+}) {
+  // Undeclared (null) or absent (an older Central): no card and no placeholder.
+  if (!block) return null;
+
+  return (
+    <div
+      data-testid={DIMENSION_TEST_ID[label]}
+      className="rounded-md border border-slate/15 bg-light-gray/40 p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-navy">{label}</p>
+          <p className="mt-0.5 text-xs text-slate">{block.country_code}</p>
+        </div>
+        <StatusBadge status={block.verified ? 'verified' : 'unverified'} />
+      </div>
+
+      <dl className="mt-3 grid grid-cols-[max-content,1fr] items-baseline gap-x-4 gap-y-1 text-xs">
+        <dt className="text-[10px] font-bold uppercase tracking-widest text-slate">Entity</dt>
+        <dd className="text-charcoal">
+          {block.facility_name ?? block.facility_id}
+          <span className="ml-1 text-slate">({block.facility_type.replace(/_/g, ' ')})</span>
+        </dd>
+        {block.region_code && (
+          <>
+            <dt className="text-[10px] font-bold uppercase tracking-widest text-slate">Site</dt>
+            <dd className="text-charcoal">{block.region_code}</dd>
+          </>
+        )}
+        <dt className="text-[10px] font-bold uppercase tracking-widest text-slate">Verification</dt>
+        <dd className="text-charcoal capitalize">
+          {block.verification_method.replace(/_/g, ' ')}
+          {block.last_verified_at && (
+            <span className="ml-1 text-slate">
+              ({new Date(block.last_verified_at).toLocaleDateString()})
+            </span>
+          )}
+        </dd>
+      </dl>
     </div>
   );
 }
