@@ -38,7 +38,7 @@ describe('buildPerPartnerAuditWeights', () => {
   it('vendor with all-US components: weight = 0', () => {
     const run = mkRun([VENDOR_A, VENDOR_A]);
     const results = [mkResult(VENDOR_A, 'A Co', [{ country: 'US', count: 10 }])];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     expect(out.get(VENDOR_A)).toEqual({
       vendor_id: VENDOR_A,
       vendor_name: 'A Co',
@@ -51,7 +51,7 @@ describe('buildPerPartnerAuditWeights', () => {
   it('vendor with all-foreign components: weight = 1', () => {
     const run = mkRun([VENDOR_A]);
     const results = [mkResult(VENDOR_A, 'A Co', [{ country: 'CN', count: 7 }])];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     expect(out.get(VENDOR_A)?.weight).toBe(1);
     expect(out.get(VENDOR_A)?.non_compliant_count).toBe(7);
     expect(out.get(VENDOR_A)?.total_component_count).toBe(7);
@@ -65,14 +65,14 @@ describe('buildPerPartnerAuditWeights', () => {
         { country: 'CN', count: 3 },
       ]),
     ];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     expect(out.get(VENDOR_A)?.weight).toBeCloseTo(0.3, 5);
   });
 
   it('vendor in scope but no result rows: weight = 0 (present-and-empty)', () => {
     const run = mkRun([VENDOR_A]);
     const results: AuditRunResult[] = [];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     expect(out.get(VENDOR_A)).toEqual({
       vendor_id: VENDOR_A,
       vendor_name: null,
@@ -88,7 +88,7 @@ describe('buildPerPartnerAuditWeights', () => {
       mkResult(VENDOR_A, 'A Co', [{ country: 'CN', count: 4 }]),
       mkResult(VENDOR_B, 'B Co', [{ country: 'US', count: 6 }]),
     ];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     expect(out.size).toBe(2);
     expect(out.get(VENDOR_A)?.weight).toBe(1);
     expect(out.get(VENDOR_B)?.weight).toBe(0);
@@ -100,11 +100,19 @@ describe('buildPerPartnerAuditWeights', () => {
       mkResult(VENDOR_A, 'A Co', [{ country: 'US', count: 5 }]),
       mkResult(VENDOR_A, null, [{ country: 'CN', count: 5 }]),
     ];
-    const out = buildPerPartnerAuditWeights(run, results);
+    const out = buildPerPartnerAuditWeights(run, results, 'US');
     const row = out.get(VENDOR_A);
     expect(row?.total_component_count).toBe(10);
     expect(row?.non_compliant_count).toBe(5);
     expect(row?.weight).toBeCloseTo(0.5, 5);
     expect(row?.vendor_name).toBe('A Co');
+  });
+
+  // D-219 (2026-09-08): the compliant country is a parameter.
+  it('a DE auditor weights US components as non-compliant', () => {
+    const run = mkRun([VENDOR_A]);
+    const results = [mkResult(VENDOR_A, 'A Co', [{ country: 'US', count: 3 }, { country: 'DE', count: 1 }])];
+    expect(buildPerPartnerAuditWeights(run, results, 'DE').get(VENDOR_A)?.weight).toBe(0.75);
+    expect(buildPerPartnerAuditWeights(run, results, 'US').get(VENDOR_A)?.weight).toBe(0.25);
   });
 });

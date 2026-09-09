@@ -7,10 +7,14 @@ declare global {
   var __mockClient: Record<string, ReturnType<typeof vi.fn>>;
 }
 
+// D-219 (2026-09-08): the handler now reads session.participant.id to resolve the auditor's own
+// company profile, so the mocked withHaiCore must carry a participant id too.
+const MOCK_PARTICIPANT_ID = '99999999-9999-9999-9999-999999999999';
+
 vi.mock('@/lib/with-hai-core', () => ({
   withHaiCore: (handler: (ctx: MockHandlerCtx) => unknown) => async (req: NextRequest) => {
     const client = globalThis.__mockClient;
-    return await handler({ client, request: req, params: {}, session: {} });
+    return await handler({ client, request: req, params: {}, session: { participant: { id: MOCK_PARTICIPANT_ID } } });
   },
 }));
 
@@ -26,6 +30,8 @@ function setMockClient(overrides: Record<string, ReturnType<typeof vi.fn>>) {
     listWatcherRuns: vi.fn().mockResolvedValue({ runs: [] }),
     getWatcherRun: vi.fn().mockResolvedValue({ run: {}, results: [] }),
     fetchRaw: vi.fn().mockResolvedValue(new Response('{}', { status: 404 })),
+    // D-219 (2026-09-08): the auditor's own locality — existing tests assume a US auditor.
+    getCompanyProfile: vi.fn().mockResolvedValue({ locality: { country: 'us' } }),
     ...overrides,
   };
 }
@@ -144,6 +150,85 @@ describe('GET /api/account/sonar/dashboard/cross-modality', () => {
     expect(b.watcher).toBeNull();
 
     // No failures — partial flags all false.
+    expect(body.partial).toEqual({ audit: false, phantom_demand: false, watcher: false });
+  });
+
+  // D-219 (2026-09-08): the weights read the auditor's country; unknown → no audit weights, route still 200.
+  it('weights US components as non-compliant for a DE auditor', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({
+        runs: [
+          {
+            run_id: 'r1',
+            status: 'complete',
+            triggered_at: '2026-05-09T00:00:00Z',
+            scope_snapshot: { resolved_products: [{ vendor_id: VENDOR_A }, { vendor_id: VENDOR_B }] },
+          },
+        ],
+      }),
+      getAuditRunResults: vi.fn().mockResolvedValue({
+        results: [
+          {
+            vendor_participant_id: VENDOR_A,
+            tree: { vendor_legal_name: 'A Co' },
+            geo_rollup: [
+              { country_of_origin: 'US', component_count: 6, depth_distribution: {} },
+              { country_of_origin: 'CN', component_count: 4, depth_distribution: {} },
+            ],
+          },
+          {
+            vendor_participant_id: VENDOR_B,
+            tree: { vendor_legal_name: 'B Co' },
+            geo_rollup: [
+              { country_of_origin: 'US', component_count: 10, depth_distribution: {} },
+            ],
+          },
+        ],
+      }),
+      getCompanyProfile: vi.fn().mockResolvedValue({ locality: { country: 'DE' } }),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    // DE auditor: both A's US(6)+CN(4) and B's US(10) count as non-compliant now.
+    const a = body.partners.find((p: any) => p.partner_id === VENDOR_A);
+    expect(a.audit).toEqual({ compliant: 0, non_compliant: 10, partial: 0, total: 10 });
+    const b = body.partners.find((p: any) => p.partner_id === VENDOR_B);
+    expect(b.audit).toEqual({ compliant: 0, non_compliant: 10, partial: 0, total: 10 });
+  });
+
+  it('no company profile: audit weights empty, response 200 with the same shape as a run with no results', async () => {
+    setMockClient({
+      listAuditRuns: vi.fn().mockResolvedValue({
+        runs: [
+          {
+            run_id: 'r1',
+            status: 'complete',
+            triggered_at: '2026-05-09T00:00:00Z',
+            scope_snapshot: { resolved_products: [{ vendor_id: VENDOR_A }] },
+          },
+        ],
+      }),
+      getAuditRunResults: vi.fn().mockResolvedValue({
+        results: [
+          {
+            vendor_participant_id: VENDOR_A,
+            tree: { vendor_legal_name: 'A Co' },
+            geo_rollup: [{ country_of_origin: 'US', component_count: 5, depth_distribution: {} }],
+          },
+        ],
+      }),
+      getCompanyProfile: vi.fn().mockRejectedValue(new Error('404')),
+    });
+
+    const res = await GET(makeReq(), { params: Promise.resolve({}) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Same shape as "returns empty partners array when no modality data exists": no audit rows,
+    // and an unresolved country isn't a load failure, so partial.audit stays false.
+    expect(body.partners).toEqual([]);
     expect(body.partial).toEqual({ audit: false, phantom_demand: false, watcher: false });
   });
 

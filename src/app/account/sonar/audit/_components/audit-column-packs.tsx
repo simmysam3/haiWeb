@@ -192,7 +192,7 @@ export function buildAuditHistoryColumnPack(
         label: 'Domestic',
         width: '12%',
         headerTitle:
-          'SKUs whose components fully resolved to your home country / total SKUs in the run',
+          'SKUs whose components fully resolved to your home country / total SKUs in the run. Manufacturing origin; open the run for design and firmware.',
         render: (run) => {
           const total = run.total_skus ?? null;
           if (total == null || total === 0) {

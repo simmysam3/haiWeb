@@ -26,13 +26,25 @@ function StatItem({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function PartnersChart({ data }: { data: PartnerComplianceData | null }) {
+// D-219 (2026-09-08): the lens passes a dimension-specific footnote and, for an auditor with a run
+// but no known country, a message naming the fix instead of the generic empty copy.
+// Final review N1 (2026-09-08): `footnote` is required (not optional) so a stale default can never
+// silently reappear — the sole caller, DimensionLens, always passes one, undefined included.
+export function PartnersChart({
+  data,
+  footnote,
+  emptyMessage = 'No audit data yet. Run an audit to populate the dashboard.',
+}: {
+  data: PartnerComplianceData | null;
+  footnote: string | undefined;
+  emptyMessage?: string;
+}) {
   if (data === null) {
     return (
       <Panel className="p-4">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-navy mb-3">Coverage by Partner</h2>
         <p className="text-sm text-slate">
-          No audit data yet. Run an audit to populate the dashboard.
+          {emptyMessage}
         </p>
       </Panel>
     );
@@ -80,7 +92,7 @@ export function PartnersChart({ data }: { data: PartnerComplianceData | null }) 
         </ResponsiveContainer>
       )}
 
-      <p className="text-xs text-slate italic mt-3">* Non US Based Components</p>
+      <p className="text-xs text-slate italic mt-3">{footnote}</p>
     </Panel>
   );
 }
