@@ -18,7 +18,10 @@ import { TreeView } from '@/app/account/sonar/watchers/[id]/tree-view';
 import {
   DomesticFlagBadge,
   isFullyDomestic,
+  countDomesticByDimension,
 } from '@/app/account/sonar/audit/_lib/domestic';
+import { DimensionCountryChips } from '@/app/account/sonar/audit/_lib/dimension-countries';
+import { DIMENSION_LABEL, rollupFor } from '@/app/account/sonar/_lib/origin-dimension';
 
 // A "vendor-level gap": the tier-1 (direct) vendor didn't disclose at all —
 // its result tree ROOT carries its own gap and has no children. Such a
@@ -161,6 +164,21 @@ function SkuEvidenceRow({
             {domestic && auditorCountry && (
               <DomesticFlagBadge country={auditorCountry} title={`All components verified ${auditorCountry}-origin`} />
             )}
+            {/* D-219 (2026-09-08): one badge per dimension whose whole rollup is domestic — a positive claim, so undeclared earns none. */}
+            {auditorCountry &&
+              (['design', 'firmware'] as const).map((d) =>
+                isFullyDomestic(rollupFor(row.result, d), auditorCountry) ? (
+                  <span
+                    key={d}
+                    data-testid={`domestic-badge-${d}`}
+                    className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate"
+                    title={`Every ${d} origin in this SKU's tree is domestic.`}
+                  >
+                    <DomesticFlagBadge country={auditorCountry} title={`Every ${d} origin in this SKU's tree is domestic.`} />
+                    {DIMENSION_LABEL[d]}
+                  </span>
+                ) : null,
+              )}
           </span>
           {hasSubhead && (
             <span data-testid="sku-descriptors" className="flex flex-col text-xs text-slate">
@@ -170,6 +188,7 @@ function SkuEvidenceRow({
               )}
             </span>
           )}
+          <DimensionCountryChips result={row.result} />
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {isVendorLevelGap(row.result) ? (
@@ -339,6 +358,11 @@ export function TierGapGrid({
     () => new Set(rows.map((r) => r.productId).filter(Boolean)).size,
     [rows],
   );
+  // D-219 (2026-09-08): the run's "fully domestic" count per dimension, for the summary line below.
+  const domesticCounts = useMemo(
+    () => countDomesticByDimension(results, auditorCountry),
+    [results, auditorCountry],
+  );
 
   const singleVendor = groups.length === 1;
 
@@ -403,6 +427,12 @@ export function TierGapGrid({
             Weighted by tier (T1×5 · T2×3 · T3×2 · T4+×1)
           </span>
         </div>
+
+        {auditorCountry && results.length > 0 && (
+          <p data-testid="domestic-by-dimension" className="basis-full text-xs text-slate" title="SKUs whose whole component tree resolved to your home country, per origin dimension">
+            Fully domestic — Manufacturing {domesticCounts.manufacturing} of {domesticCounts.total} · Design {domesticCounts.design} of {domesticCounts.total} · Firmware {domesticCounts.firmware} of {domesticCounts.total}
+          </p>
+        )}
       </div>
 
       {/* Search + Order-by share one row — they're both "find a vendor" tools,
