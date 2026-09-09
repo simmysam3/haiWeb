@@ -61,7 +61,7 @@ export interface ParsedDocument {
   columns: { company: string; sku: string };   // the header labels actually used
   rows: ImportRow[];                            // deduplicated on (normalized company, sku)
   skipped: number;                              // rows lacking a company or a SKU
-  totalDataRows: number;                        // rows under the header, before dedup/skip
+  totalDataRows: number;                        // NON-EMPTY rows under the header, before dedup/skip
 }
 export type ParseOutcome =
   | { ok: true; document: ParsedDocument }
@@ -81,6 +81,7 @@ SheetJS Community Edition `xlsx` **0.20.3**, declared exactly as the reference a
 - The first qualifying sheet is used. With agent6's demo file, `README` (no header row) is passed over and `Products` qualifies with `Company Name` / `Product ID`.
 - Cells are read as **displayed text** (`raw: false`, i.e. the `w` formatted string) so a numeric SKU such as `5328285` or `007` arrives as the text the user sees. Company text: trim + collapse internal whitespace. SKU text: trim only (SKUs are opaque, case-sensitive).
 - A data row with an empty company or an empty SKU is counted in `skipped`. Duplicate (normalized company, sku) pairs are kept once. Rows are returned in sheet order.
+- An **all-empty** row is not a data row at all. A sheet's used range routinely runs past its data (an ERP export's dimension record, a formatted-but-empty block) and every row inside it materialises as blank cells. Such rows are dropped **before** the row ceiling, `skipped` and `totalDataRows` are computed — otherwise a clean file reports "9 rows skipped" and a three-row export is refused as "6,000 rows". `row` stays the true 1-based sheet row of the rows that survive.
 
 ### 5.4 Ceilings (stated here, enforced by the module, tested)
 | ceiling | value | behaviour |

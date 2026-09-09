@@ -12,6 +12,18 @@ function workbook(sheets: Record<string, unknown[][]>): ArrayBuffer {
   return out;
 }
 
+/**
+ * One sheet whose used range is deliberately wider than its data — what a real
+ * ERP export looks like when the dimension record outruns the rows.
+ */
+function workbookWithRef(name: string, rows: unknown[][], ref: string): ArrayBuffer {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!ref'] = ref;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, name);
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+
 describe('parseWorkbook — sheet and column detection', () => {
   it('reads company/SKU pairs from the first sheet whose header has both columns', async () => {
     const bytes = workbook({
@@ -121,6 +133,63 @@ describe('parseWorkbook — rows', () => {
       { company: 'foo bar', sku: 'baz', row: 3 },
     ]);
     expect(out.ok && out.document.skipped).toBe(0);
+  });
+});
+
+describe('parseWorkbook — blank rows inside the used range', () => {
+  it('does not count trailing blank rows as skipped data rows', async () => {
+    const bytes = workbookWithRef(
+      'Products',
+      [['Company', 'SKU'], ['Acme', 'A-1'], ['Bolt Co', 'B-2']],
+      'A1:B12',
+    );
+    const out = await parseWorkbook(bytes);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.document.rows).toEqual([
+      { company: 'Acme', sku: 'A-1', row: 2 },
+      { company: 'Bolt Co', sku: 'B-2', row: 3 },
+    ]);
+    expect(out.document.skipped).toBe(0);
+    expect(out.document.totalDataRows).toBe(2);
+  });
+
+  it('does not count blank rows toward the row ceiling', async () => {
+    // Three real rows in a sheet whose used range claims 6,000.
+    const bytes = workbookWithRef(
+      'Products',
+      [['Company', 'SKU'], ['Acme', 'A-1'], ['Bolt Co', 'B-2'], ['Cog Ltd', 'C-3']],
+      'A1:B6000',
+    );
+    const out = await parseWorkbook(bytes);
+    expect(out.ok).toBe(true);
+    expect(out.ok && out.document.rows).toHaveLength(3);
+    expect(out.ok && out.document.totalDataRows).toBe(3);
+  });
+
+  it('keeps a blank row between data rows out of the count and the sheet rows true', async () => {
+    const bytes = workbook({
+      S: [['Company', 'SKU'], ['Acme', 'A-1'], ['', ''], ['Bolt Co', 'B-2']],
+    });
+    const out = await parseWorkbook(bytes);
+    expect(out.ok && out.document.rows).toEqual([
+      { company: 'Acme', sku: 'A-1', row: 2 },
+      { company: 'Bolt Co', sku: 'B-2', row: 4 },
+    ]);
+    expect(out.ok && out.document.skipped).toBe(0);
+    expect(out.ok && out.document.totalDataRows).toBe(2);
+  });
+
+  it('finds the header under a one-cell title row and numbers rows sheet-true', async () => {
+    const bytes = workbook({
+      S: [['Q3 supplier extract'], ['Company', 'SKU'], ['Acme', 'A-1'], ['Bolt Co', 'B-2']],
+    });
+    const out = await parseWorkbook(bytes);
+    expect(out.ok && out.document.columns).toEqual({ company: 'Company', sku: 'SKU' });
+    expect(out.ok && out.document.rows).toEqual([
+      { company: 'Acme', sku: 'A-1', row: 3 },
+      { company: 'Bolt Co', sku: 'B-2', row: 4 },
+    ]);
   });
 });
 

@@ -24,7 +24,9 @@ export interface ParsedDocument {
   sheet: string;
   columns: { company: string; sku: string };
   rows: ImportRow[];
+  /** Rows under the header with a company or a SKU missing. Blank rows are not data and are not counted. */
   skipped: number;
+  /** Non-empty rows under the header, before dedup and skip. */
   totalDataRows: number;
 }
 
@@ -132,7 +134,16 @@ export async function parseWorkbook(
     const skuCol = findColumn(headers, SKU_HEADERS);
     if (companyCol < 0 || skuCol < 0) continue;
 
-    const dataRows = grid.slice(headerIdx + 1);
+    // A sheet's used range routinely runs past its data — an ERP export's
+    // dimension record, a formatted-but-empty block — and SheetJS materialises
+    // every row inside it as all-empty cells. Those are not data rows: they
+    // must not count toward the ceiling ("6,000 rows" on a 3-row file), toward
+    // `skipped` ("9 rows skipped" on a clean file), or toward the totals. The
+    // original index rides along so `row` stays the true 1-based sheet row.
+    const dataRows = grid
+      .slice(headerIdx + 1)
+      .map((cells, i) => ({ cells, row: headerIdx + 2 + i }))
+      .filter(({ cells }) => cells.some((c) => cellText(c).trim() !== ''));
     if (dataRows.length > maxRows) {
       return {
         ok: false,
@@ -144,18 +155,18 @@ export async function parseWorkbook(
     const rows: ImportRow[] = [];
     const seen = new Set<string>();
     let skipped = 0;
-    dataRows.forEach((r, i) => {
-      const company = cellText(r[companyCol]).trim().replace(/\s+/g, ' ');
-      const sku = cellText(r[skuCol]).trim();
+    for (const { cells, row } of dataRows) {
+      const company = cellText(cells[companyCol]).trim().replace(/\s+/g, ' ');
+      const sku = cellText(cells[skuCol]).trim();
       if (!company || !sku) {
         skipped += 1;
-        return;
+        continue;
       }
       const key = JSON.stringify([normalizeCompanyName(company), sku]);
-      if (seen.has(key)) return;
+      if (seen.has(key)) continue;
       seen.add(key);
-      rows.push({ company, sku, row: headerIdx + 2 + i });
-    });
+      rows.push({ company, sku, row });
+    }
 
     return {
       ok: true,
