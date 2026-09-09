@@ -148,4 +148,56 @@ describe('BilateralCounterpartiesSkusFields — importRequest', () => {
     const checked = (await screen.findAllByRole('checkbox')).filter((b) => (b as HTMLInputElement).checked);
     expect(checked.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('under the audit universe reports SKUs in the catalog but outside the accepted scope, and does not check them', async () => {
+    stubFetch({ accepted: ['5328285'] });
+    const results: ImportResult[] = [];
+    const emitted: Emitted[] = [];
+    render(
+      <Harness
+        universe="accepted_audit_scopes"
+        importRequest={{ id: 2, counterpartyId: PW, skus: ['5328285', '5331092', 'ZZZ'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    await waitFor(() => expect(results).toHaveLength(1));
+    expect(results[0]).toMatchObject({ matched: ['5328285'], notAccepted: ['5331092'], notInCatalog: ['ZZZ'] });
+    expect(emitted[emitted.length - 1].skus).toEqual(['5328285']);
+  });
+
+  it('adds to an existing selection rather than replacing it', async () => {
+    stubFetch();
+    const emitted: Emitted[] = [];
+    const results: ImportResult[] = [];
+    render(
+      <Harness
+        universe="bilateral_connections"
+        initialSkus={['271-200-025-026']}
+        importRequest={{ id: 3, counterpartyId: PW, skus: ['3957985205'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    await waitFor(() => expect(results).toHaveLength(1));
+    expect(emitted[emitted.length - 1].skus.sort()).toEqual(['271-200-025-026', '3957985205']);
+  });
+
+  it('reports a catalog failure and checks nothing', async () => {
+    stubFetch({ catalogFails: true });
+    const emitted: Emitted[] = [];
+    const results: ImportResult[] = [];
+    render(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 4, counterpartyId: PW, skus: ['5328285'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    await waitFor(() => expect(results).toHaveLength(1));
+    expect(results[0].error).toBeTruthy();
+    expect(results[0].matched).toEqual([]);
+    expect(emitted).toHaveLength(0);
+  });
 });

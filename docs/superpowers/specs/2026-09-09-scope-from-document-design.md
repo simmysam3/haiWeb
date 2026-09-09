@@ -139,7 +139,7 @@ onImportResult?: (r: {
 
 On each new `importRequest.id`:
 1. Add `counterpartyId` to `expandedCounterparties`.
-2. `await loadCatalog(cp)` — `loadCatalog` is refactored to **return** the `CatalogState` it computed (today it only stores it), so the importer reads fresh data rather than a stale closure. If the catalog is already loaded, the stored state is used.
+2. The component holds the request as pending, expands the counterparty and calls `loadCatalog`; a second effect fires once that counterparty's catalog is `loaded` or carries `error` (so a load already in flight is covered), then intersects and applies. `CatalogState` gains `allIds` (the catalog before the accepted intersection) so the audit universe can tell 'not accepted' from 'not in catalog'.
 3. Compute over the catalog's `external_product_id` set (and, for the audit universe, the counterparty's accepted `product_ids`):
    - `matched` = file SKUs present in the catalog (and accepted, for audits)
    - `notInCatalog` = file SKUs absent from the catalog
@@ -157,7 +157,7 @@ Because the selection path is shared, the emitted `{ counterparties, skus, sku_a
 | `src/lib/scope-import/classify-companies.ts` | §6 classifier (pure) |
 | `src/lib/scope-import/import-copy.ts` | the sentences of §4 as pure functions of the data (so copy is unit-tested once) |
 | `src/app/account/sonar/_components/scope-import-panel.tsx` | client component: file input, parse, classify (with the directory `fetch`), select, summaries; emits `importRequest` upward and receives `onImportResult` |
-| `src/app/account/sonar/_components/bilateral-counterparties-skus-fields.tsx` | §7 props + `loadCatalog` returns its state |
+| `src/app/account/sonar/_components/bilateral-counterparties-skus-fields.tsx` | §7 props + pending-import effects + `allIds` |
 | `watcher-scope-picker.tsx`, `audit-scope-picker.tsx` | mount the panel above the tree, hold the `importRequest` / result state, pass the universe options through |
 | `package.json` | `xlsx` 0.20.3 pinned tarball |
 | `CHANGELOG.md` | one line under a new `v1.90` heading |
@@ -179,7 +179,7 @@ The panel needs the picker's universe options for the select and for rule 6.2.2.
 - **Parser** (`src/lib/scope-import/__tests__/parse-workbook.test.ts`): workbooks built in-test with SheetJS `write` — synonyms (`Supplier` + `Part Number`), README-then-Products sheet order, numeric SKU preserved as text (`007`, `5328285`), skipped rows counted, duplicate pairs collapsed, `too_large`, `too_many_rows` at 5,001, `no_qualifying_sheet`, `unreadable`, `.csv` input, `Company Key` not stealing from `Company Name`.
 - **Classifier** (`__tests__/classify-companies.test.ts`): pickable by universe name; unconnected via lookup hit; not-on-network via empty lookup; unverified via thrown lookup; self omitted; one-character name skips lookup; concurrency respected (lookup call count = distinct non-pickable names).
 - **Copy** (`__tests__/import-copy.test.ts`): the exact sentences of §4 for 0/1/N names and the match summary variants.
-- **Tree component** (`_components/__tests__/bilateral-counterparties-skus-fields.import.test.tsx`, stubbed fetch): an import request expands, loads, checks matched SKUs and `onChange` receives **the same payload** as a recorded manual click sequence on the same SKUs; `notInCatalog` reported; audit universe `notAccepted` reported and not checked; additive on top of an existing selection; catalog failure → `error`, nothing checked; `loadCatalog` returns state.
+- **Tree component** (`_components/__tests__/bilateral-counterparties-skus-fields.import.test.tsx`, stubbed fetch): an import request expands, loads, checks matched SKUs and `onChange` receives **the same payload** as a recorded manual click sequence on the same SKUs; `notInCatalog` reported; audit universe `notAccepted` reported and not checked; additive on top of an existing selection; catalog failure → `error`, nothing checked.
 - **Panel + pickers** (`__tests__/scope-import-panel.test.tsx`, `watcher-scope-picker.test.tsx`, `audit-scope-picker.test.tsx`): panel renders in both wizards; choosing a file shows the membership lines with the demo-shaped fixture; the select lists only pickable companies with SKU counts; choosing one fires the request; the summary renders the result.
 - **Invariants**: the repo-wide tests run unchanged (no new route). Build (`npm run build`) is part of the gate.
 - **Gate**: full vitest + build via `vitest-lock.sh`; hw-6f's / hw-bb's gates have priority. Playwright walk: not required (no route change); a browser check of the demo file on the lane's own build is the live proof.
