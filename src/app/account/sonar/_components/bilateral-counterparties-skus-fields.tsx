@@ -370,12 +370,17 @@ export function BilateralCounterpartiesSkusFields({
   );
 
   // ── v1.90 scope-from-document: apply an import request ──────────────────
-  // Effect A: a new request expands its counterparty and starts the catalog
-  // load. Effect B: once that catalog is loaded (or failed), intersect, check
-  // through setSkusForGroup (the click path), expand the matched classes, and
-  // report. Split in two because loadCatalog early-returns while a load is in
-  // flight, so awaiting it cannot cover a counterparty already loading.
-  const [pendingImport, setPendingImport] = useState<ImportRequest | null>(null);
+  // Effect A: a new request expands its counterparty, starts the catalog load
+  // and joins the queue. Effect B: settles every queued request whose catalog
+  // has since loaded (or failed), in arrival order. Split in two because
+  // loadCatalog early-returns while a load is in flight, so awaiting it cannot
+  // cover a counterparty already loading.
+  //
+  // A QUEUE, not a single slot: a second request issued while the first
+  // counterparty's catalog is still loading would otherwise displace the
+  // first, which would then be applied zero times — no checks, no error, no
+  // message for its id. Spec §7 says every id is applied exactly once.
+  const [pendingImports, setPendingImports] = useState<ImportRequest[]>([]);
   const lastImportId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -395,55 +400,72 @@ export function BilateralCounterpartiesSkusFields({
       return;
     }
     setExpandedCounterparties((prev) => new Set(prev).add(cp.counterparty_id));
-    setPendingImport(importRequest);
+    setPendingImports((prev) => [...prev, importRequest]);
     void loadCatalog(cp);
   }, [importRequest, options, loadCatalog, onImportResult]);
 
   useEffect(() => {
-    if (!pendingImport || !options) return;
-    const catalog = catalogs.get(pendingImport.counterpartyId);
-    if (!catalog || catalog.loading) return;
-    const cp = options.counterparties.find((c) => c.counterparty_id === pendingImport.counterpartyId);
-    setPendingImport(null);
-    if (!cp) return;
-    if (catalog.error) {
-      onImportResult?.({
-        id: pendingImport.id,
-        counterpartyId: cp.counterparty_id,
-        matched: [],
-        notInCatalog: [],
-        notAccepted: [],
-        error: catalog.error,
-      });
-      return;
+    if (pendingImports.length === 0 || !options) return;
+    const settled = new Set<number>();
+    const reports: ImportResult[] = [];
+    const classKeys: string[] = [];
+    // Matched SKUs are unioned across everything settling in THIS pass and
+    // applied in one setSkusForGroup call. Two calls would each start from the
+    // same render's `selectedSkus`, so the second would drop the first's SKUs.
+    const toCheck: string[] = [];
+    for (const request of pendingImports) {
+      const catalog = catalogs.get(request.counterpartyId);
+      // Still loading — leave it queued for a later pass.
+      if (!catalog || catalog.loading) continue;
+      settled.add(request.id);
+      const cp = options.counterparties.find((c) => c.counterparty_id === request.counterpartyId);
+      if (!cp) continue;
+      if (catalog.error) {
+        reports.push({
+          id: request.id,
+          counterpartyId: cp.counterparty_id,
+          matched: [],
+          notInCatalog: [],
+          notAccepted: [],
+          error: catalog.error,
+        });
+        continue;
+      }
+      // SKU → class slug over the SELECTABLE catalog (already intersected with
+      // the accepted set under 'accepted_audit_scopes' by loadCatalog).
+      const slugOf = new Map<string, string>();
+      for (const [slug, products] of catalog.byClass) {
+        for (const p of products) slugOf.set(p.external_product_id, slug);
+      }
+      for (const id of catalog.orphanIds) slugOf.set(id, UNCLASSIFIED_SLUG);
+      const accepted = universe === 'bilateral_connections' ? null : new Set(cp.product_ids);
+      const matched: string[] = [];
+      const notInCatalog: string[] = [];
+      const notAccepted: string[] = [];
+      for (const sku of request.skus) {
+        if (slugOf.has(sku)) matched.push(sku);
+        else if (accepted && !accepted.has(sku) && catalog.allIds.has(sku)) notAccepted.push(sku);
+        else notInCatalog.push(sku);
+      }
+      for (const sku of matched) {
+        classKeys.push(`${cp.counterparty_id}|${slugOf.get(sku)}`);
+        toCheck.push(sku);
+      }
+      reports.push({ id: request.id, counterpartyId: cp.counterparty_id, matched, notInCatalog, notAccepted });
     }
-    // SKU → class slug over the SELECTABLE catalog (already intersected with
-    // the accepted set under 'accepted_audit_scopes' by loadCatalog).
-    const slugOf = new Map<string, string>();
-    for (const [slug, products] of catalog.byClass) {
-      for (const p of products) slugOf.set(p.external_product_id, slug);
-    }
-    for (const id of catalog.orphanIds) slugOf.set(id, UNCLASSIFIED_SLUG);
-    const accepted = universe === 'bilateral_connections' ? null : new Set(cp.product_ids);
-    const matched: string[] = [];
-    const notInCatalog: string[] = [];
-    const notAccepted: string[] = [];
-    for (const sku of pendingImport.skus) {
-      if (slugOf.has(sku)) matched.push(sku);
-      else if (accepted && !accepted.has(sku) && catalog.allIds.has(sku)) notAccepted.push(sku);
-      else notInCatalog.push(sku);
-    }
-    if (matched.length > 0) {
+    if (settled.size === 0) return;
+    setPendingImports((prev) => prev.filter((request) => !settled.has(request.id)));
+    if (classKeys.length > 0) {
       setExpandedClasses((prev) => {
         const next = new Set(prev);
-        for (const sku of matched) next.add(`${cp.counterparty_id}|${slugOf.get(sku)}`);
+        for (const key of classKeys) next.add(key);
         return next;
       });
-      setSkusForGroup(matched, true);
     }
-    onImportResult?.({ id: pendingImport.id, counterpartyId: cp.counterparty_id, matched, notInCatalog, notAccepted });
+    if (toCheck.length > 0) setSkusForGroup(toCheck, true);
+    for (const report of reports) onImportResult?.(report);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogs, pendingImport, options]);
+  }, [catalogs, pendingImports, options]);
 
   function toggleCounterpartyExpanded(cp: CounterpartyOption) {
     setExpandedCounterparties((prev) => {

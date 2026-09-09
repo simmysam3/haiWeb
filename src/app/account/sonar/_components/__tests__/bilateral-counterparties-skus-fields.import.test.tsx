@@ -200,4 +200,185 @@ describe('BilateralCounterpartiesSkusFields — importRequest', () => {
     expect(results[0].matched).toEqual([]);
     expect(emitted).toHaveLength(0);
   });
+
+  it('settles every queued request when a second arrives while the first catalog is still loading', async () => {
+    // Two counterparties. GLB's products fetch is held open, so its catalog is
+    // still `loading` when the second request (for PW) arrives.
+    const GLB = 'cccccccc-0000-0000-0000-000000000003';
+    let releaseGlb: () => void = () => {};
+    const glbGate = new Promise<void>((resolve) => {
+      releaseGlb = resolve;
+    });
+    const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+    const fetchMock = vi.fn(async (input: string) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/account/partners') {
+        return json([
+          { id: GLB, company_name: 'Great Lakes Bearing (Demo)', status: 'trading_pair' },
+          { id: PW, company_name: 'Pratt & Whitney (Demo)', status: 'trading_pair' },
+        ]);
+      }
+      if (url.pathname.endsWith('/catalog/classes')) {
+        return json({
+          classes: [
+            { class_id: 'c1', class_slug: 'engine-control', class_name: 'Engine Control', product_count: 2 },
+            { class_id: 'c2', class_slug: 'bearings', class_name: 'Bearings', product_count: 1 },
+          ],
+        });
+      }
+      if (url.pathname.endsWith('/catalog/products')) {
+        if (url.pathname.includes(GLB)) {
+          // Deferred, not timed: the test decides when this catalog lands.
+          await glbGate;
+          return json({
+            products: [{ external_product_id: 'GLB-77', product_name: 'Roller Bearing', primary_class_slug: 'bearings' }],
+            total: 1,
+          });
+        }
+        return json({
+          products: [
+            { external_product_id: '5328285', product_name: 'EEC FCS6.0', primary_class_slug: 'engine-control' },
+            { external_product_id: '5331092', product_name: 'EEC FCS6.2', primary_class_slug: 'engine-control' },
+          ],
+          total: 2,
+        });
+      }
+      throw new Error(`unexpected fetch ${url.pathname}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const results: ImportResult[] = [];
+    const emitted: Emitted[] = [];
+    const { rerender } = render(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 10, counterpartyId: GLB, skus: ['GLB-77'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    // The first request is genuinely in flight before the second is issued.
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([u]) => String(u).includes(GLB) && String(u).includes('/catalog/products'),
+        ),
+      ).toBe(true),
+    );
+    expect(results).toHaveLength(0);
+
+    rerender(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 11, counterpartyId: PW, skus: ['5328285', '5331092'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    // The second counterparty's catalog resolves immediately and settles.
+    await waitFor(() => expect(results.map((r) => r.id)).toContain(11));
+
+    releaseGlb();
+    // The first request must still settle — a later request must not drop it.
+    await waitFor(() => expect(results).toHaveLength(2));
+    expect(results.find((r) => r.id === 10)).toEqual({
+      id: 10,
+      counterpartyId: GLB,
+      matched: ['GLB-77'],
+      notInCatalog: [],
+      notAccepted: [],
+    });
+    expect(results.find((r) => r.id === 11)).toEqual({
+      id: 11,
+      counterpartyId: PW,
+      matched: ['5328285', '5331092'],
+      notInCatalog: [],
+      notAccepted: [],
+    });
+    // Both counterparties' SKUs survive in the emitted scope.
+    const last = emitted[emitted.length - 1];
+    expect([...last.skus].sort()).toEqual(['5328285', '5331092', 'GLB-77']);
+    expect([...last.counterparties].sort()).toEqual([GLB, PW].sort());
+  });
+
+  it('settles two requests for the SAME counterparty against its one catalog, keeping both SKU sets', async () => {
+    // Both requests queue before the single catalog resolves, so both settle in
+    // one pass — the case where the applied SKUs must be unioned rather than
+    // written twice from the same render's selection.
+    const GLB = 'cccccccc-0000-0000-0000-000000000003';
+    let releaseGlb: () => void = () => {};
+    const glbGate = new Promise<void>((resolve) => {
+      releaseGlb = resolve;
+    });
+    const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+    const fetchMock = vi.fn(async (input: string) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/account/partners') {
+        return json([{ id: GLB, company_name: 'Great Lakes Bearing (Demo)', status: 'trading_pair' }]);
+      }
+      if (url.pathname.endsWith('/catalog/classes')) {
+        return json({
+          classes: [{ class_id: 'c2', class_slug: 'bearings', class_name: 'Bearings', product_count: 2 }],
+        });
+      }
+      if (url.pathname.endsWith('/catalog/products')) {
+        await glbGate;
+        return json({
+          products: [
+            { external_product_id: 'GLB-77', product_name: 'Roller Bearing', primary_class_slug: 'bearings' },
+            { external_product_id: 'GLB-88', product_name: 'Thrust Bearing', primary_class_slug: 'bearings' },
+          ],
+          total: 2,
+        });
+      }
+      throw new Error(`unexpected fetch ${url.pathname}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const results: ImportResult[] = [];
+    const emitted: Emitted[] = [];
+    const { rerender } = render(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 20, counterpartyId: GLB, skus: ['GLB-77'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([u]) => String(u).includes('/catalog/products')),
+      ).toBe(true),
+    );
+    rerender(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 21, counterpartyId: GLB, skus: ['GLB-88', 'NOPE'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => emitted.push(e)}
+      />,
+    );
+    expect(results).toHaveLength(0);
+
+    releaseGlb();
+    await waitFor(() => expect(results).toHaveLength(2));
+    // Arrival order, each against the one catalog.
+    expect(results.map((r) => r.id)).toEqual([20, 21]);
+    expect(results[0]).toEqual({
+      id: 20,
+      counterpartyId: GLB,
+      matched: ['GLB-77'],
+      notInCatalog: [],
+      notAccepted: [],
+    });
+    expect(results[1]).toEqual({
+      id: 21,
+      counterpartyId: GLB,
+      matched: ['GLB-88'],
+      notInCatalog: ['NOPE'],
+      notAccepted: [],
+    });
+    // Neither request's SKUs are lost to the other.
+    expect([...emitted[emitted.length - 1].skus].sort()).toEqual(['GLB-77', 'GLB-88']);
+  });
 });
