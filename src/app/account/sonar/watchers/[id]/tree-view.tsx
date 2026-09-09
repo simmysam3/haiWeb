@@ -193,6 +193,10 @@ export function TreeView({
   const vendorName = node.vendor_legal_name ?? audit?.origin.vendor_name ?? null;
   const vendorDisplay = nodeDisplayName(node, vendorName);
   const originLabel = formatOrigin(audit);
+  // D-218 (2026-09-08): design and firmware country are floor fields like the manufacturing
+  // country, so they use the same sentinel rule — an 'XX' or '<unknown>' dimension is no dimension.
+  const designCountry = resolvedCountry(audit?.origin.design_country_of_origin);
+  const firmwareCountry = resolvedCountry(audit?.origin.firmware_country_of_origin);
   const plantLabel = formatPlant(audit);
   const operationalLabel = formatOperational(audit);
   const classIds = audit?.class_ids ?? [];
@@ -266,9 +270,11 @@ export function TreeView({
               <span className="font-mono text-charcoal">{audit.product_id}</span>
             </DetailRow>
           )}
-          {originLabel && (
+          {(originLabel || designCountry || firmwareCountry) && (
             <DetailRow label="Origin">
-              <span className="text-charcoal">{originLabel}</span>
+              {originLabel && <span className="text-charcoal">{originLabel}</span>}
+              {designCountry && <OriginDimensionChip dimension="Design" country={designCountry} />}
+              {firmwareCountry && <OriginDimensionChip dimension="Firmware" country={firmwareCountry} />}
             </DetailRow>
           )}
           {plantLabel && (
@@ -388,6 +394,31 @@ function Pill({
   return (
     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
       {children}
+    </span>
+  );
+}
+
+const DIMENSION_CHIP_TEST_ID: Record<'Design' | 'Firmware', string> = {
+  Design: 'origin-chip-design',
+  Firmware: 'origin-chip-firmware',
+};
+
+// D-218 (2026-09-08): the chip carries its own dimension word so a bare ISO code beside the
+// manufacturing origin can never be read as a second manufacturing country.
+function OriginDimensionChip({
+  dimension,
+  country,
+}: {
+  dimension: 'Design' | 'Firmware';
+  country: string;
+}) {
+  return (
+    <span
+      data-testid={DIMENSION_CHIP_TEST_ID[dimension]}
+      title={`${dimension} origin: ${country}`}
+      className="ml-1.5 rounded bg-teal/10 px-1.5 py-0.5 text-[10px] text-teal-dark"
+    >
+      {dimension} {country}
     </span>
   );
 }
