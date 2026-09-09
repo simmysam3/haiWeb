@@ -106,6 +106,22 @@ describe('parseWorkbook — rows', () => {
     expect(out.ok && out.document.skipped).toBe(2);
     expect(out.ok && out.document.totalDataRows).toBe(5);
   });
+
+  it('does not collide a space-joined company and SKU with a different split of the same characters', async () => {
+    const bytes = workbook({
+      S: [
+        ['Company', 'SKU'],
+        ['foo', 'bar baz'],
+        ['foo bar', 'baz'],
+      ],
+    });
+    const out = await parseWorkbook(bytes);
+    expect(out.ok && out.document.rows).toEqual([
+      { company: 'foo', sku: 'bar baz', row: 2 },
+      { company: 'foo bar', sku: 'baz', row: 3 },
+    ]);
+    expect(out.ok && out.document.skipped).toBe(0);
+  });
 });
 
 describe('parseWorkbook — refusals name the ceiling', () => {

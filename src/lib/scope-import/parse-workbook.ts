@@ -141,7 +141,7 @@ export async function parseWorkbook(
         skipped += 1;
         return;
       }
-      const key = `${normalizeCompanyName(company)} ${sku}`;
+      const key = JSON.stringify([normalizeCompanyName(company), sku]);
       if (seen.has(key)) return;
       seen.add(key);
       rows.push({ company, sku, row: headerIdx + 2 + i });
