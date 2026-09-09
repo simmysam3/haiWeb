@@ -10,10 +10,6 @@
  * SheetJS is dynamically imported so the console's main bundle stays free of it.
  */
 
-// Type-only import: erased at compile time, so this does not pull SheetJS into
-// the runtime bundle. The value is always loaded via the dynamic `import('xlsx')` below.
-import type { WorkBook } from 'xlsx';
-
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 5000;
 
@@ -107,7 +103,7 @@ export async function parseWorkbook(
   }
 
   const XLSX = await import('xlsx');
-  let wb: WorkBook;
+  let wb: import('xlsx').WorkBook;
   try {
     wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true });
   } catch {
