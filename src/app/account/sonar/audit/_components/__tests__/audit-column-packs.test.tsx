@@ -118,3 +118,13 @@ describe('audit-history column pack — status cell', () => {
     expect(screen.queryByText('Archived')).not.toBeInTheDocument();
   });
 });
+
+// D-219 (2026-09-08), final review N7: the Domestic column's header tooltip gained the R10
+// sentence pointing at the run detail for design/firmware — nothing previously read it.
+describe('audit-history column pack — domestic column header', () => {
+  it('the header tooltip points to the run detail for design and firmware origin', () => {
+    const pack = buildAuditHistoryColumnPack(undefined);
+    const col = pack.columns.find((c) => c.key === 'domestic');
+    expect(col?.headerTitle).toContain('Manufacturing origin; open the run for design and firmware.');
+  });
+});

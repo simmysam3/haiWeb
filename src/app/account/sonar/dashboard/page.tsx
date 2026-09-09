@@ -8,9 +8,8 @@ import { ActivityFeed } from './_components/activity-feed';
 import { DashboardTabs } from './_components/dashboard-tabs';
 import { CoverageStatsStrip } from './_charts/coverage-stats-strip';
 import { CoverageTrendChart } from './_charts/coverage-trend-chart';
-import { GeoChart } from './_charts/geo-chart';
 import { ClassChart } from './_charts/class-chart';
-import { PartnersChart } from './_charts/partners-chart';
+import { DimensionLens } from './_components/dimension-lens';
 import { loadAuditChartData, type AuditChartData } from './_lib/load-audit-charts';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
@@ -262,11 +261,7 @@ export default async function UnifiedDashboardPage() {
                     ) : (
                       <CoverageTrendChart points={data.coverageTrend.data.points} />
                     )}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <GeoChart data={data.charts.rollup} />
-                      <ClassChart data={data.charts.classRollup} />
-                    </div>
-                    <PartnersChart data={data.charts.partnerCompliance} />
+                    <DimensionLens charts={data.charts} classChart={<ClassChart data={data.charts.classRollup} />} />
                   </>
                 )}
               </section>

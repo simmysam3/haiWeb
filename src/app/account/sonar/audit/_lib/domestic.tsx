@@ -4,8 +4,9 @@
 // the auditor-country flag when its ENTIRE component tree is resolved and
 // domestic; a vendor line earns it when its own origin is resolved + domestic.
 
-import type { GeoRollupEntry } from '@haiwave/protocol';
+import type { AuditRunResult, GeoRollupEntry } from '@haiwave/protocol';
 import { FLAG_COMPONENTS } from './country-flags';
+import { DIMENSIONS, rollupFor, type Dimension } from '@/app/account/sonar/_lib/origin-dimension';
 
 // Sentinel used by haiCore's geo-rollup builder for components that couldn't
 // be resolved to an ISO-2 country (GeoRollupEntrySchema, protocol
@@ -63,4 +64,25 @@ export function DomesticFlagBadge({
       <FlagComponent className={className} />
     </span>
   );
+}
+
+export type DomesticCounts = Record<Dimension, number> & { total: number };
+
+/**
+ * D-219 (2026-09-08): the run's "fully domestic" count per dimension, derived from its own result
+ * rows with the per-SKU rule above (spec R2) — the manufacturing figure uses the same rule over
+ * geo_rollup so the three are comparable.
+ */
+export function countDomesticByDimension(
+  results: AuditRunResult[],
+  auditorCountry: string | undefined,
+): DomesticCounts {
+  const counts: DomesticCounts = { manufacturing: 0, design: 0, firmware: 0, total: results.length };
+  if (!auditorCountry) return counts;
+  for (const r of results) {
+    for (const d of DIMENSIONS) {
+      if (isFullyDomestic(rollupFor(r, d), auditorCountry)) counts[d] += 1;
+    }
+  }
+  return counts;
 }

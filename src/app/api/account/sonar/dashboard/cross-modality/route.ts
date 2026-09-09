@@ -18,13 +18,17 @@ interface WatcherPerPartner {
   lead_time_p90_days: number | null;
 }
 
-async function loadAudit(client: {
-  listAuditRuns: (opts?: { status?: string; limit?: number }) => Promise<{ runs: AuditRun[] }>;
-  getAuditRunResults: (
-    runId: string,
-    opts?: { vendorId?: string; productId?: string },
-  ) => Promise<{ results: AuditRunResult[] }>;
-}): Promise<{
+async function loadAudit(
+  client: {
+    listAuditRuns: (opts?: { status?: string; limit?: number }) => Promise<{ runs: AuditRun[] }>;
+    getAuditRunResults: (
+      runId: string,
+      opts?: { vendorId?: string; productId?: string },
+    ) => Promise<{ results: AuditRunResult[] }>;
+    getCompanyProfile: (id: string) => Promise<unknown>;
+  },
+  participantId: string,
+): Promise<{
   perVendor: Map<string, PartnerAuditWeight>;
   resultsByVendor: Map<string, { compliant: number; partial: number; non_compliant: number; total: number }>;
 }> {
@@ -37,7 +41,18 @@ async function loadAudit(client: {
   // and /audit prefixes 404'd, so audit posture was permanently empty).
   const { results } = await client.getAuditRunResults(latest.run_id);
 
-  const perVendor = buildPerPartnerAuditWeights(latest, results);
+  // D-219 (2026-09-08): the compliant country is the auditor's own; unknown → no audit weights, the
+  // same shape as a run with no results (the console's partner panel names the fix).
+  let auditorCountry: string | undefined;
+  try {
+    const profile = await client.getCompanyProfile(participantId);
+    const locality = (profile as { locality?: { country?: string } }).locality;
+    if (locality?.country) auditorCountry = locality.country.toUpperCase();
+  } catch {
+    // No profile — leave undefined.
+  }
+  if (!auditorCountry) return { perVendor: new Map(), resultsByVendor: new Map() };
+  const perVendor = buildPerPartnerAuditWeights(latest, results, auditorCountry);
   const resultsByVendor = new Map<string, { compliant: number; partial: number; non_compliant: number; total: number }>();
   for (const [vid, w] of perVendor) {
     resultsByVendor.set(vid, {
@@ -118,9 +133,9 @@ async function loadWatcher(client: {
   return { data: byPartner, degraded: anyFailed };
 }
 
-export const GET = withHaiCore(async ({ client }) => {
+export const GET = withHaiCore(async ({ client, session }) => {
   const [auditResult, watcherResult] = await Promise.allSettled([
-    loadAudit(client),
+    loadAudit(client, session.participant.id),
     loadWatcher(client),
   ]);
 

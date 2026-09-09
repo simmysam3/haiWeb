@@ -121,7 +121,7 @@ describe('loadAuditChartData', () => {
     });
 
     stubFetch({
-      '/api/account/audit-runs?limit=25': { ok: true, body: { runs: [makeRun()] } },
+      '/api/account/sonar/audit/runs?limit=25': { ok: true, body: { runs: [makeRun()], auditor_country: 'US' } },
       [`/api/account/audit-runs/${RUN_ID}/results`]: {
         ok: true,
         body: { results: [resultA, resultB] },
@@ -147,21 +147,27 @@ describe('loadAuditChartData', () => {
 
   it('returns EMPTY when the runs fetch is not ok (500)', async () => {
     stubFetch({
-      '/api/account/audit-runs?limit=25': { ok: false },
+      '/api/account/sonar/audit/runs?limit=25': { ok: false },
     });
 
     const out = await loadAuditChartData();
 
+    // D-219 (2026-09-08): EMPTY grew per-dimension fields — the R1 replacement of this exact-shape
+    // assertion, widened to match `AuditChartData`'s new shape rather than worked around.
     expect(out).toEqual({
       rollup: [],
       classRollup: [],
       partnerCompliance: null,
+      rollupByDimension: { manufacturing: [], design: [], firmware: [] },
+      partnerComplianceByDimension: { manufacturing: null, design: null, firmware: null },
+      auditorCountry: undefined,
+      latestRunId: null,
     });
   });
 
   it('returns EMPTY when no run has status complete or partial', async () => {
     stubFetch({
-      '/api/account/audit-runs?limit=25': {
+      '/api/account/sonar/audit/runs?limit=25': {
         ok: true,
         body: {
           runs: [
@@ -175,10 +181,57 @@ describe('loadAuditChartData', () => {
 
     const out = await loadAuditChartData();
 
+    // D-219 (2026-09-08): same R1 replacement as above — EMPTY's new shape.
     expect(out).toEqual({
       rollup: [],
       classRollup: [],
       partnerCompliance: null,
+      rollupByDimension: { manufacturing: [], design: [], firmware: [] },
+      partnerComplianceByDimension: { manufacturing: null, design: null, firmware: null },
+      auditorCountry: undefined,
+      latestRunId: null,
     });
+  });
+
+  // D-219 (2026-09-08): three datasets, one per dimension; manufacturing stays in `rollup` / `partnerCompliance`.
+  it('merges each dimension separately; the manufacturing dataset is the legacy `rollup`', async () => {
+    const resultA = makeResult({
+      result_id: '44444444-0000-0000-0000-000000000001',
+      geo_rollup: [{ country_of_origin: 'TW', component_count: 2, depth_distribution: { '1': 2 } }],
+      design_geo_rollup: [{ country_of_origin: 'CN', component_count: 2, depth_distribution: { '1': 2 } }],
+    });
+    const resultB = makeResult({
+      result_id: '44444444-0000-0000-0000-000000000002',
+      geo_rollup: [{ country_of_origin: 'TW', component_count: 1, depth_distribution: { '1': 1 } }],
+      design_geo_rollup: [{ country_of_origin: 'CN', component_count: 1, depth_distribution: { '2': 1 } }],
+      firmware_geo_rollup: [{ country_of_origin: '<unknown>', component_count: 1, depth_distribution: { '2': 1 } }],
+    });
+    stubFetch({
+      '/api/account/sonar/audit/runs?limit=25': { ok: true, body: { runs: [makeRun()], auditor_country: 'US' } },
+      [`/api/account/audit-runs/${RUN_ID}/results`]: { ok: true, body: { results: [resultA, resultB] } },
+      [`/api/account/audit-runs/${RUN_ID}/class-rollup`]: { ok: true, body: { rollup: [] } },
+    });
+    const out = await loadAuditChartData();
+    expect(out.rollupByDimension.manufacturing).toEqual(out.rollup);
+    expect(out.rollupByDimension.design).toEqual([{ country_of_origin: 'CN', component_count: 3, depth_distribution: { '1': 2, '2': 1 } }]);
+    expect(out.rollupByDimension.firmware).toEqual([{ country_of_origin: '<unknown>', component_count: 1, depth_distribution: { '2': 1 } }]);
+    expect(out.partnerComplianceByDimension.manufacturing).toEqual(out.partnerCompliance);
+    expect(out.partnerComplianceByDimension.design?.total_non_compliant).toBe(3);
+    expect(out.auditorCountry).toBe('US');
+    expect(out.latestRunId).toBe(RUN_ID);
+  });
+
+  it('no auditor country: partner compliance is null in every dimension; the rollups still load', async () => {
+    stubFetch({
+      '/api/account/sonar/audit/runs?limit=25': { ok: true, body: { runs: [makeRun()] } },
+      [`/api/account/audit-runs/${RUN_ID}/results`]: { ok: true, body: { results: [makeResult({ geo_rollup: [{ country_of_origin: 'US', component_count: 1, depth_distribution: {} }] })] } },
+      [`/api/account/audit-runs/${RUN_ID}/class-rollup`]: { ok: true, body: { rollup: [] } },
+    });
+    const out = await loadAuditChartData();
+    expect(out.partnerCompliance).toBeNull();
+    expect(out.partnerComplianceByDimension).toEqual({ manufacturing: null, design: null, firmware: null });
+    expect(out.rollup).toHaveLength(1);
+    expect(out.auditorCountry).toBeUndefined();
+    expect(out.latestRunId).toBe(RUN_ID);
   });
 });

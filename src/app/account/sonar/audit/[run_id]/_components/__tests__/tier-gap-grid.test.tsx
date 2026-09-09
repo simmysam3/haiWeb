@@ -37,7 +37,8 @@ function node(
 
 // v1.85 (2026-09-03), D-207: a result row may carry the vendor's latest manifest
 // name + catalog descriptors; the grid reads them, '' when absent.
-type Descriptors = Partial<Pick<AuditRunResult, 'product_name' | 'brand' | 'model' | 'family' | 'short_description'>>;
+// D-219 (2026-09-08): also accepts the three geo-rollup fields, for the dimension chips/badges tests below.
+type Descriptors = Partial<Pick<AuditRunResult, 'product_name' | 'brand' | 'model' | 'family' | 'short_description' | 'geo_rollup' | 'design_geo_rollup' | 'firmware_geo_rollup'>>;
 
 function result(productId: string, vendorId: string, tree: ObservationNode, descriptors: Descriptors = {}): AuditRunResult {
   return {
@@ -335,5 +336,42 @@ describe('TierGapGrid catalog descriptors', () => {
     expect(screen.getByText('Vendor did not respond')).toBeInTheDocument();
     expect(screen.queryByTestId('sku-descriptors')).toBeNull();
     expect(screen.getAllByText('pts')).toHaveLength(2);
+  });
+});
+
+// D-219 (2026-09-08): per-dimension badges, chips and the run summary line.
+describe('design and firmware dimensions (D-219)', () => {
+  const entry = (country_of_origin: string, component_count = 1) => ({ country_of_origin, component_count, depth_distribution: {} });
+  const tree = node(1, false, [], 'Acme');
+  const allUs = result('ALL-US', 'v1', tree, { geo_rollup: [entry('US', 2)], design_geo_rollup: [entry('US')], firmware_geo_rollup: [entry('US')] });
+  const cnDesign = result('CN-DES', 'v1', tree, { geo_rollup: [entry('US')], design_geo_rollup: [entry('CN', 2), entry('US')], firmware_geo_rollup: [entry('<unknown>')] });
+  const plain = result('PLAIN', 'v1', tree, { geo_rollup: [entry('TW')] });
+
+  it('an all-US design rollup earns the Design badge; an unresolved firmware rollup earns none', () => {
+    render(<TierGapGrid run={RUN} results={[allUs, cnDesign]} auditorCountry="US" />);
+    expect(screen.getAllByTestId('domestic-badge-design')).toHaveLength(1);
+    expect(screen.getByText("Every design origin in this SKU's tree is domestic.")).toBeInTheDocument();
+    expect(screen.getAllByTestId('domestic-badge-firmware')).toHaveLength(1);
+  });
+  it('chips list the resolved design countries; an unresolved firmware rollup gets no group; a plain row gets no chips row', () => {
+    render(<TierGapGrid run={RUN} results={[cnDesign, plain]} auditorCountry="US" />);
+    expect(screen.getAllByTestId('dimension-countries')).toHaveLength(1);
+    expect(screen.getByRole('img', { name: 'Design origin: China (CN)' })).toBeInTheDocument();
+    expect(screen.getByTestId('dimension-countries')).not.toHaveTextContent('Firmware');
+  });
+  it('the summary line reports the three counts over the run', () => {
+    render(<TierGapGrid run={RUN} results={[allUs, cnDesign, plain]} auditorCountry="US" />);
+    expect(screen.getByTestId('domestic-by-dimension')).toHaveTextContent('Fully domestic — Manufacturing 2 of 3 · Design 1 of 3 · Firmware 1 of 3');
+  });
+  it('no auditor country: no dimension badges and no summary line; chips still render', () => {
+    render(<TierGapGrid run={RUN} results={[allUs, cnDesign]} />);
+    expect(screen.queryByTestId('domestic-badge-design')).toBeNull();
+    expect(screen.queryByTestId('domestic-by-dimension')).toBeNull();
+    // D-219 (2026-09-08), R1 house ruling: the brief's literal test had `toHaveLength(1)` here,
+    // a copy-paste artifact from test 1's identical fixture line above — both allUs (design +
+    // firmware) and cnDesign (design only) resolve at least one country, so two rows each render
+    // their own `dimension-countries` group; DimensionCountryChips takes no auditorCountry, so
+    // chip rendering is unaffected by it (only the badges/summary line are gated on it, asserted above).
+    expect(screen.getAllByTestId('dimension-countries')).toHaveLength(2);
   });
 });
