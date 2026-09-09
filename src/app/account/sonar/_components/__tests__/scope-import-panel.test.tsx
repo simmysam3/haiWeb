@@ -185,7 +185,11 @@ describe('ScopeImportPanel', () => {
 
     chooseFile(first);
     chooseFile(second);
-    expect(await screen.findByText('second.xlsx: 2 products across 1 company.')).toBeInTheDocument();
+    // Wait for the SETTLED (classified) state, not the summary line alone: the
+    // same sentence is rendered by the parsed phase and then again by ready, so
+    // a node captured mid-transition is unmounted before it can be asserted on.
+    await screen.findByText('Not on the HAIWAVE network: Nordkapp Sensor Systems.');
+    expect(screen.getByText('second.xlsx: 2 products across 1 company.')).toBeInTheDocument();
 
     // The stale read lands now; its result must be discarded, not rendered.
     await act(async () => {
