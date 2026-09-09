@@ -89,4 +89,16 @@ describe('classifyCompanies', () => {
     expect(lookup).toHaveBeenCalledTimes(10);
     expect(peak).toBeLessThanOrEqual(3);
   });
+
+  it('keeps output in file order even when later lookups resolve before earlier ones', async () => {
+    const lookup = vi.fn(async (name: string) => {
+      const index = Number(name.split(' ')[1]);
+      await new Promise((r) => setTimeout(r, (6 - index) * 4));
+      return [];
+    });
+    const pairs: Array<[string, string]> = Array.from({ length: 6 }, (_, i) => [`Vendor ${i}`, `V-${i}`]);
+    const out = await classifyCompanies(doc(pairs), { universe: [], selfNames: [], lookup, concurrency: 2 });
+    expect(out.map((c) => c.name)).toEqual(['Vendor 0', 'Vendor 1', 'Vendor 2', 'Vendor 3', 'Vendor 4', 'Vendor 5']);
+    expect(out.every((c) => c.membership === 'not_on_network')).toBe(true);
+  });
 });
