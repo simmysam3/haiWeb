@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as XLSX from 'xlsx';
 import { WatcherScopePicker } from '../watcher-scope-picker';
 import type { WatcherScope } from '@haiwave/protocol';
 
@@ -396,5 +397,34 @@ describe('<WatcherScopePicker>', () => {
     // expanded.
     expect(last.counterparties).toEqual(expect.arrayContaining([cpA, cpB]));
     expect(last.skus).toEqual(expect.arrayContaining(['SKU-A1', 'SKU-A2', 'SKU-B1']));
+  });
+});
+
+function fileWith(rows: unknown[][], name = 'scope.xlsx'): File {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Products');
+  return new File([XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer], name);
+}
+
+describe('WatcherScopePicker — import from spreadsheet', () => {
+  it('checks the file’s matching SKU for the chosen company and emits it in the scope', async () => {
+    stubCatalogFetch(['PN-88A', 'PN-99B']);
+    const onChange = vi.fn();
+    render(<WatcherScopePicker value={empty} onChange={onChange} />);
+
+    const input = (await screen.findByLabelText(/choose a spreadsheet/i)) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [fileWith([['Supplier', 'SKU'], ['Acme', 'PN-99B'], ['Acme', 'PN-NOPE'], ['Zed Co', 'Z-1']])] },
+    });
+
+    expect(await screen.findByText('Not on the HAIWAVE network: Zed Co.')).toBeInTheDocument();
+    const select = (await screen.findByLabelText('Import products for')) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'cccccccc-0000-0000-0000-000000000001' } });
+
+    expect(await screen.findByText('1 of 2 SKUs for Acme matched and were checked below.')).toBeInTheDocument();
+    expect(screen.getByText("Not in Acme's catalog: PN-NOPE.")).toBeInTheDocument();
+    const last = onChange.mock.calls[onChange.mock.calls.length - 1][0] as WatcherScope;
+    expect(last.skus).toEqual(['PN-99B']);
+    expect(last.counterparties).toEqual(['cccccccc-0000-0000-0000-000000000001']);
   });
 });
