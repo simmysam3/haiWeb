@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -75,5 +76,76 @@ describe('BilateralCounterpartiesSkusFields — onOptionsLoaded', () => {
     ]);
     // The universe request happened exactly once.
     expect(fetchMock.mock.calls.filter(([u]) => String(u) === '/api/account/partners')).toHaveLength(1);
+  });
+});
+
+type Emitted = { counterparties: string[]; skus: string[]; sku_asks: unknown[] };
+
+/** Controlled harness: feeds onChange back into `skus` the way the wizards do. */
+function Harness(props: {
+  universe: 'bilateral_connections' | 'accepted_audit_scopes';
+  importRequest: { id: number; counterpartyId: string; skus: string[] } | null;
+  onImportResult?: (r: ImportResult) => void;
+  onEmit: (e: Emitted) => void;
+  initialSkus?: string[];
+}) {
+  const [skus, setSkus] = useState<string[]>(props.initialSkus ?? []);
+  return (
+    <BilateralCounterpartiesSkusFields
+      skus={skus}
+      universe={props.universe}
+      importRequest={props.importRequest}
+      onImportResult={props.onImportResult}
+      onChange={(e) => {
+        setSkus(e.skus);
+        props.onEmit(e);
+      }}
+    />
+  );
+}
+
+describe('BilateralCounterpartiesSkusFields — importRequest', () => {
+  it('checks the matched SKUs and emits the same payload a manual click sequence emits', async () => {
+    // Manual control: click the two EEC SKUs by hand.
+    stubFetch();
+    const manual: Emitted[] = [];
+    const m = render(<Harness universe="bilateral_connections" importRequest={null} onEmit={(e) => manual.push(e)} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Pratt & Whitney/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Engine Control/ }));
+    const boxes = await screen.findAllByRole('checkbox');
+    const eec1 = boxes.find((b) => b.closest('li, div')?.textContent?.includes('5328285'));
+    const eec2 = boxes.find((b) => b.closest('li, div')?.textContent?.includes('5331092'));
+    if (!eec1 || !eec2) throw new Error('SKU checkboxes not found');
+    fireEvent.click(eec1);
+    fireEvent.click(eec2);
+    const manualLast = manual[manual.length - 1];
+    expect(manualLast.skus).toEqual(['5328285', '5331092']);
+    m.unmount();
+    vi.unstubAllGlobals();
+
+    // Import: same two SKUs, plus one the file has and the catalog does not.
+    stubFetch();
+    const imported: Emitted[] = [];
+    const results: ImportResult[] = [];
+    render(
+      <Harness
+        universe="bilateral_connections"
+        importRequest={{ id: 1, counterpartyId: PW, skus: ['5328285', '5331092', 'NOT-IN-CATALOG'] }}
+        onImportResult={(r) => results.push(r)}
+        onEmit={(e) => imported.push(e)}
+      />,
+    );
+    await waitFor(() => expect(results).toHaveLength(1));
+    expect(results[0]).toEqual({
+      id: 1,
+      counterpartyId: PW,
+      matched: ['5328285', '5331092'],
+      notInCatalog: ['NOT-IN-CATALOG'],
+      notAccepted: [],
+    });
+    expect(imported[imported.length - 1]).toEqual(manualLast);
+    // The counterparty and the class holding the matches are expanded, and the boxes are checked.
+    const checked = (await screen.findAllByRole('checkbox')).filter((b) => (b as HTMLInputElement).checked);
+    expect(checked.length).toBeGreaterThanOrEqual(2);
   });
 });
