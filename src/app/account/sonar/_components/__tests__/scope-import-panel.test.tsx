@@ -200,6 +200,31 @@ describe('ScopeImportPanel', () => {
     expect(screen.queryByText(/first\.xlsx/)).not.toBeInTheDocument();
   });
 
+  it('tells its owner to reset on every pick, including clearing', async () => {
+    stubFetch();
+    const onReset = vi.fn();
+    render(
+      <ScopeImportPanel
+        universe="bilateral_connections"
+        options={options}
+        onImport={() => {}}
+        result={null}
+        importing={false}
+        onReset={onReset}
+      />,
+    );
+
+    chooseFile(demoFile());
+    await screen.findByLabelText('Import products for');
+    expect(onReset).toHaveBeenCalledTimes(1);
+
+    chooseFile(demoFile());
+    await waitFor(() => expect(onReset).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(onReset).toHaveBeenCalledTimes(3);
+  });
+
   it('says the byte ceiling in place without parsing', async () => {
     stubFetch();
     render(<ScopeImportPanel universe="bilateral_connections" options={options} onImport={() => {}} result={null} importing={false} />);

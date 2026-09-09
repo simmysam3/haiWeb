@@ -44,6 +44,12 @@ export interface ScopeImportPanelProps {
   onImport: (counterpartyId: string, skus: string[], companyName: string) => void;
   result: (ImportResult & { companyName: string }) | null;
   importing: boolean;
+  /**
+   * Called at the top of every pick, including clearing. The previous file's
+   * match summary belongs to the previous file: left standing next to a new
+   * one it is a false statement, so the owner drops its request and result.
+   */
+  onReset?: () => void;
 }
 
 /**
@@ -99,7 +105,7 @@ async function directoryLookup(name: string): Promise<DirectoryHit[]> {
   return hits;
 }
 
-export function ScopeImportPanel({ universe, options, onImport, result, importing }: ScopeImportPanelProps) {
+export function ScopeImportPanel({ universe, options, onImport, result, importing, onReset }: ScopeImportPanelProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const [choice, setChoice] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -125,6 +131,7 @@ export function ScopeImportPanel({ universe, options, onImport, result, importin
 
   async function onFile(file: File | undefined) {
     const seq = ++pickSeq.current;
+    onReset?.();
     setChoice('');
     if (!file) {
       setPhase({ kind: 'idle' });

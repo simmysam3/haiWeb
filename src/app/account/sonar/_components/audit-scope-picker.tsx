@@ -130,6 +130,10 @@ export function AuditScopePicker({ value, onChange }: Props) {
         <>
           <ScopeImportPanel
             universe="accepted_audit_scopes"
+            onReset={() => {
+              setImportRequest(null);
+              setImportResult(null);
+            }}
             options={importOptions}
             importing={importRequest !== null && importResult?.id !== importRequest.id}
             result={importResult}

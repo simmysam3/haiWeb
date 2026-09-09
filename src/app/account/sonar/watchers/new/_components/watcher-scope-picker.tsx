@@ -84,6 +84,10 @@ export function WatcherScopePicker({ value, onChange }: Props) {
     <div className="space-y-4">
       <ScopeImportPanel
         universe="bilateral_connections"
+        onReset={() => {
+          setImportRequest(null);
+          setImportResult(null);
+        }}
         options={importOptions}
         importing={importRequest !== null && importResult?.id !== importRequest.id}
         result={importResult}

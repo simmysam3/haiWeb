@@ -70,6 +70,27 @@ describe('AuditScopePicker — import from spreadsheet (bilateral branch)', () =
     expect(last.authorization_basis).toBe('bilateral');
   });
 
+  it('drops the previous file’s match summary when a second file is chosen', async () => {
+    stubAuditFetch();
+    render(<AuditScopePicker value={bilateralEmpty} onChange={() => {}} />);
+
+    const input = (await screen.findByLabelText(/choose a spreadsheet/i)) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [fileWith([['Vendor', 'Part Number'], ['Acme', 'PN-88A'], ['Acme', 'PN-99B']])] },
+    });
+    const select = (await screen.findByLabelText('Import products for')) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: CP } });
+    expect(await screen.findByText('1 of 2 SKUs for Acme matched and were checked below.')).toBeInTheDocument();
+
+    // A second, unrelated file. The old summary would be a false statement
+    // standing next to it, so it must not survive the pick.
+    fireEvent.change(input, { target: { files: [fileWith([['Vendor', 'Part Number'], ['Bolt Co', 'BC-1']])] } });
+    // Wait for the SECOND file to be classified, not merely read: the summary
+    // is hidden while reading, so asserting earlier would pass either way.
+    await screen.findByText('Not on the HAIWAVE network: Bolt Co.');
+    expect(screen.queryByText(/matched and were checked below/)).not.toBeInTheDocument();
+  });
+
   it('offers no import panel on the key-scoped branch', () => {
     stubAuditFetch();
     render(
