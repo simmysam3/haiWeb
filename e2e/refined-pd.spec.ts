@@ -167,9 +167,12 @@ test.describe('§16 v.1.44 Refined Phantom Demand', () => {
     ).toBeLessThan(500);
 
     if (status !== 200) {
+      // This test's assertion is its title -- `status < 500` above -- and it
+      // ran. The old wording ("full assertion skipped") described a skip that
+      // does not happen and got this test misread as vacuous (2026-09-11).
       console.info(
         '[16.1] Page returned 404 (no seed run in DB). ' +
-          'Routing confirmed; full assertion skipped — seed a PD run and rerun.',
+          'The no-5xx assertion ran and passed; there is no further assertion in this test.',
       );
     }
   });
@@ -212,13 +215,13 @@ test.describe('§16 v.1.44 Refined Phantom Demand', () => {
     expect(response, 'no response from run-detail URL').not.toBeNull();
 
     const httpStatus = response!.status();
-    if (httpStatus === 404) {
-      console.info(
-        '[16.2] Page returned 404 (no seed run in DB with this ID). ' +
-          'Node-click assertion skipped — seed a PD run or use a real run_id.',
-      );
-      return;
-    }
+    // A 404 used to `return` here and report PASSED having checked nothing this
+    // test is named for (measured 2026-09-11). A skip with its reason is the
+    // honest state: counted, and named, in the skipped column.
+    test.skip(
+      httpStatus === 404,
+      '[16.2] run-detail returned 404 (no seeded PD run with this ID): the node-click assertion cannot run. Seed a PD run or use a real run_id.',
+    );
 
     expect(
       httpStatus,
@@ -267,13 +270,11 @@ test.describe('§16 v.1.44 Refined Phantom Demand', () => {
     expect(response, 'no response from run-detail URL').not.toBeNull();
 
     const httpStatus = response!.status();
-    if (httpStatus === 404) {
-      console.info(
-        '[16.3] Page returned 404 (no seed run in DB). ' +
-          'SpotCheckBanner assertion skipped.',
-      );
-      return;
-    }
+    // As 16.2: a 404 used to `return` and report PASSED with the banner unchecked.
+    test.skip(
+      httpStatus === 404,
+      '[16.3] run-detail returned 404 (no seeded PD run): the SpotCheckBanner assertion cannot run. Seed a PD run.',
+    );
 
     expect(httpStatus, `unexpected status ${httpStatus}`).toBe(200);
 

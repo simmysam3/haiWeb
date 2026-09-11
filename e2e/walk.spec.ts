@@ -84,9 +84,20 @@ test.describe("§0 Stack bring-up", () => {
     await req.dispose();
   });
 
-  test("0.4 all 11 agent /health respond 200", async ({ playwright }) => {
+  test("0.4 every expected agent /health responds 200", async ({ playwright }) => {
+    // The agent port set is NOT hardcoded here. It used to be 8081-8091, which
+    // includes :8083 -- down by design on the standard stack -- so this test
+    // failed with ECONNREFUSED on every standard-port walk (measured
+    // 2026-09-11). The set is encoded ONCE, with its design-down ports, in
+    // haiCore tools/gate/live/preconditions.py, and the release gate passes it
+    // in. Hardcoding a different list here would just move the same defect.
+    const fromEnv = (process.env.HAIWAVE_AGENT_PORTS ?? "").split(/[\s,]+/).filter(Boolean);
+    test.skip(
+      fromEnv.length === 0,
+      "agent port set not provided: set HAIWAVE_AGENT_PORTS (the release gate supplies it from live/preconditions.py)",
+    );
     const req = await playwright.request.newContext();
-    const ports = [8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8089, 8090, 8091];
+    const ports = fromEnv.map(Number);
     const results = await Promise.all(
       ports.map(async (p) => ({ port: p, status: (await req.get(`http://localhost:${p}/health`)).status() })),
     );
