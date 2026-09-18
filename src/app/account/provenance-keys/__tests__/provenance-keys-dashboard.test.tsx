@@ -19,13 +19,13 @@ const EMPTY_PAYLOAD = {
 describe('ProvenanceKeysDashboard', () => {
   it('renders Generator and Installer tabs', () => {
     render(<ProvenanceKeysDashboard initial={EMPTY_PAYLOAD} />);
-    expect(screen.getByRole('button', { name: /generator/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /installer/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /generator/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /installer/i })).toBeInTheDocument();
   });
 
   it('switches to Installer tab when clicked', async () => {
     render(<ProvenanceKeysDashboard initial={EMPTY_PAYLOAD} />);
-    await userEvent.click(screen.getByRole('button', { name: /installer/i }));
+    await userEvent.click(screen.getByRole('tab', { name: /installer/i }));
     expect(screen.getByText(/no installations/i)).toBeInTheDocument();
   });
 
