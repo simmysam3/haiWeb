@@ -143,4 +143,25 @@ describe('PartnersPanel D-146 activation', () => {
     await waitFor(() => expect(screen.getByText('Your Invite: Sent')).toBeInTheDocument());
     expect(screen.getByText('Their Invite: Received')).toBeInTheDocument();
   });
+
+  // Item 13 interaction: reading the decline response added a res.json() call on the success
+  // path; if that parse itself throws (a 2xx with a malformed body), it must not escape as an
+  // unhandled rejection. Mirrors the file's own existing `.catch(() => null)` idiom (handleApprove,
+  // reloadPartners' caller).
+  it('does not crash and still clears pending_activation_at when the decline response body cannot be parsed', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new SyntaxError('bad json'); } });
+    vi.stubGlobal('fetch', fetchSpy);
+    const { useApi } = await import('@/lib/use-api');
+    (useApi as ReturnType<typeof vi.fn>).mockReturnValue({ data: [pendingPartner], loading: false });
+    const { PartnersPanel } = await import('../partners-panel');
+    render(<PartnersPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: /Active/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    const confirm = (await screen.findAllByRole('button', { name: 'Decline' })).at(-1)!;
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Accept Trading Pair' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Propose Trading Pair|Withdraw Trading Pair/ })).toBeInTheDocument();
+  });
 });

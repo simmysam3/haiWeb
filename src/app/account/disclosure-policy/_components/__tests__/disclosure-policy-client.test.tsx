@@ -68,6 +68,17 @@ describe('DisclosurePolicyClient', () => {
     expect(screen.getByLabelText('availability disclosure for trading_pair')).toHaveValue('qualified');
   });
 
+  // Items 12+13 interaction: item 13 made putOrFail's ok-path call res.json() to read the stored
+  // row; if that parse itself throws (a 2xx with a malformed body), it must not escape as an
+  // unhandled rejection either — the same failure mode item 12 closed for the fetch call itself.
+  it('shows an alert and keeps the prior cell when the matrix PUT response body cannot be parsed', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new SyntaxError('Unexpected end of JSON input'); } }));
+    render(<DisclosurePolicyClient classes={classes} policy={policy} participation={{ global: true, per_class: {} }} overrides={[]} counterparty={null} />);
+    fireEvent.change(screen.getByLabelText('availability disclosure for trading_pair'), { target: { value: 'raw' } });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByLabelText('availability disclosure for trading_pair')).toHaveValue('qualified');
+  });
+
   // Item 13 (final fix wave): saveCell applied the requested cell verbatim instead of the row
   // haiCore actually stored ({ row }, disclosure-policy.ts:110). The mocked response returns a
   // disclosure DIFFERENT from what was requested (as if the server normalized it) — a value that

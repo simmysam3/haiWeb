@@ -46,8 +46,16 @@ export function DisclosurePolicyClient({ classes, policy, participation, overrid
       setError(`Save failed (${res.status}): ${text}`);
       return null;
     }
-    setError(null);
-    return res.json();
+    // A malformed 2xx body must not escape either — the same failure mode item 12 closed for the
+    // fetch call itself, reopened by item 13 adding this parse.
+    try {
+      const parsed = await res.json();
+      setError(null);
+      return parsed;
+    } catch {
+      setError('Could not read the server response. Please try again.');
+      return null;
+    }
   }
 
   /** The ONLY writer of the participant matrix: it always sends a whole cell (PF P5). */
