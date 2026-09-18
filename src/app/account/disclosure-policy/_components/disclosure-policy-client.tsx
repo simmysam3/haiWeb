@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { describeApiError } from '@/lib/api-error';
 import { DisclosurePolicyMatrix, type PolicyCell } from './disclosure-policy-matrix';
 import { RoomParticipationPanel } from './room-participation-panel';
 import { CounterpartyOverridesPanel, type OverrideWrite } from './counterparty-overrides-panel';
@@ -32,6 +33,11 @@ export function DisclosurePolicyClient({ classes, policy, participation, overrid
    * Item 13 (final fix wave): returns the parsed response body (haiCore's stored `{ row }`,
    * disclosure-policy.ts:110/:134) rather than a bare boolean, so callers apply what the server
    * actually stored instead of assuming it stored exactly what was requested.
+   *
+   * Item 22 (final fix wave): the failure branch used to interpolate haiCore's raw error envelope
+   * ({ error: { code, message, timestamp, request_id, details? } }, lib/reply.ts:23-31) straight
+   * into the alert. `describeApiError` (the partners-panel.tsx confirmed() precedent) already
+   * parses this exact envelope and falls back gracefully on a non-JSON body.
    */
   async function putOrFail(url: string, body: unknown): Promise<unknown | null> {
     let res: Response;
@@ -42,8 +48,8 @@ export function DisclosurePolicyClient({ classes, policy, participation, overrid
       return null;
     }
     if (!res.ok) {
-      const text = await res.text();
-      setError(`Save failed (${res.status}): ${text}`);
+      const info = await describeApiError(res);
+      setError(`Save failed (${info.status}): ${info.message}`);
       return null;
     }
     // A malformed 2xx body must not escape either — the same failure mode item 12 closed for the

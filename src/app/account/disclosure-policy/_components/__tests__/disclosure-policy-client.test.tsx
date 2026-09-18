@@ -8,6 +8,12 @@ const COUNTERPARTY = '11111111-1111-4111-8111-111111111111';
 const classes: AttributeClassSummary[] = [{ attribute_class_id: 'availability', display_name: 'Availability', status: 'adopted', default_disclosure: { unknown: 'declined', behavioral_only: 'declined', trading_pair: 'qualified', premier_partner: 'raw' } }];
 const policy: DisclosurePolicyResponse = { matrix: [] };
 
+// Item 22 (final fix wave): a real Response, so describeApiError can actually parse the envelope
+// (a plain mock object has no `clone()`).
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
 describe('DisclosurePolicyClient', () => {
   it('PUTs the whole cell to the main route when no counterparty is set', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ row: { attribute_class_id: 'availability', trust_class: 'trading_pair', disclosure: 'raw', disclose_shortfall_quantity: false, source: 'participant' } }) }));
@@ -101,5 +107,22 @@ describe('DisclosurePolicyClient', () => {
     render(<DisclosurePolicyClient classes={classes} policy={policy} participation={{ global: true, per_class: {} }} overrides={[]} counterparty={COUNTERPARTY} />);
     fireEvent.change(screen.getByLabelText('availability override disclosure'), { target: { value: 'declined' } });
     await waitFor(() => expect(screen.getByLabelText('availability override disclosure')).toHaveValue('raw'));
+  });
+
+  // Item 22 (final fix wave): putOrFail interpolated haiCore's raw error envelope
+  // ({ error: { code, message, timestamp, request_id, details? } }, lib/reply.ts:23-31) straight
+  // into the alert text instead of parsing it. The operator saw a JSON blob carrying a request id
+  // and timestamp rather than the sentence haiCore wrote.
+  it('Item 22: shows haiCore\'s error.message, not the raw envelope JSON, when the matrix PUT is rejected', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(
+      { error: { code: 'VALIDATION_ERROR', message: 'Invalid disclosure value', timestamp: '2026-09-18T00:00:00Z', request_id: 'req-1' } },
+      400,
+    )));
+    render(<DisclosurePolicyClient classes={classes} policy={policy} participation={{ global: true, per_class: {} }} overrides={[]} counterparty={null} />);
+    fireEvent.change(screen.getByLabelText('availability disclosure for trading_pair'), { target: { value: 'raw' } });
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Invalid disclosure value');
+    expect(alert).not.toHaveTextContent('request_id');
+    expect(alert).not.toHaveTextContent('VALIDATION_ERROR');
   });
 });
