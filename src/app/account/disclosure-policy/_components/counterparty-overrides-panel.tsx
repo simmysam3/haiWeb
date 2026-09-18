@@ -38,20 +38,39 @@ export function CounterpartyOverridesPanel({ classes, overrides, onSaveOverride 
                 </select>
               </td>
               <td className="p-2">
+                {/*
+                  C1 fix (review-L7-1): an override never infers its disclosure. This panel has
+                  no trust class for the counterparty, so no correct disclosure is derivable
+                  client-side for a row that still inherits the matrix. The control stays
+                  disabled — and its handler stays guarded, belt-and-suspenders — until the
+                  operator has explicitly chosen a disclosure for this row via the other select,
+                  at which point `current` is non-null and the row's own chosen disclosure (never
+                  a default) is what gets forwarded.
+                */}
                 <select
                   aria-label={`${c.attribute_class_id} override shortfall quantity`}
-                  value={current?.disclose_shortfall_quantity === null || current === null ? 'inherit' : String(current.disclose_shortfall_quantity)}
-                  onChange={(e) => onSaveOverride({
-                    attribute_class_id: c.attribute_class_id,
-                    disclosure: (current?.disclosure ?? c.default_disclosure.trading_pair) as Disclosure,
-                    disclose_shortfall_quantity: e.target.value === 'inherit' ? null : e.target.value === 'true',
-                  })}
+                  aria-describedby={current === null ? `${c.attribute_class_id}-shortfall-hint` : undefined}
+                  disabled={current === null}
+                  value={current === null || current.disclose_shortfall_quantity === null ? 'inherit' : String(current.disclose_shortfall_quantity)}
+                  onChange={(e) => {
+                    if (current === null) return;
+                    onSaveOverride({
+                      attribute_class_id: c.attribute_class_id,
+                      disclosure: current.disclosure,
+                      disclose_shortfall_quantity: e.target.value === 'inherit' ? null : e.target.value === 'true',
+                    });
+                  }}
                   className="w-full text-sm border border-slate/20 rounded px-2 py-1"
                 >
                   <option value="inherit">Inherit</option>
                   <option value="true">Yes</option>
                   <option value="false">No</option>
                 </select>
+                {current === null && (
+                  <p id={`${c.attribute_class_id}-shortfall-hint`} className="mt-1 text-[11px] text-slate">
+                    Choose a disclosure to override this counterparty
+                  </p>
+                )}
               </td>
             </tr>
           );
