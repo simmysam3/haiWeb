@@ -19,6 +19,10 @@ export const GET = withHaiCore(
       invite_yours: boolean;
       invite_theirs: boolean;
       established_at: string;
+      // Not yet on the as-built ActiveConnection wire (PF P13, owner item) —
+      // passed through now so the surface lights up once haiCore projects them.
+      trust_class?: string;
+      pending_activation_at?: string | null;
     }>;
 
     // Map haiCore response to the shape the UI expects
@@ -32,6 +36,8 @@ export const GET = withHaiCore(
       invite_yours: c.invite_yours,
       invite_theirs: c.invite_theirs,
       connection_id: c.connection_id,
+      trust_class: c.trust_class,
+      pending_activation_at: c.pending_activation_at ?? null,
     }));
   },
   { fallback: MOCK_PARTNERS },

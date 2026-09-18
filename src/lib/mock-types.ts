@@ -4,6 +4,7 @@
 // or behind BFF routes).
 
 import type { UserRole } from "./auth";
+import type { TrustClass } from "@haiwave/protocol";
 
 export interface MockUser {
   id: string;
@@ -43,6 +44,15 @@ export interface MockPartner {
   invite_yours: boolean;
   invite_theirs: boolean;
   connection_id: string;
+  /**
+   * Optional: absent from MOCK_PARTNERS fallback data, and NOT YET on the
+   * live haiCore wire either — `ActiveConnection`
+   * (haiCore apps/core/src/services/connection-service.ts:40-50) projects
+   * neither this field nor `pending_activation_at` at 16b31655 (PF P13,
+   * owner item). Present from live haiCore once that projection ships.
+   */
+  trust_class?: TrustClass;
+  pending_activation_at?: string | null;
 }
 
 export interface MockAccessRequest {
