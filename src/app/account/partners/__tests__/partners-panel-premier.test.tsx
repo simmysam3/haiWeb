@@ -36,4 +36,22 @@ describe('PartnersPanel premier designation', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Active/ }));
     expect(screen.queryByRole('button', { name: /Premier/ })).not.toBeInTheDocument();
   });
+
+  // I2 (Batch 2 fix round): matches the panel's own "a 403 ... shows the
+  // error" bar (partners-panel.test.tsx) — no new refusal test existed for
+  // this gesture.
+  it('a 403 leaves the trust class unchanged, shows no success toast, and shows the error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'Forbidden' }) }));
+    const { useApi } = await import('@/lib/use-api');
+    (useApi as ReturnType<typeof vi.fn>).mockReturnValue({ data: [partner], loading: false });
+    const { PartnersPanel } = await import('../partners-panel');
+    render(<PartnersPanel />);
+    fireEvent.click(screen.getByRole('tab', { name: /Active/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Raise to Premier' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Raise to Premier' })[1]);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/forbidden|permission/i);
+    expect(screen.queryByText(/raised .* to premier/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Raise to Premier' })[0]).toBeInTheDocument();
+  });
 });

@@ -69,6 +69,7 @@ export function PartnersPanel() {
   const [premierPartner, setPremierPartner] = useState<MockPartner | null>(null);
   const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
   const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
+  const [declineActivationPartner, setDeclineActivationPartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
   const { toast, showToast } = useToast();
   // The BFF's answer is the fact: a mutation mutates local state and shows a
@@ -302,8 +303,11 @@ export function PartnersPanel() {
     showToast(`Activated trading pair with ${p.company_name}`);
   }
 
-  async function handleDeclineActivation(p: MockPartner) {
+  async function handleDeclineActivation() {
+    if (!declineActivationPartner) return;
+    const p = declineActivationPartner;
     const res = await confirmed(fetch(`/api/account/connections/${p.connection_id}/decline-activation`, { method: 'POST' }));
+    setDeclineActivationPartner(null);
     if (!res) return;
     setPartners((prev) => prev.map((x) => x.id === p.id ? { ...x, invite_yours: false, invite_theirs: false, pending_activation_at: null } : x));
     showToast(`Declined trading pair activation with ${p.company_name}`);
@@ -456,7 +460,7 @@ export function PartnersPanel() {
           {p.pending_activation_at ? (
             <>
               <Button size="sm" onClick={() => handleActivate(p)}>Accept Trading Pair</Button>
-              <Button size="sm" variant="ghost" onClick={() => handleDeclineActivation(p)}>Decline</Button>
+              <Button size="sm" variant="ghost" onClick={() => setDeclineActivationPartner(p)}>Decline</Button>
             </>
           ) : (
             <Button
@@ -912,6 +916,22 @@ export function PartnersPanel() {
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setDowngradePartner(null)}>Cancel</Button>
             <Button variant="danger" onClick={handleDowngrade}>Downgrade</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Decline Activation Modal */}
+      <Modal open={!!declineActivationPartner} onClose={() => setDeclineActivationPartner(null)} title="Decline Trading Pair Activation">
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            Decline the trading pair activation with <strong>{declineActivationPartner?.company_name}</strong>?
+          </p>
+          <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
+            This clears both sides&apos; invites. Either side can propose again later.
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setDeclineActivationPartner(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDeclineActivation}>Decline</Button>
           </div>
         </div>
       </Modal>
