@@ -427,6 +427,12 @@ export function PartnersPanel() {
           >
             {p.invite_yours ? "Withdraw Trading Pair" : "Propose Trading Pair"}
           </Button>
+          <Link
+            href={`/account/disclosure-policy?counterparty=${encodeURIComponent(p.id)}`}
+            className="text-xs text-teal hover:text-navy font-medium"
+          >
+            Disclosure Policy
+          </Link>
           {p.status === "trading_pair" && (
             <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
           )}
