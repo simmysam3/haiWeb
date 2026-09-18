@@ -60,9 +60,10 @@ describe('CounterpartyOverridesPanel', () => {
     expect(shortfallSelect).not.toBeDisabled();
     fireEvent.change(shortfallSelect, { target: { value: 'true' } });
     expect(onSaveOverride).toHaveBeenLastCalledWith({ attribute_class_id: 'availability', disclosure: 'declined', disclose_shortfall_quantity: true });
-    // Present control: the registry default this class's trading_pair column carries is 'qualified',
-    // not 'declined' — proving the sent value is the operator's own choice, not the registry default.
-    expect(classes[0].default_disclosure.trading_pair).toBe('qualified');
+    // The sent disclosure must not equal the registry default — reads the component's actual
+    // output, not a fixture constant, so a regression to "always send the registry default"
+    // (this class's trading_pair column, deliberately 'qualified' here, not 'declined') fails it.
+    expect(onSaveOverride.mock.calls.at(-1)?.[0].disclosure).not.toBe(classes[0].default_disclosure.trading_pair);
   });
 
   // I2 (review-L7-1, fix round): the override side of PF P5 — a full-replace
