@@ -1151,7 +1151,7 @@ readlink node_modules/@haiwave/protocol
 npx vitest run src/app/account/disclosure-policy
 npm run build
 ```
-Expected: vitest PASS, 10 tests; read the reporter for `(retry x` markers. `npm run build` exits 0 — it is the only check that the components agree with `safe-room-types.ts`. **Final review I3 correction:** the three component test files as actually built hold 16 tests, not 10 — the fix rounds (Batch 1's C1/I1/I2, this fix wave's items 10-13) added six.
+Expected: vitest PASS, 10 tests; read the reporter for `(retry x` markers. `npm run build` exits 0 — it is the only check that the components agree with `safe-room-types.ts`. **Re-review N2 correction (measured at the tip that ships, `bf99052`): the three component test files hold 22 tests, not 10** — `counterparty-overrides-panel.test.tsx` 6, `disclosure-policy-client.test.tsx` 10, `disclosure-policy-matrix.test.tsx` 6 (instrument: `grep -cE '^[[:space:]]*it\('` per file, calibrated against the client file's 10 hits / 10 matching lines before counting the other two). The fix rounds (Batch 1's C1/I1/I2; this fix wave's items 10-13, 22) added twelve over the plan's original 10. This number moves with the branch — re-measure at any later commit that touches these three files before citing it again.
 
 - [ ] **Step 5: Commit**
 
