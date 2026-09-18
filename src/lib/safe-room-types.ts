@@ -1,4 +1,4 @@
-import type { AttributeClass, AttributeClassProposal, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
+import type { AttributeClass, AttributeClassProposal, InquiryOutcomeOrPending, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
 
 // ─── Disclosure policy (spec §5; as-built apps/core/src/routes/disclosure-policy.ts at 16b31655) ───
 export type Disclosure = 'raw' | 'qualified' | 'declined';
@@ -91,3 +91,47 @@ export interface AttributeClassProposalRow {
 export interface AttributeClassProposalListResponse {
   proposals: AttributeClassProposalRow[];
 }
+
+// ─── Qualified inquiries (spec §6.4, §11; as-built at 16b31655) ───
+export type InquiryOutcome = 'satisfied' | 'satisfied_with_condition' | 'not_satisfied' | 'declined' | 'unavailable';
+export type InquiryDirection = 'inbound' | 'outbound';
+
+export interface InquiryLogRow {
+  inquiry_id: string;
+  requester_participant_id: string;
+  responder_participant_id: string;
+  subjects: unknown[]; // spec §6.1 discriminated union (sku/product_class/component_ref/facility/participant); not further typed here
+  attribute_class_id: string;
+  tier_at_request: TrustClass;
+  /** The row's lifecycle status — distinct from `outcome`, and narrowed to the as-built five (PF P20). */
+  status: 'dispatched' | 'pending' | 'answered' | 'declined' | 'unavailable';
+  /** null on a dispatched or pending row (PF P20). */
+  outcome: InquiryOutcome | null;
+  commitment_id: string | null;
+  /**
+   * A 0/1 INDICATOR, not a count: no table links a guard trip to an inquiry, and the room stores
+   * one rule type, so it can never exceed 1. It is 0 on every outbound row by construction, which
+   * is why only the inbound view renders it (PF P21).
+   */
+  guard_trip_count: number;
+  created_at: string;
+}
+
+/** PF P15 / ruling Q3: the one console state when haiCore refuses the inquiry scope. */
+export const INQUIRY_NOT_ENABLED_MESSAGE = 'Inquiry log is not enabled for this console';
+export interface InquiryNotEnabled {
+  not_enabled: true;
+}
+
+export interface InquiryListResponse {
+  rows: InquiryLogRow[];
+  next_cursor: string | null;
+  /** Set by the BFF only, when the upstream refused with 403 (PF P15). */
+  not_enabled?: true;
+}
+
+/**
+ * The detail body. The verdict union and its pending member are L0's — imported, never
+ * re-declared (PF P16, PF P18), which is also how `unit` survives on the answered member (PF P19).
+ */
+export type InquiryDetailResponse = InquiryOutcomeOrPending | InquiryNotEnabled;
