@@ -58,15 +58,20 @@ const EMPTY: AttributeClassProposal = {
   informational_use_only: true,
   attribute_class_evaluation_rule: null,
 };
-// No cast anywhere in this file: `npm run build` is the only thing in this lane that checks the
-// proposal body against the protocol, and a cast is exactly what would blind it (PF P8, PF P12).
+// The four `as` narrowings below (value_type, unit, and the per-trust-class disclosure /
+// granularity_ceiling selects) each cast a <select>'s string value back to its own literal union;
+// `npm run build` is the only thing in this lane that checks the proposal body against the
+// protocol, so a cast on the OBJECT itself is what would blind it (PF P8, PF P12) — these narrow
+// a single already-enumerated field, never the whole value.
 
 function toggle<T>(arr: T[], item: T, checked: boolean): T[] {
   return checked ? [...arr, item] : arr.filter((x) => x !== item);
 }
 
-/** '' from a nullable text/number control means "not set" — the schema's `.nullable()` fields
- *  reject an empty string (min(1)) but accept null, so an empty control must map to null, never ''. */
+/** '' from a nullable text/number control means "not set". Most of the schema's `.nullable()`
+ *  string fields also reject '' via `.min(1)` (evidence_element_key, evidence_document_type), but
+ *  `attribute_class_evaluation_rule` has no `.min(1)` and would accept ''; mapping every blank
+ *  control to null rather than '' keeps the wire the same either way. */
 function blankToNull(v: string): string | null {
   return v === '' ? null : v;
 }

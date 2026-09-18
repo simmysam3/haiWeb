@@ -28,4 +28,17 @@ describe('ProposeForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText(/unit is required/i)).toBeInTheDocument();
   });
+
+  // Final fix wave item 5 — the second of the two cross-field refinements (propose-form.tsx:84-87),
+  // previously untested by either the mirror or the schema.
+  it('does not submit a proposal with an extractor declared until a confidence floor is chosen', () => {
+    const onSubmit = vi.fn();
+    render(<ProposeForm onSubmit={onSubmit} />);
+    fireEvent.change(screen.getByLabelText('Attribute class id'), { target: { value: 'moq' } });
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'MOQ' } });
+    fireEvent.change(screen.getByLabelText('Extractor'), { target: { value: 'regex' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Propose' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(/confidence floor is required/i)).toBeInTheDocument();
+  });
 });
