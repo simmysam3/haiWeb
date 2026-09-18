@@ -107,8 +107,11 @@ git commit -F .superpowers/sdd/2026-09-18-v1101-L7-console/commit-msg.txt
 ```
 src/components/tabs.tsx                                                 # Task 0 (modify — PF P14)
 src/components/__tests__/tabs.test.tsx                                  # Task 0 (new)
+src/app/account/settings/query-guard/_components/rule-type-label.ts     # Task 0b (new — final review I3)
+src/app/account/settings/query-guard/__tests__/rule-type-label.test.ts  # Task 0b (new — final review I3)
 src/lib/safe-room-types.ts                                              # Tasks 1, 6, 9, 11
 src/lib/forward-haicore-response.ts                                     # Task 1
+src/lib/__tests__/forward-haicore-response.test.ts                      # Task 1, PF P27's red (final review I3)
 src/app/api/account/disclosure-policy/route.ts                          # Task 1 (GET + PUT)
 src/app/api/account/disclosure-policy/overrides/route.ts                # Task 1 (GET — PF P24)
 src/app/api/account/disclosure-policy/overrides/[counterpartyId]/route.ts  # Task 1 (PUT — PF P6)
@@ -127,6 +130,7 @@ src/app/account/sonar/inquiries/page.tsx                                # Task 7
 src/app/account/sonar/inquiries/[id]/page.tsx                           # Task 8
 src/app/api/account/query-guard/pack/route.ts                           # Task 9
 src/app/account/settings/query-guard/_components/inquiry-pack-panel.tsx # Task 10
+src/app/account/settings/query-guard/_components/inquiry-pack-panel-client.tsx  # Task 10 (new — final review I3; the client wrapper split out of the panel)
 src/app/api/account/attribute-classes/proposals/route.ts                # Task 11
 src/app/account/attribute-classes/_components/*.tsx                     # Task 11
 src/app/account/attribute-classes/page.tsx                              # Task 11
@@ -136,6 +140,8 @@ src/app/api/account/__tests__/role-gate-safe-room-routes.test.ts        # Task 1
 ```
 
 Modified: `src/components/tabs.tsx`, `src/lib/mock-types.ts`, `src/app/api/account/partners/route.ts`, `src/app/account/partners/partners-panel.tsx`, `src/components/account-nav.tsx`, `src/app/account/settings/query-guard/page.tsx`. (`src/app/admin/layout.tsx` is **not** modified — it was Task 12's edit.)
+
+**Final review I3 additions to Modified** (the tree the branch actually built, not the tree this section originally named): `src/app/account/settings/query-guard/_components/guard-rules-matrix.tsx` and `src/app/account/settings/query-guard/_components/test-drawer.tsx` (Task 0b's `door: 'probe'` + the eight-member `RULE_TYPE_LABEL` import), plus the five Batch 0 tab-role fix-round test files: `src/app/account/admin/registrations/__tests__/registrations-filters.test.tsx`, `src/app/account/manifests/__tests__/page-tabs.test.tsx`, `src/app/account/partners/__tests__/partners-panel.test.tsx`, `src/app/account/provenance-keys/__tests__/provenance-keys-dashboard.test.tsx`, `src/app/account/sonar/requests/__tests__/direction-tabs.test.tsx`.
 
 ---
 
@@ -1145,7 +1151,7 @@ readlink node_modules/@haiwave/protocol
 npx vitest run src/app/account/disclosure-policy
 npm run build
 ```
-Expected: vitest PASS, 10 tests; read the reporter for `(retry x` markers. `npm run build` exits 0 — it is the only check that the components agree with `safe-room-types.ts`.
+Expected: vitest PASS, 10 tests; read the reporter for `(retry x` markers. `npm run build` exits 0 — it is the only check that the components agree with `safe-room-types.ts`. **Final review I3 correction:** the three component test files as actually built hold 16 tests, not 10 — the fix rounds (Batch 1's C1/I1/I2, this fix wave's items 10-13) added six.
 
 - [ ] **Step 5: Commit**
 
@@ -1410,7 +1416,8 @@ git commit -F .superpowers/sdd/2026-09-18-v1101-L7-console/commit-msg.txt
 - Test: `src/app/account/partners/__tests__/partners-panel-activation.test.tsx` (new)
 
 **Interfaces:**
-- Consumes: `PUT /api/account/connections/:id/premier` (Task 3), `POST /api/account/connections/:id/{activate,decline-activation}` (Task 4), `TRUST_CLASS_LABEL` (`trust-class-label.ts`).
+- Consumes: `PUT /api/account/connections/:id/premier` (Task 3), `POST /api/account/connections/:id/{activate,decline-activation}` (Task 4).
+  **Final review item 20 correction:** the line above named `TRUST_CLASS_LABEL` (`trust-class-label.ts`), but `partners-panel.tsx` as built never imports it — the Premier UI's copy is hand-written ("Raise to Premier" / "Lower from Premier" / "Premier Partner"), not looked up from the shared label map. `TRUST_CLASS_LABEL` is genuinely consumed by three OTHER lane files (`propose-form.tsx`, `disclosure-policy-matrix.tsx`, `inquiry-history-table.tsx`, all importing the one module per PF P23), just not this one; only this Interfaces line was wrong.
 - Design: `trust_class` and `pending_activation_at` are added to `MockPartner` as **optional** — `mock-data.ts:154-161`'s six literal `MockPartner` entries (the `withHaiCore` fallback for `GET /api/account/partners`) would otherwise fail `npm run build`'s typecheck (vitest's esbuild transform would not catch this). Optional avoids touching `mock-data.ts`, and it is also the honest typing while haiCore does not project either field (PF P13).
 - Depends on **Task 0**: both new test files query `getByRole('tab', { name: /Active/ })`, which the shared `Tabs` component cannot satisfy until Batch 0 lands.
 
@@ -3278,22 +3285,32 @@ describe('v1.101 safe-room BFF mutations are role-gated (D-211)', () => {
         expect(res.status).toBe(403);
         expect(state.calls).toEqual([]);
       });
-      it(`${method} ${route.name} admits account_admin and reaches haiCore`, async () => {
-        state.role = 'account_admin';
-        const mod = await route.load();
-        const handler = mod[method] as (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
-        const res = await handler(requestFor(method), { params: Promise.resolve(route.params ?? {}) });
-        expect(res.status).not.toBe(403);
-        expect(res.status).not.toBe(401);
-        // PF P28 (ruling Q6): clientDouble resolves {} for every method, so a route that crashes on
-        // the upstream response also returns a non-403, non-401 500 — the status alone cannot tell
-        // "the gate admitted" from "the handler blew up". Asserting the upstream call can.
-        expect(state.calls).toContain('fetchRaw');
-      });
+      // PF P28 (ruling Q6): clientDouble resolves {} for every method, so a route that crashes on
+      // the upstream response also returns a non-403, non-401 500 — the status alone cannot tell
+      // "the gate admitted" from "the handler blew up". Asserting the upstream call can. Both
+      // account_admin and account_owner are asserted separately: every route here is gated either
+      // by `hasRole(role, 'account_admin')` (auth.ts:228 — account_owner short-circuits true at the
+      // top of that ladder) or by `forbidNonEditor`, whose allow-list names account_owner alongside
+      // account_admin explicitly (authz.ts:13) rather than deriving it from the ladder. A gate
+      // rewritten as a literal `role === 'account_admin'` check would still pass the account_admin
+      // arm below but wrongly 403 account_owner, so testing only account_admin would not catch it.
+      for (const adminRole of ['account_admin', 'account_owner'] as const) {
+        it(`${method} ${route.name} admits ${adminRole} and reaches haiCore`, async () => {
+          state.role = adminRole;
+          const mod = await route.load();
+          const handler = mod[method] as (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
+          const res = await handler(requestFor(method), { params: Promise.resolve(route.params ?? {}) });
+          expect(res.status).not.toBe(403);
+          expect(res.status).not.toBe(401);
+          expect(state.calls).toContain('fetchRaw');
+        });
+      }
     }
   }
 });
 ```
+
+**Final review I3 correction:** as built, this is THREE arms per route (24 cases total), not the two shown in an earlier draft of this step — a refusal arm plus a separate admit arm for `account_admin` and for `account_owner` (ruling Q6), because the eight routes gate via two different mechanisms (`hasRole`'s ladder short-circuit vs `forbidNonEditor`'s explicit allow-list) and only testing `account_admin` could not catch a regression to a literal `role === 'account_admin'` check, which would wrongly 403 the owner.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
