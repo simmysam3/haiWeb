@@ -3,7 +3,9 @@ import { NextRequest } from 'next/server';
 import { DEFAULT_INQUIRY_PACKS } from '@haiwave/protocol';
 
 const { fetchRaw, getSession, getToken } = vi.hoisted(() => ({ fetchRaw: vi.fn(), getSession: vi.fn(), getToken: vi.fn() }));
-vi.mock('@/lib/auth', () => ({ getSession, getToken, hasRole: (role: string, required: string) => role === required || role === 'account_owner' }));
+// Item 14 (final fix wave): this route gates through forbidNonEditor (query-guard/_lib/authz.ts),
+// which reads session.user.role directly and never calls hasRole — the mock member was dead.
+vi.mock('@/lib/auth', () => ({ getSession, getToken }));
 vi.mock('@/lib/haiwave-api', () => ({ createHaiwaveClient: () => ({ fetchRaw }) }));
 import { GET, PUT } from '../route';
 
