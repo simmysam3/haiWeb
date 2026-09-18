@@ -1,4 +1,4 @@
-import type { AttributeClass, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
+import type { AttributeClass, AttributeClassProposal, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
 
 // ─── Disclosure policy (spec §5; as-built apps/core/src/routes/disclosure-policy.ts at 16b31655) ───
 export type Disclosure = 'raw' | 'qualified' | 'declined';
@@ -68,4 +68,26 @@ export interface InquiryPackConfig {
     limit_per_hour: number;
     source: 'participant_override' | 'platform_default';
   };
+}
+
+// ─── Registry proposals (spec §4.3) ───
+// PF P9: this is haiCore's ROUTE-LAYER type `AttributeClassProposalWire`
+// (apps/core/src/lib/attribute-class-proposal-wire.ts:14-25). The protocol does NOT export it, so
+// it is declared here verbatim; only the nested proposed shape is a protocol type.
+export interface AttributeClassProposalRow {
+  id: string;
+  proposer_participant_id: string;
+  attribute_class_id: string;
+  proposed_shape: AttributeClassProposal;
+  status: 'pending' | 'adopted' | 'rejected';
+  decision_reason: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  adopted_attribute_class_id: string | null;
+  created_at: string;
+}
+
+/** GET /attribute-classes/proposals (PF P9). */
+export interface AttributeClassProposalListResponse {
+  proposals: AttributeClassProposalRow[];
 }

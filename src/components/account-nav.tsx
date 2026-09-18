@@ -184,6 +184,7 @@ const navSections: NavSection[] = [
       { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
       { href: "/account/settings/query-guard", label: "Query Guard", tooltip: "Rate and volume limits that protect your inventory from counterparty probing." },
       { href: "/account/disclosure-policy", label: "Disclosure Policy", tooltip: "How your agent answers qualified inquiries by attribute class and trust class." },
+      { href: "/account/attribute-classes", label: "Attribute Classes", tooltip: "The registry of attributes qualified inquiries can be asked about — propose new ones for platform adoption." },
     ],
   },
   {
