@@ -7,6 +7,10 @@ vi.mock('next/navigation', () => ({ notFound }));
 
 const ANSWERED = {
   inquiry_id: '22222222-2222-4222-8222-222222222222', outcome: 'satisfied', form_answered: 'qualified',
+  // v1.101 L7 fix round (I1): carries a value + unit exactly as a raw POST response would (the
+  // protocol's answered member admits both, verdict.ts:72-88) so the D-222 absence red below has
+  // something real to catch.
+  value: 61, unit: 'inch',
   granularity: 'aggregate', basis: 'declared_value', informational_use_only: true,
   commitment: { commitment_id: 'cm-1', hash: 'h'.repeat(8), signature: 's'.repeat(8), signed_at: '2026-09-16T00:00:00Z' },
 };
@@ -30,7 +34,8 @@ describe('InquiryDetailPage', () => {
     const { default: InquiryDetailPage } = await import('../page');
     render(await InquiryDetailPage({ params: Promise.resolve({ id: 'inq-1' }) }));
     expect(screen.getByText('satisfied')).toBeInTheDocument();          // PRESENT CONTROL
-    expect(screen.queryByText(/^Value:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bValue\b/)).toBeNull();
+    expect(screen.queryByText('61')).toBeNull();
   });
 
   // PF P16 — the silent member is three keys; the answered-only fields must not be rendered at all.
