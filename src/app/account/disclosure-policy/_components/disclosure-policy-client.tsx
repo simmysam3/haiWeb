@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { DisclosurePolicyMatrix, type PolicyCell } from './disclosure-policy-matrix';
 import { RoomParticipationPanel } from './room-participation-panel';
 import { CounterpartyOverridesPanel, type OverrideWrite } from './counterparty-overrides-panel';
-import type { AttributeClassSummary, DisclosurePolicyOverrideRow, DisclosurePolicyResponse, RoomParticipationState } from '@/lib/safe-room-types';
+import type { AttributeClassSummary, DisclosurePolicyOverrideRow, DisclosurePolicyResponse, DisclosurePolicyRow, RoomParticipationState } from '@/lib/safe-room-types';
 
 interface Props {
   classes: AttributeClassSummary[];
@@ -25,29 +25,46 @@ export function DisclosurePolicyClient({ classes, policy, participation, overrid
    * checks res.ok before touching local state, following the GuardRulesMatrix.save() precedent
    * (guard-rules-matrix.tsx:160) — on failure the prior state is kept and the page's existing
    * inline-alert convention (page.tsx:28 — role="alert", text-problem) is shown here too.
+   *
+   * Item 12 (final fix wave): a thrown fetch (offline, DNS) must show the same alert, not escape
+   * as an unhandled rejection — mirrors the confirmed() precedent (partners-panel.tsx).
+   *
+   * Item 13 (final fix wave): returns the parsed response body (haiCore's stored `{ row }`,
+   * disclosure-policy.ts:110/:134) rather than a bare boolean, so callers apply what the server
+   * actually stored instead of assuming it stored exactly what was requested.
    */
-  async function putOrFail(url: string, body: unknown): Promise<boolean> {
-    const res = await fetch(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  async function putOrFail(url: string, body: unknown): Promise<unknown | null> {
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    } catch {
+      setError('Could not reach the server. Please try again.');
+      return null;
+    }
     if (!res.ok) {
       const text = await res.text();
       setError(`Save failed (${res.status}): ${text}`);
-      return false;
+      return null;
     }
     setError(null);
-    return true;
+    return res.json();
   }
 
   /** The ONLY writer of the participant matrix: it always sends a whole cell (PF P5). */
   async function saveCell(cell: PolicyCell) {
-    if (!(await putOrFail('/api/account/disclosure-policy', cell))) return;
-    setMatrix((prev) => [...prev.filter((r) => !(r.attribute_class_id === cell.attribute_class_id && r.trust_class === cell.trust_class)), { ...cell, source: 'participant' }]);
+    const result = await putOrFail('/api/account/disclosure-policy', cell);
+    if (!result) return;
+    const { row } = result as { row: DisclosurePolicyRow };
+    setMatrix((prev) => [...prev.filter((r) => !(r.attribute_class_id === row.attribute_class_id && r.trust_class === row.trust_class)), row]);
   }
 
   /** The ONLY writer of an override: keyed (counterparty × class), never carrying a trust class (PF P6). */
   async function saveOverride(row: OverrideWrite) {
     if (!counterparty) return;
-    if (!(await putOrFail(`/api/account/disclosure-policy/overrides/${encodeURIComponent(counterparty)}`, row))) return;
-    setOverrideRows((prev) => [...prev.filter((o) => o.attribute_class_id !== row.attribute_class_id), { counterparty_participant_id: counterparty, ...row }]);
+    const result = await putOrFail(`/api/account/disclosure-policy/overrides/${encodeURIComponent(counterparty)}`, row);
+    if (!result) return;
+    const { row: savedRow } = result as { row: DisclosurePolicyOverrideRow };
+    setOverrideRows((prev) => [...prev.filter((o) => o.attribute_class_id !== savedRow.attribute_class_id), savedRow]);
   }
 
   async function toggleParticipation(attributeClassId: string | null, enabled: boolean) {

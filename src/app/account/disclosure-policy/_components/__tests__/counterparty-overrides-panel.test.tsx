@@ -41,6 +41,18 @@ describe('CounterpartyOverridesPanel', () => {
     expect(onSaveOverride).not.toHaveBeenCalled();
   });
 
+  // Item 11 (final fix wave): the ruling asked for the shortfall control to be "disabled with an
+  // accessible explanation" on an Inherited row; only the disabled half had a pin. This checks the
+  // aria-describedby link resolves to a real element carrying the hint text, so deleting the hint
+  // paragraph (while leaving `disabled` alone) fails this test.
+  it('C1: the disabled shortfall control has an accessible explanation on an Inherited row', () => {
+    render(<CounterpartyOverridesPanel classes={classes} overrides={[]} onSaveOverride={vi.fn()} />);
+    const shortfallSelect = screen.getByLabelText('availability override shortfall quantity');
+    const describedBy = shortfallSelect.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)).toHaveTextContent('Choose a disclosure to override this counterparty');
+  });
+
   // C1, second facet: once the operator has chosen a disclosure for the row
   // (so it is now an override, not Inherited), the shortfall control becomes
   // actionable and must forward THAT chosen disclosure — never the registry
@@ -60,10 +72,6 @@ describe('CounterpartyOverridesPanel', () => {
     expect(shortfallSelect).not.toBeDisabled();
     fireEvent.change(shortfallSelect, { target: { value: 'true' } });
     expect(onSaveOverride).toHaveBeenLastCalledWith({ attribute_class_id: 'availability', disclosure: 'declined', disclose_shortfall_quantity: true });
-    // The sent disclosure must not equal the registry default — reads the component's actual
-    // output, not a fixture constant, so a regression to "always send the registry default"
-    // (this class's trading_pair column, deliberately 'qualified' here, not 'declined') fails it.
-    expect(onSaveOverride.mock.calls.at(-1)?.[0].disclosure).not.toBe(classes[0].default_disclosure.trading_pair);
   });
 
   // I2 (review-L7-1, fix round): the override side of PF P5 — a full-replace
