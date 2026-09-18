@@ -152,8 +152,8 @@ Every batch gate is three steps, in order:
 | # | Batch | Tasks | vitest scope (then `npm run build`) |
 |---|---|---|---|
 | 1st | **Batch 0** — shared tabs ARIA | Task 0 | `npx vitest run` (**FULL** — the component is repo-wide) |
-| 2nd | **Batch 4** — configuration packs | Tasks 9, 10 | `npx vitest run src/app/api/account/query-guard src/app/account/settings/query-guard` |
-| 3rd | **Batch 1** — disclosure policy | Tasks 1, 2 | `npx vitest run src/app/api/account/disclosure-policy src/app/api/account/room-participation src/app/api/account/attribute-classes src/app/account/disclosure-policy` |
+| 3rd (was 2nd) | **Batch 4** — configuration packs | Tasks 9, 10 | `npx vitest run src/app/api/account/query-guard src/app/account/settings/query-guard` |
+| 2nd (was 3rd) | **Batch 1** — disclosure policy | Tasks 1, 2 | `npx vitest run src/app/api/account/disclosure-policy src/app/api/account/room-participation src/app/api/account/attribute-classes src/app/account/disclosure-policy` |
 | 4th | **Batch 5** — registry proposals (participant) | Task 11 | `npx vitest run src/app/api/account/attribute-classes src/app/account/attribute-classes` |
 | 5th | **Batch 2** — connections | Tasks 3, 4, 5 | `npx vitest run src/app/api/account/connections src/app/api/account/partners src/app/account/partners` |
 | 6th | **Batch 3** — inquiry log | Tasks 6, 7, 8 | `npx vitest run src/app/api/account/sonar/inquiries src/app/account/sonar/inquiries` |
@@ -162,7 +162,7 @@ Every batch gate is three steps, in order:
 
 Batch 1's vitest scope is the pre-flight's, plus the one file this amendment adds: `src/lib/__tests__/forward-haicore-response.test.ts` (**PF P27**), which Task 1 creates.
 
-Why this order: Batch 0 must precede Batches 2 and 3, whose tab assertions depend on it. Batch 4 is the only batch with no external dependency and no inert surface, so it goes first among the surfaces and gives the controller an early complete green. Batch 7 observes what every earlier batch built, so it goes last.
+Why this order: Batch 0 must precede Batches 2 and 3, whose tab assertions depend on it. **CORRECTION (controller, 2026-09-18, measured by the Batch 4 implementer): Batch 4 is NOT dependency-free — Task 9 imports `forwardHaiCoreResponse` from `src/lib/forward-haicore-response.ts` and Tasks 9/10 import `InquiryPackConfig` etc. from `src/lib/safe-room-types.ts`, both CREATED by Task 1 (File Structure). So Batch 1 (Tasks 1, 2) runs BEFORE Batch 4; the order is 0 → 1 → 4 → 5 → 2 → 3 → 7.** Batch 4 still has no inert surface. Batch 7 observes what every earlier batch built, so it goes last.
 
 **COMBINED gate** after Batch 7 — owed even though the batches touch mostly disjoint files, because `src/components/account-nav.tsx` is edited by Batches 1, 3 and 5 and `src/lib/safe-room-types.ts` by Batches 1, 3, 4 and 5. File overlap is not the test; behaviour overlap is.
 
