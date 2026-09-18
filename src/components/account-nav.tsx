@@ -125,6 +125,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time and order-promise degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/grounded-forecasts", label: "Grounded Forecasts", tooltip: "Turn a demand projection for an unbuilt product into a dated commitment schedule, grounded in network quotes and your own delivery history." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
+      { href: "/account/sonar/inquiries", label: "Inquiry Log", tooltip: "Qualified inquiries sent to you and by you — verdicts, commitments, and guard activity." },
     ],
   },
   {
