@@ -23,14 +23,14 @@ function defaultMatrix(): ResolvedQueryGuardRule[] {
 const savedRule: QueryGuardRule = {
   id: 'r-new', owner_participant_id: 'me', scope: 'trust_class', trust_class: 'unknown',
   rule_type: 'sku_repeat', window: 'day', threshold: 3, origin_filter: 'any',
-  actions: [{ type: 'alert', email: null }], enabled: true,
+  actions: [{ type: 'alert', email: null }], enabled: true, door: 'probe',
   created_at: '2026-07-22T00:00:00Z', updated_at: '2026-07-22T00:00:00Z', updated_by: 'u',
 };
 
 const globalRule: QueryGuardRule = {
   id: 'g1', owner_participant_id: 'me', scope: 'client_global', trust_class: null,
   rule_type: 'sku_repeat', window: 'day', threshold: 7, origin_filter: 'any',
-  actions: [{ type: 'alert', email: null }], enabled: true,
+  actions: [{ type: 'alert', email: null }], enabled: true, door: 'probe',
   created_at: '2026-07-22T00:00:00Z', updated_at: '2026-07-22T00:00:00Z', updated_by: 'u',
 };
 

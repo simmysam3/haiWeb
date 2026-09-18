@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type {
+  ProbeDoorRuleType,
   QueryGuardAction,
   QueryGuardOriginFilter,
   QueryGuardRule,
@@ -14,8 +15,16 @@ import type {
 import { DEFAULT_QUERY_GUARD_RULES } from '@haiwave/protocol';
 import { Button, Drawer } from '@/components';
 import { RuleDrawerBody, type RuleFormValue } from './rule-drawer-body';
+import { RULE_TYPE_LABEL } from './rule-type-label';
 import { TestDrawer } from './test-drawer';
 
+// This matrix stays scoped to the probe door's four rule types (matching
+// protocol's own PROBE_DOOR_RULE_TYPES, query-guard.ts:167); the inquiry
+// door's four rule types (3.88.0, spec §10.2) get no row here — the console
+// surface for the inquiry door is a pack-selection panel on this same page
+// (spec §11), not a per-rule matrix, and inquiry rules expand from
+// DEFAULT_INQUIRY_PACKS in memory rather than as query_guard_rules rows
+// (spec §10.6).
 export const RULE_TYPES = ['sku_repeat', 'sku_breadth', 'ad_hoc_cap', 'excess_volume'] as const;
 export const TRUST_CLASSES = [
   'unknown',
@@ -23,13 +32,6 @@ export const TRUST_CLASSES = [
   'trading_pair',
   'premier_partner',
 ] as const;
-
-const RULE_TYPE_LABEL: Record<QueryGuardRuleType, string> = {
-  sku_repeat: 'sku_repeat',
-  sku_breadth: 'sku_breadth',
-  ad_hoc_cap: 'ad_hoc_cap',
-  excess_volume: 'excess_volume',
-};
 
 const TRUST_CLASS_LABEL: Record<TrustClass, string> = {
   unknown: 'unknown',
@@ -86,12 +88,15 @@ interface Props {
 export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRules = [] }: Props) {
   const [matrix, setMatrix] = useState<ResolvedQueryGuardRule[]>(initialMatrix);
   const [rules, setRules] = useState<QueryGuardRule[]>(initialRules);
-  const [open, setOpen] = useState<{ tc: TrustClass | null; rt: QueryGuardRuleType } | null>(null);
+  const [open, setOpen] = useState<{ tc: TrustClass | null; rt: ProbeDoorRuleType } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testOpen, setTestOpen] = useState(false);
 
-  function find(tc: TrustClass | null, rt: QueryGuardRuleType): CellRule {
+  // rt is ProbeDoorRuleType (not the full QueryGuardRuleType): this matrix
+  // only ever calls find() with one of the probe door's four rule types, and
+  // DEFAULT_QUERY_GUARD_RULES is keyed on ProbeDoorRuleType only.
+  function find(tc: TrustClass | null, rt: ProbeDoorRuleType): CellRule {
     if (tc !== null) {
       const row = matrix.find((r) => r.trust_class === tc && r.rule_type === rt);
       if (row) return { ...row };
@@ -144,6 +149,8 @@ export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRule
         origin_filter: form.originFilter,
         actions: form.actions,
         enabled: form.enabled,
+        // This matrix is probe-door only (see RULE_TYPES above).
+        door: 'probe',
       };
       const res = await fetch('/api/account/query-guard/rules', {
         method: 'PUT',
@@ -260,8 +267,8 @@ function RuleRow({
   find,
   onCellClick,
 }: {
-  rt: QueryGuardRuleType;
-  find: (tc: TrustClass | null, rt: QueryGuardRuleType) => CellRule;
+  rt: ProbeDoorRuleType;
+  find: (tc: TrustClass | null, rt: ProbeDoorRuleType) => CellRule;
   onCellClick: (tc: TrustClass | null) => void;
 }) {
   const columns: (TrustClass | null)[] = [null, ...TRUST_CLASSES];
