@@ -31,4 +31,15 @@ describe('InquiryPackPanel', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Open' }));
     expect(onSave).toHaveBeenCalledWith('open');
   });
+
+  // Important (review-L7-4, fix round): volume_band is the schema's only nullable field pair
+  // (packs.ts's InquiryPackSchema), and DEFAULT_INQUIRY_PACKS.open sets both to null since the
+  // Open pack has no volume ceiling by design. The current pack here is 'standard', so the
+  // Open column renders DEFAULT_INQUIRY_PACKS.open — the one column able to reach the nullable
+  // arm. Spec §10.6's own text for that cell is "alert only", not "null–null% → alert".
+  it('renders "alert only" for the Open pack\'s volume band, never the raw null interpolation', () => {
+    render(<InquiryPackPanel current={current} onSave={vi.fn()} />);
+    expect(screen.getByText('alert only')).toBeInTheDocument();
+    expect(screen.queryByText(/null/)).not.toBeInTheDocument();
+  });
 });

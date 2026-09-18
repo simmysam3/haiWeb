@@ -19,7 +19,17 @@ const FIGURE_ROWS: { key: keyof InquiryPackFigures; label: string; fmt: (p: Inqu
   { key: 'sku_breadth', label: 'SKU breadth', fmt: (p) => `${p.sku_breadth.per_hour}/hr · ${p.sku_breadth.per_day}/day` },
   { key: 'ad_hoc_cap', label: 'Ad-hoc cap', fmt: (p) => `${p.ad_hoc_cap.per_six_hours}/6h · ${p.ad_hoc_cap.per_day}/day` },
   { key: 'ad_hoc_cap_evidence_per_six_hours', label: 'Ad-hoc with evidence', fmt: (p) => `${p.ad_hoc_cap_evidence_per_six_hours}/6h` },
-  { key: 'volume_band', label: 'Volume band', fmt: (p) => `${p.volume_band.low_pct}–${p.volume_band.high_pct}% → ${p.volume_band.action}` },
+  {
+    key: 'volume_band',
+    label: 'Volume band',
+    // volume_band is InquiryPackSchema's only nullable field pair (packs.ts): the Open pack has
+    // no volume ceiling by design, and DEFAULT_INQUIRY_PACKS.open sets both to null. Spec §10.6's
+    // own cell text for that row/pack is "alert only" — interpolating null–null into the
+    // template literal typechecks (number | null coerces to the string "null") but is wrong.
+    fmt: (p) => (p.volume_band.low_pct === null || p.volume_band.high_pct === null)
+      ? `${p.volume_band.action} only`
+      : `${p.volume_band.low_pct}–${p.volume_band.high_pct}% → ${p.volume_band.action}`,
+  },
   { key: 'multi_subject_request', label: 'Multi-subject request', fmt: (p) => `${p.multi_subject_request.max_subjects} subjects → ${p.multi_subject_request.action}` },
   { key: 'single_order_value', label: 'Single order value', fmt: (p) => `${p.single_order_value.threshold} ${p.single_order_value.currency} → ${p.single_order_value.action}` },
   { key: 'action_at_cap', label: 'Action at cap', fmt: (p) => p.action_at_cap },
