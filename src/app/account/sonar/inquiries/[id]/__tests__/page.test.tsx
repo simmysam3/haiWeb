@@ -7,9 +7,12 @@ vi.mock('next/navigation', () => ({ notFound }));
 
 const ANSWERED = {
   inquiry_id: '22222222-2222-4222-8222-222222222222', outcome: 'satisfied', form_answered: 'qualified',
-  // v1.101 L7 fix round (I1): carries a value + unit exactly as a raw POST response would (the
-  // protocol's answered member admits both, verdict.ts:72-88) so the D-222 absence red below has
-  // something real to catch.
+  // v1.101 L7 fix round (I1): carries a value + unit as a raw POST response would. Note this is a
+  // FORBIDDEN shape per the protocol (verdict.ts:88): a value is admitted iff form_answered is
+  // 'raw', never 'qualified' — a Zod parse of this fixture would need form_answered: 'raw'. That
+  // makes it the stronger D-222 guard, not a weaker one: the re-read hard-codes 'qualified' on
+  // every answered row (D-222), so this fixture asks "if a value ever leaked through anyway, would
+  // the page still not render it" rather than relying on the union to keep the two apart.
   value: 61, unit: 'inch',
   granularity: 'aggregate', basis: 'declared_value', informational_use_only: true,
   commitment: { commitment_id: 'cm-1', hash: 'h'.repeat(8), signature: 's'.repeat(8), signed_at: '2026-09-16T00:00:00Z' },
@@ -32,10 +35,17 @@ describe('InquiryDetailPage', () => {
     vi.resetModules();
     vi.doMock('@/lib/server-fetch', () => ({ fetchBffJson: vi.fn(async () => ({ kind: 'ok', data: ANSWERED })) }));
     const { default: InquiryDetailPage } = await import('../page');
-    render(await InquiryDetailPage({ params: Promise.resolve({ id: 'inq-1' }) }));
+    const { container } = render(await InquiryDetailPage({ params: Promise.resolve({ id: 'inq-1' }) }));
     expect(screen.getByText('satisfied')).toBeInTheDocument();          // PRESENT CONTROL
+    // Case-sensitive by design: page.tsx:54 renders the lowercase word "value" in the explanatory
+    // sentence about re-reads always being qualified — an `i` flag here would fail against
+    // correct code.
     expect(screen.queryByText(/\bValue\b/)).toBeNull();
     expect(screen.queryByText('61')).toBeNull();
+    // Item 17 (final fix wave): both prongs above are text-node queries, so a whole-object JSON
+    // dump (e.g. `{JSON.stringify(inq)}`) would escape them by never matching either exact node.
+    // This checks the whole rendered container for the value's distinctive text instead.
+    expect(container.textContent).not.toContain('61');
   });
 
   // PF P16 — the silent member is three keys; the answered-only fields must not be rendered at all.
@@ -47,7 +57,11 @@ describe('InquiryDetailPage', () => {
     expect(screen.getByText('declined')).toBeInTheDocument();           // PRESENT CONTROL
     expect(screen.queryByText('Basis')).not.toBeInTheDocument();
     expect(screen.queryByText('Granularity')).not.toBeInTheDocument();
-    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+    // Item 18 (final fix wave): 'undefined' only catches a literal "undefined" string; assert the
+    // specific answered-only fields' absence instead (the silent member is `.strict()` with three
+    // keys, so neither Form answered nor Commitment exists to render).
+    expect(screen.queryByText('Form answered')).not.toBeInTheDocument();
+    expect(screen.queryByText('Commitment')).not.toBeInTheDocument();
   });
 
   it('renders a pending notice for { inquiry_id, status: "pending" } without treating it as an error', async () => {

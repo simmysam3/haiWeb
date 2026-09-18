@@ -1,4 +1,4 @@
-import type { AttributeClass, AttributeClassProposal, InquiryOutcomeOrPending, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
+import type { AttributeClass, AttributeClassProposal, InquiryOutcome, InquiryOutcomeOrPending, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
 
 // ─── Disclosure policy (spec §5; as-built apps/core/src/routes/disclosure-policy.ts at 16b31655) ───
 export type Disclosure = 'raw' | 'qualified' | 'declined';
@@ -93,7 +93,10 @@ export interface AttributeClassProposalListResponse {
 }
 
 // ─── Qualified inquiries (spec §6.4, §11; as-built at 16b31655) ───
-export type InquiryOutcome = 'satisfied' | 'satisfied_with_condition' | 'not_satisfied' | 'declined' | 'unavailable';
+// Item 4 (final fix wave): the protocol exports this exact five-member union
+// (packages/protocol/src/inquiry/verdict.ts:10) — importing it makes a sixth outcome a build
+// error instead of silent drift, the same reasoning as AttributeClassSummary above (PF P7).
+export type { InquiryOutcome };
 export type InquiryDirection = 'inbound' | 'outbound';
 
 export interface InquiryLogRow {
