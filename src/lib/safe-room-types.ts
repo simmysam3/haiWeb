@@ -1,4 +1,4 @@
-import type { AttributeClass, TrustClass } from '@haiwave/protocol';
+import type { AttributeClass, InquiryPack as InquiryPackFigures, InquiryPackName, TrustClass } from '@haiwave/protocol';
 
 // ─── Disclosure policy (spec §5; as-built apps/core/src/routes/disclosure-policy.ts at 16b31655) ───
 export type Disclosure = 'raw' | 'qualified' | 'declined';
@@ -53,4 +53,19 @@ export type AttributeClassSummary = Pick<AttributeClass, 'attribute_class_id' | 
 /** GET /attribute-classes (PF P7). */
 export interface AttributeClassListResponse {
   attribute_classes: AttributeClassSummary[];
+}
+
+// ─── Inquiry-door configuration packs (spec §10.6) ───
+// PF P11/PF P12: both types come from the protocol. `InquiryPack` there is the FIGURES object,
+// so it is aliased; the three pack names are `InquiryPackName`. Merged into the file's single
+// `@haiwave/protocol` import line rather than adding a second one (import/no-duplicates).
+export type { InquiryPackFigures, InquiryPackName };
+
+export interface InquiryPackConfig {
+  pack: InquiryPackName;
+  figures: InquiryPackFigures;
+  ceiling: {
+    limit_per_hour: number;
+    source: 'participant_override' | 'platform_default';
+  };
 }
