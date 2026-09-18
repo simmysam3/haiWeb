@@ -309,7 +309,15 @@ export function PartnersPanel() {
     const res = await confirmed(fetch(`/api/account/connections/${p.connection_id}/decline-activation`, { method: 'POST' }));
     setDeclineActivationPartner(null);
     if (!res) return;
-    setPartners((prev) => prev.map((x) => x.id === p.id ? { ...x, invite_yours: false, invite_theirs: false, pending_activation_at: null } : x));
+    // Item 13 (final fix wave): read the server's ActivationDeclineResult (PF P22) instead of
+    // assuming both invites cleared. Its wire names (relationship_state, invite_status.
+    // requestor_invite/counterparty_invite) belong to haiCore's response, not to this row's flat
+    // status/invite_yours/invite_theirs — translated here the same way the BFF's own test comment
+    // (decline-activation/__tests__/route.test.ts:24) describes.
+    const result = (await res.json()) as { relationship_state: 'approved'; invite_status: { requestor_invite: boolean; counterparty_invite: boolean } };
+    setPartners((prev) => prev.map((x) => x.id === p.id
+      ? { ...x, status: result.relationship_state, invite_yours: result.invite_status.requestor_invite, invite_theirs: result.invite_status.counterparty_invite, pending_activation_at: null }
+      : x));
     showToast(`Declined trading pair activation with ${p.company_name}`);
   }
 

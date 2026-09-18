@@ -7,6 +7,13 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/lib/use-api', () => ({ useApi: vi.fn(() => ({ data: [], loading: false })) }));
 
+// Item 8 (final fix wave): a plain mock object has no `clone()`, so `describeApiError`'s
+// `res.clone().json()` throws and falls back to the generic per-status text, so the refusal pin
+// below only proved a banner rendered, never that the server's reason reached it.
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
 // PF P13: the fixture carries trust_class because the UI must handle it; the as-built wire does not
 // send it yet, so on a live console this component renders its "Raise to Premier" arm only.
 const partner = {
@@ -34,6 +41,9 @@ describe('PartnersPanel premier designation', () => {
     const { PartnersPanel } = await import('../partners-panel');
     render(<PartnersPanel />);
     fireEvent.click(screen.getByRole('tab', { name: /Active/ }));
+    // Item 9: a present control — the row itself must render, so the negative assertion below
+    // proves the button is absent from a real row, not from an empty/failed render.
+    expect(screen.getByText('Acme Metals')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Premier/ })).not.toBeInTheDocument();
   });
 
@@ -41,7 +51,7 @@ describe('PartnersPanel premier designation', () => {
   // error" bar (partners-panel.test.tsx) — no new refusal test existed for
   // this gesture.
   it('a 403 leaves the trust class unchanged, shows no success toast, and shows the error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'Forbidden' }) }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'Forbidden' }, 403)));
     const { useApi } = await import('@/lib/use-api');
     (useApi as ReturnType<typeof vi.fn>).mockReturnValue({ data: [partner], loading: false });
     const { PartnersPanel } = await import('../partners-panel');
@@ -50,7 +60,8 @@ describe('PartnersPanel premier designation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Raise to Premier' }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Raise to Premier' })[1]);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/forbidden|permission/i);
+    // Item 8: a real Response lets describeApiError read the server's actual reason.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Forbidden');
     expect(screen.queryByText(/raised .* to premier/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Raise to Premier' })[0]).toBeInTheDocument();
   });
