@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { AttributeClassProposal } from '@haiwave/protocol';
+import { describeApiError } from '@/lib/api-error';
 import { ProposeForm } from './propose-form';
 import type { AttributeClassProposalRow, AttributeClassSummary } from '@/lib/safe-room-types';
 
@@ -10,20 +11,42 @@ export function AttributeClassesClient({ classes, initialProposals }: { classes:
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Final fix wave item 1: a rejected proposal must not fail silently. Mirrors the `putOrFail`
-   * shape (disclosure-policy-client.tsx, Batch 1's I1) — check `res.ok`, keep prior state and
-   * show the page's inline-alert convention (role="alert", text-problem) on failure.
+   * Final fix wave item 1: a rejected proposal must not fail silently. Mirrors the full
+   * `putOrFail` shape (disclosure-policy-client.tsx, at the tip after items 12/13/22) — the
+   * fetch is wrapped so a thrown fetch shows the same alert (item 12's class), the failure branch
+   * reuses `describeApiError` so the alert shows haiCore's parsed `error.message` rather than the
+   * raw envelope (item 22's class), and `res.json()` is guarded with `setError(null)` only after a
+   * successful parse that actually carries a `proposal` (the addendum's class: a malformed or
+   * proposal-less 2xx must not store `undefined` into the list, which the render at
+   * `p.proposed_shape.display_name` below would then throw on).
    */
   async function submit(value: AttributeClassProposal) {
-    const res = await fetch('/api/account/attribute-classes/proposals', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
+    let res: Response;
+    try {
+      res = await fetch('/api/account/attribute-classes/proposals', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) });
+    } catch {
+      setError('Could not reach the server. Please try again.');
+      return;
+    }
     if (!res.ok) {
-      const text = await res.text();
-      setError(`Save failed (${res.status}): ${text}`);
+      const info = await describeApiError(res);
+      setError(`Save failed (${info.status}): ${info.message}`);
+      return;
+    }
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      setError('Could not read the server response. Please try again.');
+      return;
+    }
+    const proposal = (body as { proposal?: AttributeClassProposalRow } | null)?.proposal;
+    if (!proposal) {
+      setError('Save failed: the server did not return the new proposal.');
       return;
     }
     setError(null);
-    const created = (await res.json()) as { proposal: AttributeClassProposalRow };
-    setProposals((prev) => [created.proposal, ...prev]);
+    setProposals((prev) => [proposal, ...prev]);
   }
 
   return (

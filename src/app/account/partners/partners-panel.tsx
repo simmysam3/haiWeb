@@ -313,9 +313,11 @@ export function PartnersPanel() {
     // assuming both invites cleared. Its wire names (relationship_state, invite_status.
     // requestor_invite/counterparty_invite) belong to haiCore's response, not to this row's flat
     // status/invite_yours/invite_theirs — translated here the same way the BFF's own test comment
-    // (decline-activation/__tests__/route.test.ts:24) describes. A malformed body must not crash
-    // the handler either (mirrors the file's own `.catch(() => null)` idiom, e.g. handleApprove);
-    // `pending_activation_at` still clears since the POST itself succeeded.
+    // (decline-activation/__tests__/route.test.ts:24) describes. `.catch(() => null)` (the file's
+    // own idiom, e.g. handleApprove) guards only the PARSE — a body that fails to parse as JSON —
+    // not the shape of a body that does parse; `pending_activation_at` still clears since the
+    // POST itself succeeded (N3, re-review: haiCore's contract pins this to exactly
+    // { relationship_state, invite_status }, so an off-contract shape is a carry, not fixed here).
     const result = (await res.json().catch(() => null)) as { relationship_state: 'approved'; invite_status: { requestor_invite: boolean; counterparty_invite: boolean } } | null;
     setPartners((prev) => prev.map((x) => x.id === p.id
       ? { ...x, ...(result ? { status: result.relationship_state, invite_yours: result.invite_status.requestor_invite, invite_theirs: result.invite_status.counterparty_invite } : {}), pending_activation_at: null }
