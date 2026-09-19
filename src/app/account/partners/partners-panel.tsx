@@ -66,8 +66,10 @@ export function PartnersPanel() {
   const [connectMessage, setConnectMessage] = useState("");
   const [banPartner, setBanPartner] = useState<MockPartner | null>(null);
   const [invitePartner, setInvitePartner] = useState<MockPartner | null>(null);
+  const [premierPartner, setPremierPartner] = useState<MockPartner | null>(null);
   const [downgradePartner, setDowngradePartner] = useState<MockPartner | null>(null);
   const [removePartner, setRemovePartner] = useState<MockPartner | null>(null);
+  const [declineActivationPartner, setDeclineActivationPartner] = useState<MockPartner | null>(null);
   const [profileRequest, setProfileRequest] = useState<MockAccessRequest | null>(null);
   const { toast, showToast } = useToast();
   // The BFF's answer is the fact: a mutation mutates local state and shows a
@@ -199,7 +201,7 @@ export function PartnersPanel() {
       if (list) setPartners((await list.json()) as MockPartner[]);
       return;
     }
-    showToast(`Approved as trading partner — ${req.company_name}${req.invite ? " (Trading Pair Active)" : " (Pending their proposal)"}`);
+    showToast(`Approved as trading partner — ${req.company_name}${req.invite ? " (Trading Pair Active)" : " (awaiting activation once both invites are set)"}`);
     await reloadPartners();
   }
 
@@ -277,6 +279,50 @@ export function PartnersPanel() {
     updateDirectoryStatus(invitePartner.id, newStatus);
     const action = invitePartner.invite_yours ? "Withdrew trading pair proposal from" : "Proposed trading pair with";
     showToast(`${action} ${invitePartner.company_name}`);
+  }
+
+  // D-146 (spec §3.3). NOTE: `premierPartner.trust_class` and the
+  // pending_activation_at branch below are inert against the as-built haiCore
+  // wire — `ActiveConnection` (apps/core/src/services/connection-service.ts:40-50)
+  // projects neither field, so this fires as a passthrough today and lights up
+  // once haiCore projects them (PF P13, owner item).
+  async function handleTogglePremier() {
+    if (!premierPartner) return;
+    const raising = premierPartner.trust_class !== 'premier_partner';
+    const res = await confirmed(fetch(`/api/account/connections/${premierPartner.connection_id}/premier`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ premier: raising }) }));
+    setPremierPartner(null);
+    if (!res) return;
+    setPartners((prev) => prev.map((p) => p.id === premierPartner.id ? { ...p, trust_class: raising ? 'premier_partner' : 'trading_pair' } : p));
+    showToast(raising ? `Raised ${premierPartner.company_name} to Premier` : `Lowered ${premierPartner.company_name} from Premier`);
+  }
+
+  async function handleActivate(p: MockPartner) {
+    const res = await confirmed(fetch(`/api/account/connections/${p.connection_id}/activate`, { method: 'POST' }));
+    if (!res) return;
+    setPartners((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'trading_pair' as const, pending_activation_at: null } : x));
+    showToast(`Activated trading pair with ${p.company_name}`);
+  }
+
+  async function handleDeclineActivation() {
+    if (!declineActivationPartner) return;
+    const p = declineActivationPartner;
+    const res = await confirmed(fetch(`/api/account/connections/${p.connection_id}/decline-activation`, { method: 'POST' }));
+    setDeclineActivationPartner(null);
+    if (!res) return;
+    // Item 13 (final fix wave): read the server's ActivationDeclineResult (PF P22) instead of
+    // assuming both invites cleared. Its wire names (relationship_state, invite_status.
+    // requestor_invite/counterparty_invite) belong to haiCore's response, not to this row's flat
+    // status/invite_yours/invite_theirs — translated here the same way the BFF's own test comment
+    // (decline-activation/__tests__/route.test.ts:24) describes. `.catch(() => null)` (the file's
+    // own idiom, e.g. handleApprove) guards only the PARSE — a body that fails to parse as JSON —
+    // not the shape of a body that does parse; `pending_activation_at` still clears since the
+    // POST itself succeeded (N3, re-review: haiCore's contract pins this to exactly
+    // { relationship_state, invite_status }, so an off-contract shape is a carry, not fixed here).
+    const result = (await res.json().catch(() => null)) as { relationship_state: 'approved'; invite_status: { requestor_invite: boolean; counterparty_invite: boolean } } | null;
+    setPartners((prev) => prev.map((x) => x.id === p.id
+      ? { ...x, ...(result ? { status: result.relationship_state, invite_yours: result.invite_status.requestor_invite, invite_theirs: result.invite_status.counterparty_invite } : {}), pending_activation_at: null }
+      : x));
+    showToast(`Declined trading pair activation with ${p.company_name}`);
   }
 
   // ─── Filtered / Sorted Queue ────────────────────────────────
@@ -420,13 +466,38 @@ export function PartnersPanel() {
           >
             Run Phantom Demand
           </Link>
-          <Button
-            size="sm"
-            variant={p.invite_yours ? "ghost" : "secondary"}
-            onClick={() => setInvitePartner(p)}
+          {/* D-146: pending_activation_at is not yet on the as-built wire
+              (connection-service.ts:40-50, PF P13), so this else arm always
+              wins today; the branch lights up once haiCore projects it. */}
+          {p.pending_activation_at ? (
+            <>
+              <Button size="sm" onClick={() => handleActivate(p)}>Accept Trading Pair</Button>
+              <Button size="sm" variant="ghost" onClick={() => setDeclineActivationPartner(p)}>Decline</Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              variant={p.invite_yours ? "ghost" : "secondary"}
+              onClick={() => setInvitePartner(p)}
+            >
+              {p.invite_yours ? "Withdraw Trading Pair" : "Propose Trading Pair"}
+            </Button>
+          )}
+          {/* Premier: `trust_class` is not yet on the as-built wire either
+              (connection-service.ts:40-50, PF P13), so this always reads
+              "Raise to Premier" today; the "Lower" arm lights up once haiCore
+              projects it. */}
+          {p.status === "trading_pair" && (
+            <Button size="sm" variant="ghost" onClick={() => setPremierPartner(p)}>
+              {p.trust_class === "premier_partner" ? "Lower from Premier" : "Raise to Premier"}
+            </Button>
+          )}
+          <Link
+            href={`/account/disclosure-policy?counterparty=${encodeURIComponent(p.id)}`}
+            className="text-xs text-teal hover:text-navy font-medium"
           >
-            {p.invite_yours ? "Withdraw Trading Pair" : "Propose Trading Pair"}
-          </Button>
+            Disclosure Policy
+          </Link>
           {p.status === "trading_pair" && (
             <Button size="sm" variant="ghost" onClick={() => setDowngradePartner(p)}>Downgrade</Button>
           )}
@@ -816,7 +887,7 @@ export function PartnersPanel() {
               </div>
               {invitePartner?.invite_theirs && (
                 <div className="bg-success/5 border border-success/20 rounded-lg px-4 py-3 text-sm text-success">
-                  {invitePartner.company_name} has already proposed. Confirming yours will immediately activate the trading pair.
+                  {invitePartner.company_name} has already proposed. Confirming yours will move the pair to pending activation — either side&apos;s account_admin can then accept from the Active list.
                 </div>
               )}
             </>
@@ -826,6 +897,21 @@ export function PartnersPanel() {
             <Button onClick={handleSetInvite}>
               {invitePartner?.invite_yours ? "Withdraw" : "Propose Trading Pair"}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Premier Designation Modal */}
+      <Modal open={!!premierPartner} onClose={() => setPremierPartner(null)} title={premierPartner?.trust_class === "premier_partner" ? "Lower from Premier" : "Raise to Premier"}>
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            {premierPartner?.trust_class === "premier_partner"
+              ? <>Lower <strong>{premierPartner?.company_name}</strong> from Premier back to Trading Pair?</>
+              : <>Raise <strong>{premierPartner?.company_name}</strong> to Premier? This is unilateral and needs no acceptance from them.</>}
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setPremierPartner(null)}>Cancel</Button>
+            <Button onClick={handleTogglePremier}>{premierPartner?.trust_class === "premier_partner" ? "Lower" : "Raise to Premier"}</Button>
           </div>
         </div>
       </Modal>
@@ -842,6 +928,22 @@ export function PartnersPanel() {
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setDowngradePartner(null)}>Cancel</Button>
             <Button variant="danger" onClick={handleDowngrade}>Downgrade</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Decline Activation Modal */}
+      <Modal open={!!declineActivationPartner} onClose={() => setDeclineActivationPartner(null)} title="Decline Trading Pair Activation">
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            Decline the trading pair activation with <strong>{declineActivationPartner?.company_name}</strong>?
+          </p>
+          <div className="bg-warning/5 border border-warning/20 rounded-lg px-4 py-3 text-sm text-warning">
+            This clears both sides&apos; invites. Either side can propose again later.
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setDeclineActivationPartner(null)}>Cancel</Button>
+            <Button variant="danger" onClick={handleDeclineActivation}>Decline</Button>
           </div>
         </div>
       </Modal>

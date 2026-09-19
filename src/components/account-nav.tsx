@@ -125,6 +125,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/posture/changes", label: "Watcher Backlog", tooltip: "Drift events from your scheduled watcher configurations — lead-time and order-promise degradations and improvements detected across the supplier network." },
       { href: "/account/sonar/grounded-forecasts", label: "Grounded Forecasts", tooltip: "Turn a demand projection for an unbuilt product into a dated commitment schedule, grounded in network quotes and your own delivery history." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
+      { href: "/account/sonar/inquiries", label: "Inquiry Log", tooltip: "Qualified inquiries sent to you and by you — verdicts, commitments, and guard activity." },
     ],
   },
   {
@@ -183,6 +184,8 @@ const navSections: NavSection[] = [
       // v.1.58: Settings section dissolved — Trust Posture moved here.
       { href: "/account/settings/trust-posture", label: "Trust Posture", tooltip: "How aggressively your agent trusts and acts on signals coming from counterparties." },
       { href: "/account/settings/query-guard", label: "Query Guard", tooltip: "Rate and volume limits that protect your inventory from counterparty probing." },
+      { href: "/account/disclosure-policy", label: "Disclosure Policy", tooltip: "How your agent answers qualified inquiries by attribute class and trust class." },
+      { href: "/account/attribute-classes", label: "Attribute Classes", tooltip: "The registry of attributes qualified inquiries can be asked about — propose new ones for platform adoption." },
     ],
   },
   {

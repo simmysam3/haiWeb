@@ -23,10 +23,10 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
     render(<RegistrationsFilters />);
 
     // Status tab strip
-    expect(screen.getByRole('button', { name: /^Pending/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Approved/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Rejected/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^All/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Approved/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Rejected/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^All/ })).toBeInTheDocument();
 
     // Risk-tier dropdown options (display labels)
     const select = screen.getByRole('combobox', { name: /risk tier/i });
@@ -40,13 +40,13 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
     currentSearch = '';
     render(<RegistrationsFilters />);
     // Clicking Pending (the implicit default) clears the status param.
-    fireEvent.click(screen.getByRole('button', { name: /^Pending/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Pending/ }));
     expect(mockPush).toHaveBeenCalledWith('/account/admin/registrations');
   });
 
   it('clicking Approved pushes ?status=approved', () => {
     render(<RegistrationsFilters />);
-    fireEvent.click(screen.getByRole('button', { name: /^Approved/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Approved/ }));
     expect(mockPush).toHaveBeenCalledWith(
       '/account/admin/registrations?status=approved',
     );
@@ -54,7 +54,7 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
 
   it('clicking Rejected pushes ?status=rejected', () => {
     render(<RegistrationsFilters />);
-    fireEvent.click(screen.getByRole('button', { name: /^Rejected/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Rejected/ }));
     expect(mockPush).toHaveBeenCalledWith(
       '/account/admin/registrations?status=rejected',
     );
@@ -63,7 +63,7 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
   it('clicking All sets the explicit status=all sentinel (distinct from the pending default)', () => {
     currentSearch = 'status=approved';
     render(<RegistrationsFilters />);
-    fireEvent.click(screen.getByRole('button', { name: /^All/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }));
     expect(mockPush).toHaveBeenCalledWith(
       '/account/admin/registrations?status=all',
     );
@@ -73,7 +73,7 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
     currentSearch = 'status=approved';
     render(<RegistrationsFilters />);
     // Clicking the already-active tab re-pushes the same canonical URL.
-    fireEvent.click(screen.getByRole('button', { name: /^Approved/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Approved/ }));
     expect(mockPush).toHaveBeenCalledWith(
       '/account/admin/registrations?status=approved',
     );
@@ -120,7 +120,7 @@ describe('RegistrationsFilters — BUG-3 gatekeeper queue filters', () => {
   it('preserves the other filter when changing status', () => {
     currentSearch = 'risk_tier=foreign';
     render(<RegistrationsFilters />);
-    fireEvent.click(screen.getByRole('button', { name: /^Approved/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Approved/ }));
     expect(mockPush).toHaveBeenCalledWith(
       '/account/admin/registrations?risk_tier=foreign&status=approved',
     );

@@ -8,10 +8,12 @@ import type {
   TrustClass,
 } from '@haiwave/protocol';
 import { DEFAULT_QUERY_GUARD_RULES } from '@haiwave/protocol';
+import type { InquiryPackConfig } from '@/lib/safe-room-types';
 import { PageHeader } from '@/components/page-header';
 import { GuardRulesMatrix, RULE_TYPES, TRUST_CLASSES } from './_components/guard-rules-matrix';
 import { EnforcementStates } from './_components/enforcement-states';
 import { TripHistory } from './_components/trip-history';
+import { InquiryPackPanelClient } from './_components/inquiry-pack-panel-client';
 
 /**
  * If the BFF fetch fails we still need to display *something* — synthesising
@@ -42,6 +44,7 @@ interface LoadResult {
   defaultAlertEmail: string | null;
   states: QueryGuardState[];
   events: QueryGuardEvent[];
+  pack: InquiryPackConfig | null;
   error: string | null;
 }
 
@@ -49,12 +52,13 @@ async function loadQueryGuard(): Promise<LoadResult> {
   // D-62: every lane goes through `fetchBffJson`, which takes the origin from
   // the configured PORTAL_BASE_URL (never the request's Host header), forwards
   // the cookie, and never throws — a network failure is `status: 0`.
-  const [matrixRes, rulesRes, settingsRes, statesRes, eventsRes] = await Promise.all([
+  const [matrixRes, rulesRes, settingsRes, statesRes, eventsRes, packRes] = await Promise.all([
     fetchBffJson<{ matrix?: ResolvedQueryGuardRule[] }>('/api/account/query-guard/rules/resolved'),
     fetchBffJson<{ rules?: QueryGuardRule[] }>('/api/account/query-guard/rules'),
     fetchBffJson<QueryGuardSettings>('/api/account/query-guard/settings'),
     fetchBffJson<{ states?: QueryGuardState[] }>('/api/account/query-guard/states'),
     fetchBffJson<{ events?: QueryGuardEvent[] }>('/api/account/query-guard/events?limit=100'),
+    fetchBffJson<InquiryPackConfig>('/api/account/query-guard/pack'),
   ]);
   // States + events are progressive enhancements like rules/settings —
   // degrade to empty lists if either fetch fails.
@@ -62,6 +66,10 @@ async function loadQueryGuard(): Promise<LoadResult> {
   if (statesRes.kind === 'ok' && Array.isArray(statesRes.data.states)) states = statesRes.data.states;
   let events: QueryGuardEvent[] = [];
   if (eventsRes.kind === 'ok' && Array.isArray(eventsRes.data.events)) events = eventsRes.data.events;
+  // The inquiry-door pack is also a progressive enhancement — degrade quietly
+  // to null (the panel section is simply omitted) rather than inventing a
+  // second failure mode on this page.
+  const pack: InquiryPackConfig | null = packRes.kind === 'ok' ? packRes.data : null;
   if (matrixRes.kind === 'error') {
     if (matrixRes.status === 0) {
       console.error('[query-guard] fetch failed', matrixRes.message);
@@ -71,6 +79,7 @@ async function loadQueryGuard(): Promise<LoadResult> {
         defaultAlertEmail: null,
         states,
         events,
+        pack,
         error:
           'Unable to reach the query-guard service. Showing spec defaults — saves may fail until the backend is reachable.',
       };
@@ -81,6 +90,7 @@ async function loadQueryGuard(): Promise<LoadResult> {
       defaultAlertEmail: null,
       states,
       events,
+      pack,
       error: `Unable to load query-guard rules (status ${matrixRes.status}). Showing spec defaults — saves may fail until the backend is reachable.`,
     };
   }
@@ -96,6 +106,7 @@ async function loadQueryGuard(): Promise<LoadResult> {
     defaultAlertEmail,
     states,
     events,
+    pack,
     error: null,
   };
 }
@@ -110,7 +121,7 @@ async function loadQueryGuard(): Promise<LoadResult> {
  * requests to /api/auth/login before this component runs.
  */
 export default async function QueryGuardPage() {
-  const { matrix, rules, defaultAlertEmail, states, events, error } = await loadQueryGuard();
+  const { matrix, rules, defaultAlertEmail, states, events, pack, error } = await loadQueryGuard();
 
   return (
     <div className="space-y-2">
@@ -139,6 +150,7 @@ export default async function QueryGuardPage() {
         <h2 className="mb-3 text-lg font-semibold text-charcoal">Trip history</h2>
         <TripHistory initialEvents={events} />
       </section>
+      {pack && <InquiryPackPanelClient initialPack={pack} />}
     </div>
   );
 }

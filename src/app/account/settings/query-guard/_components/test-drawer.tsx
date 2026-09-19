@@ -4,23 +4,16 @@ import { useState } from 'react';
 import type {
   QueryGuardAction,
   QueryGuardOrigin,
-  QueryGuardRuleType,
   QueryGuardTestResult,
   QueryGuardWindow,
   TrustClass,
 } from '@haiwave/protocol';
 import { Button, Drawer } from '@/components';
 import { TRUST_CLASSES } from './guard-rules-matrix';
+import { RULE_TYPE_LABEL } from './rule-type-label';
 
 const ORIGINS: QueryGuardOrigin[] = ['ad_hoc', 'scheduled'];
 const WINDOWS: QueryGuardWindow[] = ['hour', 'day', 'week'];
-
-const RULE_TYPE_LABEL: Record<QueryGuardRuleType, string> = {
-  sku_repeat: 'sku_repeat',
-  sku_breadth: 'sku_breadth',
-  ad_hoc_cap: 'ad_hoc_cap',
-  excess_volume: 'excess_volume',
-};
 
 function describeAction(action: QueryGuardAction): string {
   if (action.type === 'alert') {

@@ -45,4 +45,17 @@ describe('GET /api/account/partners — the DTO states only what haiCore records
     expect(partner).toMatchObject({ id: 'p-acme', company_name: 'Acme Metals', status: 'approved', connection_id: 'conn-1' });
     expect(partner).not.toHaveProperty('manifest_progress');
   });
+
+  it('passes trust_class and pending_activation_at through when haiCore includes them', async () => {
+    state.connections = [{
+      connection_id: 'conn-1', partner_participant_id: 'p-acme', partner_name: 'Acme Metals',
+      partner_location: 'Ohio', partner_industry: 'Metals', relationship_state: 'trading_pair',
+      invite_yours: true, invite_theirs: true, established_at: '2026-08-01T00:00:00Z',
+      trust_class: 'premier_partner', pending_activation_at: null,
+    }];
+    const res = await GET(requestFor('GET', '/api/account/partners'), { params: Promise.resolve({}) });
+    const [partner] = await res.json();
+    expect(partner.trust_class).toBe('premier_partner');
+    expect(partner.pending_activation_at).toBeNull();
+  });
 });

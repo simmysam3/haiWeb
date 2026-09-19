@@ -14,10 +14,12 @@ interface TabsProps {
 
 export function Tabs({ tabs, active, onChange }: TabsProps) {
   return (
-    <div className="flex border-b border-slate/15 mb-6">
+    <div role="tablist" className="flex border-b border-slate/15 mb-6">
       {tabs.map((tab) => (
         <button
           key={tab.key}
+          role="tab"
+          aria-selected={active === tab.key}
           onClick={() => onChange(tab.key)}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             active === tab.key

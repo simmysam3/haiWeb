@@ -68,7 +68,7 @@ function routeFetch(mutation: Mutation, seed: Seed = {}) {
 
 async function renderQueue() {
   render(<PartnersPanel />);
-  fireEvent.click(await screen.findByRole('button', { name: /approval queue/i }));
+  fireEvent.click(await screen.findByRole('tab', { name: /approval queue/i }));
   await screen.findByText('Acme Metals');
 }
 
@@ -108,7 +108,7 @@ describe('PartnersPanel — approve (SEC-web-account-1-05)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^approve$/i }));
 
     await screen.findByText(/approved connection with acme metals/i);
-    fireEvent.click(screen.getByRole('button', { name: /^active/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^active/i }));
     expect(await screen.findByText('Acme Metals (as served by the BFF)')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -162,7 +162,7 @@ describe('PartnersPanel — approve as trading partner (SEC-web-account-1-05)', 
 
     await screen.findByText(/approved as trading partner/i);
     expect(calls).toEqual(['approve', 'invite']);
-    fireEvent.click(screen.getByRole('button', { name: /^active/i }));
+    fireEvent.click(screen.getByRole('tab', { name: /^active/i }));
     expect(await screen.findByText('Acme Metals (BFF, invite sent)')).toBeInTheDocument();
   });
 });
@@ -245,7 +245,7 @@ describe('PartnersPanel — request connection (SEC-web-account-1-05)', () => {
       return undefined;
     });
     render(<PartnersPanel />);
-    await screen.findByRole('button', { name: /approval queue/i });
+    await screen.findByRole('tab', { name: /approval queue/i });
 
     fireEvent.click(screen.getByRole('radio', { name: /directory/i }));
     fireEvent.change(await screen.findByPlaceholderText(/search by name, industry, or location/i), { target: { value: 'ac' } });

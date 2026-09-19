@@ -62,7 +62,7 @@ describe('AccountNav', () => {
     expect(screen.queryByRole('link', { name: 'Configurations' })).toBeNull();
   });
 
-  it('Sonar section: Dashboard · Phantom Demand · Watchers · Watcher Backlog · Grounded Forecasts · Request Management', () => {
+  it('Sonar section: Dashboard · Phantom Demand · Watchers · Watcher Backlog · Grounded Forecasts · Request Management · Inquiry Log', () => {
     const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     expect(screen.getByRole('link', { name: 'Watchers' })).toHaveAttribute(
       'href',
@@ -79,7 +79,7 @@ describe('AccountNav', () => {
     // System Dashboard stays put.
     expect(screen.getByRole('link', { name: 'System Dashboard' })).toHaveAttribute('href', '/account');
 
-    // Pin the full six-item order end to end — the point of this task.
+    // Pin the full seven-item order end to end — the point of this task.
     const sections = Array.from(container.querySelectorAll('nav > div'));
     const observe = sections.find((s) => s.textContent?.trimStart().startsWith('Sonar Observe'));
     expect(observe).toBeTruthy();
@@ -91,6 +91,7 @@ describe('AccountNav', () => {
       '/account/sonar/posture/changes',
       '/account/sonar/grounded-forecasts',
       '/account/sonar/requests',
+      '/account/sonar/inquiries', // v1.101 L7: Inquiry Log
     ]);
   });
 
