@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { SM_THEME_TOKENS, SM_PILL_TONES, SM_PILL_TOKENS, SM_HEADER, SM_BUTTON_PRIMARY_FG, smThemeStyle } from '../theme';
 
 // The WCAG 2.1 instrument lives here: nothing in production calls it.
@@ -24,6 +26,10 @@ const SURFACES = ['canvas', 'surface', 'card'] as const;
 const TEXT = ['ink', 'ink-2', 'teal-text', 'orange-text', 'red-text', 'success-text', 'warn-text'] as const;
 const NONTEXT = ['heat-good', 'heat-mid', 'heat-bad', 'gap-border'] as const;
 
+// The focus ring's token, read from the stylesheet itself (`.sm-root :focus-visible { outline: … var(--sm-<token>) }`).
+const SM_CSS = readFileSync(join(__dirname, '..', '..', '..', 'app', 'sourcing-map', 'sourcing-map.css'), 'utf8');
+const FOCUS_RING = /:focus-visible\s*\{[^}]*outline:[^;}]*var\(--sm-([a-z0-9-]+)\)/.exec(SM_CSS)?.[1];
+
 describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
   it('the instrument reproduces the contract §2 measurements, in hundredths (present control)', () => {
     expect(hundredths(contrastRatio('#FFFFFF', '#000000'))).toBe(2100);
@@ -38,6 +44,8 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
       const r = contrastRatio(fg, bg);
       if (r < min) failures.push(`${label} = ${r.toFixed(2)}`);
     };
+    // Present control: the stylesheet's :focus-visible outline names a theme token; a missing or renamed rule fails here.
+    expect(Object.keys(SM_THEME_TOKENS.dark)).toContain(FOCUS_RING);
     for (const theme of ['dark', 'light'] as const) {
       const t = SM_THEME_TOKENS[theme];
       for (const fg of TEXT) for (const bg of SURFACES) check(`${theme} ${fg} on ${bg}`, t[fg], t[bg], 4.5);
@@ -45,8 +53,8 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
       for (const tone of SM_PILL_TONES) check(`${theme} pill ${tone}`, SM_PILL_TOKENS[theme][tone].fg, SM_PILL_TOKENS[theme][tone].bg, 4.5);
       // WCAG 1.4.11: heat and the gap border are non-text, on the canvas and on cards.
       for (const fg of NONTEXT) for (const bg of ['canvas', 'card'] as const) check(`${theme} ${fg} on ${bg}`, t[fg], t[bg], 3);
-      // WCAG 1.4.11: the focus ring (sourcing-map.css `.sm-root :focus-visible`) is non-text, on every surface.
-      for (const bg of SURFACES) check(`${theme} focus ring on ${bg}`, t['teal-text'], t[bg], 3);
+      // WCAG 1.4.11: the focus ring is non-text, on every surface, in the token sourcing-map.css actually uses.
+      for (const bg of SURFACES) check(`${theme} focus ring --sm-${FOCUS_RING} on ${bg}`, t[FOCUS_RING as keyof typeof t], t[bg], 3);
     }
     for (const fg of [SM_HEADER.ink, SM_HEADER.ink2]) check(`header ${fg}`, fg, SM_HEADER.bg, 4.5);
     expect(failures).toEqual([]);
