@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SM_LIMITS, type SmRunListResponse, type SmRunTemplate } from '@/lib/sourcing-map/contract';
@@ -21,6 +21,8 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
   const [deleting, setDeleting] = useState<Run | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A deleted run's row takes its Delete button with it; focus then goes to "+ New run" (L141).
+  const newRunRef = useRef<HTMLButtonElement | null>(null);
 
   async function newRun() {
     setBusy(true);
@@ -59,7 +61,7 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="sm-heading text-lg font-semibold">Runs</h2>
-        <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={newRun}>+ New run</SmButton>
+        <SmButton ref={newRunRef} className="sm-btn sm-btn-primary" busy={busy} onClick={newRun}>+ New run</SmButton>
       </div>
       {error && !deleting && <p role="alert" className="sm-error mb-3 text-sm">{error}</p>}
       <table className="sm-table">
@@ -98,6 +100,7 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
           onConfirm={(d) => void remove(deleting, d)}
           busy={busy}
           error={error}
+          returnFocus={newRunRef}
         />
       )}
     </div>

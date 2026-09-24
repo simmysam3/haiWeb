@@ -126,5 +126,17 @@ describe('RunsTab', () => {
     settle(reply(201, { template: vomeroRunTemplate }));
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
+
+  it('after a successful delete, whose row took its Delete button, focus goes to "+ New run", never <body> (L141)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<RunsTab projectId={VOMERO_IDS.project} initialRuns={vomeroRunList.runs} />);
+    const opener = screen.getByRole('button', { name: 'Delete Line A base' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('row', { name: 'Line A base' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New run' }));
+  });
 });
 
