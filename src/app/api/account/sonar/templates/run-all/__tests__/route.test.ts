@@ -88,4 +88,19 @@ describe('POST /api/account/sonar/templates/run-all', () => {
     expect(body.total).toBe(0);
     expect(mockClient.triggerRunTemplate).not.toHaveBeenCalled();
   });
+
+  it('never triggers a sourcing_map run (R-10 census H6)', async () => {
+    mockClient.listRunTemplates.mockResolvedValue({
+      templates: [
+        { template_id: 'tA', enabled: true, observation_class: 'audit' },
+        { template_id: 'tS', enabled: true, observation_class: 'sourcing_map' },
+      ],
+    });
+    mockClient.triggerRunTemplate.mockImplementation(async (id: string) => ({ run_id: `run-${id}` }));
+    const res = await POST(makeReq(), { params: Promise.resolve({}) });
+    const body = await res.json();
+    expect(body.total).toBe(1);
+    expect(mockClient.triggerRunTemplate).toHaveBeenCalledTimes(1);
+    expect(mockClient.triggerRunTemplate).toHaveBeenCalledWith('tA');
+  });
 });
