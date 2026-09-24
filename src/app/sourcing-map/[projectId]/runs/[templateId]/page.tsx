@@ -32,6 +32,7 @@ export default async function RunWorkspacePage({ params }: { params: Promise<{ p
       executions={list}
       executionsError={executions.kind === 'error' ? `Results could not be loaded (${executions.status}). Try again in a moment.` : null}
       initialDetail={detail && detail.kind === 'ok' ? detail.data : null}
+      detailError={detail && detail.kind === 'error' ? `The latest result could not be loaded (${detail.status}). Try again in a moment.` : null}
     />
   );
 }

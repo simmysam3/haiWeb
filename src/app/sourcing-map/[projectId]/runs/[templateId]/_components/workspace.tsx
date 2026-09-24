@@ -27,11 +27,13 @@ export interface WorkspaceProps {
   productsError?: string | null;
   /** R1: the result list failed, so an empty list is unknown, never "No execution yet" */
   executionsError?: string | null;
+  /** R1: the newest result failed to load; it opens as the page's error, which a switch of result clears */
+  detailError?: string | null;
 }
 
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
-  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null, executionsError = null,
+  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null, executionsError = null, detailError = null,
 }: WorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,7 +48,7 @@ export function Workspace({
   const [productFilter, setProductFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(detailError);
   const [busy, setBusy] = useState(false);
 
   const loadEstimate = useCallback(async () => {
@@ -83,7 +85,7 @@ export function Workspace({
       {executionsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{executionsError}</p>}
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
       {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
-      {!(detail === null && executionsError !== null) && <ExecutionBanner execution={detail?.execution ?? null} />}
+      {!(detail === null && (executionsError !== null || detailError !== null)) && <ExecutionBanner execution={detail?.execution ?? null} />}
       {result && (
         <SeatBar
           result={result}

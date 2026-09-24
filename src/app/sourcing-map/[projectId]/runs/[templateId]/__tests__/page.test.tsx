@@ -100,6 +100,19 @@ describe('run workspace page', () => {
     expect(screen.queryByText(/No execution yet/)).toBeNull();
   });
 
+  it('shows an alert, and never "No execution yet", when the newest result read fails (R1)', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: '' });
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) }));
+    expect(screen.getByText('The latest result could not be loaded (500). Try again in a moment.')).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText(/No execution yet/)).toBeNull();
+  });
+
   it('is a 404, before any fetch, when the project segment is not an id (R6)', async () => {
     queueGoodLoad();
     const { default: Page } = await import('../page');
