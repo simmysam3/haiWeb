@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { vomeroResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import { MapCanvas } from '../map-canvas';
 
@@ -44,6 +44,18 @@ describe('MapCanvas', () => {
     const measures = performance.getEntriesByName('sm-map-render', 'measure');
     expect(measures).toHaveLength(1);
     expect(Number.isFinite(measures[0]!.duration)).toBe(true);
+  });
+
+  it('renders an honest empty state naming the reason when there are no slots (Review Focus 5)', () => {
+    const { unmount } = mount(zeroSlotResult(), { asOfDrop: null });
+    expect(screen.getByRole('status')).toHaveTextContent("Nothing to map: every product's BOM was unavailable from the agent.");
+    expect(document.body.textContent).not.toMatch(/NaN|Infinity/);
+    unmount();
+    // Every product composed but none has a BOM line: the other reason, said as itself.
+    const noLines = zeroSlotResult();
+    noLines.products = noLines.products.map((p) => ({ ...p, status: 'composed' as const, failure: null }));
+    mount(noLines, { asOfDrop: null });
+    expect(screen.getByRole('status')).toHaveTextContent('Nothing to map: the products in this run have no BOM lines yet.');
   });
 });
 
