@@ -24,4 +24,17 @@ describe('upload cell parsers', () => {
     expect(parseShare('0')).toBeNull();
     expect(parseShare('x')).toBeNull();
   });
+
+  it('parseSheetDate reads ISO, US and Excel serial dates and refuses the rest (Review Focus 4)', () => {
+    expect(parseSheetDate('2027-03-15')).toBe('2027-03-15');
+    expect(parseSheetDate('2027-3-5')).toBe('2027-03-05');
+    expect(parseSheetDate('3/15/2027')).toBe('2027-03-15');
+    expect(parseSheetDate('3/15/27')).toBe('2027-03-15');
+    expect(parseSheetDate('46402')).toBe('2027-01-15');
+    expect(parseSheetDate('46402.5')).toBe('2027-01-15');
+    expect(parseSheetDate('13/15/2027')).toBeNull();
+    expect(parseSheetDate('2/30/2027')).toBeNull();
+    expect(parseSheetDate('12345')).toBeNull();
+    expect(parseSheetDate('soon')).toBeNull();
+  });
 });
