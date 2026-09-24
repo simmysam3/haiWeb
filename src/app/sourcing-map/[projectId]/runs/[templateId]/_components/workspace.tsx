@@ -72,16 +72,17 @@ export function Workspace({
 
   // R3: each switch of result (a pick, Run's new execution, the reload after Cancel) takes a number; only the
   // latest one's answer, success or failure, is applied, so two answers arriving out of order can't swap.
+  // Answers whether the switch was applied: false when it failed or a later switch superseded it.
   const selectSeq = useRef(0);
-  async function selectExecution(id: string) {
+  async function selectExecution(id: string): Promise<boolean> {
     const seq = ++selectSeq.current;
     // R3: a switch of result starts clean; an error left by the previous one no longer applies.
     setError(null);
     const out = await smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${id}`);
-    if (seq !== selectSeq.current) return;
+    if (seq !== selectSeq.current) return false;
     if (!out.ok) {
       setError(out.message);
-      return;
+      return false;
     }
     setLoaded(out.data);
     // R3: the pick and the collapsed rails are by slot (and candidate) index, so they named the result just replaced.
@@ -89,6 +90,7 @@ export function Workspace({
     setCollapsed(new Set());
     // The loaded execution's summary replaces (or joins) its picker entry, so a new run needs no list refetch.
     setExecutions((xs) => [out.data.execution, ...xs.filter((x) => x.execution_id !== out.data.execution.execution_id)]);
+    return true;
   }
 
   async function run() {
@@ -136,7 +138,9 @@ export function Workspace({
       // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
       // Cancel stays disabled through the reload, which removes it.
       focusAfterCancel.current = true;
-      await selectExecution(id);
+      // M2: a reload that failed or was superseded leaves the button where it was; a later terminal poll must not
+      // move focus at an arbitrary moment, so the hand-off is dropped.
+      if (!(await selectExecution(id))) focusAfterCancel.current = false;
     } finally {
       setCancelling(false);
     }

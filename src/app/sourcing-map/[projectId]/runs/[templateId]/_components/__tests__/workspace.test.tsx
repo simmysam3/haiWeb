@@ -559,4 +559,29 @@ describe('Workspace', () => {
     expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
     expect(rail).toHaveFocus();
   });
+
+  it('a Cancel whose reload fails never moves focus later, when a poll ends the execution (M2)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    const cancelled = { ...running, execution: { ...running.execution, status: 'cancelled' as const } };
+    let reads = 0;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return reply(200, cancelled.execution);
+      if (url.endsWith(`/executions/${id}`)) {
+        reads += 1;
+        // Cancel's reload fails; the hook's later full read (after the terminal poll) succeeds.
+        return reads === 1 ? reply(500, { error: { code: 'internal', message: 'The result could not be reloaded.' } }) : reply(200, cancelled);
+      }
+      return reply(404, {});
+    });
+    mount(running);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    expect(await screen.findByText('The result could not be reloaded.')).toBeInTheDocument();
+    const key = `/api/account/sourcing-map/executions/${id}/status`;
+    act(() =>
+      swr.options.onSuccess?.({ execution_id: id, status: 'cancelled', failure_reason: null, probes_planned: 7, probes_done: 3, cursor: 3, changed: [] }, key));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
+    expect(screen.getByLabelText('Result')).not.toHaveFocus();
+  });
 });
