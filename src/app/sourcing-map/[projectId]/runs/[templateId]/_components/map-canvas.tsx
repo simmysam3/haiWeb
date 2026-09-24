@@ -87,7 +87,7 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
           return (
             <div key={lane.slotIndex} role="group" aria-label={slot.class_label} className={dimmed ? 'opacity-40' : undefined}>
               <div className="absolute" style={{ left: lay.lanesX, top: lane.y, width: lay.width - lay.lanesX - 40 }}>
-                <SlotRail slot={slot} asOfDrop={asOfDrop} collapsed={lane.collapsed} onToggle={() => onToggle(lane.slotIndex)} productNames={productNames} />
+                <SlotRail slot={slot} asOfDrop={asOfDrop} collapsed={lane.collapsed} onToggle={() => onToggle(lane.slotIndex)} productNames={productNames} productFilter={productFilter} />
               </div>
               {lane.cards.map((card) => (
                 <div key={card.candidateIndex} className="absolute" style={{ left: card.x, top: card.y, width: MAP_L.cardW, height: MAP_L.cardH }}>

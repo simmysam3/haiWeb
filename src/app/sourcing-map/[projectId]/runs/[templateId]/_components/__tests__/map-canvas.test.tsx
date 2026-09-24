@@ -57,6 +57,14 @@ describe('MapCanvas', () => {
     mount(noLines, { asOfDrop: null });
     expect(screen.getByRole('status')).toHaveTextContent('Nothing to map: the products in this run have no BOM lines yet.');
   });
+
+  it("dims slots the filtered product does not use and shows that product's share of the others (d-G8)", () => {
+    mount(vomeroResult, { productFilter: VOMERO_IDS.metcon });
+    expect(screen.getByRole('group', { name: 'Metal eyelets' }).className).toContain('opacity-40');
+    const leather = screen.getByRole('group', { name: 'Full grain leather hides' });
+    expect(leather.className).not.toContain('opacity-40');
+    expect(within(leather).getByText('Metcon Iron: 3,750 of 12,000 sq ft (31%)')).toBeInTheDocument();
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {
