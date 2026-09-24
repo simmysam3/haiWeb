@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { heatOf, heatVar, formatPct, formatQty, formatDropDate, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText } from '../selectors';
+import { heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText } from '../selectors';
 import { vomeroResult } from '../../__fixtures__/vomero';
 
 describe('map selectors', () => {
@@ -37,5 +37,10 @@ describe('map selectors', () => {
       'No answer · declined', 'No answer · timeout', 'No answer · unreachable', 'No answer · not connected',
       'No answer · rate limited', 'Not probed · cap reached', 'Probing', null, null,
     ]);
+  });
+
+  it('formats an "as of" instant in UTC on a 24-hour clock, the one format the workspace shares (controller ruling R3)', () => {
+    expect(formatAsOfUtc('2026-09-23T10:42:00.000Z')).toBe('Sep 23, 10:42 UTC');
+    expect(formatAsOfUtc('2026-09-24T00:05:00.000Z')).toBe('Sep 24, 00:05 UTC');
   });
 });

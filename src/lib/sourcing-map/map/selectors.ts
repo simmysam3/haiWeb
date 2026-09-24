@@ -32,6 +32,12 @@ export function formatDropDate(iso: string): string {
   return SHORT_DATE.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+/** An instant as "Sep 23, 10:42 UTC": the one "as of" format that "Answers as of" and the execution picker share (ruling R3). */
+export function formatAsOfUtc(iso: string): string {
+  return `${AS_OF.format(new Date(iso))} UTC`;
+}
+
 /** Spec §9.3: the first short drop, or the last drop when none is short. */
 export function defaultAsOfDrop(p: SmPortfolioResult): string | null {
   return p.first_short_drop ?? p.drops[p.drops.length - 1]?.due_date ?? null;
