@@ -64,7 +64,7 @@ export function normalizeCompanyName(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-function normalizeHeader(s: string): string {
+export function normalizeHeader(s: string): string {
   return s
     .trim()
     .replace(/[*:]+$/, '')
