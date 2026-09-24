@@ -1,7 +1,15 @@
 'use client';
-import { createContext, useCallback, useContext, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { smThemeStyle, type SmTheme } from '@/lib/sourcing-map/theme';
-import { writeStoredTheme } from '@/lib/sourcing-map/theme-storage';
+import { readStoredTheme, writeStoredTheme } from '@/lib/sourcing-map/theme-storage';
 
 interface ThemeCtx {
   theme: SmTheme;
@@ -13,16 +21,22 @@ export function useSmTheme(): ThemeCtx {
   return useContext(Ctx);
 }
 
+// The stored choice changes only through this root's own toggle, which re-renders through state.
+const noSubscription = () => () => {};
+// The server has no storage, so it always renders dark.
+const serverStoredTheme = (): SmTheme | null => null;
+
 /** The app's root element: data-theme + the --sm-* tokens (spec §9.1). Dark by default. */
 export function SmThemeRoot({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<SmTheme>('dark');
+  // Reconcile the remembered choice after hydration: the server snapshot is dark.
+  const stored = useSyncExternalStore(noSubscription, readStoredTheme, serverStoredTheme);
+  const [chosen, setChosen] = useState<SmTheme | null>(null);
+  const theme = chosen ?? stored ?? 'dark';
   const toggle = useCallback(() => {
-    setTheme((t) => {
-      const next: SmTheme = t === 'dark' ? 'light' : 'dark';
-      writeStoredTheme(next);
-      return next;
-    });
-  }, []);
+    const next: SmTheme = theme === 'dark' ? 'light' : 'dark';
+    writeStoredTheme(next);
+    setChosen(next);
+  }, [theme]);
   return (
     <Ctx.Provider value={{ theme, toggle }}>
       <div data-testid="sm-root" data-theme={theme} style={smThemeStyle(theme) as CSSProperties} className="sm-root">

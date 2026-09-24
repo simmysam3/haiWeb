@@ -31,4 +31,18 @@ describe('SmThemeRoot', () => {
     expect(root.style.getPropertyValue('--sm-canvas')).toBe('#ECF0F4');
     expect(window.localStorage.getItem('sm.theme')).toBe('light');
   });
+
+  it('applies a remembered light theme after mount and ignores a value it does not know (server renders dark; known one-frame limitation)', () => {
+    window.localStorage.setItem('sm.theme', 'neon');
+    const first = render(
+      <SmThemeRoot>
+        <ThemeToggle />
+      </SmThemeRoot>,
+    );
+    expect(screen.getByTestId('sm-root')).toHaveAttribute('data-theme', 'dark');
+    first.unmount();
+    window.localStorage.setItem('sm.theme', 'light');
+    const root = mount();
+    expect(root).toHaveAttribute('data-theme', 'light');
+  });
 });
