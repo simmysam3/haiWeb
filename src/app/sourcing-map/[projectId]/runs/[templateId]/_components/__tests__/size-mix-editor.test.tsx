@@ -27,4 +27,14 @@ describe('SizeMixEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Normalize to 100%' }));
     expect(mixTotalsHundred(onChange.mock.lastCall![0])).toBe(true);
   });
+
+  it('edits by pairs and re-derives the percentage mix from them', () => {
+    const onChange = vi.fn();
+    const axis = { name: 'Size', system: "Men's US", values: ['9', '10'] };
+    render(<SizeMixEditor axis={axis} mix={{ '9': 50, '10': 50 }} totalQty={1000} curve={null} label="Court Classic" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Edit by pairs' }));
+    expect(screen.getByLabelText('9 pairs')).toHaveValue(500);
+    fireEvent.change(screen.getByLabelText('10 pairs'), { target: { value: '1000' } });
+    expect(onChange).toHaveBeenLastCalledWith({ '9': 33.33, '10': 66.67 }, null);
+  });
 });

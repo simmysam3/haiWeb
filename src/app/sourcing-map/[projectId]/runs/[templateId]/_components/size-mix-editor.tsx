@@ -1,13 +1,13 @@
 'use client';
 import { useState } from 'react';
 import { mixTotalsHundred, type SmMix, type VariantAxis } from '@/lib/sourcing-map/contract';
-import { curveMix, mixTotal, normalizeMix } from '@/lib/sourcing-map/demand-math';
+import { curveMix, mixFromPairs, mixTotal, normalizeMix, pairsFromMix } from '@/lib/sourcing-map/demand-math';
 
 type Curve = { center: string; spread: number; half_sizes: boolean };
 
 /**
  * The prototype's size-mix controls (spec §7.4): center, spread, half sizes,
- * Generate curve, and edit by % (Cycle 34.4 adds edit by pairs). Validity uses
+ * Generate curve, and edit by % and edit by pairs. Validity uses
  * the contract's own mixTotalsHundred — the predicate the server applies (Review Focus 3, d-G7).
  */
 export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
@@ -16,7 +16,9 @@ export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
   const [center, setCenter] = useState(curve?.center ?? axis.values[Math.floor(axis.values.length / 2)]!);
   const [spread, setSpread] = useState(String(curve?.spread ?? 1.5));
   const [half, setHalf] = useState(curve?.half_sizes ?? axis.values.some((v) => v.includes('.')));
+  const [mode, setMode] = useState<'pct' | 'pairs'>('pct');
   const current: SmMix = mix ?? Object.fromEntries(axis.values.map((v) => [v, 0]));
+  const pairs = pairsFromMix(totalQty, current, axis.values);
   const valid = mixTotalsHundred(current);
   const curveNow: Curve = { center, spread: Number(spread) || 1.5, half_sizes: half };
 
@@ -34,19 +36,34 @@ export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
         </label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={half} onChange={(e) => setHalf(e.target.checked)} />Half sizes</label>
         <button type="button" className="sm-btn sm-btn-ghost" onClick={() => onChange(curveMix(axis.values, curveNow), curveNow)}>Generate curve</button>
+        <div role="radiogroup" aria-label="Edit the mix by" className="flex gap-2">
+          <label className="flex items-center gap-1"><input type="radio" name={`mix-mode-${label}`} checked={mode === 'pct'} onChange={() => setMode('pct')} />Edit by %</label>
+          <label className="flex items-center gap-1"><input type="radio" name={`mix-mode-${label}`} checked={mode === 'pairs'} onChange={() => setMode('pairs')} />Edit by pairs</label>
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {axis.values.map((v) => (
           <label key={v} className="flex flex-col text-xs">
             <span className="sm-muted">{v}</span>
-            <input
-              type="number" step="0.01" min={0} max={100} aria-label={`${v} share %`} className="sm-input w-16 text-xs"
-              value={current[v] ?? 0}
-              onChange={(e) => {
-                const n = Number.parseFloat(e.target.value);
-                if (Number.isFinite(n) && n >= 0 && n <= 100) onChange({ ...current, [v]: n }, curve);
-              }}
-            />
+            {mode === 'pct' ? (
+              <input
+                type="number" step="0.01" min={0} max={100} aria-label={`${v} share %`} className="sm-input w-16 text-xs"
+                value={current[v] ?? 0}
+                onChange={(e) => {
+                  const n = Number.parseFloat(e.target.value);
+                  if (Number.isFinite(n) && n >= 0 && n <= 100) onChange({ ...current, [v]: n }, curve);
+                }}
+              />
+            ) : (
+              <input
+                type="number" step={1} min={0} aria-label={`${v} pairs`} className="sm-input w-20 text-xs"
+                value={pairs[v] ?? 0}
+                onChange={(e) => {
+                  const n = Number.parseInt(e.target.value, 10);
+                  if (Number.isFinite(n) && n >= 0) onChange(mixFromPairs({ ...pairs, [v]: n }, axis.values), curve);
+                }}
+              />
+            )}
           </label>
         ))}
       </div>
