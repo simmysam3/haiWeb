@@ -1,5 +1,6 @@
 import { matchVariantHeader, parseQty, parseSheetDate } from './cells';
 import type { RowError } from './bom-rows';
+import { SM_LIMITS } from '../contract';
 
 export interface DemandBuildProduct {
   product_id: string;
@@ -40,6 +41,15 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
   const byName = new Map(products.map((p) => [p.name.trim().toLocaleLowerCase(), p]));
   const acc = new Map<string, Map<string, DemandBuildDrop>>();
 
+  if (col('due_date') < 0) errors.push({ row: 0, message: 'Map a column to Due date.' });
+  if (col('quantity') < 0 && col('variant') < 0 && wideCols.length === 0) {
+    errors.push({ row: 0, message: 'Map a column to Quantity, or map per-size quantity columns.' });
+  }
+  if (col('product') < 0 && products.length !== 1) {
+    errors.push({ row: 0, message: `Map a Product column; this run has ${products.length} products.` });
+  }
+  if (errors.length > 0) return { perProduct: [], errors, ignoredColumns };
+
   for (const r of rows) {
     // A single-product run needs no product column (spec §7.3).
     const product = col('product') < 0 ? products[0] : byName.get(cell(r.cells, 'product').toLocaleLowerCase());
@@ -65,11 +75,13 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
         qty += q;
       }
     } else {
-      continue; // the totals-only layout arrives in Cycle 30.4
+      const q = parseQty(cell(r.cells, 'quantity'), decimalComma);
+      if (q === null) continue;
+      qty = q;
     }
     const perDate = acc.get(product.product_id) ?? new Map<string, DemandBuildDrop>();
     acc.set(product.product_id, perDate);
-    const drop = perDate.get(due) ?? { due_date: due, qty: 0, pairs: {} };
+    const drop = perDate.get(due) ?? { due_date: due, qty: 0, pairs: Object.keys(pairs).length > 0 ? {} : null };
     drop.qty += qty;
     if (drop.pairs) for (const [v, q] of Object.entries(pairs)) drop.pairs[v] = (drop.pairs[v] ?? 0) + q;
     perDate.set(due, drop);
@@ -79,5 +91,11 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
     product_id,
     drops: [...perDate.values()].filter((d) => d.qty > 0).sort((a, b) => a.due_date.localeCompare(b.due_date)),
   }));
+  for (const p of perProduct) {
+    if (p.drops.length > SM_LIMITS.DROPS_PER_PRODUCT) {
+      const name = products.find((x) => x.product_id === p.product_id)?.name ?? p.product_id;
+      errors.push({ row: 0, message: `${name} has ${p.drops.length} drops; a product takes at most ${SM_LIMITS.DROPS_PER_PRODUCT}.` });
+    }
+  }
   return { perProduct, errors, ignoredColumns };
 }

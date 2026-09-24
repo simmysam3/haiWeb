@@ -40,4 +40,17 @@ describe('buildDemand', () => {
       { product_id: VOMERO_IDS.pegasus, drops: [{ due_date: '2027-01-15', qty: 620, pairs: { '9': 300, '9.5': 320 } }] },
     ]);
   });
+
+  it('asks for a Product column in a multi-product run, and refuses more than 52 drops per product', () => {
+    const noProduct = buildDemand({ headers: ['Due', 'Qty'], mapping: ['due_date', 'quantity'], rows: [{ row: 2, cells: ['2027-01-15', '5'] }], products: PRODUCTS, decimalComma: false });
+    expect(noProduct.errors).toEqual([{ row: 0, message: 'Map a Product column; this run has 2 products.' }]);
+    const rows = Array.from({ length: 53 }, (_, i) => ({
+      row: i + 2,
+      cells: [new Date(Date.UTC(2027, 0, 4 + 7 * i)).toISOString().slice(0, 10), '100'],
+    }));
+    const tooMany = buildDemand({ headers: ['Due', 'Qty'], mapping: ['due_date', 'quantity'], rows, products: [PRODUCTS[0]!], decimalComma: false });
+    expect(tooMany.errors).toEqual([{ row: 0, message: 'Pegasus Trail has 53 drops; a product takes at most 52.' }]);
+    // totals-only: no sizes, so no pairs; the mix comes from the curve (Task 34)
+    expect(tooMany.perProduct[0]!.drops[0]).toEqual({ due_date: '2027-01-04', qty: 100, pairs: null });
+  });
 });
