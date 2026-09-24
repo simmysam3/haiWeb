@@ -135,6 +135,7 @@ export function UploadWizard(props: UploadWizardProps) {
               mapFor(sheets, i, h);
             }}
             onHeader={(h) => {
+              setError(null); // a new header row means new columns and data rows; the old error named the old ones
               setHeaderIndex(h);
               mapFor(sheets, sheetIndex, h);
             }}

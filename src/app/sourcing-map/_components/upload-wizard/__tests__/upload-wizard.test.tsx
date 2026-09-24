@@ -151,6 +151,21 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('re-maps the columns when the header row is corrected, and drops the error the old header caused (I16)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Pegasus Trail BOM,Spring 2027', 'Description,Usage,UOM', 'Upper leather tumbled,0.25,sq ft']));
+    expect(await screen.findByLabelText('Header row')).toHaveValue('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Map a column to Component.');
+    fireEvent.change(screen.getByLabelText('Header row'), { target: { value: '1' } });
+    expect(screen.getByLabelText('Map column Description')).toHaveValue('component');
+    expect(screen.getByLabelText('Map column Usage')).toHaveValue('qty_per_unit');
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Upper leather tumbled')).toBeInTheDocument();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
