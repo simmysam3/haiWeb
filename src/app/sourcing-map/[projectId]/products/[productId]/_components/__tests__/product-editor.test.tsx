@@ -97,4 +97,15 @@ describe('ProductEditorBody', () => {
     expect(screen.getByRole('radio', { name: /Copy/ })).toBeChecked();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('moves focus into the import dialog on open and returns it to the toolbar button on Cancel (WCAG 2.4.3)', () => {
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    const openButton = screen.getByRole('button', { name: 'Import from agent' });
+    openButton.focus();
+    fireEvent.click(openButton);
+    expect(screen.getByLabelText('Parent SKU')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(openButton).toHaveFocus();
+  });
 });
