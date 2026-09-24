@@ -46,22 +46,20 @@ test.describe('Sourcing Map walk (CSG)', () => {
     // Whole sizes: SP1-e's SM_BOM_FILE, the long-layout CSV (its e-G6), names whole sizes 7–13, so the axis is 6–15 without half sizes.
     await page.getByLabel('Half sizes').uncheck();
     await page.getByLabel('Variant preset').selectOption('mens_us_6_15');
-    await page.getByRole('button', { name: 'Save product' }).click();
-    // Fix round 1, I-1: `save()` (product-editor.tsx) clears `busy` as soon as the PATCH resolves, before
-    // `setProduct(...)` and `router.refresh()`. The PATCH changes `variant_axis`, and the refresh re-keys
-    // `ProductEditorBody` (products/[productId]/page.tsx: `key={editorKey(detail)}`), remounting it and
-    // resetting `uploading` — closing the wizard mid-flow if it opened first, or opening it with the stale
-    // (pre-save) axis if a click lands before the refresh. No element on this screen (a brand-new product,
-    // no BOM lines yet) renders anything driven by the refreshed `detail` prop rather than by `ProductEditor`'s
-    // own local `product`/`axis` state: the readiness Pill and the Variant preset select both already show the
-    // right value from local state well before the refresh lands, and `BomGrid`'s only axis-dependent markup
-    // (the per-line "Size-bound" checkbox) has no rows to render it against yet. So there is no deterministic,
-    // already-built DOM signal to wait on here — falling back to a network-settle wait instead.
-    await page.waitForLoadState('networkidle');
+    // F1: the editor keeps the product it saved (LW-b), so the wizard reads the saved axis as soon as the PATCH has
+    // answered and its busy state clears in the same commit. `networkidle` was a no-op here: it had already fired for
+    // this document (the walk reaches the page by a same-document navigation) and is never re-armed. So wait for the
+    // PATCH's response, then for the DOM's own signal: Save product drops aria-busy (LW-a) once `detail` is lifted.
+    const saveProduct = page.getByRole('button', { name: 'Save product' });
+    await Promise.all([
+      page.waitForResponse((r) => r.request().method() === 'PATCH' && r.url().includes('/api/account/sourcing-map/products/') && r.ok()),
+      saveProduct.click(),
+    ]);
+    await expect(saveProduct).not.toHaveAttribute('aria-busy', 'true');
 
     await page.getByRole('button', { name: 'Upload BOM' }).click();
     await page.getByLabel('Spreadsheet file').setInputFiles(BOM_FILE!);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByRole('button', { name: 'Accept all confident' }).click();
     await page.getByRole('button', { name: 'Continue to review' }).click();
     await page.getByRole('button', { name: /^Save \d+ lines?$/ }).click();
@@ -72,12 +70,12 @@ test.describe('Sourcing Map walk (CSG)', () => {
     await page.waitForURL(/\/runs\/[0-9a-f-]{36}$/);
     await page.getByRole('button', { name: 'Configure' }).click();
     await page.getByLabel('Add a product').selectOption({ label: 'Walk trainer' });
-    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
     await page.getByRole('button', { name: 'Generate drops for Walk trainer' }).click();
-    await page.getByRole('button', { name: 'Apply' }).click();
+    await page.getByRole('button', { name: 'Apply', exact: true }).click();
     await expect(page.getByRole('complementary', { name: 'Configure run' })).toBeHidden();
 
-    const run = page.getByRole('button', { name: 'Run' });
+    const run = page.getByRole('button', { name: 'Run', exact: true });
     await expect(run).toBeEnabled({ timeout: 30_000 });
     await run.click();
     await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible({ timeout: 5 * 60_000 });
