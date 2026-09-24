@@ -565,4 +565,18 @@ describe('UploadWizard (demand)', () => {
     expect(screen.queryByRole('button', { name: 'Apply schedule' })).toBeNull();
     expect(onApply).not.toHaveBeenCalled();
   });
+
+  it('never applies a schedule whose size cells are all blank: Review names the product and keeps "Apply schedule" disabled (contract §3.5)', async () => {
+    const onApply = vi.fn();
+    render(<UploadWizard kind="demand" products={PRODUCTS.slice(0, 1)} onApply={onApply} onClose={vi.fn()} />);
+    await userEvent.upload(fileInput(), csvFile(['Due date,9,9.5', '2027-01-15,,', '2027-02-15,,'], 'demand.csv'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    // the file reaches Review (the product is kept, with no drops)...
+    expect(await screen.findByText('Pegasus Trail: 0 drops · 0 units')).toBeInTheDocument();
+    // ...where the row-0 error blocks it
+    expect(screen.getByRole('alert')).toHaveTextContent('Pegasus Trail has no drop with a quantity above 0.');
+    expect(screen.getByRole('button', { name: 'Apply schedule' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }));
+    expect(onApply).not.toHaveBeenCalled();
+  });
 });
