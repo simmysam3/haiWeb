@@ -466,6 +466,21 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
   });
 
+  it('shows the message when class suggestions fail, and a line can still be classified by search (a-G4)', async () => {
+    const answer = route();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/class-suggestions')
+        ? reply(503, { error: { code: 'unavailable', message: 'Class suggestions are unavailable.' } })
+        : answer(url, init));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Class suggestions are unavailable.');
+    const row = screen.getByRole('row', { name: /Upper leather tumbled/ });
+    expect(within(row).getByRole('textbox', { name: /^Class search for/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue to review' })).toBeEnabled();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {
