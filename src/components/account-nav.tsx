@@ -26,6 +26,8 @@ interface NavItem {
   indent?: boolean;
   /** One-sentence hover hint surfaced via <NavTooltip>. ~12-word target. */
   tooltip?: string;
+  /** Shown only when the named capability is granted by the layout (spec §9.2). */
+  requires?: 'sourcing_map';
 }
 
 interface RequestManagementCounts {
@@ -126,6 +128,7 @@ const navSections: NavSection[] = [
       { href: "/account/sonar/grounded-forecasts", label: "Grounded Forecasts", tooltip: "Turn a demand projection for an unbuilt product into a dated commitment schedule, grounded in network quotes and your own delivery history." },
       { href: REQUESTS_HREF, label: "Request Management", tooltip: "Track nominations and obligations in both directions — what you've sent to counterparties and what's awaiting your decision." },
       { href: "/account/sonar/inquiries", label: "Inquiry Log", tooltip: "Qualified inquiries sent to you and by you — verdicts, commitments, and guard activity." },
+      { href: "/sourcing-map", label: "Sourcing Map", tooltip: "Plan a product portfolio against your direct suppliers' capacity, drop by drop and size by size.", requires: "sourcing_map" },
     ],
   },
   {
@@ -218,9 +221,11 @@ const navSections: NavSection[] = [
 interface AccountNavProps {
   userName: string;
   userEmail: string;
+  /** hasRole(role, 'account_admin') — the Sourcing Map item is hidden otherwise (AC 1). */
+  canUseSourcingMap?: boolean;
 }
 
-export function AccountNav({ userName, userEmail }: AccountNavProps) {
+export function AccountNav({ userName, userEmail, canUseSourcingMap = false }: AccountNavProps) {
   const pathname = usePathname();
 
   function isItemActive(item: NavItem): boolean {
@@ -258,7 +263,7 @@ export function AccountNav({ userName, userEmail }: AccountNavProps) {
                 </div>
               )}
             </div>
-            {section.items.map((item) => {
+            {section.items.filter((item) => item.requires !== "sourcing_map" || canUseSourcingMap).map((item) => {
               const isActive = isItemActive(item);
               let entry: React.ReactNode;
               if (item.href === REQUESTS_HREF) {

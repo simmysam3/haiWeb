@@ -204,6 +204,20 @@ describe('AccountNav', () => {
   // GET-mutating logout route silently destroys the session → the user is
   // bounced to re-login when merely moving between pages. Logout is a
   // mutation and must be a POST form (forms are never prefetched).
+  it('shows the Sourcing Map launch item last in Sonar Observe only when canUseSourcingMap (spec §9.2, AC 1)', () => {
+    const { container, unmount } = render(
+      <AccountNav userName="Test User" userEmail="test@example.com" canUseSourcingMap />,
+    );
+    expect(screen.getByRole('link', { name: 'Sourcing Map' })).toHaveAttribute('href', '/sourcing-map');
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const observe = sections.find((s) => s.textContent?.trimStart().startsWith('Sonar Observe'));
+    const hrefs = Array.from(observe!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(hrefs[hrefs.length - 1]).toBe('/sourcing-map');
+    unmount();
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Sourcing Map' })).toBeNull();
+  });
+
   it('renders Sign Out as a POST form, never a prefetchable logout link', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     // No anchor to the logout route (a <Link> would be prefetched by Next).
