@@ -1,5 +1,5 @@
-import type { SmProduct, SourcingMapScope } from './contract';
-import { mixFromPairs } from './demand-math';
+import { SM_LIMITS, type DemandSchedule, type SmProduct, type SourcingMapScope, type VariantAxis } from './contract';
+import { curveMix, generateDrops, mixFromPairs } from './demand-math';
 import type { DemandBuild } from './upload/demand-rows';
 
 /**
@@ -32,4 +32,40 @@ export function applyUploadedDemand(scope: SourcingMapScope, build: DemandBuild,
       return { ...rp, demand: { drops, mix, generator: null } };
     }),
   };
+}
+
+/** A starting schedule the user then edits (ruling 7 keeps it): 6 monthly drops of 1,000 and the default curve. */
+export function defaultDemand(axis: VariantAxis | null, firstDue: string): DemandSchedule {
+  const g = { total: 6000, first_due_date: firstDue, spacing: 'monthly' as const, count: 6, shape: 'flat' as const };
+  const drops = generateDrops(g);
+  const curve = axis
+    ? { center: axis.values[Math.floor(axis.values.length / 2)]!, spread: 1.5, half_sizes: axis.values.some((v) => v.includes('.')) }
+    : null;
+  return {
+    drops: drops.ok ? drops.drops : [],
+    mix: axis && curve ? curveMix(axis.values, curve) : null,
+    generator: { ...g, curve },
+  };
+}
+
+export function addProduct(scope: SourcingMapScope, product: SmProduct, firstDue: string): SourcingMapScope {
+  if (scope.products.length >= SM_LIMITS.PRODUCTS_PER_RUN || scope.products.some((p) => p.product_id === product.product_id)) return scope;
+  return { ...scope, products: [...scope.products, { product_id: product.product_id, demand: defaultDemand(product.variant_axis, firstDue) }] };
+}
+
+export function removeProduct(scope: SourcingMapScope, productId: string): SourcingMapScope {
+  return { ...scope, products: scope.products.filter((p) => p.product_id !== productId) };
+}
+
+export function moveProduct(scope: SourcingMapScope, productId: string, dir: -1 | 1): SourcingMapScope {
+  const i = scope.products.findIndex((p) => p.product_id === productId);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= scope.products.length) return scope;
+  const products = [...scope.products];
+  [products[i], products[j]] = [products[j]!, products[i]!];
+  return { ...scope, products };
+}
+
+export function replaceDemand(scope: SourcingMapScope, productId: string, demand: DemandSchedule): SourcingMapScope {
+  return { ...scope, products: scope.products.map((p) => (p.product_id === productId ? { ...p, demand } : p)) };
 }
