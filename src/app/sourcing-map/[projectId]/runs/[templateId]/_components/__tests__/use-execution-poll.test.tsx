@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { VOMERO_IDS, runningDetail, vomeroDetail } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { render, screen, act, waitFor } from '@testing-library/react';
+import { VOMERO_IDS, runningDetail, vomeroDetail, vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
 import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
 
@@ -53,5 +53,32 @@ describe('useExecutionPoll', () => {
     rerender(<Probe initial={vomeroDetail} />);
     expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered');
     expect(swrCalls[swrCalls.length - 1]!.key).toBeNull();
+  });
+
+  it('merges changed candidates into the result and advances the cursor', async () => {
+    render(<Probe initial={runningDetail()} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
+    const last = swrCalls[swrCalls.length - 1]!;
+    act(() => {
+      last.opts.onSuccess!({
+        execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'running', failure_reason: null,
+        probes_planned: 7, probes_done: 4, cursor: 4,
+        changed: [{ slot_index: 0, candidate_index: 1, candidate: vomeroResult.slots[0]!.candidates[1]! }],
+      });
+    });
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('running:answered'));
+    expect(swrCalls[swrCalls.length - 1]!.key).toContain('status?cursor=4');
+  });
+
+  it('fetches the full detail once when the status turns terminal', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify(vomeroDetail) });
+    render(<Probe initial={runningDetail()} />);
+    const last = swrCalls[swrCalls.length - 1]!;
+    act(() => {
+      last.opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] });
+    });
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031');
   });
 });

@@ -3,7 +3,8 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import type { SmExecutionDetail, SmExecutionStatusResponse } from '@/lib/sourcing-map/contract';
 import { jsonFetcher } from '@/lib/swr-fetcher';
-import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
+import { smFetch } from '@/lib/sourcing-map/client';
+import { SM_POLL_MS, applyStatusDelta } from '@/lib/sourcing-map/map/selectors';
 
 const LIVE = new Set(['queued', 'running']);
 
@@ -36,7 +37,29 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
   useSWR<SmExecutionStatusResponse>(
     live ? `/api/account/sourcing-map/executions/${detail!.execution.execution_id}/status?cursor=${cursor}` : null,
     jsonFetcher,
-    { refreshInterval: SM_POLL_MS, dedupingInterval: 0 },
+    {
+      refreshInterval: SM_POLL_MS,
+      dedupingInterval: 0,
+      onSuccess: (s) => {
+        setState((st) =>
+          st.detail === null
+            ? st
+            : {
+                ...st,
+                cursor: s.cursor,
+                detail: {
+                  execution: { ...st.detail.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done },
+                  result: st.detail.result ? applyStatusDelta(st.detail.result, s) : st.detail.result,
+                },
+              },
+        );
+        if (!LIVE.has(s.status)) {
+          void smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${s.execution_id}`).then((out) => {
+            if (out.ok) setState((st) => ({ ...st, detail: out.data }));
+          });
+        }
+      },
+    },
   );
   return { detail };
 }

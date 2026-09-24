@@ -1,5 +1,5 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateLiveStatus, SmCandidateResult, SmSlotResult } from '../contract';
+import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '../contract';
 import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '../contract';
 
@@ -174,3 +174,17 @@ export function answersAreStale(asOf: string, now: Date): boolean {
 
 /** Spec §8.9: the workspace polls every 1.5 s (run-detail-shell.tsx:27). */
 export const SM_POLL_MS = 1500;
+
+/** Progressive results (spec §8.9): replace each changed candidate; untouched slots keep their identity. */
+export function applyStatusDelta(result: SourcingMapExecutionResult, status: SmExecutionStatusResponse): SourcingMapExecutionResult {
+  if (status.changed.length === 0) return result;
+  const slots = [...result.slots];
+  for (const ch of status.changed) {
+    const slot = slots[ch.slot_index];
+    if (!slot) continue;
+    const candidates = [...slot.candidates];
+    candidates[ch.candidate_index] = ch.candidate;
+    slots[ch.slot_index] = { ...slot, candidates };
+  }
+  return { ...result, slots };
+}
