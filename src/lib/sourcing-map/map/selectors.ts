@@ -1,6 +1,6 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
 import type { SmCandidateLiveStatus, SmCandidateResult, SmSlotResult } from '../contract';
-import type { SmCandidateWeek, SmOptionLimit, SmPortfolioResult } from '../types';
+import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioResult } from '../types';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
 export const HEAT_GOOD = 0.9;
@@ -87,4 +87,8 @@ export function slotWeekFor(slot: SmSlotResult, drop: string | null): string | n
 export function slotDemandAt(slot: SmSlotResult, week: string | null): number {
   if (week === null) return 0;
   return slot.demand.find((d) => d.week === week)?.cum_qty ?? 0;
+}
+
+export function slotCoverageAt(slot: SmSlotResult, week: string | null): SmCoverageWeek | null {
+  return week === null ? null : slot.coverage.find((c) => c.week === week) ?? null;
 }
