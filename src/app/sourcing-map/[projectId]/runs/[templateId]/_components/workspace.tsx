@@ -104,6 +104,13 @@ export function Workspace({
     setSelected(null);
   }
 
+  // R2: the tray moves focus into itself on open; closing it gives focus back to Configure, which opened it.
+  const configureRef = useRef<HTMLButtonElement | null>(null);
+  function closeTray() {
+    configureRef.current?.focus();
+    setTrayOpen(false);
+  }
+
   function setDrop(drop: string) {
     const q = new URLSearchParams(params.toString());
     q.set('drop', drop);
@@ -126,7 +133,9 @@ export function Workspace({
           <>
             <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
-            <button type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>Configure</button>
+            <button ref={configureRef} type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>
+              Configure
+            </button>
             <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : estimateError} running={running} busy={busy} onRun={() => void run()} />
           </>
         }
@@ -191,7 +200,7 @@ export function Workspace({
             setTemplate(t);
             setTrayOpen(false);
           }}
-          onClose={() => setTrayOpen(false)}
+          onClose={closeTray}
         />
       )}
     </>

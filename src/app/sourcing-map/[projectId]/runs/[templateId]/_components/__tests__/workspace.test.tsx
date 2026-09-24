@@ -13,6 +13,11 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(search.value),
 }));
 vi.mock('next/image', () => ({ default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} /> }));
+// The Configure tray's drop charts (the configure-tray.test.tsx mock): jsdom has no layout to measure.
+vi.mock('recharts', async () => {
+  const actual = await vi.importActual<typeof import('recharts')>('recharts');
+  return { ...actual, ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div> };
+});
 // SWR never answers here; the latest key and options are kept so a test can deliver a poll failure itself.
 type SwrOptions = { onError?(e: unknown, key: string): void };
 const { swr } = vi.hoisted(() => ({ swr: { key: null as string | null, options: {} as SwrOptions } }));
@@ -242,5 +247,14 @@ describe('Workspace', () => {
     pick(VOMERO_IDS.executionOld);
     await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
     expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+  });
+
+  it('returns focus to Configure when the tray closes (R2)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    const tray = screen.getByRole('complementary', { name: 'Configure run' });
+    fireEvent.click(within(tray).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
   });
 });
