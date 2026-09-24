@@ -33,7 +33,7 @@ const otherFailed: SmExecutionDetail = {
   execution: { ...vomeroDetail.execution, execution_id: VOMERO_IDS.executionOld, status: 'failed', failure_reason: 'interrupted' },
 };
 
-/** SWR calls the LATEST render's callbacks, and hands each one the key it fetched (swr 2.4.1 index.mjs:466, :475). */
+/** SWR calls the LATEST render's callbacks, and hands each one the key it fetched (swr 2.4.1 index.mjs: onSuccess :461; onError :466, :475). */
 const latest = () => swrCalls[swrCalls.length - 1]!;
 
 const fetchMock = vi.fn();
