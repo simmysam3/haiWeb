@@ -32,7 +32,9 @@ export function SlotRail({ slot, asOfDrop, collapsed, onToggle, productNames, pr
       ) : cov ? (
         <p>{`Covered ${formatPct(cov.coverage)} by this drop${slot.observed ? '' : ' · not fully observed'}`}</p>
       ) : null}
-      {slot.slot_key.variant_bound && <p className="sm-muted text-xs">Size-bound</p>}
+      {slot.slot_key.variant_bound && (
+        <p className="sm-muted text-xs">{slot.slot_key.variant_system ? `Size-bound · ${slot.slot_key.variant_system}` : 'Size-bound'}</p>
+      )}
       {slot.slot_key.variant_bound && cov?.coverage_by_variant && (
         <ol aria-label="Coverage by size" className="mt-1 flex flex-wrap gap-1">
           {sortedVariantEntries(cov.coverage_by_variant).map(([v, r]) => (

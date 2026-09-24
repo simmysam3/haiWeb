@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import { MapCanvas } from '../map-canvas';
@@ -28,7 +29,7 @@ describe('MapCanvas', () => {
     expect(within(leather).getByRole('button', { name: 'Full grain leather hides' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(leather).getByText('12,000 sq ft by Feb 22')).toBeInTheDocument();
     expect(within(leather).getByText('Covered 81% by this drop · not fully observed')).toBeInTheDocument();
-    expect(within(leather).getByText('Size-bound')).toBeInTheDocument();
+    expect(within(leather).getByText("Size-bound · Men's US")).toBeInTheDocument();
     expect(within(leather).getAllByRole('button', { name: /,/ })).toHaveLength(3);
     const eyelets = screen.getByRole('group', { name: 'Metal eyelets' });
     expect(within(eyelets).getByText('No trading partner publishes this class')).toBeInTheDocument();
@@ -77,6 +78,28 @@ describe('MapCanvas', () => {
     expect(within(strip).getByLabelText('Size 10: 79% covered')).toBeInTheDocument();
     expect(within(strip).getByLabelText('Size 9.5: 100% covered')).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Metal eyelets' })).queryByRole('list', { name: 'Coverage by size' })).toBeNull();
+  });
+
+  it("keys rails by slot index: one class in Men's US and Women's US is two rails, each naming its size system (b-G12)", async () => {
+    const user = userEvent.setup();
+    const twoSystems = structuredCloneSafe(vomeroResult);
+    const mens = twoSystems.slots[2]!; // the outsole slot
+    twoSystems.slots.push({ ...structuredCloneSafe(mens), slot_key: { ...mens.slot_key, variant_system: "Women's US" } });
+    const womensIndex = twoSystems.slots.length - 1;
+    const onToggle = vi.fn();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      mount(twoSystems, { onToggle });
+      const rails = screen.getAllByRole('group', { name: 'Rubber outsoles' });
+      expect(rails).toHaveLength(2);
+      expect(within(rails[0]!).getByText("Size-bound · Men's US")).toBeInTheDocument();
+      expect(within(rails[1]!).getByText("Size-bound · Women's US")).toBeInTheDocument();
+      await user.click(within(rails[1]!).getByRole('button', { name: /^Rubber outsoles/ }));
+      expect(onToggle).toHaveBeenCalledWith(womensIndex);
+      expect(consoleError.mock.calls.flat().map(String).join(' ')).not.toMatch(/same key/);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
 
