@@ -22,4 +22,16 @@ describe('SmHeader', () => {
     // The workspace passes the result picker and Run as actions.
     expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument();
   });
+
+  it('renders the breadcrumb Projects › project › run with the current page marked', () => {
+    render(
+      <SmHeader
+        crumbs={[{ label: 'Projects', href: '/sourcing-map' }, { label: 'Spring 2027', href: '/sourcing-map/p1' }, { label: 'Line A base' }]}
+      />,
+    );
+    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(nav).toHaveTextContent('Projects›Spring 2027›Line A base');
+    expect(screen.getByRole('link', { name: 'Spring 2027' })).toHaveAttribute('href', '/sourcing-map/p1');
+    expect(screen.getByText('Line A base')).toHaveAttribute('aria-current', 'page');
+  });
 });
