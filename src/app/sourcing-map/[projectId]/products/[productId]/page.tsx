@@ -6,8 +6,8 @@ import { ProductEditorBody } from './_components/product-editor-body';
 
 export default async function ProductPage({ params }: { params: Promise<{ projectId: string; productId: string }> }) {
   const ids = await params;
-  const projectId = ids.projectId;
   // A5-M2: each segment is bound into a BFF path, so anything but an id is a 404 before any fetch.
+  const projectId = smPageId(ids.projectId);
   const productId = smPageId(ids.productId);
   const [project, product] = await Promise.all([
     fetchBffJson<SmProject>(`/api/account/sourcing-map/projects/${projectId}`),

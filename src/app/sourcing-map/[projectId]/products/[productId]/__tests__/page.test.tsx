@@ -157,5 +157,12 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     await expect(ProductPage({ params: Promise.resolve({ projectId: VOMERO_IDS.project, productId: decodeURIComponent('..%2F..%2Fx') }) })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(fetchBffJson).not.toHaveBeenCalled();
   });
+
+  it('is a 404, before any fetch, when the project segment is not an id (R6, A5-M2)', async () => {
+    fetchBffJson.mockImplementation(async (url: string) =>
+      url.includes('/products/') ? { kind: 'ok', data: vomeroWorkbenchDetail } : { kind: 'ok', data: vomeroProject });
+    await expect(ProductPage({ params: Promise.resolve({ projectId: decodeURIComponent('..%2F..%2Fx'), productId: VOMERO_IDS.pegasus }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).not.toHaveBeenCalled();
+  });
 });
 
