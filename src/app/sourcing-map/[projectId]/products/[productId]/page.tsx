@@ -13,5 +13,8 @@ export default async function ProductPage({ params }: { params: Promise<{ projec
     if (product.status === 404) notFound();
     throw new Error(`product fetch failed: ${product.status}`);
   }
-  return <ProductEditorBody projectName={project.kind === 'ok' ? project.data.name : 'Project'} detail={product.data} />;
+  // Keyed per product: the editor seeds its state from `detail` once, so another product must mount a fresh one.
+  return (
+    <ProductEditorBody key={product.data.product_id} projectName={project.kind === 'ok' ? project.data.name : 'Project'} detail={product.data} />
+  );
 }
