@@ -108,4 +108,11 @@ describe('ProductEditorBody', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(openButton).toHaveFocus();
   });
+
+  it('opens the upload wizard from "Upload BOM"', () => {
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Spreadsheet file')).toBeInTheDocument();
+  });
 });
