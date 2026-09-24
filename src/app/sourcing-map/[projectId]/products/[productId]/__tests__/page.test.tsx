@@ -170,5 +170,12 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     serve({ ...vomeroWorkbenchDetail, project_id: '5a1e0000-0000-4000-8000-000000000002' });
     await expect(page(VOMERO_IDS.pegasus)).rejects.toThrow('NEXT_NOT_FOUND');
   });
+
+  it('shows an alert when the project read fails, never only a silent "Project" crumb (R1, F5)', async () => {
+    fetchBffJson.mockImplementation(async (url: string) =>
+      url === PRODUCT_URL ? { kind: 'ok', data: vomeroWorkbenchDetail } : { kind: 'error', status: 500, message: '' });
+    render(await page(VOMERO_IDS.pegasus));
+    expect(screen.getByText('The project could not be loaded (500). Try again in a moment.')).toHaveAttribute('role', 'alert');
+  });
 });
 

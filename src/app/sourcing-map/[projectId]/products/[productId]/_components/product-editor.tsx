@@ -13,8 +13,8 @@ import { VariantAxisEditor } from './variant-axis-editor';
  * the body holds (LW-b): the readiness badge and the crumb read it, so they follow any save. The header's fields are
  * drafts of their own, seeded once, so a save elsewhere never discards them; a saved header goes up through `onSaved`.
  */
-export function ProductEditor({ projectName, detail, onSaved, children }: {
-  projectName: string; detail: SmProductDetail; onSaved(product: SmProduct): void; children?: ReactNode;
+export function ProductEditor({ projectName, projectError = null, detail, onSaved, children }: {
+  projectName: string; projectError?: string | null; detail: SmProductDetail; onSaved(product: SmProduct): void; children?: ReactNode;
 }) {
   const [name, setName] = useState(detail.name);
   const [unitLabel, setUnitLabel] = useState(detail.unit_label);
@@ -44,6 +44,7 @@ export function ProductEditor({ projectName, detail, onSaved, children }: {
     <>
       <SmHeader crumbs={[{ label: 'Projects', href: SM_HOME }, { label: projectName, href: smProjectHref(detail.project_id) }, { label: detail.name }]} />
       <section className="p-8">
+        {projectError && <p role="alert" className="sm-error mb-4 text-sm">{projectError}</p>}
         <div className="sm-card p-5">
           <div className="flex flex-wrap items-end gap-4">
             <label className="text-sm">Product name<input className="sm-input ml-2" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} /></label>

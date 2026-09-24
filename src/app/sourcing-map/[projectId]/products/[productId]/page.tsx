@@ -22,6 +22,12 @@ export default async function ProductPage({ params }: { params: Promise<{ projec
   // Keyed by the product alone (LW-b): the editor holds the product it last saved, so a re-read never remounts it
   // and never discards unsaved edits in the other pane; another product mounts a fresh editor.
   return (
-    <ProductEditorBody key={product.data.product_id} projectName={project.kind === 'ok' ? project.data.name : 'Project'} detail={product.data} />
+    <ProductEditorBody
+      key={product.data.product_id}
+      projectName={project.kind === 'ok' ? project.data.name : 'Project'}
+      // R1 (the run page's precedent): a failed read is shown, never only a silent fallback name.
+      projectError={project.kind === 'error' ? `The project could not be loaded (${project.status}). Try again in a moment.` : null}
+      detail={product.data}
+    />
   );
 }

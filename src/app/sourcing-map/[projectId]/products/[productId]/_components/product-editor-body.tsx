@@ -8,7 +8,9 @@ import { AgentBomView } from './agent-bom-view';
 import { ImportAgentDialog } from './import-agent-dialog';
 import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
 
-export function ProductEditorBody({ projectName, detail: initialDetail }: { projectName: string; detail: SmProductDetail }) {
+export function ProductEditorBody({ projectName, projectError = null, detail: initialDetail }: {
+  projectName: string; projectError?: string | null; detail: SmProductDetail;
+}) {
   // LW-b: the product as last saved. Every write reports its answer here, so the header's badge and crumb, the grid
   // and the wizard all read one current product; the page keys this body by product alone and never remounts it.
   const [detail, setDetail] = useState(initialDetail);
@@ -33,7 +35,7 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
   }
 
   return (
-    <ProductEditor projectName={projectName} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
+    <ProductEditor projectName={projectName} projectError={projectError} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
       {readError && <p role="alert" className="sm-error mb-3 text-sm">{readError}</p>}
       {detail.bom_source === 'agent' ? (
         <AgentBomView detail={detail} />
