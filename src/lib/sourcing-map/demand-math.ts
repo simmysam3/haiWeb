@@ -1,4 +1,4 @@
-import { SM_LIMITS, type DemandDrop } from './contract';
+import { SM_LIMITS, type DemandDrop, type SmMix } from './contract';
 
 /**
  * Integer shares of `total` proportional to `weights`, summing exactly to
@@ -50,4 +50,24 @@ export function generateDrops(g: DropsGeneratorInput): { ok: true; drops: Demand
     ok: true,
     drops: dropDates(g.first_due_date, g.spacing, g.count).map((due_date, i) => ({ due_date, qty: 1 + extra[i]!, mix_override: null })),
   };
+}
+
+/**
+ * The size-mix curve (spec §7.4), ported from the prototype's generateSizes
+ * (docs/haiwave-sourcing-map.html:1094-1104): a Gaussian over numeric variant
+ * values, spread floored at 0.3, allocated by largest remainder over 10,000
+ * hundredths so the mix totals exactly 100.00. Half sizes off → 0% on them.
+ */
+export function curveMix(values: readonly string[], curve: { center: string; spread: number; half_sizes: boolean }): SmMix {
+  const c = Number(curve.center);
+  const sd = Math.max(0.3, curve.spread);
+  const numeric = Number.isFinite(c) && values.every((v) => v.trim() !== '' && Number.isFinite(Number(v)));
+  const weights = values.map((v) => {
+    if (!numeric) return 1;
+    const n = Number(v);
+    if (!curve.half_sizes && !Number.isInteger(n)) return 0;
+    return Math.exp(-0.5 * ((n - c) / sd) ** 2);
+  });
+  const hundredths = largestRemainder(10000, weights);
+  return Object.fromEntries(values.map((v, i) => [v, hundredths[i]! / 100]));
 }

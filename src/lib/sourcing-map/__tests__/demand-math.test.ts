@@ -30,4 +30,19 @@ describe('demand math', () => {
     expect(generateDrops({ total: 5, first_due_date: '2027-01-04', spacing: 'weekly', count: 6, shape: 'flat' })).toEqual({ ok: false, message: 'The total must be a whole number of at least 6 (one per drop).' });
     expect(generateDrops({ total: 999, first_due_date: '2027-01-04', spacing: 'weekly', count: 53, shape: 'flat' })).toEqual({ ok: false, message: 'Drops must be between 1 and 52.' });
   });
+
+  it('curveMix (the prototype curve) totals exactly 10,000 hundredths, peaks at the center, and honours half sizes', () => {
+    const mix = curveMix(MENS_US_7_13, { center: '9.5', spread: 1.5, half_sizes: true });
+    const hundredths = MENS_US_7_13.map((v) => Math.round(mix[v]! * 100));
+    expect(hundredths.reduce((a, b) => a + b, 0)).toBe(10000);
+    expect(mixTotalsHundred(mix)).toBe(true);
+    expect(Math.max(...Object.values(mix))).toBe(mix['9.5']);
+    // D19: compared in hundredths; 13.09 − 13.08 in doubles is only just under 0.01.
+    expect(Math.abs(Math.round(mix['9']! * 100) - Math.round(mix['10']! * 100))).toBeLessThanOrEqual(1);
+    expect(mix['7']! < mix['8']! && mix['13']! < mix['12']!).toBe(true);
+    const whole = curveMix(MENS_US_7_13, { center: '9.5', spread: 1.5, half_sizes: false });
+    expect(whole['9.5']).toBe(0);
+    expect(mixTotalsHundred(whole)).toBe(true);
+    expect(curveMix(['S', 'M', 'L'], { center: 'M', spread: 1, half_sizes: false })).toEqual({ S: 33.34, M: 33.33, L: 33.33 });
+  });
 });
