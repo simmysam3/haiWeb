@@ -8,32 +8,36 @@ const drops = vomeroResult.portfolio.drops;
 const leather = vomeroResult.slots[0]!;
 
 describe('OptionCard', () => {
-  it('shows the D-148 pill, limit, lead time, utilization, allocation and one labelled pip per drop with the as-of pip marked, and selects by click, Enter or Space', async () => {
+  it('shows the D-148 pill, limit, lead time, utilization, allocation and one labelled pip per drop with the as-of pip marked, all outside a named selecting button that Tab reaches and Enter or Space press', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const { rerender } = render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={onSelect} />);
-    const card = screen.getByRole('button', { name: /León Cuero, MX/ });
-    expect(card).toHaveAccessibleName('León Cuero, MX: Can cover 5,000 of 12,000 sq ft; Limit: own capacity');
-    expect(card).toHaveAttribute('aria-pressed', 'false');
-    expect(within(card).getByText('Can cover 5,000 of 12,000 sq ft')).toBeInTheDocument();
-    expect(within(card).getByText('Limit: own capacity')).toBeInTheDocument();
-    expect(within(card).getByText('38 d lead')).toBeInTheDocument();
-    expect(within(card).getByText('At capacity')).toBeInTheDocument();
-    expect(within(card).getByText('Allocated 60%')).toBeInTheDocument();
-    const pips = within(card).getAllByRole('img');
+    const button = screen.getByRole('button', { name: /León Cuero, MX/ });
+    expect(button).toHaveAccessibleName('León Cuero, MX: Can cover 5,000 of 12,000 sq ft; Limit: own capacity');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    const content = [
+      screen.getByText('Can cover 5,000 of 12,000 sq ft'),
+      screen.getByText('Limit: own capacity'),
+      screen.getByText('38 d lead'),
+      screen.getByText('At capacity'),
+      screen.getByText('Allocated 60%'),
+    ];
+    const pips = screen.getAllByRole('img');
     expect(pips.map((p) => p.getAttribute('aria-label'))).toEqual([
       'Jan 15: 60% covered', 'Feb 15: 60% covered', 'Mar 15: 41% covered (shown)', 'Apr 15: 46% covered', 'May 15: 49% covered', 'Jun 15: 50% covered',
     ]);
-    // Real focus and keys (lane pre-empt): Tab reaches the card, Enter and Space select, Tab does not.
+    // Controller ruling F-a: a role="button" makes its children presentational, so the card's content is ordinary
+    // readable content outside the button, and no focusable element nests inside another.
+    for (const el of [...content, ...pips, ...screen.getAllByTestId('pill')]) expect(button).not.toContainElement(el);
+    expect(button.querySelector('a, button, input, select, textarea, [tabindex]')).toBeNull();
+    // Real focus and keys (lane pre-empt): Tab reaches the button; Enter, Space and a click each select once.
     await user.tab();
-    expect(card).toHaveFocus();
+    expect(button).toHaveFocus();
     await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(1);
     await user.keyboard(' ');
     expect(onSelect).toHaveBeenCalledTimes(2);
-    // Tab goes last: it moves focus to the Pill inside the card, where a later key would bubble to the card.
-    await user.keyboard('{Tab}');
-    expect(onSelect).toHaveBeenCalledTimes(2);
-    await user.click(card);
+    await user.click(button);
     expect(onSelect).toHaveBeenCalledTimes(3);
     rerender(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected onSelect={onSelect} />);
     expect(screen.getByRole('button', { name: /León Cuero, MX/ })).toHaveAttribute('aria-pressed', 'true');
@@ -42,7 +46,8 @@ describe('OptionCard', () => {
   it('renders a gap as itself with a dashed border, and an allocation-only answer as such (AC 15, spec §8.4)', () => {
     const arno = leather.candidates[2]!;
     const { unmount } = render(<OptionCard slot={leather} candidate={arno} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
-    const card = screen.getByRole('button', { name: 'Arno Pelli, IT: No answer · timeout' });
+    // The card surface is the element that carries .sm-card (sourcing-map.css:6); its button names it.
+    const card = screen.getByRole('button', { name: 'Arno Pelli, IT: No answer · timeout' }).closest<HTMLElement>('.sm-card')!;
     expect(card.className).toContain('border-dashed');
     // .sm-card (sourcing-map.css:6) is unlayered and its `border` shorthand beats the layered utility, so the dash is inline too.
     expect(card.style.borderStyle).toBe('dashed');

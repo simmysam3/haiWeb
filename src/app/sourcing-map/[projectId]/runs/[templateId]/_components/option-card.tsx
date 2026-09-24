@@ -10,8 +10,9 @@ const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
 const AVAILABILITY_DEFINITION = "The supplier's answer at this drop, never more than you asked (D-148).";
 
 /**
- * Option card (spec §9.3): the selected drop plus a row of drop pips. It is a
- * `div role="button"`, as in the prototype, because a <button> may not contain the pips' list (D20).
+ * Option card (spec §9.3): the selected drop plus a row of drop pips. A <button> may not contain the pips'
+ * list (D20), and a role="button" would make everything in it presentational, so the card is an <article>
+ * whose header is the selecting <button>; the rest is ordinary readable content (controller ruling F-a).
  * A gap (no answer) is dashed and says so, never zero or full coverage (AC 15).
  * The dash is also inline: `.sm-card`'s unlayered `border` shorthand outranks the layered `border-dashed` utility.
  */
@@ -26,25 +27,20 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
   const limit = limitText(c.limit);
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      aria-pressed={selected}
-      aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}`}
-      className={`sm-card group flex h-full w-full cursor-pointer flex-col p-3 text-left text-xs ${gap ? 'border-dashed' : ''}`}
+    <article
+      className={`sm-card group flex h-full w-full flex-col p-3 text-left text-xs ${gap ? 'border-dashed' : ''}`}
       style={gap ? { borderColor: 'var(--sm-gap-border)', borderStyle: 'dashed' } : selected ? { borderColor: 'var(--sm-teal)' } : undefined}
     >
-      <span className="flex items-center justify-between gap-2">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}`}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
         <span className="truncate text-sm font-semibold" title={c.supplier_name}>{c.supplier_name}</span>
         <span className="sm-muted">{c.supplier_country ?? ''}</span>
-      </span>
+      </button>
       <span className="sm-muted mt-1 truncate" title={c.class_path.join(' › ')}>{c.class_path.slice(-2).join(' › ')}</span>
       <span className="mt-2">
         {gap ? (
@@ -66,6 +62,6 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
       )}
       <DropPips slot={slot} candidate={c} drops={drops} asOfDrop={asOfDrop} />
       <span className="mt-auto flex justify-end pt-2"><DetailChevron /></span>
-    </div>
+    </article>
   );
 }
