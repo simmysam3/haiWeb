@@ -1,3 +1,5 @@
+import { SM_LIMITS, type DemandDrop } from './contract';
+
 /**
  * Integer shares of `total` proportional to `weights`, summing exactly to
  * `total` (spec §8.2 largest remainder). Ties in the remainder go to the
@@ -14,4 +16,38 @@ export function largestRemainder(total: number, weights: readonly number[]): num
   const order = raw.map((r, i) => [r - Math.floor(r), i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
   for (let k = 0; rem > 0 && k < order.length; k++, rem--) out[order[k]![1]] += 1;
   return out;
+}
+
+export interface DropsGeneratorInput {
+  total: number;
+  first_due_date: string;
+  spacing: 'weekly' | 'monthly';
+  count: number;
+  shape: 'flat' | 'ramp' | 'front_loaded';
+}
+
+function dropDates(first: string, spacing: 'weekly' | 'monthly', count: number): string[] {
+  const [y, m, d] = first.split('-').map(Number) as [number, number, number];
+  return Array.from({ length: count }, (_, i) => {
+    if (spacing === 'weekly') return new Date(Date.UTC(y, m - 1, d + 7 * i)).toISOString().slice(0, 10);
+    const month = new Date(Date.UTC(y, m - 1 + i, 1));
+    const last = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10);
+  });
+}
+
+/** Spec §7.4 drops generator: every drop gets 1, the rest splits by the shape's weights (exact total). */
+export function generateDrops(g: DropsGeneratorInput): { ok: true; drops: DemandDrop[] } | { ok: false; message: string } {
+  if (!Number.isInteger(g.count) || g.count < 1 || g.count > SM_LIMITS.DROPS_PER_PRODUCT) {
+    return { ok: false, message: `Drops must be between 1 and ${SM_LIMITS.DROPS_PER_PRODUCT}.` };
+  }
+  if (!Number.isInteger(g.total) || g.total < g.count) {
+    return { ok: false, message: `The total must be a whole number of at least ${g.count} (one per drop).` };
+  }
+  const weights = Array.from({ length: g.count }, (_, i) => (g.shape === 'flat' ? 1 : g.shape === 'ramp' ? i + 1 : g.count - i));
+  const extra = largestRemainder(g.total - g.count, weights);
+  return {
+    ok: true,
+    drops: dropDates(g.first_due_date, g.spacing, g.count).map((due_date, i) => ({ due_date, qty: 1 + extra[i]!, mix_override: null })),
+  };
 }
