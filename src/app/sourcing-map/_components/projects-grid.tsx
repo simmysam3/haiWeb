@@ -7,6 +7,7 @@ import { smFetch } from '@/lib/sourcing-map/client';
 import { smProjectHref } from '@/lib/sourcing-map/routes';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { SmDialog } from './sm-dialog';
+import { DispositionDialog, type Disposition } from './disposition-dialog';
 
 const BASE = '/api/account/sourcing-map/projects';
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -25,6 +26,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   const [description, setDescription] = useState('');
   const [renaming, setRenaming] = useState<SmProject | null>(null);
   const [newName, setNewName] = useState('');
+  const [deleting, setDeleting] = useState<SmProject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -53,6 +55,19 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
     }
     setProjects((all) => all.map((x) => (x.project_id === p.project_id ? out.data : x)));
     return true;
+  }
+
+  async function remove(p: SmProject, d: Disposition) {
+    setBusy(true);
+    setError(null);
+    const out = await smFetch(`${BASE}/${p.project_id}?disposition=${d}`, { method: 'DELETE' });
+    setBusy(false);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    setProjects((all) => all.filter((x) => x.project_id !== p.project_id));
+    setDeleting(null);
   }
 
   // The list endpoint hides archived projects unless ?include_archived=true is passed (a-G7), so "Show archived" reloads.
@@ -90,6 +105,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
               {p.archived_at === null && (
                 <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Archive ${p.name}`} disabled={busy} onClick={() => void patch(p, { archived: true })}>Archive</button>
               )}
+              <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${p.name}`} onClick={() => { setError(null); setDeleting(p); }}>Delete</button>
             </div>
           </li>
         ))}
@@ -146,6 +162,14 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         </label>
         {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       </SmDialog>
+      <DispositionDialog
+        open={deleting !== null}
+        title={deleting ? `Delete ${deleting.name}` : 'Delete project'}
+        onCancel={() => setDeleting(null)}
+        onConfirm={(d) => deleting && void remove(deleting, d)}
+        busy={busy}
+        error={deleting ? error : null}
+      />
     </section>
   );
 }

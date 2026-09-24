@@ -79,4 +79,18 @@ describe('ProjectsGrid', () => {
     expect(fetchMock.mock.calls[1]![0]).toBe('/api/account/sourcing-map/projects?include_archived=true');
   });
 
+  it('deletes a project with the chosen disposition; a 409 names the execution in progress (AC 3)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(409, { error: { code: 'execution_in_progress', message: 'Line A base has an execution running.' } }))
+      .mockResolvedValueOnce(reply(204));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Spring 2027' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Keep them/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Line A base has an execution running.');
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/account/sourcing-map/projects/${VOMERO_IDS.project}?disposition=keep`);
+    expect(fetchMock.mock.calls[0]![1].method).toBe('DELETE');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull());
+  });
 });
