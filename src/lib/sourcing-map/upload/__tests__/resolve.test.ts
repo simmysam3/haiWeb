@@ -43,5 +43,11 @@ describe('uploadRowErrors (A5-I1: Review passes only lines the PUT takes, spec Â
       { row: 7, message: `Row 7: Unit of measure is longer than ${max} characters.` },
     ]);
   });
+
+  it('names the source row of a line whose Component is longer than the schema allows (a long-layout line: its first row)', () => {
+    const max = FIELDS.component_label.maxLength!;
+    const long = resolveLine({ ...LINE, rows: [4, 5, 6], component_label: 'c'.repeat(max + 1) }, PICK, null, null);
+    expect(uploadRowErrors([long])).toEqual([{ row: 4, message: `Row 4: Component is longer than ${max} characters.` }]);
+  });
 });
 
