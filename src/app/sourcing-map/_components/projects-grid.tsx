@@ -153,9 +153,11 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         title="New project"
         open={creating}
         onClose={() => setCreating(false)}
+        // A5-m9: a pending create answers in this dialog; Escape, the backdrop and Cancel wait for it.
+        busy={busy}
         footer={
           <>
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setCreating(false)}>Cancel</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={() => setCreating(false)}>Cancel</button>
             <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={name.trim() === ''} onClick={create}>Create project</SmButton>
           </>
         }

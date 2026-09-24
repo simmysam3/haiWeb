@@ -219,5 +219,26 @@ describe('ProjectsGrid', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Line A base has an execution running.');
     expect(cancel).toBeEnabled();
   });
+
+  it('a pending create cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (A5-m9, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ProjectsGrid initialProjects={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Fall 2027' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    const dialog = screen.getByRole('dialog', { name: 'New project' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+    settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Name already used.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Name already used.');
+    expect(cancel).toBeEnabled();
+  });
 });
 
