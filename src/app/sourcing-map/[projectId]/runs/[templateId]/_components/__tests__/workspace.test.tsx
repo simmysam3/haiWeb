@@ -465,4 +465,23 @@ describe('Workspace', () => {
     await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
     expect(rail()).toHaveAttribute('aria-expanded', 'true');
   });
+
+  it('Run stays disabled until the execution it started has loaded, so a second press can’t race it (close while busy)', async () => {
+    const NEW_ID = '5a1e0000-0000-4000-8000-000000000033';
+    const running = runningDetail();
+    const fresh = { ...running, execution: { ...running.execution, execution_id: NEW_ID, created_at: '2026-09-24T09:00:00.000Z', started_at: '2026-09-24T09:00:00.000Z' } };
+    const slowDetail = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith('/trigger') && init?.method === 'POST') return reply(202, { run_id: NEW_ID });
+      if (url.endsWith(`/executions/${NEW_ID}`)) return slowDetail.promise;
+      return reply(404, {});
+    });
+    mount();
+    await pressRun();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith(`/executions/${NEW_ID}`))).toBe(true));
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    await settle(() => slowDetail.resolve(reply(200, fresh)));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Probing: 3 of 7 probes answered'));
+  });
 });

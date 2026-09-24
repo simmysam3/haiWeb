@@ -93,14 +93,18 @@ export function Workspace({
   async function run() {
     setBusy(true);
     setError(null);
-    // d-G4: the trigger answers { run_id }, and for sourcing_map run_id is the execution_id.
-    const t = await smFetch<{ run_id: string }>(`/api/account/sourcing-map/runs/${template.template_id}/trigger`, { method: 'POST' });
-    setBusy(false);
-    if (!t.ok) {
-      setError(t.message);
-      return;
+    try {
+      // d-G4: the trigger answers { run_id }, and for sourcing_map run_id is the execution_id.
+      const t = await smFetch<{ run_id: string }>(`/api/account/sourcing-map/runs/${template.template_id}/trigger`, { method: 'POST' });
+      if (!t.ok) {
+        setError(t.message);
+        return;
+      }
+      // Run stays busy until the new execution has loaded (and reads as running), so a second press can't race it.
+      await selectExecution(t.data.run_id);
+    } finally {
+      setBusy(false);
     }
-    await selectExecution(t.data.run_id);
   }
 
   // R2: a successful Cancel removes its own button. Once no execution runs any more (the reload, or a poll, says so),
