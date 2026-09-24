@@ -229,6 +229,33 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByText('Leather hide lot')).toBeInTheDocument();
   });
 
+  it('asks for class suggestions with component labels only (deduplicated), and "Accept all confident" takes only high bands', async () => {
+    fetchMock.mockImplementation(route({
+      suggest: {
+        retrieval: 'text_only',
+        lines: [
+          { suggestions: [{ ...LEATHER, band: 'high' }] },
+          { suggestions: [{ class_id: 'cpt_metal_eyelets', label: 'Metal eyelets', class_path: ['Metal eyelets'], band: 'low' }] },
+        ],
+      },
+    }));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(["Description,Mat'l #,Usage", 'Upper leather tumbled,LTH-4471,0.25', 'Metal eyelet,EY-5,12', 'Metal eyelet,EY-6,12']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByRole('button', { name: /Full grain leather hides/ });
+    const call = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/class-suggestions'))!;
+    expect(JSON.parse(call[1].body)).toEqual({ lines: [{ label: 'Upper leather tumbled' }, { label: 'Metal eyelet' }] });
+    expect(call[1].body).not.toContain('LTH-4471');
+    expect(screen.getByText(/text search only/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
+    const leather = screen.getByRole('row', { name: /Upper leather tumbled/ });
+    expect(within(leather).queryByRole('button', { name: /Full grain leather hides/ })).toBeNull();
+    expect(leather).toHaveTextContent('Full grain leather hides');
+    for (const eyelet of screen.getAllByRole('row', { name: /Metal eyelet/ })) {
+      expect(within(eyelet).getByRole('button', { name: /Metal eyelets/ })).toBeInTheDocument();
+    }
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

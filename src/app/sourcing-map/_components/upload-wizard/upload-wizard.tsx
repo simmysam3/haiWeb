@@ -7,6 +7,7 @@ import {
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
 import type { DemandBuild, DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
+import type { ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
 import { SmDialog } from '../sm-dialog';
 import { FileStep } from './file-step';
 import { MapStep } from './map-step';
@@ -34,6 +35,7 @@ export function UploadWizard(props: UploadWizardProps) {
   const [mapping, setMapping] = useState<string[]>([]);
   const [decimalComma, setDecimalComma] = useState(false);
   const [bom, setBom] = useState<Extract<BomBuild, { ok: true }> | null>(null);
+  const [resolved, setResolved] = useState<ResolvedLine[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // A step change unmounts the control that had focus (the file input, Continue, Back), which drops
@@ -155,7 +157,7 @@ export function UploadWizard(props: UploadWizardProps) {
             error={error}
           />
         )}
-        {step === 'resolve' && bom && <ResolveStep lines={bom.lines} />}
+        {step === 'resolve' && bom && <ResolveStep lines={bom.lines} onBack={() => setStep('map')} onContinue={(r) => { setResolved(r); setStep('review'); }} />}
       </div>
     </SmDialog>
   );
