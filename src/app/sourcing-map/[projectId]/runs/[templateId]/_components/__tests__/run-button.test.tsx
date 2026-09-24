@@ -29,4 +29,12 @@ describe('RunButton', () => {
     render(<RunButton estimate={{ ...vomeroEstimate, slot_count: 1, probe_count: 1, probe_count_worst_case: 3 }} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
     expect(screen.getByText('1 slot · 1 probe (up to 3 with re-probes)')).toBeInTheDocument();
   });
+
+  it('says it is checking readiness until the estimate arrives, and a running execution outranks open changes (M4)', () => {
+    const { rerender } = render(<RunButton estimate={null} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAccessibleDescription('Checking whether the run is ready…');
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    rerender(<RunButton estimate={vomeroEstimate} blockedReason="Apply or close Configure before running." running busy={false} onRun={() => undefined} />);
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAccessibleDescription('An execution is running.');
+  });
 });
