@@ -313,5 +313,20 @@ describe('ProductEditorBody', () => {
     expect(screen.getByLabelText('Component for line 2')).toHaveValue('Flat lace 137 cm');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('shows the message when the re-read after an import fails, never a silent stale grid (a-G4, LW-b)', async () => {
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
+      if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(500, { error: { code: 'INTERNAL_ERROR', message: 'The product could not be read.' } });
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByText('The product could not be read.')).toHaveAttribute('role', 'alert');
+  });
 });
 
