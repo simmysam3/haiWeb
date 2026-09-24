@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import type { SmProductResult, SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
-import { formatDropDate, formatPct, formatQty, groupDrops, heatVar } from '@/lib/sourcing-map/map/selectors';
+import { MAX_DROP_SEGMENTS, formatDropDate, formatPct, formatQty, groupDrops, heatVar } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 
 export interface SeatBarProps {
@@ -32,10 +32,10 @@ export function ProductStrip({ products, selected, onSelect }: { products: SmPro
   );
 }
 
-/** One segment per drop with its coverage; grouped by month beyond 12 drops (spec §9.3). Colour is never the only carrier. */
+/** One segment per drop with its coverage; grouped by month beyond MAX_DROP_SEGMENTS drops (spec §9.3). Colour is never the only carrier. */
 export function DropStrip({ drops, asOfDrop, onDrop }: { drops: SmPortfolioDrop[]; asOfDrop: string | null; onDrop(drop: string): void }) {
   const groups = groupDrops(drops);
-  const byMonth = drops.length > 12;
+  const byMonth = drops.length > MAX_DROP_SEGMENTS;
   const [open, setOpen] = useState<string | null>(null);
   const openGroup = groups.find((g) => g.key === open);
   return (

@@ -143,9 +143,12 @@ export interface DropGroup {
 
 const MONTH = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
 
-/** Spec §9.3: one segment per drop, grouped by month beyond 12 drops. */
+/** Spec §9.3: the drop strip shows one segment per drop up to this many drops, and groups by month beyond it. */
+export const MAX_DROP_SEGMENTS = 12;
+
+/** Spec §9.3: one segment per drop, grouped by month beyond MAX_DROP_SEGMENTS drops. */
 export function groupDrops(drops: SmPortfolioDrop[]): DropGroup[] {
-  if (drops.length <= 12) {
+  if (drops.length <= MAX_DROP_SEGMENTS) {
     return drops.map((d) => ({ key: d.due_date, label: formatDropDate(d.due_date), drops: [d], coverage: d.coverage }));
   }
   const groups: DropGroup[] = [];
