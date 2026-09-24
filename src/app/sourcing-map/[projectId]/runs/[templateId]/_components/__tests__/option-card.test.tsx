@@ -38,4 +38,19 @@ describe('OptionCard', () => {
     rerender(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected onSelect={onSelect} />);
     expect(screen.getByRole('button', { name: /León Cuero, MX/ })).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('renders a gap as itself with a dashed border, and an allocation-only answer as such (AC 15, spec §8.4)', () => {
+    const arno = leather.candidates[2]!;
+    const { unmount } = render(<OptionCard slot={leather} candidate={arno} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    const card = screen.getByRole('button', { name: 'Arno Pelli, IT: No answer · timeout' });
+    expect(card.className).toContain('border-dashed');
+    // .sm-card (sourcing-map.css:6) is unlayered and its `border` shorthand beats the layered utility, so the dash is inline too.
+    expect(card.style.borderStyle).toBe('dashed');
+    expect(within(card).queryByText(/Can cover|Covers full/)).toBeNull();
+    expect(within(card).getByText('Not allocated')).toBeInTheDocument();
+    expect(within(card).getAllByRole('img').every((p) => p.getAttribute('aria-label')!.includes('no answer'))).toBe(true);
+    unmount();
+    render(<OptionCard slot={leather} candidate={{ ...leather.candidates[0]!, answered_at_allocation: true, spare_unknown: true }} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('Answered at its allocation · spare capacity unknown')).toBeInTheDocument();
+  });
 });
