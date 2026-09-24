@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mixTotalsHundred } from '../contract';
+import { SM_LIMITS, mixTotalsHundred } from '../contract';
 import { largestRemainder, generateDrops, curveMix, normalizeMix, pairsFromMix, mixFromPairs, mixTotal } from '../demand-math';
 import { MENS_US_7_13, SPRING_MIX } from '../__fixtures__/vomero';
 
@@ -28,7 +28,7 @@ describe('demand math', () => {
     const tiny = generateDrops({ total: 10, first_due_date: '2027-01-04', spacing: 'weekly', count: 10, shape: 'ramp' });
     expect(tiny.ok && tiny.drops.every((d) => d.qty >= 1)).toBe(true);
     expect(generateDrops({ total: 5, first_due_date: '2027-01-04', spacing: 'weekly', count: 6, shape: 'flat' })).toEqual({ ok: false, message: 'The total must be a whole number of at least 6 (one per drop).' });
-    expect(generateDrops({ total: 999, first_due_date: '2027-01-04', spacing: 'weekly', count: 53, shape: 'flat' })).toEqual({ ok: false, message: 'Drops must be between 1 and 52.' });
+    expect(generateDrops({ total: 999, first_due_date: '2027-01-04', spacing: 'weekly', count: SM_LIMITS.DROPS_PER_PRODUCT + 1, shape: 'flat' })).toEqual({ ok: false, message: `Drops must be between 1 and ${SM_LIMITS.DROPS_PER_PRODUCT}.` });
   });
 
   it('curveMix (the prototype curve) totals exactly 10,000 hundredths, peaks at the center, and honours half sizes', () => {
