@@ -22,6 +22,15 @@ function pollErrorText(e: unknown): string {
   return e instanceof FetchError ? `Progress could not be refreshed (${e.status}). Retrying.` : 'Progress could not be refreshed. Retrying.';
 }
 
+/**
+ * The status endpoint polled for a live execution, null (no poll) once it is terminal. One stable key per
+ * execution (I-2): the cursor rides in the fetched URL, so an answer that moves it never refetches at once
+ * nor restarts SWR's 1.5 s timer.
+ */
+function statusKeyOf(d: SmExecutionDetail | null): string | null {
+  return d !== null && LIVE.has(d.execution.status) ? `/api/account/sourcing-map/executions/${d.execution.execution_id}/status` : null;
+}
+
 function startFrom(initial: SmExecutionDetail | null): PollState {
   return { from: initial, detail: initial, cursor: initial?.execution.probes_done ?? 0, error: null };
 }
@@ -43,10 +52,10 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
   /** R3: an answer applies only while its execution is still the current one. */
   const forExecution = (executionId: string, change: (st: PollState, d: SmExecutionDetail) => PollState) =>
     setState((st) => (st.detail !== null && st.detail.execution.execution_id === executionId ? change(st, st.detail) : st));
-  const live = detail !== null && LIVE.has(detail.execution.status);
   useSWR<SmExecutionStatusResponse>(
-    live ? `/api/account/sourcing-map/executions/${detail!.execution.execution_id}/status?cursor=${cursor}` : null,
-    jsonFetcher,
+    statusKeyOf(detail),
+    // SWR re-reads the fetcher on every revalidation, so each poll sends the latest cursor.
+    (key: string) => jsonFetcher<SmExecutionStatusResponse>(`${key}?cursor=${cursor}`),
     {
       refreshInterval: SM_POLL_MS,
       dedupingInterval: 0,

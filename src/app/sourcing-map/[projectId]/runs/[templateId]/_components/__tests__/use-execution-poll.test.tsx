@@ -5,10 +5,10 @@ import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
 import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
 import { FetchError } from '@/lib/swr-fetcher';
 
-const { swrCalls } = vi.hoisted(() => ({ swrCalls: [] as Array<{ key: string | null; opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void } }> }));
+const { swrCalls } = vi.hoisted(() => ({ swrCalls: [] as Array<{ key: string | null; fetcher: (k: string) => Promise<unknown>; opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void } }> }));
 vi.mock('swr', () => ({
-  default: (key: string | null, _fetcher: unknown, opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void }) => {
-    swrCalls.push({ key, opts });
+  default: (key: string | null, fetcher: (k: string) => Promise<unknown>, opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void }) => {
+    swrCalls.push({ key, fetcher, opts });
     return { data: undefined, error: undefined };
   },
 }));
@@ -34,6 +34,13 @@ const otherFailed: SmExecutionDetail = {
 };
 
 const fetchMock = vi.fn();
+/** The URL the latest status fetcher requests: the cursor rides in it, not in the SWR key (I-2). */
+async function fetchedStatusUrl(): Promise<string> {
+  const last = swrCalls[swrCalls.length - 1]!;
+  fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+  await last.fetcher(last.key!);
+  return String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]![0]);
+}
 beforeEach(() => {
   swrCalls.length = 0;
   fetchMock.mockReset();
@@ -42,10 +49,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('useExecutionPoll', () => {
-  it('polls the status with the cursor every 1.5 s while running, and not at all once terminal', () => {
+  it('polls the status with the cursor every 1.5 s while running, and not at all once terminal', async () => {
     const { unmount } = render(<Probe initial={runningDetail()} />);
     const last = swrCalls[swrCalls.length - 1]!;
-    expect(last.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031/status?cursor=3');
+    expect(last.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031/status');
+    expect(await fetchedStatusUrl()).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031/status?cursor=3');
     expect(last.opts.refreshInterval).toBe(SM_POLL_MS);
     // D8: SWR skips a refresh tick inside dedupingInterval (default 2,000 ms), so 1.5 s would fire every 3 s.
     expect(last.opts.dedupingInterval).toBe(0);
@@ -55,11 +63,12 @@ describe('useExecutionPoll', () => {
     expect(swrCalls.every((c) => c.key === null)).toBe(true);
   });
 
-  it('follows a new initial execution: shows it and polls its status from its own cursor (R1)', () => {
+  it('follows a new initial execution: shows it and polls its status from its own cursor (R1)', async () => {
     const { rerender } = render(<Probe initial={runningDetail()} />);
     const other = runningDetail();
     rerender(<Probe initial={{ ...other, execution: { ...other.execution, execution_id: VOMERO_IDS.executionOld, probes_done: 1 } }} />);
-    expect(swrCalls[swrCalls.length - 1]!.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
+    expect(swrCalls[swrCalls.length - 1]!.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status');
+    expect(await fetchedStatusUrl()).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
     rerender(<Probe initial={vomeroDetail} />);
     expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered');
     expect(swrCalls[swrCalls.length - 1]!.key).toBeNull();
@@ -77,7 +86,9 @@ describe('useExecutionPoll', () => {
       });
     });
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('running:answered'));
-    expect(swrCalls[swrCalls.length - 1]!.key).toContain('status?cursor=4');
+    // I-2: the key stays put as the cursor moves (no back-to-back refetch); the next poll carries the new cursor.
+    expect(swrCalls[swrCalls.length - 1]!.key).toBe(last.key);
+    expect(await fetchedStatusUrl()).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031/status?cursor=4');
   });
 
   it('fetches the full detail once when the status turns terminal', async () => {
@@ -176,7 +187,7 @@ describe('useExecutionPoll', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
   });
 
-  it('ignores a late status answer for an execution that is no longer loaded: its candidates and cursor stay out (R3)', () => {
+  it('ignores a late status answer for an execution that is no longer loaded: its candidates and cursor stay out (R3)', async () => {
     const { rerender } = render(<Probe initial={runningDetail()} />);
     const oldOnSuccess = swrCalls[swrCalls.length - 1]!.opts.onSuccess!;
     const other = runningDetail();
@@ -189,7 +200,7 @@ describe('useExecutionPoll', () => {
       });
     });
     expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
-    expect(swrCalls[swrCalls.length - 1]!.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
+    expect(await fetchedStatusUrl()).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
   });
 
   it('never shows the old execution’s late poll failure on the one now loaded (R3)', () => {
