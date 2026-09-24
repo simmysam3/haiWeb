@@ -57,3 +57,33 @@ export function autoMap(kind: UploadKind, headers: string[], variantValues: stri
     return 'ignore';
   });
 }
+
+const MAPPING_KEY = 'sm.upload-map.v1';
+
+/** The file's header row, normalized, as the memory key (spec §7.3: "keyed by a header signature"). */
+export function headerSignature(headers: string[]): string {
+  return headers.map(normalizeHeader).join('|');
+}
+
+/** Per-viewer convenience; a throwing or absent storage just means nothing is remembered. */
+export function rememberMapping(kind: UploadKind, headers: string[], mapping: string[]): void {
+  try {
+    window.localStorage.setItem(`${MAPPING_KEY}.${kind}.${headerSignature(headers)}`, JSON.stringify(mapping));
+  } catch {
+    // not remembered
+  }
+}
+
+export function recallMapping(kind: UploadKind, headers: string[]): string[] | null {
+  try {
+    const raw = window.localStorage.getItem(`${MAPPING_KEY}.${kind}.${headerSignature(headers)}`);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    const allowed: readonly string[] = kind === 'bom' ? BOM_TARGETS : DEMAND_TARGETS;
+    return Array.isArray(parsed) && parsed.length === headers.length && parsed.every((t) => typeof t === 'string' && allowed.includes(t))
+      ? (parsed as string[])
+      : null;
+  } catch {
+    return null;
+  }
+}
