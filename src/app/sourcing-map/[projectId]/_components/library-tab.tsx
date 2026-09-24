@@ -10,7 +10,7 @@ import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { SmButton } from '../../_components/sm-button';
 import { SmDialog } from '../../_components/sm-dialog';
 
-/** The Product library tab (spec §7.1): products and "+ New product". Cycle 22.8 adds delete. */
+/** The Product library tab (spec §7.1): products and "+ New product". Cycle 22.8 adds delete; F3 confirms it first. */
 export function LibraryTab({ projectId, initialProducts }: { projectId: string; initialProducts: SmProduct[] }) {
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
@@ -20,6 +20,8 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
   const [assemblyDays, setAssemblyDays] = useState('0');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // F3: a delete destroys hand-authored lines, pins and notes, so it is confirmed first (as projects and runs are).
+  const [deleting, setDeleting] = useState<SmProduct | null>(null);
 
   async function create() {
     setBusy(true);
@@ -47,6 +49,12 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
     setError(null);
   }
 
+  // As closeCreate: dismissing the confirm also clears its resolved error (a-G4).
+  function closeDelete() {
+    setDeleting(null);
+    setError(null);
+  }
+
   async function remove(p: SmProduct) {
     setBusy(true);
     setError(null);
@@ -54,6 +62,7 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
     setBusy(false);
     if (out.ok) {
       setProducts((all) => all.filter((x) => x.product_id !== p.product_id));
+      setDeleting(null);
       return;
     }
     // a-G5: the 409 is the Doc 4 envelope; SmProductInUseSchema parses its error.details.
@@ -72,7 +81,6 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
         {/* a-G4 (controller ruling, Task 21 finding 2a): a dialog's error state resets when it opens. */}
         <button type="button" className="sm-btn sm-btn-primary" onClick={() => { setError(null); setCreating(true); }}>+ New product</button>
       </div>
-      {error && !creating && <p role="alert" className="sm-error mb-3 text-sm">{error}</p>}
       <table className="sm-table">
         <thead>
           <tr><th>Product</th><th>Source</th><th>Variants</th><th>Lines</th><th>Ready</th><th><span className="sr-only">Actions</span></th></tr>
@@ -93,7 +101,7 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
                 <Pill themed category="sm_readiness" value={p.readiness.ready ? 'ready' : 'not_ready'} detail={p.readiness.detail} />
               </td>
               <td>
-                <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${p.name}`} disabled={busy} onClick={() => void remove(p)}>Delete</button>
+                <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${p.name}`} onClick={() => { setError(null); setDeleting(p); }}>Delete</button>
               </td>
             </tr>
           ))}
@@ -115,6 +123,22 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
         <label className="mt-3 block text-sm">Assembly days<input type="number" min={0} max={365} className="sm-input mt-1 w-full" value={assemblyDays} onChange={(e) => setAssemblyDays(e.target.value)} /></label>
         {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       </SmDialog>
+      {deleting && (
+        <SmDialog
+          title={`Delete ${deleting.name}`}
+          open
+          onClose={closeDelete}
+          footer={
+            <>
+              <button type="button" className="sm-btn sm-btn-ghost" onClick={closeDelete}>Cancel</button>
+              <button type="button" className="sm-btn sm-btn-primary" onClick={() => void remove(deleting)}>Delete</button>
+            </>
+          }
+        >
+          <p className="text-sm">This removes the product and its BOM lines.</p>
+          {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
+        </SmDialog>
+      )}
     </div>
   );
 }

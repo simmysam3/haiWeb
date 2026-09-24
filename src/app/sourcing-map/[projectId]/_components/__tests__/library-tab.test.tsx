@@ -63,7 +63,10 @@ describe('LibraryTab', () => {
     }));
     render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
     fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Pegasus Trail is used by Line A base. Remove it from those runs first.');
+    // F3: the refusal answers in the confirm dialog, where the Delete was pressed.
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Pegasus Trail is used by Line A base. Remove it from those runs first.');
     expect(screen.getByRole('row', { name: /Pegasus Trail/ })).toBeInTheDocument();
   });
 
@@ -87,7 +90,9 @@ describe('LibraryTab', () => {
     }));
     render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
     fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
     await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -109,6 +114,25 @@ describe('LibraryTab', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     settle(reply(201, { ...vomeroProducts[0], product_id: VOMERO_IDS.court }));
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
+
+  it('asks before deleting a product: nothing is sent until the confirm dialog’s Delete, and Cancel sends nothing (F3)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    expect(dialog).toHaveTextContent('This removes the product and its BOM lines.');
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('row', { name: /Pegasus Trail/ })).toBeNull());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`);
+    expect(fetchMock.mock.calls[0]![1].method).toBe('DELETE');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 
