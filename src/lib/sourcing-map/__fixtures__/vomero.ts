@@ -265,7 +265,7 @@ function leatherSlot(): SmSlotResult {
   // integer arithmetic: 60% / 40% of a multiple of 4,000 stays an integer
   const covered = D.map((d, i) => Math.min(leon[i]!, (d * 6) / 10) + (d * 4) / 10);
   return {
-    slot_key: { class_id: 'cpt_full_grain_leather_hides', uom: 'sq ft', variant_bound: true, variant_system: null },
+    slot_key: { class_id: 'cpt_full_grain_leather_hides', uom: 'sq ft', variant_bound: true, variant_system: "Men's US" },
     class_label: 'Full grain leather hides', class_path: LEATHER_PATH, product_ids: ALL_THREE,
     demand: NEED_WEEKS.map((w, i) => ({ week: w, cum_qty: D[i]!, cum_qty_by_variant: split(D[i]!) })),
     coverage: NEED_WEEKS.map((w, i) => {
@@ -315,7 +315,7 @@ function outsoleSlot(): SmSlotResult {
   const AV = DV.map((dv, i) => Object.fromEntries(MENS_US_7_13.map((v) => [v, i >= 2 && (v === '9' || v === '10') ? Math.floor(dv[v]! * 0.8) : dv[v]!])));
   const A = AV.map((av) => Object.values(av).reduce((a, b) => a + b, 0));
   return {
-    slot_key: { class_id: 'cpt_rubber_outsoles', uom: 'pr', variant_bound: true, variant_system: null },
+    slot_key: { class_id: 'cpt_rubber_outsoles', uom: 'pr', variant_bound: true, variant_system: "Men's US" },
     class_label: 'Rubber outsoles', class_path: OUTSOLE_PATH, product_ids: ALL_THREE,
     demand: NEED_WEEKS.map((w, i) => ({ week: w, cum_qty: D[i]!, cum_qty_by_variant: DV[i]! })),
     coverage: NEED_WEEKS.map((w, i) => ({
