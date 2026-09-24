@@ -223,7 +223,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
         </div>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={duplicate}>Duplicate run</button>
+        <SmButton className="sm-btn sm-btn-ghost" busy={pending === 'duplicate'} disabled={pending === 'apply'} onClick={duplicate}>Duplicate run</SmButton>
         <SmButton className="sm-btn sm-btn-primary" busy={pending === 'apply'} disabled={!dirty || pending === 'duplicate'} onClick={apply}>Apply</SmButton>
         {error && <p role="alert" className="sm-error text-sm">{error}</p>}
       </div>

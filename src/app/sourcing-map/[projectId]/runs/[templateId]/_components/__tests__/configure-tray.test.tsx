@@ -238,6 +238,21 @@ describe('ConfigureTray', () => {
     settle(reply(200, { template: TWO }));
     await waitFor(() => expect(onApplied).toHaveBeenCalledTimes(1));
   });
+  it('keeps Duplicate run focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    press('Duplicate run');
+    const duplicate = screen.getByRole('button', { name: 'Duplicate run' });
+    expect(duplicate).toHaveAttribute('aria-busy', 'true');
+    expect(duplicate).toHaveAttribute('aria-disabled', 'true');
+    expect(duplicate).not.toBeDisabled();
+    expect(duplicate).toHaveFocus();
+    fireEvent.click(duplicate);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(201, { template: { ...TWO, template_id: VOMERO_IDS.executionOld } }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
