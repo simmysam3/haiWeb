@@ -37,6 +37,10 @@ describe('OptionCard', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
     await user.keyboard(' ');
     expect(onSelect).toHaveBeenCalledTimes(2);
+    // Tab moves on to the D-148 Pill, which sits outside the button, and moving focus does not select.
+    await user.tab();
+    expect(screen.getAllByTestId('pill')[0]).toHaveFocus();
+    expect(onSelect).toHaveBeenCalledTimes(2);
     await user.click(button);
     expect(onSelect).toHaveBeenCalledTimes(3);
     rerender(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected onSelect={onSelect} />);
