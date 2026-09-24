@@ -23,6 +23,11 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   const [catalog, setCatalog] = useState<Record<string, ClassSuppliersResponse['suppliers']>>({});
   const [chosenSku, setChosenSku] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  // resolveLine reads a missing match as "not on the network", so until the names are looked up (or after the
+  // lookup fails) no supplier verdict is shown and nothing continues to be saved (AC 7).
+  const [supplierLookup, setSupplierLookup] = useState<'pending' | 'done' | 'failed'>(() =>
+    lines.some((l) => l.supplier_name) ? 'pending' : 'done',
+  );
   const requested = useRef(new Set<string>());
 
   useEffect(() => {
@@ -44,8 +49,13 @@ export function ResolveStep({ lines, onBack, onContinue }: {
       if (names.length === 0) return;
       const m = await smFetch<SupplierMatchesResponse>('/api/account/sourcing-map/supplier-matches', { method: 'POST', body: { names } });
       if (!live) return;
-      if (m.ok) setMatches(Object.fromEntries(m.data.matches.map((x) => [x.name, x])));
-      else setError(m.message);
+      if (m.ok) {
+        setMatches(Object.fromEntries(m.data.matches.map((x) => [x.name, x])));
+        setSupplierLookup('done');
+      } else {
+        setError(m.message);
+        setSupplierLookup('failed');
+      }
     })();
     return () => {
       live = false;
@@ -146,7 +156,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
                           {options.map((o) => <option key={o} value={o}>{o}</option>)}
                         </select>
                       )}
-                      {r.note && <p className="sm-warn">{r.note}</p>}
+                      {r.note && supplierLookup === 'done' && <p className="sm-warn">{r.note}</p>}
                     </>
                   ) : (
                     <span className="sm-muted">None named</span>
@@ -157,10 +167,11 @@ export function ResolveStep({ lines, onBack, onContinue }: {
           })}
         </tbody>
       </table>
+      {supplierLookup === 'pending' && <p className="sm-muted mt-3 text-xs">Matching supplier names to your trading partners…</p>}
       {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       <div className="mt-4 flex justify-between">
         <button type="button" className="sm-btn sm-btn-ghost" onClick={onBack}>Back</button>
-        <button type="button" className="sm-btn sm-btn-primary" onClick={() => onContinue(resolved)}>Continue to review</button>
+        <button type="button" className="sm-btn sm-btn-primary" disabled={supplierLookup !== 'done'} onClick={() => onContinue(resolved)}>Continue to review</button>
       </div>
     </div>
   );

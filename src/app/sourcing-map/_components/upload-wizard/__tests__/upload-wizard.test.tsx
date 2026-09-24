@@ -441,6 +441,31 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByText("Supplier 'Leon Cuero SA' has no SKU picked in this class; not pinned")).toBeInTheDocument();
   });
 
+  it('holds "Continue to review" until the supplier names are looked up, and after a failed lookup, so no line carries a false note (AC 7, a-G4)', async () => {
+    const answer = route();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/supplier-matches')) return answer(url, init);
+      await held;
+      return reply(503, { error: { code: 'unavailable', message: 'Supplier matching is unavailable.' } });
+    });
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,Vendor', 'Upper leather tumbled,0.25,Leon Cuero SA']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByRole('button', { name: /Full grain leather hides/ });
+    // the lookup is in flight: no verdict on the name yet, so none is shown or saved
+    expect(screen.queryByText(/is not on the network/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Continue to review' })).toBeDisabled();
+    release();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Supplier matching is unavailable.');
+    expect(screen.queryByText(/is not on the network/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Continue to review' })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {
