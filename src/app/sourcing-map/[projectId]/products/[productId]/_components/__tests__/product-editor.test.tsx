@@ -198,7 +198,8 @@ describe('ProductEditorBody', () => {
     expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
   });
 
-  it('the Ready pill follows a BOM save, which answers the product with its new readiness (LW-b)', async () => {
+  it('the Ready pill follows a BOM save, which answers the product with its new readiness, with no page refresh (LW-b)', async () => {
+    refresh.mockClear();
     const notReady = { ready: false, first_failing_rule: 'line_missing_class', detail: 'Line 4 (Metal eyelet 5mm) has no class.' };
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) =>
       String(path).endsWith('/bom-lines') && init?.method === 'PUT' ? reply(200, { ...vomeroWorkbenchDetail, readiness: notReady }) : reply(404, {}));
@@ -206,6 +207,7 @@ describe('ProductEditorBody', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
     expect(await screen.findByText('Not ready')).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('hands the grid and the upload wizard the saved variant axis as soon as the header PATCH answers (LW-b)', async () => {

@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { SmProductDetail } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { ProductEditor } from './product-editor';
@@ -10,7 +9,6 @@ import { ImportAgentDialog } from './import-agent-dialog';
 import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
 
 export function ProductEditorBody({ projectName, detail: initialDetail }: { projectName: string; detail: SmProductDetail }) {
-  const router = useRouter();
   // LW-b: the product as last saved. Every write reports its answer here, so the header's badge and crumb, the grid
   // and the wizard all read one current product; the page keys this body by product alone and never remounts it.
   const [detail, setDetail] = useState(initialDetail);
@@ -52,10 +50,7 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
             axis={detail.variant_axis}
             initialLines={detail.lines}
             classes={detail.classes}
-            onSaved={(d) => {
-              setDetail(d);
-              router.refresh();
-            }}
+            onSaved={setDetail}
           />
         </>
       )}
