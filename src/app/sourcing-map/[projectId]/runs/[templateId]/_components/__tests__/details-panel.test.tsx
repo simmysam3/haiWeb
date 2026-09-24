@@ -21,4 +21,11 @@ describe('DetailsPanel', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('moves focus to its heading when it opens (controller ruling R1)', () => {
+    const leather = vomeroResult.slots[0]!;
+    render(<DetailsPanel slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+    expect(document.activeElement).toBe(within(panel).getByRole('heading', { name: 'León Cuero · MX' }));
+  });
 });

@@ -1,10 +1,14 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import type { SmCandidateResult, SmSlotResult } from '@/lib/sourcing-map/contract';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
 import { candidateWeekAt, formatDropDate, formatPct, formatQty, slotDemandAt, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 
-/** Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP2 and SP4. */
+/**
+ * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP2 and SP4.
+ * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
+ */
 export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose }: {
   slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
   productNames: Record<string, string>; onClose(): void;
@@ -12,10 +16,14 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
   const asOfWeek = slotWeekFor(slot, asOfDrop);
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
   const answerWeek = candidateWeekAt(c, asOfWeek);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
   return (
     <aside aria-label={`Details for ${c.supplier_name}`} className="sm-surface fixed right-0 top-0 z-30 h-full w-full max-w-xl overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
-        <h2 className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
       </div>
       <p className="sm-muted">{`${slot.class_label} · ${c.supplier_sku}`}</p>
