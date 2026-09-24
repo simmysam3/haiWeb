@@ -11,6 +11,7 @@ import { CoverageTrendChart } from './_charts/coverage-trend-chart';
 import { ClassChart } from './_charts/class-chart';
 import { DimensionLens } from './_components/dimension-lens';
 import { loadAuditChartData, type AuditChartData } from './_lib/load-audit-charts';
+import { isRunAllEligible } from './_lib/run-all-eligible';
 import { getActiveScopes } from '../_lib/scopes';
 import { NoScopesCTA } from '../_shared/no-scopes-cta';
 import { ScopesErrorBanner } from '../_shared/scopes-error-banner';
@@ -100,7 +101,7 @@ async function loadDashboard(): Promise<DashboardData> {
     fetchBffJson<CrossModalityResponse>('/api/account/sonar/dashboard/cross-modality'),
     fetchBffJson<ActivityResponse>('/api/account/sonar/dashboard/activity'),
     fetchBffJson<{ audit: number; watcher: number; total: number }>('/api/account/sonar/runs/throttled/count'),
-    fetchBffJson<{ templates: Array<{ enabled: boolean }> }>('/api/account/sonar/templates'),
+    fetchBffJson<{ templates: Array<{ enabled: boolean; observation_class: string }> }>('/api/account/sonar/templates'),
     coveragePromise,
     loadAuditChartData(),
   ]);
@@ -110,7 +111,7 @@ async function loadDashboard(): Promise<DashboardData> {
   const throttledCounts = unwrapBestEffort(throttledCountsRes, 'throttled-counts');
   const templates = unwrapBestEffort(templatesRes, 'templates');
 
-  const enabledTemplateCount = templates ? templates.templates.filter((t) => t.enabled).length : null;
+  const enabledTemplateCount = templates ? templates.templates.filter(isRunAllEligible).length : null;
 
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const failedRunsLast30d = initialActivity

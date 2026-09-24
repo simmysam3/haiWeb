@@ -8,17 +8,19 @@ import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
+import type { SmRunTemplate } from '@/lib/sourcing-map/contract';
+import { smRunHref } from '@/lib/sourcing-map/routes';
 
 interface DetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-async function loadTemplate(templateId: string): Promise<RunTemplate | null> {
+async function loadTemplate(templateId: string): Promise<RunTemplate | SmRunTemplate | null> {
   // D-62: origin from the configured PORTAL_BASE_URL, never the request's
   // Host header; `fetchBffJson` forwards the cookie and never throws. A 404
   // is "no such template"; any other failure is surfaced to the error
   // boundary exactly as before.
-  const result = await fetchBffJson<{ template: RunTemplate }>(
+  const result = await fetchBffJson<{ template: RunTemplate | SmRunTemplate }>(
     `/api/account/sonar/templates/${templateId}`,
   );
   if (result.kind === 'error') {
@@ -36,6 +38,12 @@ export default async function TemplateDetailPage({ params }: DetailPageProps) {
   if (!template) notFound();
   if (template.observation_class === 'watcher') {
     redirect(`/account/sonar/watchers/definitions/${template.template_id}`);
+  }
+  // R-10 census H1 — a Sourcing Map run lives in its own app (spec §7.1).
+  // The direct comparison narrows `template` to RunTemplate below, under
+  // protocol 3.91.0 and [P-a] alike.
+  if (template.observation_class === 'sourcing_map') {
+    redirect(smRunHref(template.scope.project_id, template.template_id));
   }
   return (
     <div className="space-y-6">

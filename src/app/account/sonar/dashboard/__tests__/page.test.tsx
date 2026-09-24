@@ -215,6 +215,30 @@ describe('UnifiedDashboardPage — v1.37 R2 coverage absorption + polish unify',
     expect(consoleWarnSpy).toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
+
+  it(
+    'keeps Run all disabled when the only enabled configuration is a sourcing-map run (R-10 census H6)',
+    async () => {
+      fetchBffJson
+        .mockResolvedValueOnce({ kind: 'ok', data: { snapshot: snapshot(25) } })
+        .mockResolvedValueOnce({ kind: 'ok', data: { points: [snapshot(25)] } })
+        .mockResolvedValueOnce({
+          kind: 'ok',
+          data: { partners: [], generated_at: '', partial: { audit: false, phantom_demand: false, watcher: false } },
+        })
+        .mockResolvedValueOnce({ kind: 'ok', data: { events: [] } })
+        .mockResolvedValueOnce({ kind: 'ok', data: { audit: 0, watcher: 0, total: 0 } })
+        .mockResolvedValueOnce({ kind: 'ok', data: { templates: [{ enabled: true, observation_class: 'sourcing_map' }] } });
+      const { default: Page } = await import('../page');
+      render(await Page());
+      // RunAllButton renders inside the Cross-modality tabpanel (HeaderStrip);
+      // that panel is `hidden` until its tab is selected, same as the other
+      // cross-modality-content tests in this file.
+      fireEvent.click(screen.getByRole('tab', { name: 'Cross-modality' }));
+      expect(screen.getByRole('button', { name: 'Run all' })).toBeDisabled();
+    },
+    10_000,
+  );
 });
 
 describe('UnifiedDashboardPage — a best-effort lane that did not answer (SEC-web-sonar-4-04)', () => {

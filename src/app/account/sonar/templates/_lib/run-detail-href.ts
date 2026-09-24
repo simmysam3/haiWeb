@@ -2,7 +2,8 @@ type ObservationClass =
   | 'audit'
   | 'watcher'
   | 'phantom_demand'
-  | 'grounded_forecast';
+  | 'grounded_forecast'
+  | 'sourcing_map';
 
 /**
  * Where a "run detail" link for a triggered run should point, per modality.
@@ -24,5 +25,9 @@ export function runDetailHref(klass: ObservationClass, runId: string): string {
       return `/account/sonar/watchers/${runId}`;
     case 'grounded_forecast':
       return `/account/sonar/grounded-forecasts`;
+    case 'sourcing_map':
+      // An execution is addressed by project + run in the app; the id alone
+      // cannot build that URL, so land on the app's project list.
+      return '/sourcing-map';
   }
 }

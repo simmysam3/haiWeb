@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
+import { isRunAllEligible } from '@/app/account/sonar/dashboard/_lib/run-all-eligible';
 
 interface TriggerSuccess {
   template_id: string;
@@ -13,7 +14,7 @@ interface TriggerFailure {
 
 export const POST = withHaiCore(async ({ client }) => {
   const { templates } = await client.listRunTemplates();
-  const enabled = templates.filter((t) => t.enabled);
+  const enabled = templates.filter(isRunAllEligible);
 
   const settled = await Promise.allSettled(
     enabled.map(async (t) => {

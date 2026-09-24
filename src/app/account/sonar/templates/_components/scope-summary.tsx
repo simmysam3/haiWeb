@@ -3,6 +3,8 @@
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { Pill, IdChip } from '@/components';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
+import type { SourcingMapScope } from '@/lib/sourcing-map/contract';
+import { smProjectHref } from '@/lib/sourcing-map/routes';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -50,7 +52,24 @@ function Signals({ types }: { types: string[] }) {
   );
 }
 
-export function ScopeSummary({ scope }: { scope: RunTemplateScope }) {
+export function ScopeSummary({ scope }: { scope: RunTemplateScope | SourcingMapScope }) {
+  // R-10 census H5 — without this branch a sourcing-map scope falls through
+  // to the legacy phantom-demand summary and reads scope.counterparty.
+  if (scope.kind === 'sourcing_map') {
+    return (
+      <div>
+        <Field label="Products">
+          {scope.products.length} product{scope.products.length === 1 ? '' : 's'}
+        </Field>
+        <Field label="Depth cap">{scope.depth_cap}</Field>
+        <Field label="Sourcing Map">
+          <a href={smProjectHref(scope.project_id)} className="text-teal-dark hover:underline">
+            Open in Sourcing Map
+          </a>
+        </Field>
+      </div>
+    );
+  }
   if (scope.kind === 'audit') {
     return (
       <div>
