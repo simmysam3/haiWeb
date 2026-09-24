@@ -12,6 +12,7 @@ import { SmDialog } from '../sm-dialog';
 import { FileStep } from './file-step';
 import { MapStep } from './map-step';
 import { ResolveStep } from './resolve-step';
+import { ReviewStep } from './review-step';
 
 export type UploadWizardProps =
   | { kind: 'bom'; productId: string; axis: VariantAxis | null; onCommitted(detail: SmProductDetail): void; onClose(): void }
@@ -19,6 +20,15 @@ export type UploadWizardProps =
 
 type Step = 'file' | 'map' | 'resolve' | 'review';
 const STEP_LABELS: Record<Step, string> = { file: 'File', map: 'Map columns', resolve: 'Resolve', review: 'Review' };
+
+function bomSummary(lines: ResolvedLine[]): string[] {
+  const classified = lines.filter((l) => l.class_id !== null).length;
+  const pinned = lines.filter((l) => l.pin !== null).length;
+  const unclassified = lines.length - classified;
+  const out = [`${lines.length} line${lines.length === 1 ? '' : 's'} · ${classified} classified · ${pinned} pinned`];
+  if (unclassified > 0) out.push(`${unclassified} line${unclassified === 1 ? ' has' : 's have'} no class yet; Run stays disabled until every line has one.`);
+  return out;
+}
 
 /** Spec §7.3: File → Map columns → Resolve (BOM only) → Review. Only mapped rows leave the browser. */
 export function UploadWizard(props: UploadWizardProps) {
@@ -36,6 +46,7 @@ export function UploadWizard(props: UploadWizardProps) {
   const [decimalComma, setDecimalComma] = useState(false);
   const [bom, setBom] = useState<Extract<BomBuild, { ok: true }> | null>(null);
   const [resolved, setResolved] = useState<ResolvedLine[]>([]);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // A step change unmounts the control that had focus (the file input, Continue, Back), which drops
@@ -158,6 +169,18 @@ export function UploadWizard(props: UploadWizardProps) {
           />
         )}
         {step === 'resolve' && bom && <ResolveStep lines={bom.lines} onBack={() => setStep('map')} onContinue={(r) => { setResolved(r); setStep('review'); }} />}
+        {step === 'review' && props.kind === 'bom' && bom && (
+          <ReviewStep
+            summary={bomSummary(resolved)}
+            errors={bom.errors}
+            ignoredColumns={bom.ignoredColumns}
+            commitLabel={`Save ${resolved.length} line${resolved.length === 1 ? '' : 's'}`}
+            busy={busy}
+            error={error}
+            onBack={() => setStep('resolve')}
+            onCommit={() => undefined}
+          />
+        )}
       </div>
     </SmDialog>
   );

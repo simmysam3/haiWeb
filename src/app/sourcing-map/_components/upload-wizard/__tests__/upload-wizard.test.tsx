@@ -256,6 +256,17 @@ describe('UploadWizard (BOM)', () => {
     }
   });
 
+  it('lists row errors with their source rows in Review and keeps Save disabled; nothing is saved (AC 5)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25', 'Lining,two']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("Row 3: 'two' is not a quantity per unit.");
+    expect(screen.getByRole('button', { name: 'Save 1 line' })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
