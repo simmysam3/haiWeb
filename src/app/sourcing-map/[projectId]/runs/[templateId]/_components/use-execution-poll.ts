@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import type { SmExecutionDetail, SmExecutionStatusResponse } from '@/lib/sourcing-map/contract';
-import { jsonFetcher } from '@/lib/swr-fetcher';
+import { FetchError, jsonFetcher } from '@/lib/swr-fetcher';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_POLL_MS, applyStatusDelta } from '@/lib/sourcing-map/map/selectors';
 
@@ -13,10 +13,12 @@ interface PollState {
   from: SmExecutionDetail | null;
   detail: SmExecutionDetail | null;
   cursor: number;
+  /** a-G4 / R2: a failure the workspace shows; never jsonFetcher's own message (it holds an internal URL) */
+  error: string | null;
 }
 
 function startFrom(initial: SmExecutionDetail | null): PollState {
-  return { from: initial, detail: initial, cursor: initial?.execution.probes_done ?? 0 };
+  return { from: initial, detail: initial, cursor: initial?.execution.probes_done ?? 0, error: null };
 }
 
 /**
@@ -28,7 +30,7 @@ function startFrom(initial: SmExecutionDetail | null): PollState {
  * `initial` must be referentially stable (state, not a fresh object each
  * render): a new `initial` restarts the poll from it.
  */
-export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: SmExecutionDetail | null } {
+export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: SmExecutionDetail | null; error: string | null } {
   const [state, setState] = useState(() => startFrom(initial));
   // R1: adjust state during render when `initial` changes (no setState in an effect).
   if (state.from !== initial) setState(startFrom(initial));
@@ -59,7 +61,10 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
           });
         }
       },
+      onError: (e: FetchError) => {
+        setState((st) => ({ ...st, error: `Progress could not be refreshed (${e.status}). Retrying.` }));
+      },
     },
   );
-  return { detail };
+  return { detail, error: state.error };
 }

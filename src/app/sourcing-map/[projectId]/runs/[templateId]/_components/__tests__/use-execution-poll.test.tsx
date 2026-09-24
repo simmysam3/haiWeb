@@ -3,10 +3,11 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import { VOMERO_IDS, runningDetail, vomeroDetail, vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
 import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
+import { FetchError } from '@/lib/swr-fetcher';
 
-const { swrCalls } = vi.hoisted(() => ({ swrCalls: [] as Array<{ key: string | null; opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void } }> }));
+const { swrCalls } = vi.hoisted(() => ({ swrCalls: [] as Array<{ key: string | null; opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void } }> }));
 vi.mock('swr', () => ({
-  default: (key: string | null, _fetcher: unknown, opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void }) => {
+  default: (key: string | null, _fetcher: unknown, opts: { refreshInterval?: number; dedupingInterval?: number; onSuccess?(d: unknown): void; onError?(e: unknown): void }) => {
     swrCalls.push({ key, opts });
     return { data: undefined, error: undefined };
   },
@@ -15,11 +16,14 @@ vi.mock('swr', () => ({
 import { useExecutionPoll } from '../use-execution-poll';
 
 function Probe({ initial }: { initial: SmExecutionDetail | null }) {
-  const { detail: d } = useExecutionPoll(initial);
+  const { detail: d, error } = useExecutionPoll(initial);
   return (
-    <p data-testid="probe">
-      {d ? `${d.execution.status}:${d.result?.slots[0]?.candidates[1]?.status ?? '-'}` : 'none'}
-    </p>
+    <>
+      <p data-testid="probe">
+        {d ? `${d.execution.status}:${d.result?.slots[0]?.candidates[1]?.status ?? '-'}` : 'none'}
+      </p>
+      {error ? <p data-testid="poll-error">{error}</p> : null}
+    </>
   );
 }
 
@@ -80,5 +84,14 @@ describe('useExecutionPoll', () => {
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered'));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]![0]).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031');
+  });
+
+  it('shows a failed status poll as a retrying notice with its HTTP status, never the fetcher message with its internal URL (R2)', () => {
+    render(<Probe initial={runningDetail()} />);
+    const last = swrCalls[swrCalls.length - 1]!;
+    act(() => {
+      last.opts.onError!(new FetchError(503, 'Request to /api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000031/status?cursor=3 failed: 503'));
+    });
+    expect(screen.getByTestId('poll-error').textContent).toBe('Progress could not be refreshed (503). Retrying.');
   });
 });
