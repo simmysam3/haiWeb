@@ -192,6 +192,22 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.queryByLabelText('Header row')).toBeNull();
   });
 
+  it('pre-maps an Excel "CSV UTF-8" (byte-order mark, then semicolons) exactly like the comma file (Review Focus 1)', async () => {
+    const BOM = String.fromCharCode(0xfeff);
+    renderBom();
+    await userEvent.upload(fileInput(), new File([BOM + ['Description,Usage,UOM', 'Upper leather tumbled,0.25,sq ft'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    expect(await screen.findByLabelText('Map column Description')).toHaveValue('component');
+    expect(screen.getByLabelText('Map column Usage')).toHaveValue('qty_per_unit');
+    expect(screen.getByLabelText('Map column UOM')).toHaveValue('uom');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await userEvent.upload(fileInput(), new File([BOM + ['Description;Usage;UOM', 'Upper leather tumbled;0,25;sq ft'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    expect(await screen.findByLabelText('Map column Description')).toHaveValue('component');
+    expect(screen.getByLabelText('Map column Usage')).toHaveValue('qty_per_unit');
+    expect(screen.getByLabelText('Map column UOM')).toHaveValue('uom');
+    expect(screen.getByRole('cell', { name: '0,25' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
