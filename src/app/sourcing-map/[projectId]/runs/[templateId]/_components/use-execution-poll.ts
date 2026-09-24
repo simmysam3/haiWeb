@@ -59,7 +59,10 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
     {
       refreshInterval: SM_POLL_MS,
       dedupingInterval: 0,
-      onSuccess: (s) => {
+      onSuccess: (s, okKey) => {
+        // I-1: SWR hands a late answer for an old key to the LATEST closure; it changes nothing and sends no GET.
+        // (A request is a side effect, so it is decided here against this render's key, not in an updater.)
+        if (okKey !== statusKeyOf(detail)) return;
         forExecution(s.execution_id, (st, d) => ({
           ...st,
           cursor: s.cursor,

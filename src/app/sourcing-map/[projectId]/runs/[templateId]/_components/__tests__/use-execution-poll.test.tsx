@@ -217,4 +217,17 @@ describe('useExecutionPoll', () => {
     });
     expect(screen.queryByTestId('poll-error')).toBeNull();
   });
+
+  it('sends no full-detail request when a key no longer polled reports its execution ended (I-1, review Minor 6)', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify(vomeroDetail) });
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    const oldKey = latest().key!;
+    rerender(<Probe initial={otherFailed} />);
+    await act(async () => {
+      latest().opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] }, oldKey);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
+  });
 });
