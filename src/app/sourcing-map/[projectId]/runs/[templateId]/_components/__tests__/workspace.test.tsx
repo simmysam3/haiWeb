@@ -179,4 +179,23 @@ describe('Workspace', () => {
     await settle(() => slowFirst.resolve(reply(200, first)));
     expect(picked()).toBe(OTHER);
   });
+
+  it('a superseded pick that fails late shows no error on the result now loaded (R3)', async () => {
+    const OTHER = '5a1e0000-0000-4000-8000-000000000034';
+    const first = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    const second = earlier(OTHER, '2026-09-21T10:00:00.000Z');
+    const slowFirst = deferred();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return slowFirst.promise;
+      if (url.endsWith(`/executions/${OTHER}`)) return reply(200, second);
+      return reply(404, {});
+    });
+    mount(vomeroDetail, [vomeroExecution, first.execution, second.execution]);
+    pick(VOMERO_IDS.executionOld);
+    pick(OTHER);
+    await waitFor(() => expect(picked()).toBe(OTHER));
+    await settle(() => slowFirst.resolve(reply(500, { error: { code: 'internal', message: 'The first pick failed.' } })));
+    expect(screen.queryByText('The first pick failed.')).toBeNull();
+  });
 });
