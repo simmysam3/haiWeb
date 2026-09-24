@@ -19,6 +19,16 @@ vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, text: 
 // A queued answer a test leaves unread must never reach the next test.
 beforeEach(() => fetchBffJson.mockReset());
 
+/** The five reads of a good load, in the page's order: run, project, products, executions, newest detail. */
+function queueGoodLoad() {
+  fetchBffJson
+    .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+    .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+    .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+    .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+    .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+}
+
 describe('run workspace page', () => {
   it('loads the run, its project, the library, the executions and the latest result, and renders the map', async () => {
     fetchBffJson
@@ -41,5 +51,13 @@ describe('run workspace page', () => {
     fetchBffJson.mockResolvedValueOnce({ kind: 'error', status: 404, message: '' });
     const { default: Page } = await import('../page');
     await expect(Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) })).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+
+  it('is a 404, before any fetch, when the run segment is not an id (R6: Next hands the page "..%2F" decoded)', async () => {
+    // Without the guard every read answers, so the page would render.
+    queueGoodLoad();
+    const { default: Page } = await import('../page');
+    await expect(Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: decodeURIComponent('..%2Fprojects') }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).not.toHaveBeenCalled();
   });
 });

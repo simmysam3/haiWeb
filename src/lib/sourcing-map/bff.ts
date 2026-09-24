@@ -30,7 +30,8 @@ export async function smForward(
   return forwardHaiCoreResponse(await client.fetchRaw(`${path}${request.nextUrl.search}`, init));
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Every Sourcing Map id is a uuid: the one test `seg` (BFF) and `smPageId` (pages) share. */
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * A route param bound into a haiCore path. Every Sourcing Map id is a uuid;

@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
 import type { SmExecutionDetail, SmExecutionSummary, SmProductListResponse, SmProject, SmRunTemplate } from '@/lib/sourcing-map/contract';
+import { smPageId } from '@/lib/sourcing-map/page-id';
 import { Workspace } from './_components/workspace';
 
 export default async function RunWorkspacePage({ params }: { params: Promise<{ projectId: string; templateId: string }> }) {
-  const { projectId, templateId } = await params;
+  const { projectId, templateId: rawTemplateId } = await params;
+  const templateId = smPageId(rawTemplateId);
   const run = await fetchBffJson<{ template: SmRunTemplate }>(`/api/account/sourcing-map/runs/${templateId}`);
   if (run.kind === 'error') {
     if (run.status === 404) notFound();
