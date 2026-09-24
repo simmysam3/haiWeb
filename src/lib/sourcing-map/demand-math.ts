@@ -71,3 +71,25 @@ export function curveMix(values: readonly string[], curve: { center: string; spr
   const hundredths = largestRemainder(10000, weights);
   return Object.fromEntries(values.map((v, i) => [v, hundredths[i]! / 100]));
 }
+
+/** A mix's total, rounded to hundredths for display. */
+export function mixTotal(mix: SmMix): number {
+  return Math.round(Object.values(mix).reduce((a, b) => a + b, 0) * 100) / 100;
+}
+
+/** Rescales a mix over `order` to exactly 10,000 hundredths (Review Focus 3). */
+export function normalizeMix(mix: SmMix, order: readonly string[]): SmMix {
+  const hundredths = largestRemainder(10000, order.map((v) => Math.max(0, mix[v] ?? 0)));
+  return Object.fromEntries(order.map((v, i) => [v, hundredths[i]! / 100]));
+}
+
+/** Per-variant pairs of a quantity by the mix (spec §8.2 largest remainder; exact sum). */
+export function pairsFromMix(qty: number, mix: SmMix, order: readonly string[]): Record<string, number> {
+  const q = largestRemainder(qty, order.map((v) => mix[v] ?? 0));
+  return Object.fromEntries(order.map((v, i) => [v, q[i]!]));
+}
+
+/** The mix that pairs describe, to exactly 100.00. */
+export function mixFromPairs(pairs: Record<string, number>, order: readonly string[]): SmMix {
+  return normalizeMix(Object.fromEntries(order.map((v) => [v, pairs[v] ?? 0])), order);
+}

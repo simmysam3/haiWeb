@@ -45,4 +45,19 @@ describe('demand math', () => {
     expect(mixTotalsHundred(whole)).toBe(true);
     expect(curveMix(['S', 'M', 'L'], { center: 'M', spread: 1, half_sizes: false })).toEqual({ S: 33.34, M: 33.33, L: 33.33 });
   });
+
+  it('normalizes a hand-typed 99.98% mix to exactly 100.00, splits a quantity into pairs by the mix (exact sum), and derives a mix back from pairs', () => {
+    const typed = { '9': 33.33, '10': 33.33, '11': 33.32 };
+    expect(mixTotal(typed)).toBe(99.98);
+    const fixed = normalizeMix(typed, ['9', '10', '11']);
+    // largest remainder over 10,000 hundredths: 3333.67, 3333.67, 3332.67 → the two leftovers go to the earlier ties.
+    expect(fixed).toEqual({ '9': 33.34, '10': 33.34, '11': 33.32 });
+    expect(mixTotalsHundred(fixed)).toBe(true);
+    expect(mixTotal(fixed)).toBe(100);
+    const pairs = pairsFromMix(6000, SPRING_MIX, MENS_US_7_13);
+    expect(Object.values(pairs).reduce((a, b) => a + b, 0)).toBe(6000);
+    expect(pairs['9.5']).toBe(830);
+    expect(mixFromPairs({ '9': 1, '10': 2 }, ['9', '10'])).toEqual({ '9': 33.33, '10': 66.67 });
+    expect(mixTotalsHundred(mixFromPairs(pairs, MENS_US_7_13))).toBe(true);
+  });
 });
