@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SmHeader } from '../sm-header';
+import { SmThemeRoot } from '../theme-root';
+import { SM_THEME_TOKENS } from '@/lib/sourcing-map/theme';
+
+afterEach(() => {
+  window.localStorage.clear();
+});
 
 vi.mock('next/image', () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />,
@@ -33,5 +39,22 @@ describe('SmHeader', () => {
     expect(nav).toHaveTextContent('Projects›Spring 2027›Line A base');
     expect(screen.getByRole('link', { name: 'Spring 2027' })).toHaveAttribute('href', '/sourcing-map/p1');
     expect(screen.getByText('Line A base')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('stays dark inside the header even when the light theme is chosen, so the ghost Console link and toggle stay legible (controller ruling, Tasks 15-16 review, Important 1)', () => {
+    window.localStorage.setItem('sm.theme', 'light');
+    const { container } = render(
+      <SmThemeRoot>
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </SmThemeRoot>,
+    );
+    // Present control: the root itself really did switch to light.
+    const root = screen.getByTestId('sm-root');
+    expect(root).toHaveAttribute('data-theme', 'light');
+    expect(root.style.getPropertyValue('--sm-ink')).toBe(SM_THEME_TOKENS.light.ink);
+    // The header, inside that light root, still carries the dark ink token.
+    const header = container.querySelector('header');
+    expect(header).not.toBeNull();
+    expect((header as HTMLElement).style.getPropertyValue('--sm-ink')).toBe(SM_THEME_TOKENS.dark.ink);
   });
 });
