@@ -13,6 +13,9 @@ export default async function RunWorkspacePage({ params }: { params: Promise<{ p
     if (run.status === 404) notFound();
     throw new Error(`run fetch failed: ${run.status}`);
   }
+  // P1: a URL pairing one project with another project's run is a 404, before the URL project's name or library
+  // is read: a tray over the wrong library could Apply a scope that drops products (R1's hazard).
+  if (run.data.template.scope.project_id !== projectId) notFound();
   const [project, products, executions] = await Promise.all([
     fetchBffJson<SmProject>(`/api/account/sourcing-map/projects/${projectId}`),
     fetchBffJson<SmProductListResponse>(`/api/account/sourcing-map/projects/${projectId}/products`),

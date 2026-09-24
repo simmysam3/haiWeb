@@ -113,6 +113,20 @@ describe('run workspace page', () => {
     expect(screen.queryByText(/No execution yet/)).toBeNull();
   });
 
+  it('is a 404, after the run read only, when the run belongs to another project than the URL names (P1)', async () => {
+    const otherProject = '5a1e0000-0000-4000-8000-000000000002';
+    // Without the check every read answers, so the page would render the URL project's name and library.
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: { ...vomeroRunTemplate, scope: { ...vomeroRunTemplate.scope, project_id: otherProject } } } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+    const { default: Page } = await import('../page');
+    await expect(Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).toHaveBeenCalledTimes(1);
+  });
+
   it('is a 404, before any fetch, when the project segment is not an id (R6)', async () => {
     queueGoodLoad();
     const { default: Page } = await import('../page');
