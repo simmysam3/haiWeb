@@ -74,6 +74,20 @@ describe('run workspace page', () => {
     expect(screen.getByText('The project could not be loaded (500). Try again in a moment.')).toHaveAttribute('role', 'alert');
   });
 
+  it('shows an alert and disables Configure when the product library read fails (R1)', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'error', status: 502, message: '' })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) }));
+    expect(screen.getByText('Products could not be loaded (502). Try again in a moment.')).toHaveAttribute('role', 'alert');
+    // A tray over an empty library could Apply a scope that drops products.
+    expect(screen.getByRole('button', { name: 'Configure' })).toBeDisabled();
+  });
+
   it('is a 404, before any fetch, when the project segment is not an id (R6)', async () => {
     queueGoodLoad();
     const { default: Page } = await import('../page');

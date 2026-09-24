@@ -23,11 +23,13 @@ export interface WorkspaceProps {
   initialDetail: SmExecutionDetail | null;
   /** R1: a page read that failed, shown as an alert (never a silent fallback) */
   projectError?: string | null;
+  /** R1: also disables Configure, since a tray over an empty library could Apply a scope that drops products */
+  productsError?: string | null;
 }
 
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
-  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null,
+  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null,
 }: WorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -69,12 +71,13 @@ export function Workspace({
           <>
             <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={() => undefined} />
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setTrayOpen(true)}>Configure</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>Configure</button>
             <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : null} running={running} busy={busy} onRun={() => undefined} />
           </>
         }
       />
       {projectError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{projectError}</p>}
+      {productsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{productsError}</p>}
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
       <ExecutionBanner execution={detail?.execution ?? null} />
       {result && (
