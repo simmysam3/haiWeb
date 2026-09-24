@@ -387,6 +387,16 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.queryByLabelText('Header row')).toBeNull();
   });
 
+  it("drops a refused mapping's error when a column is re-mapped (Ruling M2)", async () => {
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Notes,Remark', 'see memo,none']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Map a column to Component.');
+    fireEvent.change(screen.getByLabelText('Map column Notes'), { target: { value: 'component' } });
+    expect(screen.getByLabelText('Map column Notes')).toHaveValue('component');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {

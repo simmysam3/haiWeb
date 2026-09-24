@@ -205,7 +205,10 @@ export function UploadWizard(props: UploadWizardProps) {
               setHeaderIndex(h);
               mapFor(sheets, sheetIndex, h);
             }}
-            onMapping={setMapping}
+            onMapping={(m) => {
+              setError(null); // the edit is the user answering the refusal; the old error named the old mapping (Ruling M2)
+              setMapping(m);
+            }}
             onBack={() => {
               setError(null); // the error answered this step's Continue; the File step never shows it
               setStep('file');
