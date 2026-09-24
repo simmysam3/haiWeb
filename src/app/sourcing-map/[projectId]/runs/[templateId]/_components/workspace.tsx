@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct, SmRunTemplate } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
@@ -53,14 +53,19 @@ export function Workspace({
   const [error, setError] = useState<string | null>(detailError);
   const [busy, setBusy] = useState(false);
 
-  const loadEstimate = useCallback(async () => {
-    const out = await smFetch<SmEstimateResponse>(`/api/account/sourcing-map/runs/${template.template_id}/estimate`, { method: 'POST' });
-    if (out.ok) setEstimate(out.data);
-    else setEstimateError(`Readiness could not be checked: ${out.message}`);
-  }, [template]);
+  // The estimate is read on mount and again after each Apply (a new `template`). An answer applies only while
+  // its template is still the current one, so a late answer for the scope before an Apply never overwrites.
   useEffect(() => {
-    void loadEstimate();
-  }, [loadEstimate]);
+    let live = true;
+    void smFetch<SmEstimateResponse>(`/api/account/sourcing-map/runs/${template.template_id}/estimate`, { method: 'POST' }).then((out) => {
+      if (!live) return;
+      if (out.ok) setEstimate(out.data);
+      else setEstimateError(`Readiness could not be checked: ${out.message}`);
+    });
+    return () => {
+      live = false;
+    };
+  }, [template]);
 
   // R3: each switch of result (a pick, Run's new execution, the reload after Cancel) takes a number; only the
   // latest one's answer, success or failure, is applied, so two answers arriving out of order can't swap.

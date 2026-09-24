@@ -302,4 +302,24 @@ describe('Workspace', () => {
     await settle(() => second.resolve(reply(200, NOT_READY)));
     expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
   });
+
+  it('a late readiness answer for the scope before an Apply never overwrites the new scope’s', async () => {
+    const first = deferred();
+    let estimates = 0;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) {
+        estimates += 1;
+        return estimates === 1 ? first.promise : reply(200, NOT_READY);
+      }
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount();
+    applyDepthCap4();
+    expect(await screen.findByText('A workbench product has no BOM lines.')).toBeInTheDocument();
+    // The mount's read (the old scope, ready) answers last.
+    await settle(() => first.resolve(reply(200, vomeroEstimate)));
+    expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+  });
 });
