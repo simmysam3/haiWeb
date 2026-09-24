@@ -69,4 +69,31 @@ describe('ImportAgentDialog', () => {
     await waitFor(() => expect(onImported).toHaveBeenCalledWith({ mode: 'copy', lines_created: 3, lines_unclassified: 0 }));
     expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ agent_root_sku: 'TYPED-SKU-1', mode: 'copy' });
   });
+
+  it('keeps Import focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      await held;
+      return reply(200, { mode: 'copy', lines_created: 12, lines_unclassified: 2 });
+    });
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    const importButton = screen.getByRole('button', { name: 'Import' });
+    importButton.focus();
+    fireEvent.click(importButton);
+    expect(importButton).toHaveAttribute('aria-busy', 'true');
+    expect(importButton).toHaveAttribute('aria-disabled', 'true');
+    expect(importButton).not.toBeDisabled();
+    expect(importButton).toHaveFocus();
+    fireEvent.click(importButton);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/import-agent-bom'))).toHaveLength(1);
+    release();
+    await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1));
+  });
 });
+

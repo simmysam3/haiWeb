@@ -2,6 +2,7 @@
 import { useEffect, useId, useState } from 'react';
 import type { AgentParentSkusResponse, ImportAgentBomResponse } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
+import { SmButton } from '../../../../_components/sm-button';
 import { SmDialog } from '../../../../_components/sm-dialog';
 
 /** Import from agent (spec §7.5): R-6 listing plus a typed SKU; copy or link. */
@@ -48,7 +49,7 @@ export function ImportAgentDialog({ productId, open, onClose, onImported }: {
       footer={
         <>
           <button type="button" className="sm-btn sm-btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="sm-btn sm-btn-primary" disabled={busy || sku.trim() === ''} onClick={submit}>Import</button>
+          <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={sku.trim() === ''} onClick={submit}>Import</SmButton>
         </>
       }
     >
