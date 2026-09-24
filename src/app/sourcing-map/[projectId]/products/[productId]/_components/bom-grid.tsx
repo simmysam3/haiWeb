@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
+import { SmButton } from '../../../../_components/sm-button';
 import { ClassPicker } from './class-picker';
 import { SizeTable } from './size-table';
 import { PinEditor } from './pin-editor';
@@ -71,7 +72,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
         <button ref={addLineRef} type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
-        <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={save}>Save BOM</button>
+        <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={save}>Save BOM</SmButton>
       </div>
       <div className="overflow-x-auto">
         <table className="sm-table">

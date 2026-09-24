@@ -149,4 +149,30 @@ describe('BomGrid', () => {
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(3);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add line' }));
   });
+
+  it('keeps Save BOM focusable while its PUT is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!url.endsWith('/bom-lines')) return reply(404, {});
+      await held;
+      return reply(200, vomeroWorkbenchDetail);
+    });
+    const onSaved = mount();
+    const save = screen.getByRole('button', { name: 'Save BOM' });
+    save.focus();
+    fireEvent.click(save);
+    expect(save).toHaveAttribute('aria-busy', 'true');
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveFocus();
+    fireEvent.click(save);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/bom-lines'))).toHaveLength(1);
+    release();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(save).not.toHaveAttribute('aria-busy');
+  });
 });
+
