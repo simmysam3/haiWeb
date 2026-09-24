@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { vomeroAgentDetail, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ProductEditor } from '../product-editor';
 import { ProductEditorBody } from '../product-editor-body';
 
@@ -61,5 +61,14 @@ describe('ProductEditorBody', () => {
     render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
     expect(screen.getByRole('heading', { name: 'Bill of materials' })).toBeInTheDocument();
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(5);
+  });
+
+  it('renders the read-only agent view for an agent product and offers Import from agent on a workbench product', () => {
+    const { unmount } = render(<ProductEditorBody projectName="Spring 2027" detail={vomeroAgentDetail} />);
+    expect(screen.getByText('Read fresh at each run')).toBeInTheDocument();
+    unmount();
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    expect(screen.getByRole('dialog', { name: 'Import from agent' })).toBeInTheDocument();
   });
 });
