@@ -80,6 +80,16 @@ function picked(): string {
   return (screen.getByLabelText('Result') as HTMLSelectElement).value;
 }
 
+/** Open Configure, set Depth cap to 4 (a change Apply can save), and press Apply. */
+function applyDepthCap4() {
+  fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+  const tray = screen.getByRole('complementary', { name: 'Configure run' });
+  fireEvent.click(within(tray).getByRole('tab', { name: 'Run settings' }));
+  fireEvent.change(within(tray).getByLabelText('Depth cap'), { target: { value: '4' } });
+  fireEvent.click(within(tray).getByRole('button', { name: 'Apply' }));
+}
+const DEPTH_4 = { ...vomeroRunTemplate, scope: { ...vomeroRunTemplate.scope, depth_cap: 4 } };
+
 function pick(id: string) {
   fireEvent.change(screen.getByLabelText('Result'), { target: { value: id } });
 }
@@ -255,6 +265,18 @@ describe('Workspace', () => {
     const tray = screen.getByRole('complementary', { name: 'Configure run' });
     fireEvent.click(within(tray).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
+  });
+
+  it('returns focus to Configure when an Apply closes the tray (R2)', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount();
+    applyDepthCap4();
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
     expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
   });
 });

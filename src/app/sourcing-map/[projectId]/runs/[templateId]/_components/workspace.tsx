@@ -198,7 +198,7 @@ export function Workspace({
           library={library}
           onApplied={(t) => {
             setTemplate(t);
-            setTrayOpen(false);
+            closeTray();
           }}
           onClose={closeTray}
         />
