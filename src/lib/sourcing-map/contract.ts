@@ -7,6 +7,7 @@
  * Names are verbatim. Task 43 deletes this file and imports from the protocol.
  */
 import { z } from 'zod';
+import type { Cadence } from '@haiwave/protocol';
 
 // ---------------------------------------------------------------- §3.1 common
 /** Spec §6.2 limits. Services, UI and tests import these; never re-type the numbers. */
@@ -611,3 +612,25 @@ export const SmEstimateResponseSchema = z.object({
   })),
 });
 export type SmEstimateResponse = z.infer<typeof SmEstimateResponseSchema>;
+
+// ---------------------------------------------------------------- haiWeb-local (not in contract §3)
+/**
+ * d-G1 (contract §3.8): the RunTemplateSchema branch for observation_class
+ * 'sourcing_map' (`RunTemplateSourcingMapSchema`, not exported by the protocol
+ * on its own). Task 43 replaces it with Extract<RunTemplate, …>.
+ */
+export const SmRunTemplateSchema = z.object({
+  template_id: z.string().uuid(),
+  initiator_participant_id: z.string().uuid(),
+  template_name: z.string().min(1).max(200),
+  cadence: z.custom<Cadence>((v) => typeof v === 'object' && v !== null && typeof (v as { kind?: unknown }).kind === 'string'),
+  enabled: z.boolean(),
+  retention_days: z.number().int().min(1).max(3650),
+  created_at: z.string().datetime(),
+  created_by_user_id: z.string().uuid(),
+  last_run_id: z.string().uuid().nullable(),
+  last_run_at: z.string().datetime().nullable(),
+  observation_class: z.literal('sourcing_map'),
+  scope: SourcingMapScopeSchema,
+});
+export type SmRunTemplate = z.infer<typeof SmRunTemplateSchema>;
