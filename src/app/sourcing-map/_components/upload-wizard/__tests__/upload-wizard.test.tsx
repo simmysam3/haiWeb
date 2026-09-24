@@ -177,7 +177,7 @@ describe('UploadWizard (BOM)', () => {
     await userEvent.upload(fileInput(), new File([bytes], 'bom.xlsx'));
     expect(await screen.findByLabelText('Sheet')).toHaveValue('0');
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Map a column to Component.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('There are no rows under the header row (Row 2).');
     fireEvent.change(screen.getByLabelText('Sheet'), { target: { value: '1' } });
     expect(screen.getByLabelText('Map column Description')).toHaveValue('component');
     expect(screen.queryByRole('alert')).toBeNull();
@@ -205,6 +205,17 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByLabelText('Map column Usage')).toHaveValue('qty_per_unit');
     expect(screen.getByLabelText('Map column UOM')).toHaveValue('uom');
     expect(screen.getByRole('cell', { name: '0,25' })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a header with no rows under it, and stays on the mapping step', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,UOM']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('There are no rows under the header row (Row 1).');
+    expect(screen.getByLabelText('Map column Description')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Accept all confident' })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

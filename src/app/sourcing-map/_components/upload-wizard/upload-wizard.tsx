@@ -91,6 +91,11 @@ export function UploadWizard(props: UploadWizardProps) {
   function onContinueMap() {
     setError(null);
     if (props.kind !== 'bom') return; // Cycle 32.7 adds the demand path
+    // Nothing under the header would reach Review as "Save 0 lines" and replace the BOM with an empty one.
+    if (dataRows.length === 0) {
+      setError(`There are no rows under the header row (Row ${rows[headerIndex]?.row ?? headerIndex + 1}).`);
+      return;
+    }
     const out = buildBomLines({ rows: dataRows, headers, mapping, variantValues, decimalComma });
     if (!out.ok) {
       setError(out.rejection);
