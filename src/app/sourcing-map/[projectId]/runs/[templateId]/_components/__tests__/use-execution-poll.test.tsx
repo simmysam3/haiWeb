@@ -63,6 +63,8 @@ describe('useExecutionPoll', () => {
     unmount();
     swrCalls.length = 0;
     render(<Probe initial={vomeroDetail} />);
+    // M5: `every` is true of an empty list, so first pin that the terminal render still called SWR.
+    expect(swrCalls.length).toBeGreaterThan(0);
     expect(swrCalls.every((c) => c.key === null)).toBe(true);
   });
 
