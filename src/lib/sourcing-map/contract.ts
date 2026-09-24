@@ -634,3 +634,11 @@ export const SmRunTemplateSchema = z.object({
   scope: SourcingMapScopeSchema,
 });
 export type SmRunTemplate = z.infer<typeof SmRunTemplateSchema>;
+
+/** BFF-local body of POST /api/account/sourcing-map/runs (spec §9.2 AD-3: BFF-local unless minted). */
+export const CreateSmRunBodySchema = z.object({
+  template_name: z.string().min(1).max(200),
+  scope: SourcingMapScopeSchema,
+  cadence: z.custom<Cadence>((v) => typeof v === 'object' && v !== null && typeof (v as { kind?: unknown }).kind === 'string').optional(),
+});
+export type CreateSmRunBody = z.infer<typeof CreateSmRunBodySchema>;
