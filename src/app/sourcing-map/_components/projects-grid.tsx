@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SmProject, SmProjectListResponse } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
@@ -35,6 +35,8 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   // No dialog is open while the list reloads (a-G4: the UI shows error.message), so this failure
   // gets its own page-level alert rather than the dialogs' shared `error`.
   const [listError, setListError] = useState<string | null>(null);
+  // A deleted project's card takes its Delete button with it; focus then goes to "+ New project" (L141).
+  const newProjectRef = useRef<HTMLButtonElement | null>(null);
 
   const visible = projects.filter((p) => showArchived || p.archived_at === null);
 
@@ -142,7 +144,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
           </li>
         ))}
         <li>
-          <button type="button" className="sm-card flex h-full w-full items-center justify-center p-5 text-sm" onClick={() => { setError(null); setCreating(true); }}>
+          <button ref={newProjectRef} type="button" className="sm-card flex h-full w-full items-center justify-center p-5 text-sm" onClick={() => { setError(null); setCreating(true); }}>
             + New project
           </button>
         </li>
@@ -203,6 +205,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
           onConfirm={(d) => void remove(deleting, d)}
           busy={busy}
           error={error}
+          returnFocus={newProjectRef}
         />
       )}
     </section>

@@ -187,5 +187,17 @@ describe('ProjectsGrid', () => {
     settle(reply(200, { ...vomeroProject, archived_at: '2026-09-23T12:00:00.000Z' }));
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull());
   });
+
+  it('after a successful delete, whose card took its Delete button, focus goes to "+ New project", never <body> (L141)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    const opener = screen.getByRole('button', { name: 'Delete Spring 2027' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New project' }));
+  });
 });
 

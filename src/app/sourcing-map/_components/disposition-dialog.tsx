@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { SmButton } from './sm-button';
 import { SmDialog } from './sm-dialog';
 
@@ -12,8 +12,10 @@ const OPTIONS: Array<{ value: Disposition; label: string }> = [
 ];
 
 /** D-206: what happens to earlier executions when a run or project is deleted (spec §8.9, AC 3, AC 19). */
-export function DispositionDialog({ open, title, onCancel, onConfirm, busy = false, error = null }: {
+export function DispositionDialog({ open, title, onCancel, onConfirm, busy = false, error = null, returnFocus }: {
   open: boolean; title: string; onCancel(): void; onConfirm(d: Disposition): void; busy?: boolean; error?: string | null;
+  /** SmDialog's: where focus goes when a successful delete took the opener with it (L141). */
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   const [choice, setChoice] = useState<Disposition>('archive');
   return (
@@ -21,6 +23,7 @@ export function DispositionDialog({ open, title, onCancel, onConfirm, busy = fal
       title={title}
       open={open}
       onClose={onCancel}
+      returnFocus={returnFocus}
       footer={
         <>
           <button type="button" className="sm-btn sm-btn-ghost" onClick={onCancel}>Cancel</button>
