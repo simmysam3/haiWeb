@@ -199,5 +199,25 @@ describe('ProjectsGrid', () => {
     expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New project' }));
   });
+
+  it('a pending delete cannot be dismissed: Escape, the backdrop and Cancel wait, and its 409 then shows (A5-M1, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Spring 2027' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete Spring 2027' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Delete Spring 2027' })).toBeInTheDocument();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('dialog', { name: 'Delete Spring 2027' })).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'Delete Spring 2027' })).toBeInTheDocument();
+    settle(reply(409, { error: { code: 'execution_in_progress', message: 'Line A base has an execution running.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Line A base has an execution running.');
+    expect(cancel).toBeEnabled();
+  });
 });
 

@@ -24,9 +24,11 @@ export function DispositionDialog({ open, title, onCancel, onConfirm, busy = fal
       open={open}
       onClose={onCancel}
       returnFocus={returnFocus}
+      busy={busy}
       footer={
         <>
-          <button type="button" className="sm-btn sm-btn-ghost" onClick={onCancel}>Cancel</button>
+          {/* A5-M1: a pending delete answers in this dialog, so Cancel waits for it (as Escape and the backdrop do). */}
+          <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={onCancel}>Cancel</button>
           <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={() => onConfirm(choice)}>Delete</SmButton>
         </>
       }

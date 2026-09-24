@@ -52,11 +52,13 @@ const LAYOUT = {
 
 /**
  * App-themed modal (the console Modal is white-on-light; the app is dark by default). `returnFocus` takes focus on
- * close when the opener went with it (a deleted row's own Delete, L141), so focus never falls to <body>.
+ * close when the opener went with it (a deleted row's own Delete, L141), so focus never falls to <body>. While
+ * `busy` (its request in flight), Escape and the backdrop do nothing: the answer, a failure's message included, is
+ * shown in this dialog (A5-M1, a-G4); callers disable their own Cancel meanwhile.
  */
-export function SmDialog({ title, open, onClose, children, footer, wide = false, returnFocus }: {
+export function SmDialog({ title, open, onClose, children, footer, wide = false, returnFocus, busy = false }: {
   title: string; open: boolean; onClose(): void; children: ReactNode; footer?: ReactNode; wide?: boolean;
-  returnFocus?: RefObject<HTMLElement | null>;
+  returnFocus?: RefObject<HTMLElement | null>; busy?: boolean;
 }) {
   const layout = wide ? LAYOUT.wide : LAYOUT.normal;
   const titleId = useId();
@@ -81,7 +83,7 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false,
   if (!open) return null;
   return (
     <div className={layout.overlay}>
-      <div className={layout.backdrop} onClick={onClose} aria-hidden="true" />
+      <div className={layout.backdrop} onClick={busy ? undefined : onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -90,7 +92,7 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false,
         tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
-            onClose();
+            if (!busy) onClose();
             return;
           }
           if (e.key !== 'Tab') return;
