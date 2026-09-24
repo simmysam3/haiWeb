@@ -5,16 +5,13 @@ import { useRouter } from 'next/navigation';
 import { SM_LIMITS, type SmRunListResponse, type SmRunTemplate } from '@/lib/sourcing-map/contract';
 import { smRunHref } from '@/lib/sourcing-map/routes';
 import { smFetch } from '@/lib/sourcing-map/client';
+import { formatPct } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DispositionDialog, type Disposition } from '../../_components/disposition-dialog';
 
 type Run = SmRunListResponse['runs'][number];
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-/** Floor, so 99.6% never reads as 100% (a covered-in-full claim). */
-function pct(ratio: number): string {
-  return `${Math.floor(ratio * 100 + 1e-9)}%`;
-}
 
 /** The Runs tab (spec §7.1): runs, "+ New run" and delete with the D-206 disposition (AC 19). */
 export function RunsTab({ projectId, initialRuns }: { projectId: string; initialRuns: Run[] }) {
@@ -81,7 +78,7 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
                 </td>
                 <td>{r.product_count}</td>
                 <td>{last?.started_at ? DATE.format(new Date(last.started_at)) : 'Never run'}</td>
-                <td>{last?.portfolio_coverage_last_drop != null ? pct(last.portfolio_coverage_last_drop) : '—'}</td>
+                <td>{last?.portfolio_coverage_last_drop != null ? formatPct(last.portfolio_coverage_last_drop) : '—'}</td>
                 <td>{last ? <Pill themed category="sm_execution_status" value={last.status} detail={last.failure_reason} /> : '—'}</td>
                 <td>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${r.template_name}`} onClick={() => { setError(null); setDeleting(r); }}>Delete</button>
