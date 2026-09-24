@@ -159,4 +159,20 @@ describe('useExecutionPoll', () => {
     });
     expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
   });
+
+  it('never shows the old execution’s late full-detail failure on the one now loaded (R3)', async () => {
+    let answer!: (r: unknown) => void;
+    fetchMock.mockReturnValue(new Promise((r) => { answer = r; }));
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] });
+    });
+    rerender(<Probe initial={otherFailed} />);
+    await act(async () => {
+      answer({ ok: false, status: 404, text: async () => JSON.stringify({ error: { code: 'not_found', message: 'Execution not found.' } }) });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(screen.queryByTestId('poll-error')).toBeNull();
+    expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
+  });
 });
