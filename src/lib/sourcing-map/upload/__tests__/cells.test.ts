@@ -13,4 +13,15 @@ describe('upload cell parsers', () => {
     expect(parseQty('two', false)).toBeNull();
     expect(parseQty('', false)).toBeNull();
   });
+
+  it('parseShare reads a percentage or a fraction and refuses anything outside (0, 100]', () => {
+    expect(parseShare('60')).toBe(60);
+    expect(parseShare('60%')).toBe(60);
+    expect(parseShare('0.6')).toBe(60);
+    expect(parseShare('1')).toBe(100);
+    expect(parseShare('33,33%')).toBe(33.33);
+    expect(parseShare('150')).toBeNull();
+    expect(parseShare('0')).toBeNull();
+    expect(parseShare('x')).toBeNull();
+  });
 });

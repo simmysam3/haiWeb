@@ -13,3 +13,15 @@ export function parseQty(text: string, decimalComma: boolean): number | null {
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 }
+
+/** A share in percent. "60", "60%" and "0.6" all mean 60; a bare value ≤ 1 is a fraction. */
+export function parseShare(text: string): number | null {
+  const t = text.trim();
+  if (t === '') return null;
+  const pct = t.endsWith('%');
+  const body = pct ? t.slice(0, -1) : t;
+  const n = parseQty(body, body.includes(',') && !body.includes('.'));
+  if (n === null || n <= 0) return null;
+  const v = pct || n > 1 ? n : n * 100;
+  return v > 100 ? null : Math.round(v * 100) / 100;
+}
