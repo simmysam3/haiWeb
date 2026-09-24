@@ -91,4 +91,24 @@ describe('LibraryTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('keeps Create product focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    const create = screen.getByRole('button', { name: 'Create product' });
+    create.focus();
+    fireEvent.click(create);
+    expect(create).toHaveAttribute('aria-busy', 'true');
+    expect(create).toHaveAttribute('aria-disabled', 'true');
+    expect(create).not.toBeDisabled();
+    expect(create).toHaveFocus();
+    fireEvent.click(create);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(201, { ...vomeroProducts[0], product_id: VOMERO_IDS.court }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
 });
+

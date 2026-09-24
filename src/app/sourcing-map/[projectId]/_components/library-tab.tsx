@@ -7,6 +7,7 @@ import { smProductHref } from '@/lib/sourcing-map/routes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
+import { SmButton } from '../../_components/sm-button';
 import { SmDialog } from '../../_components/sm-dialog';
 
 /** The Product library tab (spec §7.1): products and "+ New product". Cycle 22.8 adds delete. */
@@ -105,7 +106,7 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
         footer={
           <>
             <button type="button" className="sm-btn sm-btn-ghost" onClick={closeCreate}>Cancel</button>
-            <button type="button" className="sm-btn sm-btn-primary" disabled={busy || name.trim() === '' || unitLabel.trim() === ''} onClick={create}>Create product</button>
+            <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={name.trim() === '' || unitLabel.trim() === ''} onClick={create}>Create product</SmButton>
           </>
         }
       >
