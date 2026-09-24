@@ -135,4 +135,19 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     rerender(await page(VOMERO_IDS.pegasus));
     expect(screen.getByLabelText('Product name')).toHaveValue('Pegasus Trail (edited)');
   });
+
+  it('keeps an open upload wizard open across a header save and any re-read of the page after it (LW-b)', async () => {
+    serve(vomeroWorkbenchDetail);
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === PRODUCT_URL && init?.method === 'PATCH' ? reply(200, { ...vomeroProducts[0]!, readiness: NOT_READY }) : reply(404, {}));
+    const { rerender } = render(await page(VOMERO_IDS.pegasus));
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    expect(await screen.findByText('Not ready')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+    serve({ ...vomeroWorkbenchDetail, readiness: NOT_READY });
+    rerender(await page(VOMERO_IDS.pegasus));
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+  });
 });
+
