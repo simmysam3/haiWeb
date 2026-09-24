@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { getSession, hasRole } from "@/lib/auth";
 import { AccountNav } from "@/components/account-nav";
 import { ThrottleHeaderIndicator } from "@/components/throttle-header-indicator";
 import { GlobalSearch } from "@/components/global-search";
@@ -18,7 +18,11 @@ export default async function AccountLayout({
     <div className="min-h-screen flex flex-col">
       <ThrottleHeaderIndicator />
       <div className="flex flex-1">
-        <AccountNav userName={userName} userEmail={userEmail} />
+        <AccountNav
+          userName={userName}
+          userEmail={userEmail}
+          canUseSourcingMap={session ? hasRole(session.user.role, "account_admin") : false}
+        />
         <main className="flex-1 bg-light-gray flex flex-col">
           {/*
            * v1.37 Unified Global Search — always-visible top header above the
