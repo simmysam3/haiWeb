@@ -45,6 +45,8 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
       for (const tone of SM_PILL_TONES) check(`${theme} pill ${tone}`, SM_PILL_TOKENS[theme][tone].fg, SM_PILL_TOKENS[theme][tone].bg, 4.5);
       // WCAG 1.4.11: heat and the gap border are non-text, on the canvas and on cards.
       for (const fg of NONTEXT) for (const bg of ['canvas', 'card'] as const) check(`${theme} ${fg} on ${bg}`, t[fg], t[bg], 3);
+      // WCAG 1.4.11: the focus ring (sourcing-map.css `.sm-root :focus-visible`) is non-text, on every surface.
+      for (const bg of SURFACES) check(`${theme} focus ring on ${bg}`, t['teal-text'], t[bg], 3);
     }
     for (const fg of [SM_HEADER.ink, SM_HEADER.ink2]) check(`header ${fg}`, fg, SM_HEADER.bg, 4.5);
     expect(failures).toEqual([]);

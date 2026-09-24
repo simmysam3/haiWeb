@@ -1,7 +1,7 @@
 /* src/app/sourcing-map/sourcing-map.css — Sourcing Map app utilities (spec §9.1).
    Every colour is a --sm-* token set on the theme root; never a console utility. */
 .sm-root { background: var(--sm-canvas); color: var(--sm-ink); min-height: 100vh; font-family: var(--font-body), sans-serif; }
-.sm-root :focus-visible { outline: 2px solid var(--sm-teal); outline-offset: 2px; }
+.sm-root :focus-visible { outline: 2px solid var(--sm-teal-text); outline-offset: 2px; }
 .sm-surface { background: var(--sm-surface); }
 .sm-card { background: var(--sm-card); border: 1px solid var(--sm-line); border-radius: 12px; }
 .sm-muted { color: var(--sm-ink-2); }
