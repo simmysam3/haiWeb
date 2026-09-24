@@ -68,7 +68,6 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
             setUploading(false);
             setDetail(d);
             setBomRevision((r) => r + 1);
-            router.refresh();
           }}
           onClose={() => setUploading(false)}
         />

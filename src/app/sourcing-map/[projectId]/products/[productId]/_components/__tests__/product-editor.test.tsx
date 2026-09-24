@@ -137,7 +137,7 @@ describe('ProductEditorBody', () => {
     expect(within(dialog).queryByLabelText('Map column Description')).toBeNull();
   });
 
-  it('closes the wizard after a saved upload and refreshes, so the page re-reads the product (Task 24 editor sync)', async () => {
+  it('closes the wizard after a saved upload and never refreshes the page: the body holds the saved product (LW-b)', async () => {
     refresh.mockClear();
     fetchMock.mockImplementation((path: unknown, init?: RequestInit) => {
       const p = String(path);
@@ -152,8 +152,8 @@ describe('ProductEditorBody', () => {
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue' }));
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue to review' }));
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Save 1 line' }));
-    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull());
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('keeps the upload wizard open while its save is in flight: Escape, the backdrop and Close do nothing until it settles', async () => {
