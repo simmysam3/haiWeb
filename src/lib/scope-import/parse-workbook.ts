@@ -198,6 +198,9 @@ export async function parseWorkbook(
 // ceilings, refusal sentences and SheetJS reading above are reused; parseWorkbook's
 // behaviour is unchanged.
 
+/** The rows the Map step offers as the header row (map-step.tsx); a title block above the header fits in them. */
+export const HEADER_ROWS_OFFERED = 10;
+
 export interface SheetGrid {
   name: string;
   /** Non-blank rows; `row` is the 1-based sheet row the user sees. */
@@ -231,10 +234,15 @@ export async function readWorkbookSheets(
   if (bytes.byteLength > maxBytes) {
     return { ok: false, reason: 'too_large', detail: tooLargeDetail(opts.fileName, bytes.byteLength, maxBytes) };
   }
+  // Security L1: SheetJS takes a sheet's range from its declared <dimension>, and the grid below fills every declared
+  // cell, so a small file declaring a huge range would be expanded in full before the row ceiling applies. The parse
+  // stops one row past the ceiling plus the header rows the Map step offers; a sheet declaring more is refused, from
+  // its declared size (`!fullref`, which SheetJS sets when it stops early), never silently truncated.
+  const bound = maxRows + HEADER_ROWS_OFFERED;
   const XLSX = await import('xlsx');
   let wb: import('xlsx').WorkBook;
   try {
-    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
+    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd', sheetRows: bound + 1 });
   } catch {
     return { ok: false, reason: 'unreadable', detail: unreadableDetail(opts.fileName) };
   }
@@ -242,6 +250,11 @@ export async function readWorkbookSheets(
   for (const name of wb.SheetNames) {
     const ws = wb.Sheets[name];
     if (!ws) continue;
+    const full = XLSX.utils.decode_range(ws['!fullref'] ?? ws['!ref'] ?? 'A1');
+    const declaredRows = full.e.r - full.s.r + 1;
+    if (declaredRows > bound) {
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, declaredRows, maxRows) };
+    }
     const start = XLSX.utils.decode_range(ws['!ref'] ?? 'A1').s.r;
     const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true });
     const rows = grid

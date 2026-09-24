@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { readWorkbookSheets, detectHeaderRow, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
+import { readWorkbookSheets, detectHeaderRow, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
 
 const NL = String.fromCharCode(10);
 const BOM = String.fromCharCode(0xfeff);
@@ -8,6 +8,14 @@ const BOM = String.fromCharCode(0xfeff);
 function xlsx(sheets: Record<string, unknown[][]>): ArrayBuffer {
   const wb = XLSX.utils.book_new();
   for (const [name, rows] of Object.entries(sheets)) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
+/** A workbook whose sheet declares `ref` as its range (the file's <dimension>), whatever cells it really holds. */
+function declared(rows: unknown[][], ref: string): ArrayBuffer {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!ref'] = ref;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'BOM');
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 }
 function csv(text: string): ArrayBuffer {
@@ -68,4 +76,13 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(titled.ok).toBe(true);
   });
 
+
+  it('refuses a small workbook that declares a huge sheet from its declared size, never expanding it first (security L1)', async () => {
+    // Two real rows under a declared 200,000 x 26 range: expanded, it is 200,000 rows before the blank-row filter.
+    const crafted = declared([['Description', 'Usage'], ['Upper leather', 0.25]], 'A1:Z200000');
+    expect(crafted.byteLength).toBeLessThan(20_000);
+    const out = await readWorkbookSheets(crafted, { fileName: 'crafted.xlsx' });
+    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', 200_000, MAX_IMPORT_ROWS) });
+  });
 });
+
