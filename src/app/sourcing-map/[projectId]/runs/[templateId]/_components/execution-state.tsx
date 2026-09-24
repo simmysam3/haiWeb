@@ -8,12 +8,17 @@ const FAILURE: Record<string, string> = {
 };
 
 /** Honest execution state (spec §9.3, AC 17): probing, failed, cancelled, or nothing yet. */
-export function ExecutionBanner({ execution }: { execution: SmExecutionSummary | null }) {
+export function ExecutionBanner({ execution, onCancel }: { execution: SmExecutionSummary | null; onCancel?: () => void }) {
   if (execution === null) {
     return <p role="status" className="sm-muted px-6 py-3 text-sm">No execution yet. Configure the run, then press Run.</p>;
   }
   if (execution.status === 'queued' || execution.status === 'running') {
-    return <p role="status" className="px-6 py-3 text-sm">{`Probing: ${execution.probes_done} of ${execution.probes_planned} probes answered`}</p>;
+    return (
+      <div className="flex items-center gap-3 px-6 py-3 text-sm">
+        <p role="status">{`Probing: ${execution.probes_done} of ${execution.probes_planned} probes answered`}</p>
+        {onCancel && <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={onCancel}>Cancel execution</button>}
+      </div>
+    );
   }
   if (execution.status === 'failed') {
     return (

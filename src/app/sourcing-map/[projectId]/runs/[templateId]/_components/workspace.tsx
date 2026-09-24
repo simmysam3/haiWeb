@@ -100,6 +100,17 @@ export function Workspace({
     await selectExecution(t.data.run_id);
   }
 
+  async function cancel(id: string) {
+    setError(null);
+    const out = await smFetch(`/api/account/sourcing-map/executions/${id}/cancel`, { method: 'POST' });
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
+    await selectExecution(id);
+  }
+
   // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed
   // inside the map (SeatBar's pressed chips sit outside this wrapper); the card outlives the close, so it is
   // focused before the panel unmounts.
@@ -151,7 +162,12 @@ export function Workspace({
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
       {pollError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{pollError}</p>}
       {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
-      {!(detail === null && (executionsError !== null || detailError !== null)) && <ExecutionBanner execution={detail?.execution ?? null} />}
+      {!(detail === null && (executionsError !== null || detailError !== null)) && (
+        <ExecutionBanner
+          execution={detail?.execution ?? null}
+          onCancel={detail && running ? () => void cancel(detail.execution.execution_id) : undefined}
+        />
+      )}
       {result && (
         <SeatBar
           result={result}

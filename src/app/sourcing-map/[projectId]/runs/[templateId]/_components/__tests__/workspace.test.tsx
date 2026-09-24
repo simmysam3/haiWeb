@@ -339,4 +339,20 @@ describe('Workspace', () => {
     expect(screen.getByText('Answers as of Sep 23, 10:42 UTC')).toBeInTheDocument();
     expect(screen.queryByText(STALE)).toBeNull();
   });
+
+  it('cancels a running execution and shows it cancelled (AC 17)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return reply(200, { ...running.execution, status: 'cancelled' });
+      if (url.endsWith(`/executions/${id}`)) return reply(200, { ...running, execution: { ...running.execution, status: 'cancelled' } });
+      return reply(404, {});
+    });
+    mount(running);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
+    expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith(`/executions/${id}/cancel`) && (i as RequestInit | undefined)?.method === 'POST')).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Cancel execution' })).toBeNull();
+  });
 });
