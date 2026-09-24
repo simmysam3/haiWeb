@@ -8,6 +8,8 @@ import { DropPips } from './drop-pips';
 
 const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
 const AVAILABILITY_DEFINITION = "The supplier's answer at this drop, never more than you asked (D-148).";
+/** A click that lands on one of these inside the card belongs to it: the button, or a Pill's definition tip. */
+const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
 
 /**
  * Option card (spec §9.3): the selected drop plus a row of drop pips. A <button> may not contain the pips'
@@ -28,9 +30,9 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
   return (
     <article
-      // A mouse click anywhere on the card also selects; the button handles its own clicks and keys.
+      // A mouse click anywhere else on the card also selects; the button handles its own clicks and keys.
       onClick={(e) => {
-        const hit = e.target instanceof Element ? e.target.closest('button') : null;
+        const hit = e.target instanceof Element ? e.target.closest(OWN_CONTROL) : null;
         if (hit && e.currentTarget.contains(hit)) return;
         onSelect();
       }}

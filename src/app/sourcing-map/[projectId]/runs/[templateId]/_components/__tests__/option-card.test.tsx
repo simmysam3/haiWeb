@@ -55,6 +55,19 @@ describe('OptionCard', () => {
     expect(onSelect).toHaveBeenCalledTimes(3);
   });
 
+  it('leaves a click, Enter or Space on a Pill to the Pill: none of them selects the card (ruling F-a)', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={onSelect} />);
+    const [availabilityPill, utilizationPill] = screen.getAllByTestId('pill');
+    await user.click(availabilityPill!);
+    expect(availabilityPill).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await user.keyboard(' ');
+    await user.click(utilizationPill!);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('renders a gap as itself with a dashed border, and an allocation-only answer as such (AC 15, spec §8.4)', () => {
     const arno = leather.candidates[2]!;
     const { unmount } = render(<OptionCard slot={leather} candidate={arno} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
