@@ -21,25 +21,25 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
   const componentRefs = useRef(new Map<string, HTMLInputElement>());
   const addLineRef = useRef<HTMLButtonElement>(null);
 
-  // d-G9: a stored pin carries only the supplier's id. Each distinct supplier's name is looked up once, when the
-  // editor opens, from the profile route (src/app/api/account/company/[id]/profile/route.ts:9-11; vendor.ts:8-13).
-  // It answers for a pin on a line with no class and for a supplier that has since disconnected.
+  // d-G9: a stored pin carries only the supplier's id. Each distinct supplier's name is looked up once, from the
+  // profile route (src/app/api/account/company/[id]/profile/route.ts:9-11; vendor.ts:8-13). It answers for a pin on a
+  // line with no class and for a supplier that has since disconnected. The lookup follows the saved lines (LW-b): it
+  // is keyed on the set of pinned supplier ids, so a save that pins a new supplier (whose rows remount under new line
+  // ids, taking the pin editor's own names with them) asks for that supplier only, and the answers merge into `names`.
+  // No `live` flag: an answer names a supplier, not a state of this product, so a late one is still right.
+  const pinnedIds = [...new Set(initialLines.flatMap((l) => l.pins.map((p) => p.supplier_participant_id)))].sort().join(',');
+  const asked = useRef(new Set<string>());
   useEffect(() => {
-    const ids = [...new Set(initialLines.flatMap((l) => l.pins.map((p) => p.supplier_participant_id)))];
+    const ids = pinnedIds === '' ? [] : pinnedIds.split(',').filter((id) => !asked.current.has(id));
     if (ids.length === 0) return;
-    let live = true;
+    for (const id of ids) asked.current.add(id);
     void Promise.all(
       ids.map(async (id) => {
         const out = await smFetch<{ legal_name?: string }>(`/api/account/company/${id}/profile`);
         return [id, out.ok ? out.data.legal_name ?? null : null] as const;
       }),
-    ).then((pairs) => {
-      if (live) setNames(Object.fromEntries(pairs));
-    });
-    return () => {
-      live = false;
-    };
-  }, [initialLines]);
+    ).then((pairs) => setNames((n) => ({ ...n, ...Object.fromEntries(pairs) })));
+  }, [pinnedIds]);
 
   function update(key: string, patch: Partial<BomDraftLine>) {
     setLines((all) => all.map((l) => (l.key === key ? { ...l, ...patch } : l)));

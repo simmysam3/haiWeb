@@ -227,5 +227,40 @@ describe('ProductEditorBody', () => {
     expect(await screen.findByLabelText('Map column 9')).toHaveValue('variant_qty');
     expect(screen.getByLabelText('Map column 10')).toHaveValue('variant_qty');
   });
+
+  it('after Save BOM a supplier pinned this session keeps its name, and each supplier is looked up once (d-G9, LW-b)', async () => {
+    const aglet = { participant_id: VOMERO_IDS.aglet, legal_name: 'Aglet & Cord', country: 'IN', skus: [{ supplier_sku: 'AC-FLAT-120', class_id: 'cpt_flat_laces', class_depth: 0 }] };
+    // The PUT replaces the lines in one transaction, so the saved lines come back under new ids (every row remounts).
+    const saved = {
+      ...vomeroWorkbenchDetail,
+      lines: vomeroWorkbenchDetail.lines.map((l, i) => ({
+        ...l, line_id: `5a1e0000-0000-4000-8000-00000000050${i}`,
+        pins: i === 4 ? [{ supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-120', share_pct: 100 }] : l.pins,
+      })),
+    };
+    const profiles: Record<string, string> = { [VOMERO_IDS.leon]: 'León Cuero SA', [VOMERO_IDS.zephyr]: 'Zephyr Compounds', [VOMERO_IDS.aglet]: 'Aglet & Cord' };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.startsWith('/api/account/sourcing-map/class-suppliers?')) return reply(200, { class_id: 'cpt_flat_laces', suppliers: [aglet] });
+      if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, saved);
+      const id = /\/api\/account\/company\/([^/]+)\/profile$/.exec(p)?.[1];
+      return id && profiles[id] ? reply(200, { legal_name: profiles[id] }) : reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    const laces = () => screen.getByRole('row', { name: 'Line 5: Flat lace 137 cm' });
+    fireEvent.click(within(laces()).getByRole('button', { name: 'Add supplier' }));
+    await within(laces()).findByRole('option', { name: 'Aglet & Cord' });
+    fireEvent.change(within(laces()).getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+    fireEvent.change(within(laces()).getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-120' } });
+    fireEvent.click(within(laces()).getByRole('button', { name: 'Pin' }));
+    expect(within(laces()).getByText('Aglet & Cord · AC-FLAT-120 · 100%')).toBeInTheDocument();
+    await within(screen.getByRole('row', { name: /^Line 1:/ })).findByText('León Cuero SA · LC-BOV-UP-01 · 60%');
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT')).toBe(true));
+    expect(await within(laces()).findByText('Aglet & Cord · AC-FLAT-120 · 100%')).toBeInTheDocument();
+    expect(within(laces()).queryByText(/Unknown supplier/)).toBeNull();
+    const lookups = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith('/api/account/company/'));
+    expect(lookups.sort()).toEqual([VOMERO_IDS.aglet, VOMERO_IDS.leon, VOMERO_IDS.mekong, VOMERO_IDS.zephyr].map((id) => `/api/account/company/${id}/profile`).sort());
+  });
 });
 
