@@ -219,6 +219,16 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('passes the decimal commas of a semicolon file through to the row builder (Review Focus 1)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    // '1.234.567,5' reads only with decimal commas; without them the row has no quantity and never reaches Resolve.
+    await userEvent.upload(fileInput(), csvFile(['Description;Usage;UOM', 'Upper leather tumbled;0,25;sq ft', 'Leather hide lot;1.234.567,5;sq ft']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Upper leather tumbled')).toBeInTheDocument();
+    expect(screen.getByText('Leather hide lot')).toBeInTheDocument();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
