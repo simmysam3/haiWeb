@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vomeroAgentDetail, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ProductEditor } from '../product-editor';
 import { ProductEditorBody } from '../product-editor-body';
@@ -25,6 +26,7 @@ function reply(status: number, body?: unknown) {
   return { ok: status >= 200 && status < 300, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) };
 }
 const SKUS = { skus: [{ sku: 'METCON-CROSS-IRON', product_name: 'Metcon Cross Iron' }] };
+const NL = String.fromCharCode(10);
 
 describe('ProductEditor header', () => {
   it('saves the header through PATCH and shows the returned readiness', async () => {
@@ -114,5 +116,19 @@ describe('ProductEditorBody', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
     expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
     expect(screen.getByLabelText('Spreadsheet file')).toBeInTheDocument();
+  });
+
+  it('mounts the upload wizard only while open, so a reopen starts at the File step with nothing chosen', async () => {
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    await userEvent.upload(screen.getByLabelText('Spreadsheet file'), new File([['Description,Usage', 'Upper leather tumbled,0.25'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    expect(await screen.findByLabelText('Map column Description')).toHaveValue('component');
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Upload BOM' })).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    expect(within(dialog).getByText('1 File')).toHaveAttribute('aria-current', 'step');
+    expect((within(dialog).getByLabelText('Spreadsheet file') as HTMLInputElement).files).toHaveLength(0);
+    expect(within(dialog).queryByLabelText('Map column Description')).toBeNull();
   });
 });
