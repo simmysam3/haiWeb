@@ -161,9 +161,9 @@ describe('ConfigureTray', () => {
     let settle: (r: unknown) => void = () => {};
     fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
     const onClose = vi.fn();
-    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={onClose} />);
+    const { unmount } = render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={onClose} />);
     press('Remove Court Classic');
-    const close = screen.getByRole('button', { name: 'Close' });
+    let close = screen.getByRole('button', { name: 'Close' });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(close).toBeDisabled();
     fireEvent.click(close);
@@ -171,6 +171,10 @@ describe('ConfigureTray', () => {
     settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'A size mix must total 100%.' } }));
     expect(await screen.findByRole('alert')).toHaveTextContent('A size mix must total 100%.');
     expect(close).toBeEnabled();
+    // Duplicate needs a clean draft (L244), so its half starts from a tray with no unapplied changes.
+    unmount();
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={onClose} />);
+    close = screen.getByRole('button', { name: 'Close' });
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate run' }));
     expect(close).toBeDisabled();
     settle(reply(404, { error: { code: 'not_found', message: 'That run no longer exists.' } }));
@@ -265,6 +269,18 @@ describe('ConfigureTray', () => {
     expect(settings).toHaveClass('border-b-2', 'border-[var(--sm-teal)]', 'font-medium');
     expect(demand).toHaveClass('sm-muted');
     expect(demand).not.toHaveClass('border-b-2');
+  });
+  it('disables Duplicate run while the draft has unapplied changes, and says why, so no edit is silently left behind (L244)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    const duplicate = screen.getByRole('button', { name: 'Duplicate run' });
+    expect(duplicate).toBeEnabled();
+    expect(duplicate).not.toHaveAttribute('aria-describedby');
+    press('Remove Court Classic');
+    expect(duplicate).toBeDisabled();
+    expect(duplicate).toHaveAccessibleDescription('Apply your changes first: Duplicate copies the run as saved.');
+    expect(screen.getByText('Apply your changes first: Duplicate copies the run as saved.')).toBeVisible();
+    fireEvent.click(duplicate);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

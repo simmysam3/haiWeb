@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Cadence } from '@haiwave/protocol';
 import type { SmProduct, SmRunTemplate, SourcingMapScope } from '@/lib/sourcing-map/contract';
@@ -43,6 +43,8 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   const byId = new Map(library.map((p) => [p.product_id, p]));
   const dirty = JSON.stringify({ scope, cadence }) !== JSON.stringify({ scope: template.scope, cadence: template.cadence });
   const available = library.filter((p) => !scope.products.some((x) => x.product_id === p.product_id));
+  // L244: Duplicate copies the saved run, so while the draft differs it would leave the edits in neither run.
+  const duplicateReasonId = useId();
 
   // WCAG 2.1 AA (R3): opening the tray moves focus into it; returning focus to the opener is the page's (Task 39).
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -224,8 +226,17 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
         </div>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <SmButton className="sm-btn sm-btn-ghost" busy={pending === 'duplicate'} disabled={pending === 'apply'} onClick={duplicate}>Duplicate run</SmButton>
+        <SmButton
+          className="sm-btn sm-btn-ghost"
+          busy={pending === 'duplicate'}
+          disabled={dirty || pending === 'apply'}
+          aria-describedby={dirty ? duplicateReasonId : undefined}
+          onClick={duplicate}
+        >
+          Duplicate run
+        </SmButton>
         <SmButton className="sm-btn sm-btn-primary" busy={pending === 'apply'} disabled={!dirty || pending === 'duplicate'} onClick={apply}>Apply</SmButton>
+        {dirty && <span id={duplicateReasonId} className="sm-muted text-xs">Apply your changes first: Duplicate copies the run as saved.</span>}
         {error && <p role="alert" className="sm-error text-sm">{error}</p>}
       </div>
       {uploading && (
