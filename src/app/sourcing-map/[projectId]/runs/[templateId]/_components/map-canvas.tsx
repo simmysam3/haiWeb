@@ -2,7 +2,7 @@
 import { useLayoutEffect } from 'react';
 import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import { layoutMap, MAP_L } from '@/lib/sourcing-map/map/layout';
-import { candidateWeekAt, heatVar, slotCoverageAt, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
+import { candidateWeekAt, heatVar, slotCoverageAt, slotTitle, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
 import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
@@ -85,7 +85,7 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
           const slot = result.slots[lane.slotIndex]!;
           const dimmed = productFilter !== null && !slot.product_ids.includes(productFilter);
           return (
-            <div key={lane.slotIndex} role="group" aria-label={slot.class_label} className={dimmed ? 'opacity-40' : undefined}>
+            <div key={lane.slotIndex} role="group" aria-label={slotTitle(slot)} className={dimmed ? 'opacity-40' : undefined}>
               <div className="absolute" style={{ left: lay.lanesX, top: lane.y, width: lay.width - lay.lanesX - 40 }}>
                 <SlotRail slot={slot} asOfDrop={asOfDrop} collapsed={lane.collapsed} onToggle={() => onToggle(lane.slotIndex)} productNames={productNames} productFilter={productFilter} />
               </div>

@@ -1,6 +1,7 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
 import type { SmCandidateLiveStatus, SmCandidateResult, SmSlotResult } from '../contract';
 import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioResult } from '../types';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '../contract';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
 export const HEAT_GOOD = 0.9;
@@ -102,4 +103,14 @@ export function sortedVariantEntries<T>(record: Record<string, T>): Array<[strin
   return entries.every(([k]) => k.trim() !== '' && Number.isFinite(Number(k)))
     ? entries.sort(([a], [b]) => Number(a) - Number(b))
     : entries;
+}
+
+/** Contract §10: an agent line with no Network Index class is probed through its pin, in a slot of its own. */
+export function isUnclassifiedSlot(slot: SmSlotResult): boolean {
+  return slot.slot_key.class_id.startsWith(SM_UNCLASSIFIED_CLASS_PREFIX);
+}
+
+/** The rail's title: "Unclassified · <component>" for such a slot, otherwise the class label. */
+export function slotTitle(slot: SmSlotResult): string {
+  return isUnclassifiedSlot(slot) ? `Unclassified · ${slot.class_label}` : slot.class_label;
 }

@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
 import { MapCanvas } from '../map-canvas';
 
 const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athletic footwear', productCount: 3, slotCount: 5, assemblyDays: '21', capacity: 18000 };
@@ -100,6 +101,22 @@ describe('MapCanvas', () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it('renders an unclassified agent-line slot as "Unclassified · <component>", never "No trading partner publishes this class" (contract §10)', () => {
+    const r = structuredCloneSafe(vomeroResult);
+    const eyelets = r.slots[3]!;
+    eyelets.slot_key = { ...eyelets.slot_key, class_id: `${SM_UNCLASSIFIED_CLASS_PREFIX}${VOMERO_IDS.bowline}:BW-EYE-8` };
+    eyelets.class_label = 'Eyelets, antique brass';
+    eyelets.class_path = [];
+    // no_publisher stays true, as the eyelets fixture sets it, so the absence assertion below can fail
+    expect(eyelets.no_publisher).toBe(true);
+    mount(r);
+    const rail = screen.getByRole('group', { name: 'Unclassified · Eyelets, antique brass' });
+    expect(within(rail).getByRole('button', { name: /^Unclassified · Eyelets, antique brass/ })).toBeInTheDocument();
+    expect(within(rail).queryByText('No trading partner publishes this class')).toBeNull();
+    expect(isUnclassifiedSlot(eyelets)).toBe(true);
+    expect(slotTitle(vomeroResult.slots[0]!)).toBe('Full grain leather hides');
   });
 });
 
