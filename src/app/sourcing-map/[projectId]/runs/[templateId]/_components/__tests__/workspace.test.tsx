@@ -369,7 +369,7 @@ describe('Workspace', () => {
     expect(screen.queryByRole('button', { name: 'Cancel execution' })).toBeNull();
   });
 
-  it('disables Cancel while its request is in flight (R4)', async () => {
+  it('keeps Cancel execution focusable while its request is in flight: aria-busy, and a second press sends nothing (R4, LW-a)', async () => {
     const running = runningDetail();
     const id = running.execution.execution_id;
     const slowCancel = deferred();
@@ -381,8 +381,14 @@ describe('Workspace', () => {
     });
     mount(running);
     const cancel = screen.getByRole('button', { name: 'Cancel execution' });
+    cancel.focus();
     fireEvent.click(cancel);
-    expect(cancel).toBeDisabled();
+    expect(cancel).toHaveAttribute('aria-busy', 'true');
+    expect(cancel).toHaveAttribute('aria-disabled', 'true');
+    expect(cancel).not.toBeDisabled();
+    expect(cancel).toHaveFocus();
+    fireEvent.click(cancel);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith(`/executions/${id}/cancel`))).toHaveLength(1);
     await settle(() => slowCancel.resolve(reply(200, { ...running.execution, status: 'cancelled' })));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
   });
@@ -623,7 +629,7 @@ describe('Workspace', () => {
     mount(running);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
     expect(await screen.findByText('The execution had already finished.')).toHaveAttribute('role', 'alert');
-    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('shows haiCore’s message when Run is refused as not ready (422 run_not_ready, M4)', async () => {

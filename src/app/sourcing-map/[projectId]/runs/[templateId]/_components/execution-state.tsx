@@ -1,6 +1,7 @@
 'use client';
 import type { SmExecutionSummary } from '@/lib/sourcing-map/contract';
 import { answersAreStale, formatAsOfUtc } from '@/lib/sourcing-map/map/selectors';
+import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 
 const FAILURE: Record<string, string> = {
   interrupted: 'it was interrupted by a restart',
@@ -18,8 +19,8 @@ export function ExecutionBanner({ execution, onCancel, cancelling = false }: {
     return (
       <div className="flex items-center gap-3 px-6 py-3 text-sm">
         <p role="status">{`Probing: ${execution.probes_done} of ${execution.probes_planned} probes answered`}</p>
-        {/* R4: disabled while the cancel request is in flight. */}
-        {onCancel && <button type="button" className="sm-btn sm-btn-ghost text-xs" disabled={cancelling} onClick={onCancel}>Cancel execution</button>}
+        {/* R4: inert while the cancel request is in flight; busy, not disabled, so it keeps focus (LW-a). */}
+        {onCancel && <SmButton className="sm-btn sm-btn-ghost text-xs" busy={cancelling} onClick={onCancel}>Cancel execution</SmButton>}
       </div>
     );
   }
