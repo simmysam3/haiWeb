@@ -191,6 +191,22 @@ describe('ConfigureTray', () => {
     expect(within(pegasus).getByLabelText('Quantity of drop 2 for Pegasus Trail')).toHaveValue(400);
     expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
   });
+
+  it('after an upload replaces a schedule, that product’s generator shows the uploaded drops; the others keep their inputs (R1)', async () => {
+    const NL = String.fromCharCode(10);
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByLabelText('Total for Pegasus Trail')).toHaveValue(36000);
+    expect(screen.getByLabelText('Drops for Pegasus Trail')).toHaveValue(6);
+    fireEvent.change(screen.getByLabelText('Total for Court Classic'), { target: { value: '12000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schedule' }));
+    const file = new File([['Style,Due,Size,Pairs', 'Pegasus Trail,46402,9,300', 'Pegasus Trail,46433,9,400'].join(NL)], 'demand.csv', { type: 'text/csv' });
+    await userEvent.upload(screen.getByLabelText('Spreadsheet file'), file);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply schedule' }));
+    expect(screen.getByLabelText('Total for Pegasus Trail')).toHaveValue(700);
+    expect(screen.getByLabelText('Drops for Pegasus Trail')).toHaveValue(2);
+    expect(screen.getByLabelText('Total for Court Classic')).toHaveValue(12000);
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

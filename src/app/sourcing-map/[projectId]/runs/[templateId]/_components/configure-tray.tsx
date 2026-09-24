@@ -30,6 +30,9 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // R1: a DemandEditor seeds its generator inputs from its schedule once, so an upload that replaces a schedule
+  // wholesale bumps that product's revision, and the editor's key, to remount it. Edits never bump it (focus stays).
+  const [revisions, setRevisions] = useState<Record<string, number>>({});
   const byId = new Map(library.map((p) => [p.product_id, p]));
   const dirty = JSON.stringify({ scope, cadence }) !== JSON.stringify({ scope: template.scope, cadence: template.cadence });
   const available = library.filter((p) => !scope.products.some((x) => x.product_id === p.product_id));
@@ -158,7 +161,14 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} data-control="down" disabled={i === scope.products.length - 1} onClick={() => move(rp.product_id, 1)}>Down</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} data-control="remove" onClick={() => remove(rp.product_id)}>Remove</button>
                 </div>
-                {p && <DemandEditor product={p} demand={rp.demand} onChange={(d) => edit((s) => replaceDemand(s, rp.product_id, d))} />}
+                {p && (
+                  <DemandEditor
+                    key={`${rp.product_id}:${revisions[rp.product_id] ?? 0}`}
+                    product={p}
+                    demand={rp.demand}
+                    onChange={(d) => edit((s) => replaceDemand(s, rp.product_id, d))}
+                  />
+                )}
               </section>
             );
           })}
@@ -219,7 +229,11 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
             variant_values: byId.get(rp.product_id)?.variant_axis?.values ?? [],
           }))}
           onApply={(build) => {
-            edit((s) => applyUploadedDemand(s, build, library));
+            const next = applyUploadedDemand(scope, build, library);
+            // applyUploadedDemand returns an untouched product as the same object.
+            const replaced = next.products.filter((p, i) => p !== scope.products[i]).map((p) => p.product_id);
+            edit(() => next);
+            setRevisions((r) => ({ ...r, ...Object.fromEntries(replaced.map((id) => [id, (r[id] ?? 0) + 1])) }));
             setUploading(false);
           }}
           onClose={() => setUploading(false)}
