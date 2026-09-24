@@ -37,4 +37,15 @@ describe('upload cell parsers', () => {
     expect(parseSheetDate('12345')).toBeNull();
     expect(parseSheetDate('soon')).toBeNull();
   });
+
+  it('matchVariantHeader maps sizes written as other numbers and refuses sizes not on the axis (Review Focus 2)', () => {
+    expect(matchVariantHeader('9', MENS_US_7_13)).toBe('9');
+    expect(matchVariantHeader('9.0', MENS_US_7_13)).toBe('9');
+    expect(matchVariantHeader('9,5', MENS_US_7_13)).toBe('9.5');
+    expect(matchVariantHeader(' 13 ', MENS_US_7_13)).toBe('13');
+    expect(matchVariantHeader('14', MENS_US_7_13)).toBeNull();
+    expect(matchVariantHeader('Qty', MENS_US_7_13)).toBeNull();
+    expect(matchVariantHeader('US 9', MENS_US_7_13)).toBeNull();
+    expect(matchVariantHeader('m', ['S', 'M', 'L'])).toBe('M');
+  });
 });

@@ -53,3 +53,22 @@ export function parseSheetDate(text: string): string | null {
   }
   return null;
 }
+
+/**
+ * The product's variant value a header (or a long-layout size cell) names, or
+ * null (Review Focus 2). "9.0" → "9"; "9,5" → "9.5". Numeric values compare as
+ * numbers; any other axis compares case-insensitively. No prefix is stripped
+ * (ruling 9: "US 9" and "Size 9" are not read).
+ */
+export function matchVariantHeader(header: string, values: readonly string[]): string | null {
+  const raw = header.trim();
+  if (raw === '') return null;
+  if (values.includes(raw)) return raw;
+  const t = raw.toLocaleLowerCase().replace(',', '.').replace(/\s+/g, '');
+  const n = Number(t);
+  if (t !== '' && Number.isFinite(n)) {
+    const hit = values.find((v) => v.trim() !== '' && Number(v) === n);
+    if (hit !== undefined) return hit;
+  }
+  return values.find((v) => v.toLocaleLowerCase() === t) ?? null;
+}
