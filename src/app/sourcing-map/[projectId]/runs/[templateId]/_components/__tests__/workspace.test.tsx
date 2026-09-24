@@ -430,4 +430,23 @@ describe('Workspace', () => {
     await settle(() => slowCancel.resolve(reply(200, { ...running.execution, status: 'cancelled' })));
     expect(picked()).toBe(VOMERO_IDS.executionOld);
   });
+
+  it('a refused Cancel answered after the user picked another result shows no error on it (R3)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    const other = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    const slowCancel = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return slowCancel.promise;
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, other);
+      return reply(404, {});
+    });
+    mount(running, [running.execution, other.execution]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    await settle(() => slowCancel.resolve(reply(409, { error: { code: 'execution_not_running', message: 'The execution had already finished.' } })));
+    expect(screen.queryByText('The execution had already finished.')).toBeNull();
+  });
 });
