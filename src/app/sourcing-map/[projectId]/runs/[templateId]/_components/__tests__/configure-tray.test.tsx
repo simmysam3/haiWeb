@@ -145,6 +145,15 @@ describe('ConfigureTray', () => {
     fireEvent.change(screen.getByLabelText('Cadence'), { target: { value: 'monthly' } });
     expect(screen.queryByText(REFUSAL)).toBeNull();
   });
+
+  it('duplicates the run (demand only) and opens the copy', async () => {
+    fetchMock.mockResolvedValue(reply(201, { template: { ...TWO, template_id: VOMERO_IDS.executionOld } }));
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate run' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/sourcing-map/${VOMERO_IDS.project}/runs/${VOMERO_IDS.executionOld}`));
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/account/sourcing-map/runs/${VOMERO_IDS.template}/duplicate`);
+    expect(fetchMock.mock.calls[0]![1].method).toBe('POST');
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

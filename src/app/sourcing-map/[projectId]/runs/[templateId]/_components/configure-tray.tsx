@@ -1,10 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Cadence } from '@haiwave/protocol';
 import type { SmProduct, SmRunTemplate, SourcingMapScope } from '@/lib/sourcing-map/contract';
 import { SM_LIMITS } from '@/lib/sourcing-map/contract';
 import { addProduct, moveProduct, removeProduct, replaceDemand } from '@/lib/sourcing-map/scope-draft';
 import { smFetch } from '@/lib/sourcing-map/client';
+import { smRunHref } from '@/lib/sourcing-map/routes';
 import { DemandEditor } from './demand-editor';
 
 /** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
@@ -19,6 +21,7 @@ function nextFirstDue(scope: SourcingMapScope): string {
 export function ConfigureTray({ template, library, onApplied, onClose }: {
   template: SmRunTemplate; library: SmProduct[]; onApplied(t: SmRunTemplate): void; onClose(): void;
 }) {
+  const router = useRouter();
   const [scope, setScope] = useState<SourcingMapScope>(template.scope);
   const [cadence, setCadence] = useState<Cadence>(template.cadence);
   const [tab, setTab] = useState<'demand' | 'settings'>('demand');
@@ -100,6 +103,18 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
       return;
     }
     onApplied(out.data.template);
+  }
+
+  async function duplicate() {
+    setBusy(true);
+    setError(null);
+    const out = await smFetch<{ template: SmRunTemplate }>(`/api/account/sourcing-map/runs/${template.template_id}/duplicate`, { method: 'POST' });
+    setBusy(false);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    router.push(smRunHref(scope.project_id, out.data.template.template_id));
   }
 
   return (
@@ -187,6 +202,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
         </div>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={duplicate}>Duplicate run</button>
         <button type="button" className="sm-btn sm-btn-primary" disabled={!dirty || busy} onClick={apply}>Apply</button>
         {error && <p role="alert" className="sm-error text-sm">{error}</p>}
       </div>
