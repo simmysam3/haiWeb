@@ -32,4 +32,27 @@ describe('PinEditor', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('/api/account/sourcing-map/class-suppliers?class_id=cpt_flat_laces');
     expect(onChange).toHaveBeenCalledWith([{ supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-120', share_pct: 40 }]);
   });
+
+  it('Cancel closes a picker whose supplier load failed and clears its error; reopening loads afresh with no stale error', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false, status: 502,
+      text: async () => JSON.stringify({ error: { code: 'upstream_error', message: 'The supplier list could not be loaded.' } }),
+    });
+    render(<PinEditor classId="cpt_flat_laces" pins={[]} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The supplier list could not be loaded.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Supplier')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    fetchMock.mockResolvedValueOnce({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({
+        class_id: 'cpt_flat_laces',
+        suppliers: [{ participant_id: VOMERO_IDS.bowline, legal_name: 'Bowline Cordage', country: 'PT', skus: [{ supplier_sku: 'BW-LACE-137', class_id: 'cpt_flat_laces', class_depth: 0 }] }],
+      }),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    expect(await screen.findByRole('option', { name: 'Bowline Cordage' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });
