@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
@@ -17,6 +17,9 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // Remove line moves keyboard focus before the row goes (WCAG 2.4.3): to the next row's Component, else Add line.
+  const componentRefs = useRef(new Map<string, HTMLInputElement>());
+  const addLineRef = useRef<HTMLButtonElement>(null);
 
   // d-G9: a stored pin carries only the supplier's id. Each distinct supplier's name is looked up once, when the
   // editor opens, from the profile route (src/app/api/account/company/[id]/profile/route.ts:9-11; vendor.ts:8-13).
@@ -63,7 +66,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
     <div className="sm-card p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
-        <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
+        <button ref={addLineRef} type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
         {toolbar}
         <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={save}>Save BOM</button>
       </div>
@@ -78,7 +81,12 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
               return (
                 <tr key={l.key} aria-label={`Line ${n}: ${l.component_label || 'new line'}`}>
                   <td>
-                    <input aria-label={`Component for line ${n}`} className="sm-input w-48" value={l.component_label} maxLength={200} onChange={(e) => update(l.key, { component_label: e.target.value })} />
+                    <input
+                      ref={(el) => {
+                        if (el) componentRefs.current.set(l.key, el);
+                        else componentRefs.current.delete(l.key);
+                      }}
+                      aria-label={`Component for line ${n}`} className="sm-input w-48" value={l.component_label} maxLength={200} onChange={(e) => update(l.key, { component_label: e.target.value })} />
                     {l.note && <p className="sm-warn mt-1 text-xs">{l.note}</p>}
                   </td>
                   <td><input aria-label={`Part ref for line ${n}`} className="sm-input w-28" value={l.part_ref ?? ''} maxLength={200} onChange={(e) => update(l.key, { part_ref: e.target.value || null })} /></td>
@@ -105,7 +113,20 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
                     {/* Keyed by class: an editor opened for the old class must not offer that class's publishers. */}
                     <PinEditor key={l.class_id ?? ''} classId={l.class_id} pins={l.pins} names={names} onChange={(pins) => update(l.key, { pins })} />
                   </td>
-                  <td><button type="button" className="sm-link text-xs" aria-label={`Remove line ${n}`} onClick={() => setLines((all) => all.filter((x) => x.key !== l.key))}>Remove</button></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="sm-link text-xs"
+                      aria-label={`Remove line ${n}`}
+                      onClick={() => {
+                        const next = lines[i + 1];
+                        (next ? componentRefs.current.get(next.key) : addLineRef.current)?.focus();
+                        setLines((all) => all.filter((x) => x.key !== l.key));
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </td>
                 </tr>
               );
             })}

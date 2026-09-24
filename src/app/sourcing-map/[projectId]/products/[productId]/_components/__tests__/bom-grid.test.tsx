@@ -133,4 +133,20 @@ describe('BomGrid', () => {
     expect(within(laces).queryByRole('option', { name: 'Aglet & Cord' })).toBeNull();
     expect(within(laces).getByRole('button', { name: 'Add supplier' })).toBeEnabled();
   });
+
+  it('after Remove line, keyboard focus moves to the next row’s Component, or to Add line when the last row goes (WCAG 2.4.3)', () => {
+    /** A keyboard user's activation: focus the control, then press it. */
+    const press = (el: HTMLElement) => {
+      el.focus();
+      fireEvent.click(el);
+    };
+    mount();
+    press(screen.getByRole('button', { name: 'Remove line 2' }));
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(4);
+    expect(document.activeElement).toBe(screen.getByLabelText('Component for line 2'));
+    expect(document.activeElement).toHaveValue('Rubber outsole');
+    press(screen.getByRole('button', { name: 'Remove line 4' }));
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(3);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add line' }));
+  });
 });
