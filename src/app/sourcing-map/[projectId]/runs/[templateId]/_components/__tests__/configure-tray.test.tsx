@@ -253,6 +253,19 @@ describe('ConfigureTray', () => {
     settle(reply(201, { template: { ...TWO, template_id: VOMERO_IDS.executionOld } }));
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
+  it('shows the selected tab visibly, with the project tabs’ underline and weight, and the other muted (F4)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    const demand = screen.getByRole('tab', { name: 'Products & demand' });
+    const settings = screen.getByRole('tab', { name: 'Run settings' });
+    expect(demand).toHaveClass('border-b-2', 'border-[var(--sm-teal)]', 'font-medium');
+    expect(demand).not.toHaveClass('sm-muted');
+    expect(settings).toHaveClass('sm-muted');
+    expect(settings).not.toHaveClass('border-b-2');
+    fireEvent.click(settings);
+    expect(settings).toHaveClass('border-b-2', 'border-[var(--sm-teal)]', 'font-medium');
+    expect(demand).toHaveClass('sm-muted');
+    expect(demand).not.toHaveClass('border-b-2');
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

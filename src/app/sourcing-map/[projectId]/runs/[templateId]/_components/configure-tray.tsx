@@ -137,8 +137,9 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
         <button type="button" className="sm-btn sm-btn-ghost text-xs" disabled={busy} onClick={onClose}>Close</button>
       </div>
       <div role="tablist" aria-label="Configure" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">
-        <button role="tab" type="button" aria-selected={tab === 'demand'} onClick={() => setTab('demand')} className="px-3 py-2 text-sm">Products &amp; demand</button>
-        <button role="tab" type="button" aria-selected={tab === 'settings'} onClick={() => setTab('settings')} className="px-3 py-2 text-sm">Run settings</button>
+        {/* F4: the selected tab shows without hue alone, with the project view's literal pair (project-view.tsx). */}
+        <button role="tab" type="button" aria-selected={tab === 'demand'} onClick={() => setTab('demand')} className={tab === 'demand' ? 'border-b-2 border-[var(--sm-teal)] px-3 py-2 text-sm font-medium' : 'sm-muted px-3 py-2 text-sm'}>Products &amp; demand</button>
+        <button role="tab" type="button" aria-selected={tab === 'settings'} onClick={() => setTab('settings')} className={tab === 'settings' ? 'border-b-2 border-[var(--sm-teal)] px-3 py-2 text-sm font-medium' : 'sm-muted px-3 py-2 text-sm'}>Run settings</button>
       </div>
       {tab === 'demand' && (
         <div role="tabpanel" className="mt-4">
