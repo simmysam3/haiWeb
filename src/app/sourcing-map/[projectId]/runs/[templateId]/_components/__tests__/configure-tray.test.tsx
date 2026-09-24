@@ -69,6 +69,17 @@ describe('ConfigureTray', () => {
     press('Remove Pegasus Trail');
     expect(screen.getByLabelText('Add a product')).toHaveFocus();
   });
+
+  it('after Up or Down, focus stays on that button in the moved section, or its sibling once it is disabled (R3)', () => {
+    render(<ConfigureTray template={vomeroRunTemplate} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    press('Move Pegasus Trail down'); // [Court, Pegasus, Metcon]
+    expect(screen.getByRole('button', { name: 'Move Pegasus Trail down' })).toHaveFocus();
+    press('Move Pegasus Trail down'); // [Court, Metcon, Pegasus]: Pegasus's Down is disabled
+    expect(screen.getByRole('button', { name: 'Move Pegasus Trail up' })).toHaveFocus();
+    press('Move Metcon Iron up'); // [Metcon, Court, Pegasus]: Metcon's Up is disabled
+    expect(screen.getByRole('button', { name: 'Move Metcon Iron down' })).toHaveFocus();
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Metcon Iron', 'Court Classic', 'Pegasus Trail']);
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

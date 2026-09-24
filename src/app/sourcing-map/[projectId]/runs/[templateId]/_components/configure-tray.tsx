@@ -8,7 +8,7 @@ import { smFetch } from '@/lib/sourcing-map/client';
 import { DemandEditor } from './demand-editor';
 
 /** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
-type FocusTarget = { productId: string; control: 'remove' } | { productId: null; control: 'add-select' };
+type FocusTarget = { productId: string; control: 'up' | 'down' | 'remove' } | { productId: null; control: 'add-select' };
 
 function nextFirstDue(scope: SourcingMapScope): string {
   const latest = scope.products.flatMap((p) => p.demand.drops.map((d) => d.due_date)).sort().at(-1);
@@ -47,8 +47,20 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     const root = target.productId === null
       ? tray
       : Array.from(tray.querySelectorAll<HTMLElement>('section[data-product-id]')).find((el) => el.dataset.productId === target.productId);
-    root?.querySelector<HTMLElement>(`[data-control="${target.control}"]`)?.focus();
+    const control = root?.querySelector<HTMLElement>(`[data-control="${target.control}"]`);
+    // A move to the top or bottom disables the pressed button; its sibling in the same section takes focus.
+    const sibling = target.control === 'up' ? 'down' : target.control === 'down' ? 'up' : null;
+    if (control instanceof HTMLButtonElement && control.disabled && sibling) {
+      root?.querySelector<HTMLElement>(`[data-control="${sibling}"]`)?.focus();
+      return;
+    }
+    control?.focus();
   });
+
+  function move(productId: string, dir: -1 | 1) {
+    focusAfterRender.current = { productId, control: dir === -1 ? 'up' : 'down' };
+    setScope((s) => moveProduct(s, productId, dir));
+  }
 
   function remove(productId: string) {
     const i = scope.products.findIndex((p) => p.product_id === productId);
@@ -106,8 +118,8 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               <section key={rp.product_id} data-product-id={rp.product_id} className="sm-card mt-4 p-4">
                 <div className="flex items-center gap-2">
                   <h3 className="sm-heading mr-auto font-semibold">{name}</h3>
-                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => setScope((s) => moveProduct(s, rp.product_id, -1))}>Up</button>
-                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} disabled={i === scope.products.length - 1} onClick={() => setScope((s) => moveProduct(s, rp.product_id, 1))}>Down</button>
+                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} up`} data-control="up" disabled={i === 0} onClick={() => move(rp.product_id, -1)}>Up</button>
+                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} data-control="down" disabled={i === scope.products.length - 1} onClick={() => move(rp.product_id, 1)}>Down</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} data-control="remove" onClick={() => remove(rp.product_id)}>Remove</button>
                 </div>
                 {p && <DemandEditor product={p} demand={rp.demand} onChange={(d) => setScope((s) => replaceDemand(s, rp.product_id, d))} />}
