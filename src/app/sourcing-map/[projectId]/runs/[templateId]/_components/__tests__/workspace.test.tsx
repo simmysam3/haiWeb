@@ -219,4 +219,13 @@ describe('Workspace', () => {
     fireEvent.click(mekong);
     expect(screen.getByRole('heading', { name: 'Mekong Tannery · VN' })).toHaveFocus();
   });
+
+  it('returns focus to the card that opened the details when they close (R2)', () => {
+    mount();
+    // Not focused first: a mouse click on the card's body, or Safari's click, focuses nothing.
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
+    expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveFocus();
+  });
 });

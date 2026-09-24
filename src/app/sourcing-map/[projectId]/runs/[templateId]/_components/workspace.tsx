@@ -93,6 +93,15 @@ export function Workspace({
     await selectExecution(t.data.run_id);
   }
 
+  // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed
+  // inside the map (SeatBar's pressed chips sit outside this wrapper); the card outlives the close, so it is
+  // focused before the panel unmounts.
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  function closeDetails() {
+    mapRef.current?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
+    setSelected(null);
+  }
+
   function setDrop(drop: string) {
     const q = new URLSearchParams(params.toString());
     q.set('drop', drop);
@@ -138,25 +147,27 @@ export function Workspace({
         />
       )}
       {result && (
-        <MapCanvas
-          result={result}
-          asOfDrop={asOfDrop}
-          productFilter={productFilter}
-          productNames={productNames}
-          seat={{
-            name: result.seat.legal_name,
-            country: result.seat.country,
-            classLabel: result.seat.class_label,
-            productCount: template.scope.products.length,
-            slotCount: result.slots.length,
-            assemblyDays: days.length === 0 ? '—' : days.length === 1 ? String(days[0]) : `${days[0]}–${days[days.length - 1]}`,
-            capacity: template.scope.seat_weekly_capacity,
-          }}
-          selected={selected}
-          onSelect={setSelected}
-          collapsed={collapsed}
-          onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
-        />
+        <div ref={mapRef} className="contents">
+          <MapCanvas
+            result={result}
+            asOfDrop={asOfDrop}
+            productFilter={productFilter}
+            productNames={productNames}
+            seat={{
+              name: result.seat.legal_name,
+              country: result.seat.country,
+              classLabel: result.seat.class_label,
+              productCount: template.scope.products.length,
+              slotCount: result.slots.length,
+              assemblyDays: days.length === 0 ? '—' : days.length === 1 ? String(days[0]) : `${days[0]}–${days[days.length - 1]}`,
+              capacity: template.scope.seat_weekly_capacity,
+            }}
+            selected={selected}
+            onSelect={setSelected}
+            collapsed={collapsed}
+            onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+          />
+        </div>
       )}
       {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
         <DetailsPanel
@@ -167,7 +178,7 @@ export function Workspace({
           drops={result.portfolio.drops}
           asOfDrop={asOfDrop}
           productNames={productNames}
-          onClose={() => setSelected(null)}
+          onClose={closeDetails}
         />
       )}
       {trayOpen && (
