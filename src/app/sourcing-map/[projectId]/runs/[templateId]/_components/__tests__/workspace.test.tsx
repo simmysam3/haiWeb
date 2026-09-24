@@ -3,6 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
+import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
 import { Workspace } from '../workspace';
 
 const { push, refresh, replace, search } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), search: { value: '' } }));
@@ -36,10 +37,25 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mount(detail = vomeroDetail) {
+function mount(detail = vomeroDetail, executions = [vomeroExecution]) {
   render(
-    <Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={[vomeroExecution]} initialDetail={detail} />,
+    <Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={executions} initialDetail={detail} />,
   );
+}
+
+/** An earlier execution of the same run, with its own id and start. */
+function earlier(id: string, startedAt: string): SmExecutionDetail {
+  return { ...vomeroDetail, execution: { ...vomeroExecution, execution_id: id, created_at: startedAt, started_at: startedAt } };
+}
+
+async function pressRun() {
+  const run = await screen.findByRole('button', { name: 'Run' });
+  await waitFor(() => expect(run).toBeEnabled());
+  fireEvent.click(run);
+}
+
+function pick(id: string) {
+  fireEvent.change(screen.getByLabelText('Result'), { target: { value: id } });
 }
 
 describe('Workspace', () => {
@@ -105,5 +121,21 @@ describe('Workspace', () => {
     fireEvent.click(run);
     // by text, not role: the fixture's answers turn stale 7 days after 2026-09-23 and add their own alert
     expect(await screen.findByText('Line A base already has an execution running.')).toBeInTheDocument();
+  });
+
+  it('a switch of result clears the error the previous one left (R3)', async () => {
+    const old = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith('/trigger')) return reply(409, { error: { code: 'execution_in_progress', message: 'Line A base already has an execution running.' } });
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, old);
+      return reply(404, {});
+    });
+    mount(vomeroDetail, [vomeroExecution, old.execution]);
+    await pressRun();
+    await screen.findByText('Line A base already has an execution running.');
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect((screen.getByLabelText('Result') as HTMLSelectElement).value).toBe(VOMERO_IDS.executionOld));
+    expect(screen.queryByText('Line A base already has an execution running.')).toBeNull();
   });
 });

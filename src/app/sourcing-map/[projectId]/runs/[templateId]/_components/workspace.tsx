@@ -63,6 +63,8 @@ export function Workspace({
   }, [loadEstimate]);
 
   async function selectExecution(id: string) {
+    // R3: a switch of result starts clean; an error left by the previous one no longer applies.
+    setError(null);
     const out = await smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${id}`);
     if (!out.ok) {
       setError(out.message);
