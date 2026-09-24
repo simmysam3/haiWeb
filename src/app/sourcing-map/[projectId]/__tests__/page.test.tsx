@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vomeroProject, vomeroProducts, vomeroRunList, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 
@@ -13,6 +13,9 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('next/image', () => ({ default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} /> }));
+
+// A queued answer a test leaves unread must never reach the next test.
+beforeEach(() => fetchBffJson.mockReset());
 
 describe('/sourcing-map/[projectId] page', () => {
   it('loads project, runs and products; shows the breadcrumb and the Runs tab by default', async () => {
@@ -56,4 +59,16 @@ describe('/sourcing-map/[projectId] page', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/Products could not be loaded/);
     expect(screen.queryByRole('link', { name: 'Open Metcon Iron' })).toBeNull();
   });
+
+  it('is a 404, before any fetch, when the project segment is not an id (R6, A5-M2: Next hands the page "..%2F" decoded)', async () => {
+    // Without the guard every read answers, so the page would render.
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroRunList })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } });
+    const { default: Page } = await import('../page');
+    await expect(Page({ params: Promise.resolve({ projectId: decodeURIComponent('..%2F..%2Fx') }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).not.toHaveBeenCalled();
+  });
 });
+
