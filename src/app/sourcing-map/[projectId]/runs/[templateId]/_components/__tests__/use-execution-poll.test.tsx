@@ -125,4 +125,15 @@ describe('useExecutionPoll', () => {
     await waitFor(() => expect(screen.getByTestId('poll-error').textContent).toBe('Execution not found.'));
     expect(screen.getByTestId('probe')).toHaveTextContent('completed:probing');
   });
+
+  it('drops the previous execution’s notice when another execution is loaded (stale error)', () => {
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onError!(new FetchError(503, 'Request to /api/x failed: 503'));
+    });
+    expect(screen.getByTestId('poll-error')).toBeInTheDocument();
+    rerender(<Probe initial={{ ...vomeroDetail, execution: { ...vomeroDetail.execution, execution_id: VOMERO_IDS.executionOld } }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered');
+    expect(screen.queryByTestId('poll-error')).toBeNull();
+  });
 });
