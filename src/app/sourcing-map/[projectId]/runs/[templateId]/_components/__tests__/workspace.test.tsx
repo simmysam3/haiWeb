@@ -54,6 +54,27 @@ async function pressRun() {
   fireEvent.click(run);
 }
 
+/** A reply the test releases when it chooses, to answer requests out of order. */
+function deferred() {
+  let resolve!: (r: ReturnType<typeof reply>) => void;
+  const promise = new Promise<ReturnType<typeof reply>>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+/** Let a released reply run through smFetch and the state updates it causes. */
+async function settle(release: () => void) {
+  await act(async () => {
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+  });
+}
+
+function picked(): string {
+  return (screen.getByLabelText('Result') as HTMLSelectElement).value;
+}
+
 function pick(id: string) {
   fireEvent.change(screen.getByLabelText('Result'), { target: { value: id } });
 }
@@ -137,5 +158,25 @@ describe('Workspace', () => {
     pick(VOMERO_IDS.executionOld);
     await waitFor(() => expect((screen.getByLabelText('Result') as HTMLSelectElement).value).toBe(VOMERO_IDS.executionOld));
     expect(screen.queryByText('Line A base already has an execution running.')).toBeNull();
+  });
+
+  it('applies only the latest pick when two answers arrive out of order (R3)', async () => {
+    const OTHER = '5a1e0000-0000-4000-8000-000000000034';
+    const first = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    const second = earlier(OTHER, '2026-09-21T10:00:00.000Z');
+    const slowFirst = deferred();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return slowFirst.promise;
+      if (url.endsWith(`/executions/${OTHER}`)) return reply(200, second);
+      return reply(404, {});
+    });
+    mount(vomeroDetail, [vomeroExecution, first.execution, second.execution]);
+    pick(VOMERO_IDS.executionOld);
+    pick(OTHER);
+    await waitFor(() => expect(picked()).toBe(OTHER));
+    // The first pick's answer arrives last; it must not replace the second.
+    await settle(() => slowFirst.resolve(reply(200, first)));
+    expect(picked()).toBe(OTHER);
   });
 });

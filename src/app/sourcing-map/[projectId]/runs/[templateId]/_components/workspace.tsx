@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct, SmRunTemplate } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
@@ -62,10 +62,15 @@ export function Workspace({
     void loadEstimate();
   }, [loadEstimate]);
 
+  // R3: each switch of result (a pick, Run's new execution, the reload after Cancel) takes a number; only the
+  // latest one's answer, success or failure, is applied, so two answers arriving out of order can't swap.
+  const selectSeq = useRef(0);
   async function selectExecution(id: string) {
+    const seq = ++selectSeq.current;
     // R3: a switch of result starts clean; an error left by the previous one no longer applies.
     setError(null);
     const out = await smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${id}`);
+    if (seq !== selectSeq.current) return;
     if (!out.ok) {
       setError(out.message);
       return;
