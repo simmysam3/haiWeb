@@ -73,6 +73,20 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
     setDeleting(null);
   }
 
+  // No dialog is open for a direct Archive click either (a-G4), so route its failure to the same
+  // page-level alert as the "Show archived" reload, not the dialogs' shared `error`.
+  async function archive(p: SmProject) {
+    setBusy(true);
+    setListError(null);
+    const out = await smFetch<SmProject>(`${BASE}/${p.project_id}`, { method: 'PATCH', body: { archived: true } });
+    setBusy(false);
+    if (!out.ok) {
+      setListError(out.message);
+      return;
+    }
+    setProjects((all) => all.map((x) => (x.project_id === p.project_id ? out.data : x)));
+  }
+
   // The list endpoint hides archived projects unless ?include_archived=true is passed (a-G7), so "Show archived" reloads.
   async function toggleArchived(on: boolean) {
     setShowArchived(on);
@@ -108,7 +122,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
             <div className="mt-4 flex gap-2">
               <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Rename ${p.name}`} onClick={() => { setError(null); setRenaming(p); setNewName(p.name); }}>Rename</button>
               {p.archived_at === null && (
-                <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Archive ${p.name}`} disabled={busy} onClick={() => void patch(p, { archived: true })}>Archive</button>
+                <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Archive ${p.name}`} disabled={busy} onClick={() => void archive(p)}>Archive</button>
               )}
               <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${p.name}`} onClick={() => { setError(null); setDeleting(p); }}>Delete</button>
             </div>

@@ -122,4 +122,11 @@ describe('ProjectsGrid', () => {
     fireEvent.click(screen.getByLabelText('Show archived'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load archived projects.');
   });
+
+  it('shows an Archive failure as a page-level alert (a-G4: the UI shows error.message)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(500, { error: { message: 'Could not archive the project.' } }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Spring 2027' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not archive the project.');
+  });
 });
