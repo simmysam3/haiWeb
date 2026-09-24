@@ -69,6 +69,20 @@ describe('SeatBar', () => {
     expect(onDrop).toHaveBeenCalledWith('2027-02-08');
   });
 
+  it('shows one segment per drop up to 12 drops and months from 13 (spec §9.3; fix round 1, M2)', () => {
+    const props = { unitLabel: 'pairs', asOfDrop: null, onDrop: vi.fn(), productFilter: null, onProduct: vi.fn() };
+    const { unmount } = render(<SeatBar result={weeklyDropsResult(12)} {...props} />);
+    const twelve = within(screen.getByRole('group', { name: 'Drops: choose the drop the map shows' })).getAllByRole('button');
+    expect(twelve).toHaveLength(12);
+    expect(twelve[0]!.textContent).toBe('Jan 4 100%');
+    expect(twelve.filter((b) => b.hasAttribute('aria-expanded'))).toHaveLength(0);
+    unmount();
+    render(<SeatBar result={weeklyDropsResult(13)} {...props} />);
+    const thirteen = within(screen.getByRole('group', { name: 'Drops: choose the drop the map shows' })).getAllByRole('button');
+    expect(thirteen.map((b) => b.textContent)).toEqual(['Jan 2027 · 4 drops · lowest 81%', 'Feb 2027 · 4 drops · lowest 64%', 'Mar 2027 · 5 drops · lowest 81%']);
+    expect(thirteen.every((b) => b.getAttribute('aria-expanded') === 'false')).toBe(true);
+  });
+
   it('counts a month that holds one drop as "1 drop" (controller ruling R2)', () => {
     render(<SeatBar result={weeklyDropsResult(14)} unitLabel="pairs" asOfDrop={null} onDrop={vi.fn()} productFilter={null} onProduct={vi.fn()} />);
     const strip = screen.getByRole('group', { name: 'Drops: choose the drop the map shows' });
