@@ -372,6 +372,19 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     vendor_catalog:
       "A trading partner's catalog product, probed as phantom demand against that vendor.",
   },
+  // Sourcing Map (spec §8.8, §9.3) — candidate statuses on the map. Gap
+  // statuses are honest gaps, never zero or full coverage (AC 15).
+  sm_candidate_status: {
+    answered: 'The supplier answered the schedule; its cumulative quantities by date are on the card.',
+    unsupported: "The supplier's agent predates schedule answers; its single quoted quantity counts from its quoted date on (schedule not assessed).",
+    declined: 'The supplier declined this probe (its posture, or a guard). No answer is counted.',
+    timeout: 'The supplier did not answer within 30 seconds. No answer is counted; the slot is not fully observed.',
+    unreachable: "The supplier's agent could not be reached. No answer is counted.",
+    not_connected: 'A pinned supplier that is not on the network or has no trading relationship with you. It was not probed.',
+    rate_limited: "The supplier's hourly probe allowance was used up; it was not probed this run.",
+    cap_reached: 'Beyond the six candidates probed per slot; not probed this run.',
+    probing: 'The probe is in flight; the answer will appear here.',
+  },
 };
 
 /** Resolve definition copy without exposing the map. Used by <ColumnHeader>. */
@@ -404,6 +417,8 @@ export interface PillProps {
   tone?: 'success' | 'warn' | 'problem' | 'info' | 'neutral' | 'stock';
   className?: string;
   children?: React.ReactNode;
+  /** Sourcing Map: tone through the app's --sm-pill-* variables (dark and light), not console utilities. */
+  themed?: boolean;
 }
 
 const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
@@ -417,8 +432,29 @@ const TONE_CLASS: Record<NonNullable<PillProps['tone']>, string> = {
   stock: 'bg-success text-white',
 };
 
+export type PillTone = NonNullable<PillProps['tone']>;
+
+// Complete literals — Tailwind v4 generates only classes that appear whole.
+const THEMED_TONE_CLASS: Record<PillTone, string> = {
+  success: 'bg-[var(--sm-pill-success-bg)] text-[var(--sm-pill-success-fg)]',
+  warn: 'bg-[var(--sm-pill-warn-bg)] text-[var(--sm-pill-warn-fg)]',
+  problem: 'bg-[var(--sm-pill-problem-bg)] text-[var(--sm-pill-problem-fg)]',
+  info: 'bg-[var(--sm-pill-info-bg)] text-[var(--sm-pill-info-fg)]',
+  neutral: 'bg-[var(--sm-pill-neutral-bg)] text-[var(--sm-pill-neutral-fg)]',
+  stock: 'bg-[var(--sm-pill-stock-bg)] text-[var(--sm-pill-stock-fg)]',
+};
+
+// Sourcing Map categories resolve their tone here, before the value-based rules.
+const SM_TONES: Record<string, Record<string, PillTone>> = {
+  sm_candidate_status: {
+    answered: 'success', unsupported: 'info', probing: 'neutral', cap_reached: 'neutral',
+    declined: 'warn', timeout: 'warn', unreachable: 'warn', not_connected: 'warn', rate_limited: 'warn',
+  },
+};
+
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
   const v = value ?? '';
+  if (category && category.startsWith('sm_')) return SM_TONES[category]?.[v] ?? 'neutral';
   if (['failed', 'fail', 'non_compliant', 'banned', 'suspended', 'past_due', 'disabled', 'critical', 'jailed', 'revoked', 'unreachable'].includes(v)) return 'problem';
   if (['pending', 'partial', 'partially_compliant', 'probation', 'open', 'pending_payment', 'elevated', 'throttled', 'out_of_band', 'warning', 'quiet'].includes(v)) return 'warn';
   if (['complete', 'completed', 'active', 'approved', 'paid', 'online', 'pass', 'compliant', 'trading_pair', 'accepted', 'normal', 'verified', 'enabled', 'healthy'].includes(v)) return 'success';
@@ -509,6 +545,7 @@ export function Pill({
   tone,
   className = '',
   children,
+  themed = false,
 }: PillProps) {
   const resolved =
     definition ?? (category && value ? definitionFor(category, value) : undefined);
@@ -525,7 +562,8 @@ export function Pill({
     .filter(Boolean)
     .join('\n');
 
-  const appliedTone = TONE_CLASS[tone ?? deriveTone(category, value)];
+  const resolvedTone = tone ?? deriveTone(category, value);
+  const appliedTone = themed ? THEMED_TONE_CLASS[resolvedTone] : TONE_CLASS[resolvedTone];
   const label = children ?? (value ? TITLE_CASE(value) : null);
 
   return (
