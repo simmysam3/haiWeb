@@ -18,9 +18,13 @@ describe('/api/account/sourcing-map/runs', () => {
   it('POST creates a sourcing_map template with the observation class forced and the defaults filled', async () => {
     const scope = { kind: 'sourcing_map', project_id: VOMERO_IDS.project, products: [] };
     const { POST } = await import('../route');
-    await POST(smReq('POST', '/x', { template_name: 'Line A base', scope, observation_class: 'audit' }), smCtx({}));
+    // Sent as PATCH (never a real caller method here) so a green init.method
+    // below proves smForward's `override.method` wins over request.method,
+    // not that the two happened to already agree — the Task 5 review gap.
+    await POST(smReq('PATCH', '/x', { template_name: 'Line A base', scope, observation_class: 'audit' }), smCtx({}));
     const [path, init] = fetchRaw.mock.calls[0]!;
     expect(path).toBe('/sonar/templates');
+    expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({
       observation_class: 'sourcing_map',
       template_name: 'Line A base',

@@ -20,10 +20,14 @@ describe('/api/account/sourcing-map/runs/[templateId]/duplicate', () => {
       .mockResolvedValueOnce(haiCoreOk({ template: vomeroRunTemplate }))
       .mockResolvedValueOnce(haiCoreOk({ template: { ...vomeroRunTemplate, template_id: VOMERO_IDS.executionOld } }, 201));
     const { POST } = await import('../route');
-    const res = await POST(smReq('POST', '/x'), smCtx({ templateId: VOMERO_IDS.template }));
+    // Sent as PATCH (never a real caller method here) so a green init.method
+    // below proves smForward's `override.method` wins over request.method,
+    // not that the two happened to already agree — the Task 5 review gap.
+    const res = await POST(smReq('PATCH', '/x'), smCtx({ templateId: VOMERO_IDS.template }));
     expect(fetchRaw.mock.calls[0]![0]).toBe(`/sonar/templates/${VOMERO_IDS.template}`);
     const [path, init] = fetchRaw.mock.calls[1]!;
     expect(path).toBe('/sonar/templates');
+    expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({
       observation_class: 'sourcing_map',
       template_name: 'Line A base (copy)',
