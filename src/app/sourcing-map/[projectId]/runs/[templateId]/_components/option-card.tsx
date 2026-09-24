@@ -7,7 +7,8 @@ import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
 
 const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
-const AVAILABILITY_DEFINITION = "The supplier's answer at this drop, never more than you asked (D-148).";
+// The D-148 disclosure ceiling, in the user's words; the internal register id stays out of the copy (L296).
+const AVAILABILITY_DEFINITION = "The supplier's answer at this drop, never more than you asked.";
 /** A click that lands on one of these inside the card belongs to it: the button, or a Pill's definition tip. */
 const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
 

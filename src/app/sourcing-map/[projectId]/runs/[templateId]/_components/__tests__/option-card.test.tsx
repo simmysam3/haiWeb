@@ -100,4 +100,12 @@ describe('OptionCard', () => {
     render(<OptionCard slot={leather} candidate={{ ...leather.candidates[0]!, answered_at_allocation: true, spare_unknown: true }} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
     expect(screen.getByText('Answered at its allocation · spare capacity unknown')).toBeInTheDocument();
   });
+
+  it('defines the availability pill in plain words, never with an internal register id (L296)', () => {
+    render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    const pill = screen.getAllByTestId('pill')[0]!;
+    expect(pill).toHaveAccessibleDescription("The supplier's answer at this drop, never more than you asked.");
+    expect(document.body).not.toHaveTextContent('D-148');
+  });
 });
+
