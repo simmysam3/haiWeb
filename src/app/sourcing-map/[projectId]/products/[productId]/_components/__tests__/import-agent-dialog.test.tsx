@@ -40,4 +40,16 @@ describe('ImportAgentDialog', () => {
     expect(onImported).not.toHaveBeenCalled();
   });
 
+  it('shows the server message and creates nothing for a 422 agent_bom_not_found (a-G4: error.message must render)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(200, SKUS))
+      .mockResolvedValueOnce(reply(422, { error: { code: 'agent_bom_not_found', message: "METCON-CROSS-IRON has no BOM in the agent's manifest." } }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    await waitFor(() => expect(document.querySelector('datalist option[value="METCON-CROSS-IRON"]')).not.toBeNull());
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("METCON-CROSS-IRON has no BOM in the agent's manifest.");
+    expect(onImported).not.toHaveBeenCalled();
+  });
 });
