@@ -66,6 +66,13 @@ describe('DetailsPanel', () => {
     expect(within(screen.getByRole('table', { name: 'Coverage by drop' })).getByRole('row', { name: 'Mar 15' })).toHaveTextContent('Mar 15Feb 2212,000—Probing');
     expect(within(screen.getByRole('table', { name: 'Coverage by size at Feb 22' })).getByRole('row', { name: '9' })).toHaveTextContent('91,571—Probing');
   });
+
+  it('a candidate not probed at this trust level says so, as its card does, never "no answer" (fix round 1, I-1)', () => {
+    const leather = vomeroResult.slots[0]!;
+    const notProbed = { ...leather.candidates[1]!, availability_form: 'not_probed_trust' as const, weeks: [] };
+    render(<DetailsPanel slot={leather} candidate={notProbed} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(within(screen.getByRole('table', { name: 'Coverage by drop' })).getByRole('row', { name: 'Mar 15' })).toHaveTextContent('Mar 15Feb 2212,000—Not probed at this trust level');
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {
