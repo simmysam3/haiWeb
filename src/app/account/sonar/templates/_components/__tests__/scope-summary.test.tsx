@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { ScopeSummary } from '../scope-summary';
+import { vomeroRunTemplate, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 
 describe('ScopeSummary', () => {
   it('audit bilateral: shows counterparties, signal-type pills, depth, auth', () => {
@@ -145,5 +146,16 @@ describe('ScopeSummary', () => {
     } as unknown as RunTemplateScope;
     render(<ScopeSummary scope={scope} />);
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('sourcing_map: summarizes the portfolio and links into the Sourcing Map app (R-10 census H5)', () => {
+    render(<ScopeSummary scope={vomeroRunTemplate.scope} />);
+    expect(screen.getByText('3 products')).toBeInTheDocument();
+    // Field renders the label and the value as sibling divs; scope to the value, not any "5" on the page.
+    expect(screen.getByText('Depth cap').nextElementSibling).toHaveTextContent('5');
+    expect(screen.getByRole('link', { name: 'Open in Sourcing Map' })).toHaveAttribute(
+      'href',
+      `/sourcing-map/${VOMERO_IDS.project}`,
+    );
   });
 });
