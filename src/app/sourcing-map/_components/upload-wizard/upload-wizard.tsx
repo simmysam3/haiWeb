@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import {
   detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid,
@@ -35,6 +35,17 @@ export function UploadWizard(props: UploadWizardProps) {
   const [decimalComma, setDecimalComma] = useState(false);
   const [bom, setBom] = useState<Extract<BomBuild, { ok: true }> | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // A step change unmounts the control that had focus (the file input, Continue, Back), which drops
+  // focus to <body>, outside SmDialog's Tab trap. Move it to the new step's container instead. Keyed
+  // on `step` itself, so every transition gets it; the mount (SmDialog's own initial focus) does not.
+  const stepRef = useRef<HTMLDivElement | null>(null);
+  const shownStep = useRef<Step>(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    stepRef.current?.focus();
+  }, [step]);
 
   function mapFor(all: SheetGrid[], s: number, h: number) {
     const hs = all[s]?.rows[h]?.cells ?? [];
@@ -108,7 +119,7 @@ export function UploadWizard(props: UploadWizardProps) {
         </ol>
         <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={props.onClose}>Close</button>
       </div>
-      <div className="mt-4">
+      <div ref={stepRef} role="group" aria-label={STEP_LABELS[step]} tabIndex={-1} className="mt-4 outline-none">
         {step === 'file' && <FileStep onFile={(f) => void onFile(f)} error={error} />}
         {step === 'map' && (
           <MapStep

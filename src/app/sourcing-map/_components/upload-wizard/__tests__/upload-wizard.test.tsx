@@ -125,6 +125,22 @@ describe('UploadWizard (BOM)', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps focus inside the dialog when a step change removes the focused control (keyboard)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    await screen.findByLabelText('Map column Description');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(within(dialog).getByRole('group', { name: 'Map columns' }));
+    const next = screen.getByRole('button', { name: 'Continue' });
+    next.focus();
+    fireEvent.click(next);
+    await screen.findByRole('button', { name: 'Accept all confident' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(within(dialog).getByRole('group', { name: 'Resolve' }));
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
