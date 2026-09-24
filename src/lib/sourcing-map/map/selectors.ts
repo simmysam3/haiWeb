@@ -1,5 +1,5 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateLiveStatus, SmCandidateResult } from '../contract';
+import type { SmCandidateLiveStatus, SmCandidateResult, SmSlotResult } from '../contract';
 import type { SmCandidateWeek, SmOptionLimit, SmPortfolioResult } from '../types';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
@@ -77,4 +77,14 @@ const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
 /** A card's status line when it has no answer to show; null when it answered. */
 export function gapText(status: SmCandidateLiveStatus): string | null {
   return GAP_TEXT[status] ?? null;
+}
+
+export function slotWeekFor(slot: SmSlotResult, drop: string | null): string | null {
+  if (drop === null) return null;
+  return slot.as_of_weeks.find((a) => a.drop === drop)?.week ?? null;
+}
+
+export function slotDemandAt(slot: SmSlotResult, week: string | null): number {
+  if (week === null) return 0;
+  return slot.demand.find((d) => d.week === week)?.cum_qty ?? 0;
 }
