@@ -23,4 +23,11 @@ describe('smForward', () => {
     expect(out.status).toBe(201);
     expect(await out.json()).toEqual({ ok: 1 });
   });
+
+  it('sends a bodiless POST (trigger, cancel, estimate) without a JSON content-type', async () => {
+    // d-G4: the trigger answers { run_id }; for sourcing_map it is the execution id.
+    const fetchRaw = vi.fn().mockResolvedValue(res(202, { run_id: 'e' }));
+    await smForward({ fetchRaw }, new NextRequest('http://localhost:3001/t', { method: 'POST' }), '/sonar/templates/t/trigger');
+    expect(fetchRaw).toHaveBeenCalledWith('/sonar/templates/t/trigger', { method: 'POST' });
+  });
 });

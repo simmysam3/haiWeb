@@ -20,8 +20,12 @@ export async function smForward(
   const init: RequestInit = { method };
   if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
     const body = override.body ?? (await request.text());
-    init.headers = { 'content-type': 'application/json' };
-    init.body = body;
+    // Fastify refuses an empty body under a JSON content-type (400), so a
+    // bodiless POST goes without one.
+    if (body.length > 0) {
+      init.headers = { 'content-type': 'application/json' };
+      init.body = body;
+    }
   }
   return forwardHaiCoreResponse(await client.fetchRaw(`${path}${request.nextUrl.search}`, init));
 }
