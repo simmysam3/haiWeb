@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
@@ -7,10 +7,14 @@ import { ClassPicker } from './class-picker';
 import { SizeTable } from './size-table';
 import { PinEditor } from './pin-editor';
 
-/** BOM grid (spec §7.2). `toolbar` carries Upload BOM and Import from agent (Tasks 25, 32). */
-export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolbar, suggestions = {} }: {
+/**
+ * BOM grid (spec §7.2). It seeds its draft from `initialLines` once; the body keys it by a revision that only a
+ * wholesale replacement (an upload commit, an import) bumps (LW-b), and renders Upload BOM and Import from agent
+ * outside it, so those openers outlive the remount.
+ */
+export function BomGrid({ productId, axis, initialLines, classes, onSaved, suggestions = {} }: {
   productId: string; axis: VariantAxis | null; initialLines: SmBomLine[]; classes: SmProductDetail['classes'];
-  onSaved(d: SmProductDetail): void; toolbar?: ReactNode; suggestions?: Record<string, ClassSuggestion>;
+  onSaved(d: SmProductDetail): void; suggestions?: Record<string, ClassSuggestion>;
 }) {
   const [lines, setLines] = useState<BomDraftLine[]>(() => toDraft(initialLines, classes));
   const [names, setNames] = useState<Record<string, string | null>>({});
@@ -67,7 +71,6 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
         <button ref={addLineRef} type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
-        {toolbar}
         <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={save}>Save BOM</button>
       </div>
       <div className="overflow-x-auto">

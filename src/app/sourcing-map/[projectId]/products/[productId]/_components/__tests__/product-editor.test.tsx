@@ -262,5 +262,34 @@ describe('ProductEditorBody', () => {
     const lookups = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith('/api/account/company/'));
     expect(lookups.sort()).toEqual([VOMERO_IDS.aglet, VOMERO_IDS.leon, VOMERO_IDS.mekong, VOMERO_IDS.zephyr].map((id) => `/api/account/company/${id}/profile`).sort());
   });
+
+  it('a committed upload replaces the grid with the saved lines, and focus returns to the same Upload BOM button (LW-b)', async () => {
+    const uploaded = {
+      ...vomeroWorkbenchDetail,
+      line_count: 1,
+      lines: [{ ...vomeroWorkbenchDetail.lines[1]!, line_id: '5a1e0000-0000-4000-8000-000000000600', position: 0, component_label: 'Upper leather tumbled', origin: 'uploaded' as const }],
+    };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/class-suggestions')) return reply(200, { retrieval: 'hybrid', lines: [{ suggestions: [] }] });
+      if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, uploaded);
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(5);
+    const openButton = screen.getByRole('button', { name: 'Upload BOM' });
+    openButton.focus();
+    fireEvent.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    await userEvent.upload(within(dialog).getByLabelText('Spreadsheet file'), new File([['Description,Usage', 'Upper leather tumbled,0.25'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Save 1 line' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull());
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(1);
+    expect(screen.getByLabelText('Component for line 1')).toHaveValue('Upper leather tumbled');
+    // The very element that opened the wizard: a toolbar remounted with the grid would leave focus on <body>.
+    expect(document.activeElement).toBe(openButton);
+  });
 });
 

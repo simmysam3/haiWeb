@@ -13,6 +13,9 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
   // LW-b: the product as last saved. Every write reports its answer here, so the header's badge and crumb, the grid
   // and the wizard all read one current product; the page keys this body by product alone and never remounts it.
   const [detail, setDetail] = useState(initialDetail);
+  // LW-b: bumped only by a wholesale replacement from outside the grid (an upload commit, an import), it keys the
+  // grid's draft. The grid's own save never bumps it: the grid already takes its PUT's answer as its draft.
+  const [bomRevision, setBomRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
   return (
@@ -20,30 +23,34 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
       {detail.bom_source === 'agent' ? (
         <AgentBomView detail={detail} />
       ) : (
-        <BomGrid
-          productId={detail.product_id}
-          axis={detail.variant_axis}
-          initialLines={detail.lines}
-          classes={detail.classes}
-          onSaved={(d) => {
-            setDetail(d);
-            router.refresh();
-          }}
-          toolbar={
-            <>
-              <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setUploading(true)}>Upload BOM</button>
-              <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setImporting(true)}>Import from agent</button>
-            </>
-          }
-        />
+        <>
+          {/* Outside the element the revision key remounts, so the dialogs' focus restore finds its live opener. */}
+          <div className="mb-3 flex justify-end gap-2">
+            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setUploading(true)}>Upload BOM</button>
+            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setImporting(true)}>Import from agent</button>
+          </div>
+          <BomGrid
+            key={bomRevision}
+            productId={detail.product_id}
+            axis={detail.variant_axis}
+            initialLines={detail.lines}
+            classes={detail.classes}
+            onSaved={(d) => {
+              setDetail(d);
+              router.refresh();
+            }}
+          />
+        </>
       )}
       {uploading && detail.bom_source === 'workbench' && (
         <UploadWizard
           kind="bom"
           productId={detail.product_id}
           axis={detail.variant_axis}
-          onCommitted={() => {
+          onCommitted={(d) => {
             setUploading(false);
+            setDetail(d);
+            setBomRevision((r) => r + 1);
             router.refresh();
           }}
           onClose={() => setUploading(false)}
