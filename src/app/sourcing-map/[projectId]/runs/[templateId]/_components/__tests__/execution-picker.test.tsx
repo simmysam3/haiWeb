@@ -15,4 +15,16 @@ describe('ExecutionPicker', () => {
     fireEvent.change(picker, { target: { value: VOMERO_IDS.executionOld } });
     expect(onSelect).toHaveBeenCalledWith(VOMERO_IDS.executionOld);
   });
+
+  it('shows a disabled "Choose a result" placeholder while no listed execution is selected, so the newest never looks chosen (M1)', () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(<ExecutionPicker executions={[vomeroExecution]} selectedId={null} onSelect={onSelect} />);
+    const picker = screen.getByLabelText('Result') as HTMLSelectElement;
+    expect(picker.selectedOptions[0]).toHaveTextContent('Choose a result');
+    expect(picker.selectedOptions[0]).toBeDisabled();
+    rerender(<ExecutionPicker executions={[vomeroExecution]} selectedId={VOMERO_IDS.executionOld} onSelect={onSelect} />);
+    expect(picker.selectedOptions[0]).toHaveTextContent('Choose a result');
+    fireEvent.change(picker, { target: { value: VOMERO_IDS.execution } });
+    expect(onSelect).toHaveBeenCalledWith(VOMERO_IDS.execution);
+  });
 });
