@@ -99,6 +99,16 @@ describe('UploadWizard (BOM)', () => {
     expect(await screen.findByLabelText('Map column Remark')).toHaveValue('class');
   });
 
+  it('refuses a file over 10 MB before reading it', async () => {
+    renderBom();
+    const big = csvFile(['a,b']);
+    Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 });
+    const read = vi.spyOn(big, 'arrayBuffer');
+    await userEvent.upload(fileInput(), big);
+    expect(await screen.findByRole('alert')).toHaveTextContent('bom.csv is 11.0 MB; the limit is 10 MB.');
+    expect(read).not.toHaveBeenCalled();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

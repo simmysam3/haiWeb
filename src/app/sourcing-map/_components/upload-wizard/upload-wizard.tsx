@@ -1,7 +1,9 @@
 'use client';
 import { useMemo, useState } from 'react';
 import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
-import { detectHeaderRow, readWorkbookSheets, unreadableDetail, type SheetGrid } from '@/lib/scope-import/parse-workbook';
+import {
+  detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid,
+} from '@/lib/scope-import/parse-workbook';
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
 import type { DemandBuild, DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
@@ -41,6 +43,10 @@ export function UploadWizard(props: UploadWizardProps) {
 
   async function onFile(file: File) {
     setError(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError(tooLargeDetail(file.name, file.size));
+      return;
+    }
     let bytes: ArrayBuffer;
     try {
       bytes = await file.arrayBuffer();
