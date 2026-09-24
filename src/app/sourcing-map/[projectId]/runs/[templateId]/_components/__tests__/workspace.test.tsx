@@ -629,4 +629,11 @@ describe('Workspace', () => {
     await pressRun();
     expect(await screen.findByText('A BOM line of Court Classic has no class.')).toHaveAttribute('role', 'alert');
   });
+
+  it('a clicked drop keeps the other query parameters in the URL (M4)', () => {
+    search.value = 'x=1&drop=2027-04-15';
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
+    expect(replace).toHaveBeenCalledWith('/sourcing-map/p/runs/t?x=1&drop=2027-01-15', { scroll: false });
+  });
 });
