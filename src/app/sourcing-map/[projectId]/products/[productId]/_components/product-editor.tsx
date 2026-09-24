@@ -1,5 +1,6 @@
 'use client';
 import { useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
@@ -9,6 +10,7 @@ import { VariantAxisEditor } from './variant-axis-editor';
 
 /** Product editor (spec §7.2). `children` is the BOM body (Tasks 24–25). */
 export function ProductEditor({ projectName, detail, children }: { projectName: string; detail: SmProductDetail; children?: ReactNode }) {
+  const router = useRouter();
   const [product, setProduct] = useState(detail);
   const [name, setName] = useState(detail.name);
   const [unitLabel, setUnitLabel] = useState(detail.unit_label);
@@ -31,6 +33,8 @@ export function ProductEditor({ projectName, detail, children }: { projectName: 
       return;
     }
     setProduct((p) => ({ ...p, ...out.data, lines: p.lines }));
+    // The page re-reads the product; its editor key (page.tsx) then carries the saved axis to the BOM grid.
+    router.refresh();
   }
 
   return (

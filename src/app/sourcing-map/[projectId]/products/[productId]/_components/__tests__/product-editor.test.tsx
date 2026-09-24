@@ -41,6 +41,19 @@ describe('ProductEditor header', () => {
       name: 'Pegasus Trail', unit_label: 'pairs', assembly_days: 14, variant_axis: vomeroWorkbenchDetail.variant_axis,
     });
   });
+
+  it('refreshes the page after a successful header save, so the page re-reads the product; a failed save does not', async () => {
+    refresh.mockClear();
+    fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Unit label is required.' } }));
+    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unit label is required.');
+    expect(refresh).not.toHaveBeenCalled();
+    fetchMock.mockResolvedValueOnce(reply(200, vomeroWorkbenchDetail));
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });
 
 describe('ProductEditorBody', () => {
