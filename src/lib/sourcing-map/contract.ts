@@ -26,6 +26,13 @@ export const SM_LIMITS = {
   DEPTH_CAP_DEFAULT: 5,
 } as const;
 
+/**
+ * Contract §10 b-G12: an agent line with no Network Index class is probed
+ * through its pin, in a slot of its own whose class_id is this prefix plus
+ * `<vendor_participant_id>:<vendor_sku>`.
+ */
+export const SM_UNCLASSIFIED_CLASS_PREFIX = 'unclassified:';
+
 /** 'YYYY-MM-DD', calendar-valid. */
 export const SmIsoDateSchema = z
   .string()
@@ -399,6 +406,8 @@ export const SmSlotKeySchema = z.object({
   class_id: z.string(),
   uom: z.string(),
   variant_bound: z.boolean(),
+  /** Contract §10 b-G12: the variant axis system of a variant-bound slot, else null. Men's US and Women's US are separate slots. */
+  variant_system: z.string().nullable(),
 });
 export type SmSlotKey = z.infer<typeof SmSlotKeySchema>;
 
