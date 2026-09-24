@@ -57,26 +57,33 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     control?.focus();
   });
 
+  // Every change to the draft comes through here. A refused Apply's message named the draft before the change, so
+  // the change clears it (as the upload wizard's edits clear its refusal, Ruling M2).
+  function edit(update: (s: SourcingMapScope) => SourcingMapScope) {
+    setError(null);
+    setScope(update);
+  }
+
   function add() {
     const p = byId.get(adding);
     if (p) {
       // Add is disabled again once the picker resets, so the new product's heading takes focus.
       focusAfterRender.current = { productId: p.product_id, control: 'heading' };
-      setScope((s) => addProduct(s, p, nextFirstDue(s)));
+      edit((s) => addProduct(s, p, nextFirstDue(s)));
     }
     setAdding('');
   }
 
   function move(productId: string, dir: -1 | 1) {
     focusAfterRender.current = { productId, control: dir === -1 ? 'up' : 'down' };
-    setScope((s) => moveProduct(s, productId, dir));
+    edit((s) => moveProduct(s, productId, dir));
   }
 
   function remove(productId: string) {
     const i = scope.products.findIndex((p) => p.product_id === productId);
     const neighbour = scope.products[i + 1] ?? scope.products[i - 1];
     focusAfterRender.current = neighbour ? { productId: neighbour.product_id, control: 'remove' } : { productId: null, control: 'add-select' };
-    setScope((s) => removeProduct(s, productId));
+    edit((s) => removeProduct(s, productId));
   }
 
   async function apply() {
@@ -128,7 +135,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} data-control="down" disabled={i === scope.products.length - 1} onClick={() => move(rp.product_id, 1)}>Down</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} data-control="remove" onClick={() => remove(rp.product_id)}>Remove</button>
                 </div>
-                {p && <DemandEditor product={p} demand={rp.demand} onChange={(d) => setScope((s) => replaceDemand(s, rp.product_id, d))} />}
+                {p && <DemandEditor product={p} demand={rp.demand} onChange={(d) => edit((s) => replaceDemand(s, rp.product_id, d))} />}
               </section>
             );
           })}

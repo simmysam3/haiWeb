@@ -98,6 +98,17 @@ describe('ConfigureTray', () => {
     expect(due).toHaveFocus();
     expect(due).toHaveValue('2027-01-10');
   });
+
+  it('an edit to the draft clears a refused Apply’s message, which named the draft before the edit', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'A size mix must total 100%.' } }));
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    press('Remove Court Classic');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    const tray = screen.getByRole('complementary', { name: 'Configure run' });
+    expect(await within(tray).findByRole('alert')).toHaveTextContent('A size mix must total 100%.');
+    fireEvent.change(screen.getByLabelText('Quantity of drop 2 for Pegasus Trail'), { target: { value: '6500' } });
+    expect(screen.queryByText('A size mix must total 100%.')).toBeNull();
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
