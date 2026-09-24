@@ -123,4 +123,32 @@ describe('PinEditor', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('The supplier list could not be loaded.');
     expect(screen.queryByRole('option', { name: 'Bowline Cordage' })).toBeNull();
   });
+
+  it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {
+    /** A keyboard user's activation: focus the control, then press it. */
+    const press = (el: HTMLElement) => {
+      el.focus();
+      fireEvent.click(el);
+    };
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    render(<Harness initial={[]} />);
+    press(screen.getByRole('button', { name: 'Add supplier' }));
+    expect(document.activeElement).toBe(screen.getByLabelText('Supplier'));
+    await screen.findByRole('option', { name: 'Aglet & Cord' });
+    press(screen.getByRole('button', { name: 'Cancel' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
+    for (const sku of ['AC-FLAT-137', 'AC-FLAT-120']) {
+      press(screen.getByRole('button', { name: 'Add supplier' }));
+      await screen.findByRole('option', { name: 'Aglet & Cord' });
+      fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+      fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: sku } });
+      fireEvent.change(screen.getByLabelText('Share %'), { target: { value: '30' } });
+      press(screen.getByRole('button', { name: 'Pin' }));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
+    }
+    press(screen.getByRole('button', { name: 'Remove AC-FLAT-137' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
+    press(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
+  });
 });
