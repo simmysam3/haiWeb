@@ -7,7 +7,8 @@ import {
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
 import type { DemandBuild, DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
-import type { ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
+import { toUploadInput, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
+import { smFetch } from '@/lib/sourcing-map/client';
 import { SmDialog } from '../sm-dialog';
 import { FileStep } from './file-step';
 import { MapStep } from './map-step';
@@ -124,6 +125,23 @@ export function UploadWizard(props: UploadWizardProps) {
     setStep('resolve');
   }
 
+  async function commitBom() {
+    if (props.kind !== 'bom') return;
+    setBusy(true);
+    setError(null);
+    // The mapped rows as JSON — never the file (spec §5.2, §7.3).
+    const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${props.productId}/bom-lines`, {
+      method: 'PUT',
+      body: { lines: resolved.map(toUploadInput) },
+    });
+    setBusy(false);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    props.onCommitted(out.data);
+  }
+
   const title = kind === 'bom' ? 'Upload BOM' : 'Upload schedule';
   // The modal shell (backdrop, labelled dialog, Escape, focus in / trap / return) is SmDialog's (controller ruling, I07).
   return (
@@ -178,7 +196,7 @@ export function UploadWizard(props: UploadWizardProps) {
             busy={busy}
             error={error}
             onBack={() => setStep('resolve')}
-            onCommit={() => undefined}
+            onCommit={() => void commitBom()}
           />
         )}
       </div>

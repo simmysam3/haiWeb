@@ -267,6 +267,86 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
   });
 
+  it('the upload request carries no file bytes', async () => {
+    fetchMock.mockImplementation(route({
+      match: {
+        matches: [
+          { name: 'Leon Cuero SA', match: { participant_id: VOMERO_IDS.leon, legal_name: 'León Cuero', confidence: 'exact' }, note: null },
+          { name: 'Kwang Il', match: null, note: 'not_a_trading_partner' },
+        ],
+      },
+    }));
+    const { onCommitted } = renderBom();
+    const text = [
+      "Description,Mat'l #,Usage,UOM,Vendor,Share,Notes",
+      'Upper leather tumbled,LTH-4471,0.25,sq ft,Leon Cuero SA,60%,SECRET-NOTE-7741',
+      'Heel counter TPU,HC-9,1,pr,Kwang Il,,',
+    ].join(NL);
+    await userEvent.upload(fileInput(), new File([text], 'bom.csv', { type: 'text/csv' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findAllByRole('button', { name: /Full grain leather hides/ });
+    // supplier matches arrive after the suggestions; wait for them before picking classes
+    await screen.findByText('Exact');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
+    await waitFor(() => expect(screen.queryByText(/has no SKU picked/)).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save 2 lines' }));
+    await waitFor(() => expect(onCommitted).toHaveBeenCalledWith(vomeroWorkbenchDetail));
+    // AC 5, AC 7: one PUT with the resolved lines — classes, a pin from an exact match, a note for a non-partner.
+    const put = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/bom-lines'))!;
+    expect(put[0]).toBe(`/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}/bom-lines`);
+    expect(put[1].method).toBe('PUT');
+    expect(Object.keys(JSON.parse(put[1].body))).toEqual(['lines']);
+    const { lines } = JSON.parse(put[1].body);
+    expect(lines[0]).toMatchObject({
+      component_label: 'Upper leather tumbled', class_id: 'cpt_full_grain_leather_hides', origin: 'uploaded',
+      pins: [{ supplier_participant_id: VOMERO_IDS.leon, supplier_sku: 'LC-BOV-UP-01', share_pct: 60 }], note: null,
+    });
+    expect(lines[1]).toMatchObject({ component_label: 'Heel counter TPU', pins: [], note: "Supplier 'Kwang Il' is not a trading partner" });
+    // spec §12: no request carries the file, its bytes, or a column that was not mapped.
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    for (const [, init] of fetchMock.mock.calls) {
+      const body = (init as RequestInit | undefined)?.body;
+      expect(body === undefined || typeof body === 'string').toBe(true);
+      expect(body instanceof Blob || body instanceof ArrayBuffer || body instanceof FormData).toBe(false);
+      if (typeof body === 'string') {
+        expect(body).not.toContain('SECRET-NOTE-7741');
+        expect(body).not.toContain(text.slice(0, 40));
+      }
+    }
+    // ...and every request, URL included, is exactly its mapped values as JSON: nothing else rides along, in any
+    // encoding (a base64 or byte-array copy of the file would pass the text checks above, never this one).
+    expect(fetchMock.mock.calls).toHaveLength(4);
+    const sent = Object.fromEntries(fetchMock.mock.calls.map(([u, init]) => {
+      const body = (init as RequestInit | undefined)?.body;
+      return [String(u), { method: (init as RequestInit | undefined)?.method, body: typeof body === 'string' ? JSON.parse(body) : body }];
+    }));
+    expect(sent).toEqual({
+      '/api/account/sourcing-map/class-suggestions': {
+        method: 'POST', body: { lines: [{ label: 'Upper leather tumbled' }, { label: 'Heel counter TPU' }] },
+      },
+      '/api/account/sourcing-map/supplier-matches': { method: 'POST', body: { names: ['Leon Cuero SA', 'Kwang Il'] } },
+      '/api/account/sourcing-map/class-suppliers?class_id=cpt_full_grain_leather_hides': { method: 'GET', body: undefined },
+      [`/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}/bom-lines`]: {
+        method: 'PUT',
+        body: {
+          lines: [
+            {
+              component_label: 'Upper leather tumbled', part_ref: 'LTH-4471', class_id: 'cpt_full_grain_leather_hides', uom: 'sq ft',
+              qty_per_unit: 0.25, variant_bound: false, qty_by_variant: null,
+              pins: [{ supplier_participant_id: VOMERO_IDS.leon, supplier_sku: 'LC-BOV-UP-01', share_pct: 60 }], origin: 'uploaded', note: null,
+            },
+            {
+              component_label: 'Heel counter TPU', part_ref: 'HC-9', class_id: 'cpt_full_grain_leather_hides', uom: 'pr',
+              qty_per_unit: 1, variant_bound: false, qty_by_variant: null,
+              pins: [], origin: 'uploaded', note: "Supplier 'Kwang Il' is not a trading partner",
+            },
+          ],
+        },
+      },
+    });
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
