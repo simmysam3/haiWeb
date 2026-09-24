@@ -89,6 +89,7 @@ function applyDepthCap4() {
   fireEvent.click(within(tray).getByRole('button', { name: 'Apply' }));
 }
 const DEPTH_4 = { ...vomeroRunTemplate, scope: { ...vomeroRunTemplate.scope, depth_cap: 4 } };
+const NOT_READY = { ...vomeroEstimate, readiness: { ready: false, first_failing_rule: 'no_lines', detail: null } };
 
 function pick(id: string) {
   fireEvent.change(screen.getByLabelText('Result'), { target: { value: id } });
@@ -278,5 +279,27 @@ describe('Workspace', () => {
     applyDepthCap4();
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
     expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
+  });
+
+  it('after an Apply, Run waits for the new scope’s readiness and never shows the old one’s (brief: estimate after each Apply)', async () => {
+    const second = deferred();
+    let estimates = 0;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) {
+        estimates += 1;
+        return estimates === 1 ? reply(200, vomeroEstimate) : second.promise;
+      }
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled());
+    applyDepthCap4();
+    await waitFor(() => expect(estimates).toBe(2));
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    expect(screen.getByText('Checking whether the run is ready…')).toBeInTheDocument();
+    await settle(() => second.resolve(reply(200, NOT_READY)));
+    expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
   });
 });
