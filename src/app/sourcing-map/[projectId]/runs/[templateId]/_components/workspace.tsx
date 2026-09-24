@@ -59,6 +59,12 @@ export function Workspace({
     void loadEstimate();
   }, [loadEstimate]);
 
+  function setDrop(drop: string) {
+    const q = new URLSearchParams(params.toString());
+    q.set('drop', drop);
+    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  }
+
   const result = detail?.result ?? null;
   const asOfDrop = result ? resolveAsOfDrop(params.get('drop'), result.portfolio) : null;
   const running = detail !== null && (detail.execution.status === 'queued' || detail.execution.status === 'running');
@@ -91,7 +97,7 @@ export function Workspace({
           result={result}
           unitLabel={units.length === 1 ? units[0]! : 'units'}
           asOfDrop={asOfDrop}
-          onDrop={() => undefined}
+          onDrop={setDrop}
           productFilter={productFilter}
           onProduct={setProductFilter}
         />
