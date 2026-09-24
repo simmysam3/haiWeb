@@ -162,14 +162,17 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         </label>
         {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       </SmDialog>
-      <DispositionDialog
-        open={deleting !== null}
-        title={deleting ? `Delete ${deleting.name}` : 'Delete project'}
-        onCancel={() => setDeleting(null)}
-        onConfirm={(d) => deleting && void remove(deleting, d)}
-        busy={busy}
-        error={deleting ? error : null}
-      />
+      {deleting && (
+        <DispositionDialog
+          key={deleting.project_id}
+          open
+          title={`Delete ${deleting.name}`}
+          onCancel={() => setDeleting(null)}
+          onConfirm={(d) => void remove(deleting, d)}
+          busy={busy}
+          error={error}
+        />
+      )}
     </section>
   );
 }

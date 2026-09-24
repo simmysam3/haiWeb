@@ -93,4 +93,14 @@ describe('ProjectsGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull());
   });
+
+  it('resets the disposition choice to archive for each new delete target (no carryover between projects)', () => {
+    const other = { ...vomeroProject, project_id: VOMERO_IDS.pegasus, name: 'Other Project' };
+    render(<ProjectsGrid initialProjects={[vomeroProject, other]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Spring 2027' }));
+    fireEvent.click(screen.getByRole('radio', { name: /Delete them/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Other Project' }));
+    expect(screen.getByRole('radio', { name: /Archive them/ })).toBeChecked();
+  });
 });
