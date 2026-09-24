@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SmProductInUseSchema, type SmProduct } from '@/lib/sourcing-map/contract';
@@ -22,6 +22,8 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
   const [busy, setBusy] = useState(false);
   // F3: a delete destroys hand-authored lines, pins and notes, so it is confirmed first (as projects and runs are).
   const [deleting, setDeleting] = useState<SmProduct | null>(null);
+  // A deleted product's row takes its Delete button with it; focus then goes to "+ New product" (L141).
+  const newProductRef = useRef<HTMLButtonElement | null>(null);
 
   async function create() {
     setBusy(true);
@@ -79,7 +81,7 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="sm-heading text-lg font-semibold">Product library</h2>
         {/* a-G4 (controller ruling, Task 21 finding 2a): a dialog's error state resets when it opens. */}
-        <button type="button" className="sm-btn sm-btn-primary" onClick={() => { setError(null); setCreating(true); }}>+ New product</button>
+        <button ref={newProductRef} type="button" className="sm-btn sm-btn-primary" onClick={() => { setError(null); setCreating(true); }}>+ New product</button>
       </div>
       <table className="sm-table">
         <thead>
@@ -130,6 +132,7 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
           onClose={closeDelete}
           // A5-M1: a pending delete answers in this dialog; Escape, the backdrop and Cancel wait for it.
           busy={busy}
+          returnFocus={newProductRef}
           footer={
             <>
               <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={closeDelete}>Cancel</button>

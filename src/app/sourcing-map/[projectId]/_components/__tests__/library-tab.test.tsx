@@ -158,5 +158,16 @@ describe('LibraryTab', () => {
     settle(reply(409, { error: { code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.' } }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Pegasus Trail is used by 1 run.');
   });
+
+  it('after a successful delete, whose row took its Delete button, focus goes to "+ New product", never <body> (F3, L141)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    const opener = screen.getByRole('button', { name: 'Delete Pegasus Trail' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New product' }));
+  });
 });
 
