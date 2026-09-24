@@ -107,4 +107,12 @@ describe('useExecutionPoll', () => {
     expect(screen.queryByTestId('poll-error')).toBeNull();
     expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
   });
+
+  it('shows a poll that failed without an HTTP status (the network dropped) as a retrying notice, never "(undefined)" (R2)', () => {
+    render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onError!(new TypeError('Failed to fetch'));
+    });
+    expect(screen.getByTestId('poll-error').textContent).toBe('Progress could not be refreshed. Retrying.');
+  });
 });

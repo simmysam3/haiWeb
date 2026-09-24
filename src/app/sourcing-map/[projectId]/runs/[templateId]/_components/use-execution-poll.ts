@@ -17,6 +17,11 @@ interface PollState {
   error: string | null;
 }
 
+/** R2: the HTTP status when there is one (a network drop has none); never the fetcher's message. */
+function pollErrorText(e: unknown): string {
+  return e instanceof FetchError ? `Progress could not be refreshed (${e.status}). Retrying.` : 'Progress could not be refreshed. Retrying.';
+}
+
 function startFrom(initial: SmExecutionDetail | null): PollState {
   return { from: initial, detail: initial, cursor: initial?.execution.probes_done ?? 0, error: null };
 }
@@ -62,8 +67,8 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
           });
         }
       },
-      onError: (e: FetchError) => {
-        setState((st) => ({ ...st, error: `Progress could not be refreshed (${e.status}). Retrying.` }));
+      onError: (e: unknown) => {
+        setState((st) => ({ ...st, error: pollErrorText(e) }));
       },
     },
   );
