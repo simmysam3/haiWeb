@@ -166,6 +166,25 @@ describe('UploadWizard (BOM)', () => {
     expect(await screen.findByText('Upper leather tumbled')).toBeInTheDocument();
   });
 
+  it('reads an .xlsx, lets another sheet be picked, re-maps it, and drops the error the old sheet caused (AC 5, I16)', async () => {
+    fetchMock.mockImplementation(route());
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Spring 2027 costed BOM'], ['Prepared by', 'Costing']]), 'Cover');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Description', 'Usage', 'UOM'], ['Upper leather tumbled', 0.25, 'sq ft']]), 'BOM');
+    const bytes: ArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    renderBom();
+    await userEvent.upload(fileInput(), new File([bytes], 'bom.xlsx'));
+    expect(await screen.findByLabelText('Sheet')).toHaveValue('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Map a column to Component.');
+    fireEvent.change(screen.getByLabelText('Sheet'), { target: { value: '1' } });
+    expect(screen.getByLabelText('Map column Description')).toHaveValue('component');
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Upper leather tumbled')).toBeInTheDocument();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

@@ -129,6 +129,7 @@ export function UploadWizard(props: UploadWizardProps) {
             headerIndex={headerIndex}
             mapping={mapping}
             onSheet={(i) => {
+              setError(null); // another sheet: the old error named the old sheet's columns and rows
               const h = detectHeaderRow(sheets[i]!);
               setSheetIndex(i);
               setHeaderIndex(h);
