@@ -128,10 +128,12 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
           title={`Delete ${deleting.name}`}
           open
           onClose={closeDelete}
+          // A5-M1: a pending delete answers in this dialog; Escape, the backdrop and Cancel wait for it.
+          busy={busy}
           footer={
             <>
-              <button type="button" className="sm-btn sm-btn-ghost" onClick={closeDelete}>Cancel</button>
-              <button type="button" className="sm-btn sm-btn-primary" onClick={() => void remove(deleting)}>Delete</button>
+              <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={closeDelete}>Cancel</button>
+              <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={() => void remove(deleting)}>Delete</SmButton>
             </>
           }
         >

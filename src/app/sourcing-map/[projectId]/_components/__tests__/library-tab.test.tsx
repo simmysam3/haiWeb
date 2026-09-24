@@ -134,5 +134,29 @@ describe('LibraryTab', () => {
     expect(fetchMock.mock.calls[0]![1].method).toBe('DELETE');
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('a pending product delete cannot be dismissed, and its Delete keeps focus: aria-busy, a second press sends nothing (F3, A5-M1, LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    const del = within(dialog).getByRole('button', { name: 'Delete' });
+    del.focus();
+    fireEvent.click(del);
+    expect(del).toHaveAttribute('aria-busy', 'true');
+    expect(del).not.toBeDisabled();
+    expect(del).toHaveFocus();
+    fireEvent.click(del);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).toBeInTheDocument();
+    settle(reply(409, { error: { code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Pegasus Trail is used by 1 run.');
+  });
 });
 
