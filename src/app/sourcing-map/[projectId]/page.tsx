@@ -16,11 +16,15 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
     if (project.status === 404) notFound();
     throw new Error(`project fetch failed: ${project.status}`);
   }
+  // a-G4 (controller ruling, Task 21 findings 2a/2b class): a failed read must not look like an
+  // empty list — pass the failure through so ProjectView shows it, instead of an empty [].
   return (
     <ProjectView
       project={project.data}
       runs={runs.kind === 'ok' ? runs.data.runs : []}
+      runsError={runs.kind === 'error' ? `Runs could not be loaded (${runs.status}). Try again in a moment.` : null}
       products={products.kind === 'ok' ? products.data.products : []}
+      productsError={products.kind === 'error' ? `Products could not be loaded (${products.status}). Try again in a moment.` : null}
     />
   );
 }

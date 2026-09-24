@@ -8,8 +8,9 @@ import { LibraryTab } from './library-tab';
 
 type Tab = 'runs' | 'library';
 
-export function ProjectView({ project, runs, products }: {
-  project: SmProject; runs: SmRunListResponse['runs']; products: SmProduct[];
+export function ProjectView({ project, runs, runsError = null, products, productsError = null }: {
+  project: SmProject; runs: SmRunListResponse['runs']; runsError?: string | null;
+  products: SmProduct[]; productsError?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>('runs');
   return (
@@ -34,7 +35,13 @@ export function ProjectView({ project, runs, products }: {
         </div>
         <div role="tabpanel" className="mt-6">
           {tab === 'runs' ? (
-            <RunsTab projectId={project.project_id} initialRuns={runs} />
+            runsError ? (
+              <p role="alert" className="sm-error text-sm">{runsError}</p>
+            ) : (
+              <RunsTab projectId={project.project_id} initialRuns={runs} />
+            )
+          ) : productsError ? (
+            <p role="alert" className="sm-error text-sm">{productsError}</p>
           ) : (
             <LibraryTab projectId={project.project_id} initialProducts={products} />
           )}
