@@ -286,6 +286,7 @@ export const ClassSupplierSkuSchema = z.object({
   /** 0 = exact class; n = descendant depth */
   class_depth: z.number().int().nonnegative(),
 });
+export type ClassSupplierSku = z.infer<typeof ClassSupplierSkuSchema>;
 export const ClassSuppliersResponseSchema = z.object({
   class_id: z.string(),
   suppliers: z.array(
@@ -383,7 +384,9 @@ export type SourcingMapScope = z.infer<typeof SourcingMapScopeSchema>;
 export const SmExecutionStatusSchema = z.enum(['queued', 'running', 'completed', 'failed', 'cancelled']);
 export type SmExecutionStatus = z.infer<typeof SmExecutionStatusSchema>;
 export const SmFailureReasonSchema = z.enum(['interrupted', 'internal_error']);
+export type SmFailureReason = z.infer<typeof SmFailureReasonSchema>;
 export const SmTriggerSchema = z.enum(['manual', 'scheduled']);
+export type SmTrigger = z.infer<typeof SmTriggerSchema>;
 
 /** spec §8.8 — final statuses */
 export const SmCandidateStatusSchema = z.enum([
@@ -399,8 +402,10 @@ export const SmCandidateLiveStatusSchema = z.enum([
 export type SmCandidateLiveStatus = z.infer<typeof SmCandidateLiveStatusSchema>;
 
 export const SmOptionLimitSchema = z.enum(['own', 'lead_time', 'unknown']);
+export type SmOptionLimit = z.infer<typeof SmOptionLimitSchema>;
 /** D-148 pill form (spec §9.3) */
 export const SmAvailabilityFormSchema = z.enum(['quantity', 'verdict', 'not_probed_trust']);
+export type SmAvailabilityForm = z.infer<typeof SmAvailabilityFormSchema>;
 
 export const SmSlotKeySchema = z.object({
   class_id: z.string(),
@@ -416,6 +421,7 @@ export const SmWeekDemandSchema = z.object({
   cum_qty: z.number().int().nonnegative(),
   cum_qty_by_variant: SmVariantQtySchema.nullable(),
 });
+export type SmWeekDemand = z.infer<typeof SmWeekDemandSchema>;
 
 export const SmCoverageWeekSchema = z.object({
   week: SmIsoDateSchema,
@@ -424,6 +430,7 @@ export const SmCoverageWeekSchema = z.object({
   covered_by_variant: SmVariantQtySchema.nullable(),
   coverage_by_variant: z.record(z.string(), z.number().min(0).max(1)).nullable(),
 });
+export type SmCoverageWeek = z.infer<typeof SmCoverageWeekSchema>;
 
 export const SmCandidateWeekSchema = z.object({
   week: SmIsoDateSchema,
@@ -431,6 +438,7 @@ export const SmCandidateWeekSchema = z.object({
   cum_achievable_by_variant: SmVariantQtySchema.nullable(),
   option_coverage: z.number().min(0).max(1),
 });
+export type SmCandidateWeek = z.infer<typeof SmCandidateWeekSchema>;
 
 export const SmCandidateResultSchema = z.object({
   supplier_participant_id: z.string().uuid(),
@@ -487,6 +495,7 @@ export const SmProductDropResultSchema = z.object({
     .array(z.object({ variant: z.string(), qty: z.number().int().nonnegative(), covered: z.number().int().nonnegative(), coverage: z.number().min(0).max(1) }))
     .nullable(),
 });
+export type SmProductDropResult = z.infer<typeof SmProductDropResultSchema>;
 
 export const SmProductResultSchema = z.object({
   product_id: z.string().uuid(),
@@ -507,6 +516,7 @@ export const SmPortfolioResultSchema = z.object({
   first_short_drop: SmIsoDateSchema.nullable(),
   seat_capacity_applied: z.boolean(),
 });
+export type SmPortfolioResult = z.infer<typeof SmPortfolioResultSchema>;
 
 export const SourcingMapExecutionResultSchema = z.object({
   complete: z.boolean(),
@@ -526,6 +536,7 @@ export const SourcingMapExecutionResultSchema = z.object({
 export type SourcingMapExecutionResult = z.infer<typeof SourcingMapExecutionResultSchema>;
 
 export const SmGapCountsSchema = z.record(SmCandidateStatusSchema, z.number().int().nonnegative());
+export type SmGapCounts = z.infer<typeof SmGapCountsSchema>;
 
 export const SmExecutionSummarySchema = z.object({
   execution_id: z.string().uuid(),
@@ -554,6 +565,7 @@ export const SmExecutionDetailSchema = z.object({
 export type SmExecutionDetail = z.infer<typeof SmExecutionDetailSchema>;
 
 export const SmExecutionListResponseSchema = z.object({ executions: z.array(SmExecutionSummarySchema) });
+export type SmExecutionListResponse = z.infer<typeof SmExecutionListResponseSchema>;
 
 export const SmExecutionStatusResponseSchema = z.object({
   execution_id: z.string().uuid(),
@@ -578,6 +590,7 @@ export const SmRunSummarySchema = z.object({
   cadence: z.unknown(),
   last_execution: SmExecutionSummarySchema.nullable(),
 });
+export type SmRunSummary = z.infer<typeof SmRunSummarySchema>;
 export const SmRunListResponseSchema = z.object({ runs: z.array(SmRunSummarySchema) });
 export type SmRunListResponse = z.infer<typeof SmRunListResponseSchema>;
 
