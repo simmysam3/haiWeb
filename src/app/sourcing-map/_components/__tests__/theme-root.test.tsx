@@ -45,4 +45,16 @@ describe('SmThemeRoot', () => {
     const root = mount();
     expect(root).toHaveAttribute('data-theme', 'light');
   });
+
+  it('the theme toggle survives throwing storage', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    const root = mount();
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'Light theme' }))).not.toThrow();
+    expect(root).toHaveAttribute('data-theme', 'light');
+  });
 });

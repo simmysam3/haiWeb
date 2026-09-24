@@ -4,10 +4,18 @@ import type { SmTheme } from './theme';
 export const SM_THEME_KEY = 'sm.theme';
 
 export function writeStoredTheme(theme: SmTheme): void {
-  window.localStorage.setItem(SM_THEME_KEY, theme);
+  try {
+    window.localStorage.setItem(SM_THEME_KEY, theme);
+  } catch {
+    // Not remembered; the toggle still works for this page view.
+  }
 }
 
 export function readStoredTheme(): SmTheme | null {
-  const v = window.localStorage.getItem(SM_THEME_KEY);
-  return v === 'dark' || v === 'light' ? v : null;
+  try {
+    const v = window.localStorage.getItem(SM_THEME_KEY);
+    return v === 'dark' || v === 'light' ? v : null;
+  } catch {
+    return null;
+  }
 }
