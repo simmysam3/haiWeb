@@ -602,4 +602,20 @@ describe('Workspace', () => {
     expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
   });
+
+  it('a refused Cancel shows its message (M4)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') {
+        return reply(409, { error: { code: 'execution_not_running', message: 'The execution had already finished.' } });
+      }
+      return reply(404, {});
+    });
+    mount(running);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    expect(await screen.findByText('The execution had already finished.')).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeEnabled();
+  });
 });
