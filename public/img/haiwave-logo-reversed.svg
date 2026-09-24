@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2350 568" role="img" aria-label="HAIWAVE">
+  <title>HAIWAVE</title>
+  <!-- Reversed lockup for dark grounds, traced from public/img/haiwave-logo.png (2350x568).
+       Strokes only (no plate). Approved by the owner 2026-09-24 (spec §17 R-2, ruling 2). -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="44">
+    <path stroke="#E8EBF0" d="M176 141V429M388 141V429"/>
+    <path stroke="#F58220" d="M484 429L609 139L758 429M838 141V429"/>
+    <path stroke="#29B0C3" d="M946 139L1028 429L1134 223L1237 429L1340 139"/>
+    <path stroke="#29B0C3" d="M1369 429L1492 139L1616 429M1422 341H1563"/>
+    <path stroke="#29B0C3" d="M1645 141L1774 429L1904 141"/>
+    <path stroke="#29B0C3" d="M2174 141H1998V429H2186M1998 288H2150"/>
+    <path stroke="#29B0C3" d="M94 323C170 250 300 250 420 290S620 330 740 285S880 220 950 250S1010 340 1020 380"/>
+  </g>
+</svg>
