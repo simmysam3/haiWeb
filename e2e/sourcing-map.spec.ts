@@ -19,6 +19,9 @@ async function login(page: Page, email: string, password: string): Promise<void>
   await page.locator('#username, input[name="username"], input[type="email"]').first().fill(email);
   await page.locator('#password, input[type="password"]').first().fill(password);
   await page.locator('#kc-login, button[type="submit"], input[type="submit"]').first().click();
+  // Both the CSG user and a wrong-role viewer land on /sourcing-map (the viewer's page is the 403,
+  // rendered in place by forbidden() — the URL still matches), so the settle-wait belongs here (fix round 1, I-2).
+  await page.waitForURL(/\/sourcing-map(\/|$|\?)/);
 }
 
 test.describe('Sourcing Map walk (CSG)', () => {
@@ -27,7 +30,6 @@ test.describe('Sourcing Map walk (CSG)', () => {
   test('project → upload BOM → map → resolve → run → demand → Run → map with pips → drops → product filter', async ({ page }) => {
     test.setTimeout(10 * 60_000);
     await login(page, EMAIL!, PASSWORD!);
-    await page.waitForURL(/\/sourcing-map(\/|$|\?)/);
     const stamp = new Date().toISOString().slice(0, 16);
 
     await page.getByRole('button', { name: '+ New project' }).click();
@@ -45,6 +47,17 @@ test.describe('Sourcing Map walk (CSG)', () => {
     await page.getByLabel('Half sizes').uncheck();
     await page.getByLabel('Variant preset').selectOption('mens_us_6_15');
     await page.getByRole('button', { name: 'Save product' }).click();
+    // Fix round 1, I-1: `save()` (product-editor.tsx) clears `busy` as soon as the PATCH resolves, before
+    // `setProduct(...)` and `router.refresh()`. The PATCH changes `variant_axis`, and the refresh re-keys
+    // `ProductEditorBody` (products/[productId]/page.tsx: `key={editorKey(detail)}`), remounting it and
+    // resetting `uploading` — closing the wizard mid-flow if it opened first, or opening it with the stale
+    // (pre-save) axis if a click lands before the refresh. No element on this screen (a brand-new product,
+    // no BOM lines yet) renders anything driven by the refreshed `detail` prop rather than by `ProductEditor`'s
+    // own local `product`/`axis` state: the readiness Pill and the Variant preset select both already show the
+    // right value from local state well before the refresh lands, and `BomGrid`'s only axis-dependent markup
+    // (the per-line "Size-bound" checkbox) has no rows to render it against yet. So there is no deterministic,
+    // already-built DOM signal to wait on here — falling back to a network-settle wait instead.
+    await page.waitForLoadState('networkidle');
 
     await page.getByRole('button', { name: 'Upload BOM' }).click();
     await page.getByLabel('Spreadsheet file').setInputFiles(BOM_FILE!);
