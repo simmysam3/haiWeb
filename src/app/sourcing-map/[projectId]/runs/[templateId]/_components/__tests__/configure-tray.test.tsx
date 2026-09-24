@@ -218,6 +218,26 @@ describe('ConfigureTray', () => {
     for (const typed of ['2', '20', '200', '2000']) fireEvent.change(ten, { target: { value: typed } }); // typed key by key
     expect(ten).toHaveValue(2000);
   });
+  it('keeps Apply focusable while its PATCH is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    const onApplied = vi.fn();
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={onApplied} onClose={vi.fn()} />);
+    press('Remove Court Classic');
+    press('Apply');
+    const apply = screen.getByRole('button', { name: 'Apply' });
+    expect(apply).toHaveAttribute('aria-busy', 'true');
+    expect(apply).toHaveAttribute('aria-disabled', 'true');
+    expect(apply).not.toBeDisabled();
+    expect(apply).toHaveFocus();
+    fireEvent.click(apply);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // The other action is not the one pressed: it stays disabled, without aria-busy.
+    expect(screen.getByRole('button', { name: 'Duplicate run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Duplicate run' })).not.toHaveAttribute('aria-busy');
+    settle(reply(200, { template: TWO }));
+    await waitFor(() => expect(onApplied).toHaveBeenCalledTimes(1));
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

@@ -8,6 +8,7 @@ import { addProduct, applyUploadedDemand, moveProduct, removeProduct, replaceDem
 import { smFetch } from '@/lib/sourcing-map/client';
 import { smRunHref } from '@/lib/sourcing-map/routes';
 import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
+import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 import { DemandEditor } from './demand-editor';
 
 /** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
@@ -32,7 +33,9 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   const [tab, setTab] = useState<'demand' | 'settings'>('demand');
   const [adding, setAdding] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // Which request is in flight: its button stays focusable and busy (LW-a); the other one is disabled meanwhile.
+  const [pending, setPending] = useState<'apply' | 'duplicate' | null>(null);
+  const busy = pending !== null;
   const [uploading, setUploading] = useState(false);
   // R1: a DemandEditor seeds its generator inputs from its schedule once, so an upload that replaces a schedule
   // wholesale bumps that product's revision, and the editor's key, to remount it. Edits never bump it (focus stays).
@@ -103,10 +106,10 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   }
 
   async function apply() {
-    setBusy(true);
+    setPending('apply');
     setError(null);
     const out = await smFetch<{ template: SmRunTemplate }>(`/api/account/sourcing-map/runs/${template.template_id}`, { method: 'PATCH', body: { scope, cadence } });
-    setBusy(false);
+    setPending(null);
     if (!out.ok) {
       setError(out.message);
       return;
@@ -115,10 +118,10 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   }
 
   async function duplicate() {
-    setBusy(true);
+    setPending('duplicate');
     setError(null);
     const out = await smFetch<{ template: SmRunTemplate }>(`/api/account/sourcing-map/runs/${template.template_id}/duplicate`, { method: 'POST' });
-    setBusy(false);
+    setPending(null);
     if (!out.ok) {
       setError(out.message);
       return;
@@ -221,7 +224,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={duplicate}>Duplicate run</button>
-        <button type="button" className="sm-btn sm-btn-primary" disabled={!dirty || busy} onClick={apply}>Apply</button>
+        <SmButton className="sm-btn sm-btn-primary" busy={pending === 'apply'} disabled={!dirty || pending === 'duplicate'} onClick={apply}>Apply</SmButton>
         {error && <p role="alert" className="sm-error text-sm">{error}</p>}
       </div>
       {uploading && (
