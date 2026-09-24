@@ -1,6 +1,7 @@
 'use client';
 import type { SmProductResult, SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
-import { formatDropDate, formatPct, formatQty } from '@/lib/sourcing-map/map/selectors';
+import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
+import { formatDropDate, formatPct, formatQty, heatVar } from '@/lib/sourcing-map/map/selectors';
 
 export interface SeatBarProps {
   result: SourcingMapExecutionResult;
@@ -29,8 +30,28 @@ export function ProductStrip({ products, selected, onSelect }: { products: SmPro
   );
 }
 
+/** One segment per drop with its coverage (spec §9.3). Colour is never the only carrier. */
+export function DropStrip({ drops, asOfDrop, onDrop }: { drops: SmPortfolioDrop[]; asOfDrop: string | null; onDrop(drop: string): void }) {
+  return (
+    <div role="group" aria-label="Drops: choose the drop the map shows" className="mt-3 flex flex-wrap gap-1">
+      {drops.map((d) => (
+        <button
+          key={d.due_date}
+          type="button"
+          aria-pressed={d.due_date === asOfDrop}
+          onClick={() => onDrop(d.due_date)}
+          className="sm-btn sm-btn-ghost text-xs"
+          style={{ borderBottom: `3px solid ${heatVar(d.coverage)}` }}
+        >
+          {`${formatDropDate(d.due_date)} ${formatPct(d.coverage)}`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The seat bar (spec §9.3). Cycles 37.2 and 37.3 add the product and drop strips, which take the other props. */
-export function SeatBar({ result, unitLabel, productFilter, onProduct }: SeatBarProps) {
+export function SeatBar({ result, unitLabel, asOfDrop, onDrop, productFilter, onProduct }: SeatBarProps) {
   const drops = result.portfolio.drops;
   const last = drops[drops.length - 1];
   return (
@@ -50,6 +71,7 @@ export function SeatBar({ result, unitLabel, productFilter, onProduct }: SeatBar
         </div>
       </dl>
       <ProductStrip products={result.products} selected={productFilter} onSelect={onProduct} />
+      <DropStrip drops={drops} asOfDrop={asOfDrop} onDrop={onDrop} />
     </div>
   );
 }

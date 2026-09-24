@@ -24,4 +24,15 @@ describe('SeatBar', () => {
     expect(within(strip).getByRole('button', { name: 'Pegasus Trail 95%' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(strip).getByRole('button', { name: 'All products' })).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('shows one segment per drop with its coverage in text and sets the as-of drop on click', () => {
+    const onDrop = vi.fn();
+    render(<SeatBar result={vomeroResult} unitLabel="pairs" asOfDrop="2027-03-15" onDrop={onDrop} productFilter={null} onProduct={vi.fn()} />);
+    const strip = screen.getByRole('group', { name: 'Drops: choose the drop the map shows' });
+    const buttons = within(strip).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual(['Jan 15 100%', 'Feb 15 100%', 'Mar 15 67%', 'Apr 15 83%', 'May 15 88%', 'Jun 15 90%']);
+    expect(within(strip).getByRole('button', { name: 'Mar 15 67%' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(strip).getByRole('button', { name: 'Apr 15 83%' }));
+    expect(onDrop).toHaveBeenCalledWith('2027-04-15');
+  });
 });
