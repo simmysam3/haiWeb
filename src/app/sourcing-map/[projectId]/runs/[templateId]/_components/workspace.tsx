@@ -244,7 +244,8 @@ export function Workspace({
             </div>
           )}
         </div>
-        {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+        {/* P2: while the tray is open it holds the side column; a card picked meanwhile shows once the tray closes. */}
+        {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
             // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
             key={`${selected.slot}:${selected.candidate}`}

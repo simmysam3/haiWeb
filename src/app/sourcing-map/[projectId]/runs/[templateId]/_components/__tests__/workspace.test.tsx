@@ -518,4 +518,14 @@ describe('Workspace', () => {
     expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
     expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
   });
+
+  it('a card picked while Configure is open waits for the tray to close, then shows its details, which take focus (P2)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Close' }));
+    // The deliberate exception to R2c's "focus returns to Configure": the user asked for these details.
+    expect(screen.getByRole('heading', { name: 'León Cuero · MX' })).toHaveFocus();
+  });
 });
