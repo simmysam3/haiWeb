@@ -41,4 +41,19 @@ describe('smFetch', () => {
     expect(e).toMatchObject({ ok: false, status: 0, message: 'The request did not reach the server. Check your connection and try again.' });
     expect(f).toEqual({ ok: true, status: 204, data: null });
   });
+
+  it('returns a failure, never throws, when the body read drops after the headers arrive', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.reject(new TypeError('network')),
+    } as Response));
+    const out = await smFetch('/g');
+    expect(out).toEqual({
+      ok: false,
+      status: 200,
+      message: 'The request did not reach the server. Check your connection and try again.',
+      body: null,
+    });
+  });
 });

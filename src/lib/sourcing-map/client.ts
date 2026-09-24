@@ -5,6 +5,9 @@ export type SmResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; message: string; body: unknown };
 
+const NETWORK_FAILURE_MESSAGE =
+  'The request did not reach the server. Check your connection and try again.';
+
 /**
  * Client-side call to a Sourcing Map BFF route. The body is always a JSON
  * string: uploaded files never leave the browser (spec §5.2, §7.3), only
@@ -21,10 +24,15 @@ export async function smFetch<T>(path: string, init: { method?: SmMethod; body?:
       credentials: 'include',
     });
   } catch {
-    return { ok: false, status: 0, message: 'The request did not reach the server. Check your connection and try again.', body: null };
+    return { ok: false, status: 0, message: NETWORK_FAILURE_MESSAGE, body: null };
   }
   if (res.status === 204) return { ok: true, status: 204, data: null as T };
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    return { ok: false, status: res.status, message: NETWORK_FAILURE_MESSAGE, body: null };
+  }
   let body: unknown = null;
   try {
     body = text ? JSON.parse(text) : null;
