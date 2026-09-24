@@ -8,6 +8,7 @@ import { Pill } from '@/components/pill';
 /**
  * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP2 and SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
+ * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
 export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose }: {
   slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
@@ -21,7 +22,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
     headingRef.current?.focus();
   }, []);
   return (
-    <aside aria-label={`Details for ${c.supplier_name}`} className="sm-surface fixed right-0 top-0 z-30 h-full w-full max-w-xl overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
+    <aside aria-label={`Details for ${c.supplier_name}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>

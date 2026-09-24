@@ -188,64 +188,70 @@ export function Workspace({
           </>
         }
       />
-      {projectError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{projectError}</p>}
-      {productsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{productsError}</p>}
-      {executionsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{executionsError}</p>}
-      {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
-      {pollError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{pollError}</p>}
-      {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
-      {!(detail === null && (executionsError !== null || detailError !== null)) && (
-        <ExecutionBanner
-          execution={detail?.execution ?? null}
-          onCancel={detail && running ? () => void cancel(detail.execution.execution_id) : undefined}
-          cancelling={cancelling}
-        />
-      )}
-      {result && (
-        <SeatBar
-          result={result}
-          unitLabel={units.length === 1 ? units[0]! : 'units'}
-          asOfDrop={asOfDrop}
-          onDrop={setDrop}
-          productFilter={productFilter}
-          onProduct={setProductFilter}
-        />
-      )}
-      {result && (
-        <div ref={mapRef} className="contents">
-          <MapCanvas
-            result={result}
-            asOfDrop={asOfDrop}
-            productFilter={productFilter}
-            productNames={productNames}
-            seat={{
-              name: result.seat.legal_name,
-              country: result.seat.country,
-              classLabel: result.seat.class_label,
-              productCount: template.scope.products.length,
-              slotCount: result.slots.length,
-              assemblyDays: days.length === 0 ? '—' : days.length === 1 ? String(days[0]) : `${days[0]}–${days[days.length - 1]}`,
-              capacity: template.scope.seat_weekly_capacity,
-            }}
-            selected={selected}
-            onSelect={setSelected}
-            collapsed={collapsed}
-            onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
-          />
+      {/* P2: the side panels sit in the page flow as a column beside the page body, below the header, so they never
+          cover the header's controls (a fixed overlay did). The header is flex-wrap, so no height is assumed. */}
+      <div className="flex items-start">
+        <div className="min-w-0 flex-1">
+          {projectError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{projectError}</p>}
+          {productsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{productsError}</p>}
+          {executionsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{executionsError}</p>}
+          {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
+          {pollError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{pollError}</p>}
+          {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
+          {!(detail === null && (executionsError !== null || detailError !== null)) && (
+            <ExecutionBanner
+              execution={detail?.execution ?? null}
+              onCancel={detail && running ? () => void cancel(detail.execution.execution_id) : undefined}
+              cancelling={cancelling}
+            />
+          )}
+          {result && (
+            <SeatBar
+              result={result}
+              unitLabel={units.length === 1 ? units[0]! : 'units'}
+              asOfDrop={asOfDrop}
+              onDrop={setDrop}
+              productFilter={productFilter}
+              onProduct={setProductFilter}
+            />
+          )}
+          {result && (
+            <div ref={mapRef} className="contents">
+              <MapCanvas
+                result={result}
+                asOfDrop={asOfDrop}
+                productFilter={productFilter}
+                productNames={productNames}
+                seat={{
+                  name: result.seat.legal_name,
+                  country: result.seat.country,
+                  classLabel: result.seat.class_label,
+                  productCount: template.scope.products.length,
+                  slotCount: result.slots.length,
+                  assemblyDays: days.length === 0 ? '—' : days.length === 1 ? String(days[0]) : `${days[0]}–${days[days.length - 1]}`,
+                  capacity: template.scope.seat_weekly_capacity,
+                }}
+                selected={selected}
+                onSelect={setSelected}
+                collapsed={collapsed}
+                onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+              />
+            </div>
+          )}
         </div>
-      )}
-      {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
-        <DetailsPanel
-          // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
-          key={`${selected.slot}:${selected.candidate}`}
-          slot={result.slots[selected.slot]!}
-          candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
-          drops={result.portfolio.drops}
-          asOfDrop={asOfDrop}
-          productNames={productNames}
-          onClose={closeDetails}
-        />
-      )}
+        {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+          <DetailsPanel
+            // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
+            key={`${selected.slot}:${selected.candidate}`}
+            slot={result.slots[selected.slot]!}
+            candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
+            drops={result.portfolio.drops}
+            asOfDrop={asOfDrop}
+            productNames={productNames}
+            onClose={closeDetails}
+          />
+        )}
+      </div>
       {trayOpen && (
         <ConfigureTray
           template={template}

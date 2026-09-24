@@ -94,6 +94,19 @@ function applyDepthCap4() {
 const DEPTH_4 = { ...vomeroRunTemplate, scope: { ...vomeroRunTemplate.scope, depth_cap: 4 } };
 const NOT_READY = { ...vomeroEstimate, readiness: { ready: false, first_failing_rule: 'no_lines', detail: null } };
 
+/**
+ * P2: a side panel sits in the page flow below the header, beside the map; never an overlay (fixed or absolute)
+ * that covers the header's controls. What jsdom can see: its classes, and its place in the document.
+ */
+function expectBesideTheMapBelowTheHeader(aside: HTMLElement) {
+  const header = document.querySelector('header')!;
+  expect(aside).not.toHaveClass('fixed');
+  expect(aside).not.toHaveClass('absolute');
+  expect(header.contains(aside)).toBe(false);
+  expect(header.compareDocumentPosition(aside) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(aside.parentElement).toContainElement(screen.getByRole('region', { name: 'Sourcing map' }));
+}
+
 function pick(id: string) {
   fireEvent.change(screen.getByLabelText('Result'), { target: { value: id } });
 }
@@ -483,5 +496,11 @@ describe('Workspace', () => {
     expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
     await settle(() => slowDetail.resolve(reply(200, fresh)));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Probing: 3 of 7 probes answered'));
+  });
+
+  it('the details panel sits in the page flow below the header, beside the map, never over the header’s controls (P2)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expectBesideTheMapBelowTheHeader(screen.getByRole('complementary', { name: 'Details for León Cuero' }));
   });
 });
