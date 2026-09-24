@@ -92,4 +92,19 @@ describe('BomGrid', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Line 1: Supplier shares total 120%; they may total at most 100%.');
     expect(putBody()).toBeNull();
   });
+
+  it('a refused save clears an earlier failed save’s message, so only the current problems show (a-G4)', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/bom-lines') ? reply(400, { error: { code: 'VALIDATION_ERROR', message: 'The BOM could not be saved.' } }) : reply(404, {}),
+    );
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The BOM could not be saved.');
+    fireEvent.change(screen.getByLabelText('Component for line 2'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('Line 2: Component is required.');
+    expect(screen.queryByText('The BOM could not be saved.')).toBeNull();
+  });
 });

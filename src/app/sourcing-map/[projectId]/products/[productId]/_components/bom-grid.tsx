@@ -43,11 +43,12 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
   }
 
   async function save() {
+    // a-G4: a refused save must not leave an earlier save's failure showing beside the current problems.
+    setError(null);
     const found = lines.flatMap((l, i) => lineProblems(l, axis).map((p) => `Line ${i + 1}: ${p}`));
     setProblems(found);
     if (found.length > 0) return;
     setBusy(true);
-    setError(null);
     const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${productId}/bom-lines`, { method: 'PUT', body: { lines: toInput(lines) } });
     setBusy(false);
     if (!out.ok) {
