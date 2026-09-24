@@ -187,3 +187,55 @@ export async function parseWorkbook(
       'No sheet has both a company column and a SKU column. Looked for headers like Company Name / Supplier / Vendor and Product ID / SKU / Part Number.',
   };
 }
+
+// ---------------------------------------------------------------------------
+// Sourcing Map upload wizard (spec §7.3). The wizard maps columns itself, so it
+// needs every sheet's rows as displayed text, not company/SKU pairs. The
+// ceilings, refusal sentences and SheetJS reading above are reused; parseWorkbook's
+// behaviour is unchanged.
+
+export interface SheetGrid {
+  name: string;
+  /** Non-blank rows; `row` is the 1-based sheet row the user sees. */
+  rows: Array<{ row: number; cells: string[] }>;
+}
+
+export type SheetsOutcome =
+  | { ok: true; sheets: SheetGrid[]; decimalComma: boolean }
+  | { ok: false; reason: ParseRefusal; detail: string };
+
+export async function readWorkbookSheets(
+  bytes: ArrayBuffer,
+  opts: { fileName: string; maxBytes?: number; maxRows?: number },
+): Promise<SheetsOutcome> {
+  const maxBytes = opts.maxBytes ?? MAX_IMPORT_BYTES;
+  const maxRows = opts.maxRows ?? MAX_IMPORT_ROWS;
+  if (bytes.byteLength > maxBytes) {
+    return { ok: false, reason: 'too_large', detail: tooLargeDetail(opts.fileName, bytes.byteLength, maxBytes) };
+  }
+  const XLSX = await import('xlsx');
+  let wb: import('xlsx').WorkBook;
+  try {
+    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
+  } catch {
+    return { ok: false, reason: 'unreadable', detail: unreadableDetail(opts.fileName) };
+  }
+  const sheets: SheetGrid[] = [];
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const start = XLSX.utils.decode_range(ws['!ref'] ?? 'A1').s.r;
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true });
+    const rows = grid
+      .map((cells, i) => ({ row: start + i + 1, cells: cells.map(cellText) }))
+      .filter((r) => r.cells.some((c) => c.trim() !== ''));
+    sheets.push({ name, rows });
+  }
+  return { ok: true, sheets, decimalComma: false };
+}
+
+/** Index into `sheet.rows` of the header: the first row with at least two filled cells (the rule at :130); 0 when none. */
+export function detectHeaderRow(sheet: SheetGrid): number {
+  const i = sheet.rows.findIndex((r) => r.cells.filter((c) => c.trim() !== '').length >= 2);
+  return i < 0 ? 0 : i;
+}
