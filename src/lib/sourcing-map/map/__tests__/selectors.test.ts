@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText } from '../selectors';
-import { vomeroResult } from '../../__fixtures__/vomero';
+import { heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
+import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
 
 describe('map selectors', () => {
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
@@ -42,5 +42,22 @@ describe('map selectors', () => {
   it('formats an "as of" instant in UTC on a 24-hour clock, the one format the workspace shares (controller ruling R3)', () => {
     expect(formatAsOfUtc('2026-09-23T10:42:00.000Z')).toBe('Sep 23, 10:42 UTC');
     expect(formatAsOfUtc('2026-09-24T00:05:00.000Z')).toBe('Sep 24, 00:05 UTC');
+  });
+
+  it('applies a status delta only to candidates that exist: an out-of-range slot or candidate index is ignored, never a hole (M2)', () => {
+    const running = runningDetail().result!;
+    const answered = vomeroResult.slots[0]!.candidates[1]!;
+    const count = running.slots[0]!.candidates.length;
+    const out = applyStatusDelta(running, {
+      execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'running', failure_reason: null, probes_planned: 7, probes_done: 4, cursor: 4,
+      changed: [
+        { slot_index: 0, candidate_index: 1, candidate: answered },
+        { slot_index: 0, candidate_index: count, candidate: answered },
+        { slot_index: running.slots.length, candidate_index: 0, candidate: answered },
+      ],
+    });
+    expect(out.slots[0]!.candidates[1]).toBe(answered);
+    expect(out.slots[0]!.candidates).toHaveLength(count);
+    expect(out.slots).toHaveLength(running.slots.length);
   });
 });

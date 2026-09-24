@@ -181,7 +181,7 @@ export function applyStatusDelta(result: SourcingMapExecutionResult, status: SmE
   const slots = [...result.slots];
   for (const ch of status.changed) {
     const slot = slots[ch.slot_index];
-    if (!slot) continue;
+    if (!slot || !slot.candidates[ch.candidate_index]) continue;
     const candidates = [...slot.candidates];
     candidates[ch.candidate_index] = ch.candidate;
     slots[ch.slot_index] = { ...slot, candidates };
