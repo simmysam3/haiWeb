@@ -94,10 +94,14 @@ export function ResolveStep({ lines, onBack, onContinue }: {
     const supplierId = m.match.participant_id;
     return catalog[p.class_id]?.find((s) => s.participant_id === supplierId)?.skus.map((s) => s.supplier_sku) ?? [];
   }
+  /** A SKU choice belongs to the class whose select offered it, so a re-picked class starts with none (AC 7). */
+  function skuKey(l: UploadedBomLine): string {
+    return `${l.key}|${picked[l.key]?.class_id ?? ''}`;
+  }
   function skuFor(l: UploadedBomLine): string | null {
     if (l.supplier_sku) return l.supplier_sku;
     const options = skuOptions(l);
-    return chosenSku[l.key] ?? (options.length === 1 ? options[0]! : null);
+    return chosenSku[skuKey(l)] ?? (options.length === 1 ? options[0]! : null);
   }
   function acceptConfident() {
     setPicked((cur) => {
@@ -167,7 +171,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
                       <span>{l.supplier_name}</span>{' '}
                       {m && <Pill themed category="sm_match" value={m.match?.confidence ?? m.note ?? 'not_on_network'} />}
                       {options.length > 1 && !l.supplier_sku && (
-                        <select aria-label={`SKU for row ${l.rows[0]}`} className="sm-input ml-2 text-xs" value={chosenSku[l.key] ?? ''} onChange={(e) => setChosenSku((c) => ({ ...c, [l.key]: e.target.value }))}>
+                        <select aria-label={`SKU for row ${l.rows[0]}`} className="sm-input ml-2 text-xs" value={chosenSku[skuKey(l)] ?? ''} onChange={(e) => setChosenSku((c) => ({ ...c, [skuKey(l)]: e.target.value }))}>
                           <option value="">Pick a SKU…</option>
                           {options.map((o) => <option key={o} value={o}>{o}</option>)}
                         </select>

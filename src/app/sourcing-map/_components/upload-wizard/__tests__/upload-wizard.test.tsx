@@ -517,6 +517,47 @@ describe('UploadWizard (BOM)', () => {
     });
   });
 
+  it("forgets a SKU choice when the line's class is re-picked, so the new class's own SKU is pinned (AC 7)", async () => {
+    const answer = route();
+    const TEXTILE = { class_id: 'cpt_textile_linings', label: 'Textile linings', class_path: ['Materials', 'Textile linings'] };
+    const catalogOf = (classId: string, codes: string[]) => ({
+      class_id: classId,
+      suppliers: [{
+        participant_id: VOMERO_IDS.leon, legal_name: 'León Cuero', country: 'MX',
+        skus: codes.map((supplier_sku) => ({ supplier_sku, class_id: classId, class_depth: 0 })),
+      }],
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/classes?q=')) return reply(200, { classes: [TEXTILE] });
+      if (url.includes(`/class-suppliers?class_id=${LEATHER.class_id}`)) return reply(200, catalogOf(LEATHER.class_id, ['LC-BOV-UP-01', 'LC-BOV-UP-02']));
+      if (url.includes(`/class-suppliers?class_id=${TEXTILE.class_id}`)) return reply(200, catalogOf(TEXTILE.class_id, ['LC-TX-LN-07']));
+      return answer(url, init);
+    });
+    const { onCommitted } = renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,Vendor', 'Upper leather tumbled,0.25,Leon Cuero SA']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByText('Exact');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
+    // the leather class holds two of this supplier's SKUs: choose the second
+    fireEvent.change(await screen.findByRole('combobox', { name: 'SKU for row 2' }), { target: { value: 'LC-BOV-UP-02' } });
+    expect(screen.getByRole('combobox', { name: 'SKU for row 2' })).toHaveValue('LC-BOV-UP-02');
+    // re-pick the class by search: the textile class holds one SKU of this supplier, so no select is offered
+    const row = screen.getByRole('row', { name: /Upper leather tumbled/ });
+    fireEvent.change(within(row).getByRole('textbox', { name: /^Class search for/ }), { target: { value: 'lining' } });
+    fireEvent.click(within(row).getByRole('button', { name: /^Find class for/ }));
+    fireEvent.click(await within(row).findByRole('button', { name: /Textile linings/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to review' })).toBeEnabled());
+    expect(screen.queryByRole('combobox', { name: 'SKU for row 2' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save 1 line' }));
+    await waitFor(() => expect(onCommitted).toHaveBeenCalled());
+    const put = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/bom-lines'))!;
+    const [line] = JSON.parse(put[1].body).lines;
+    expect(line.class_id).toBe(TEXTILE.class_id);
+    expect(line.pins).toEqual([{ supplier_participant_id: VOMERO_IDS.leon, supplier_sku: 'LC-TX-LN-07', share_pct: 100 }]);
+    expect(line.note).toBeNull();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {
