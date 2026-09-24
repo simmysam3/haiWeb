@@ -141,6 +141,16 @@ describe('UploadWizard (BOM)', () => {
     expect(document.activeElement).toBe(within(dialog).getByRole('group', { name: 'Resolve' }));
   });
 
+  it('goes Back from a refused mapping to a File step without the stale error', async () => {
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Notes,Remark', 'see memo,none']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Map a column to Component.');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByLabelText('Spreadsheet file')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

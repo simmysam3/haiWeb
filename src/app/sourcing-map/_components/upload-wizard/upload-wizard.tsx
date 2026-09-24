@@ -139,7 +139,10 @@ export function UploadWizard(props: UploadWizardProps) {
               mapFor(sheets, sheetIndex, h);
             }}
             onMapping={setMapping}
-            onBack={() => setStep('file')}
+            onBack={() => {
+              setError(null); // the error answered this step's Continue; the File step never shows it
+              setStep('file');
+            }}
             onContinue={onContinueMap}
             error={error}
           />
