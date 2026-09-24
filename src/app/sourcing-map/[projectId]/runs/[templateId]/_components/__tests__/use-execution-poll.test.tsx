@@ -27,6 +27,12 @@ function Probe({ initial }: { initial: SmExecutionDetail | null }) {
   );
 }
 
+/** Another execution, loaded while the first one's answers are still in flight (R3). */
+const otherFailed: SmExecutionDetail = {
+  ...vomeroDetail,
+  execution: { ...vomeroDetail.execution, execution_id: VOMERO_IDS.executionOld, status: 'failed', failure_reason: 'interrupted' },
+};
+
 const fetchMock = vi.fn();
 beforeEach(() => {
   swrCalls.length = 0;
@@ -135,5 +141,22 @@ describe('useExecutionPoll', () => {
     rerender(<Probe initial={{ ...vomeroDetail, execution: { ...vomeroDetail.execution, execution_id: VOMERO_IDS.executionOld } }} />);
     expect(screen.getByTestId('probe')).toHaveTextContent('completed:answered');
     expect(screen.queryByTestId('poll-error')).toBeNull();
+  });
+
+  it('keeps a newly loaded execution when the old one’s full detail arrives late (R3)', async () => {
+    let answer!: (r: unknown) => void;
+    fetchMock.mockReturnValue(new Promise((r) => { answer = r; }));
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] });
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    rerender(<Probe initial={otherFailed} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
+    await act(async () => {
+      answer({ ok: true, status: 200, text: async () => JSON.stringify(vomeroDetail) });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
   });
 });

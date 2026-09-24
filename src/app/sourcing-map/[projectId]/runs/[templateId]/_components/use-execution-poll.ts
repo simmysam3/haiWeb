@@ -40,6 +40,9 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
   // R1: adjust state during render when `initial` changes (no setState in an effect).
   if (state.from !== initial) setState(startFrom(initial));
   const { detail, cursor } = state;
+  /** R3: an answer applies only while its execution is still the current one. */
+  const forExecution = (executionId: string, change: (st: PollState) => PollState) =>
+    setState((st) => (st.detail?.execution.execution_id === executionId ? change(st) : st));
   const live = detail !== null && LIVE.has(detail.execution.status);
   useSWR<SmExecutionStatusResponse>(
     live ? `/api/account/sourcing-map/executions/${detail!.execution.execution_id}/status?cursor=${cursor}` : null,
@@ -63,7 +66,7 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
         );
         if (!LIVE.has(s.status)) {
           void smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${s.execution_id}`).then((out) => {
-            setState((st) => (out.ok ? { ...st, detail: out.data } : { ...st, error: out.message }));
+            forExecution(s.execution_id, (st) => (out.ok ? { ...st, detail: out.data } : { ...st, error: out.message }));
           });
         }
       },
