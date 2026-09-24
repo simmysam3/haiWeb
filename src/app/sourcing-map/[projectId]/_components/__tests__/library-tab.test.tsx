@@ -40,4 +40,17 @@ describe('LibraryTab', () => {
       `/sourcing-map/${VOMERO_IDS.project}/products/${VOMERO_IDS.metcon}`,
     );
   });
+
+  it('creates a workbench product and opens its editor', async () => {
+    fetchMock.mockResolvedValue(reply(201, { ...vomeroProducts[0], product_id: VOMERO_IDS.court }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    fireEvent.change(screen.getByLabelText('Assembly days'), { target: { value: '21' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/sourcing-map/${VOMERO_IDS.project}/products/${VOMERO_IDS.court}`));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({
+      name: 'Court Classic', unit_label: 'pairs', bom_source: 'workbench', agent_root_sku: null, variant_axis: null, assembly_days: 21,
+    });
+  });
 });
