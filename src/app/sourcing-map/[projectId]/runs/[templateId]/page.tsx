@@ -21,9 +21,11 @@ export default async function RunWorkspacePage({ params }: { params: Promise<{ p
   const list = executions.kind === 'ok' ? executions.data.executions : [];
   const newest = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
   const detail = newest ? await fetchBffJson<SmExecutionDetail>(`/api/account/sourcing-map/executions/${newest.execution_id}`) : null;
+  // R1 (the [projectId]/page.tsx precedent): a failed read is shown, never a silent fallback.
   return (
     <Workspace
       projectName={project.kind === 'ok' ? project.data.name : 'Project'}
+      projectError={project.kind === 'error' ? `The project could not be loaded (${project.status}). Try again in a moment.` : null}
       template={run.data.template}
       library={products.kind === 'ok' ? products.data.products : []}
       executions={list}

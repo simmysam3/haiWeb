@@ -61,6 +61,19 @@ describe('run workspace page', () => {
     expect(fetchBffJson).not.toHaveBeenCalled();
   });
 
+  it('shows an alert when the project read fails, never a silent fallback name (R1)', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+      .mockResolvedValueOnce({ kind: 'error', status: 500, message: '' })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) }));
+    // By text, then role: the fixture's answers turn stale after 2026-09-30 and add an alert of their own.
+    expect(screen.getByText('The project could not be loaded (500). Try again in a moment.')).toHaveAttribute('role', 'alert');
+  });
+
   it('is a 404, before any fetch, when the project segment is not an id (R6)', async () => {
     queueGoodLoad();
     const { default: Page } = await import('../page');

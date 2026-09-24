@@ -21,10 +21,14 @@ export interface WorkspaceProps {
   library: SmProduct[];
   executions: SmExecutionSummary[];
   initialDetail: SmExecutionDetail | null;
+  /** R1: a page read that failed, shown as an alert (never a silent fallback) */
+  projectError?: string | null;
 }
 
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
-export function Workspace({ projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail }: WorkspaceProps) {
+export function Workspace({
+  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null,
+}: WorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -70,6 +74,7 @@ export function Workspace({ projectName, template: initialTemplate, library, exe
           </>
         }
       />
+      {projectError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{projectError}</p>}
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
       <ExecutionBanner execution={detail?.execution ?? null} />
       {result && (
