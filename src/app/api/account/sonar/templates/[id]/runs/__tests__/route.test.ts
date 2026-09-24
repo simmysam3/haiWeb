@@ -92,6 +92,17 @@ describe('GET /api/account/sonar/templates/[id]/runs', () => {
     expect(globalThis.__mockClient.listWatcherRuns).not.toHaveBeenCalled();
   });
 
+  it('sourcing_map template: returns no runs and calls no run list (R-10 census I2)', async () => {
+    globalThis.__mockClient.getRunTemplate.mockResolvedValue({
+      template: { template_id: 'tS', observation_class: 'sourcing_map', enabled: true },
+    });
+    const res = await GET(makeReq('tS'), { params: Promise.resolve({ id: 'tS' }) });
+    expect(await res.json()).toEqual({ runs: [] });
+    expect(globalThis.__mockClient.listAuditRuns).not.toHaveBeenCalled();
+    expect(globalThis.__mockClient.listWatcherRuns).not.toHaveBeenCalled();
+    expect(globalThis.__mockClient.listPhantomDemandRuns).not.toHaveBeenCalled();
+  });
+
   it('returns slice limited to 25 most-recent runs', async () => {
     globalThis.__mockClient.getRunTemplate.mockResolvedValue({
       template: { template_id: 'tA', observation_class: 'audit', enabled: true },
