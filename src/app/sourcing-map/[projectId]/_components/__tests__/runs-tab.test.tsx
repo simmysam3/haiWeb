@@ -90,6 +90,16 @@ describe('RunsTab', () => {
     expect(screen.getByRole('row', { name: /Line A base/ })).toBeInTheDocument();
   });
 
+  it('clears a resolved delete failure when the dialog is cancelled (controller ruling, Task 21 findings 2a/2b)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(409, { error: { code: 'execution_in_progress', message: 'Execution of Line A base is running.' } }));
+    render(<RunsTab projectId={VOMERO_IDS.project} initialRuns={vomeroRunList.runs} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Line A base' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Execution of Line A base is running.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('keeps a fresh disposition per run: an earlier choice does not carry over (controller ruling, Task 21 finding 1)', () => {
     const second = { ...vomeroRunList.runs[0]!, template_id: VOMERO_IDS.executionOld, template_name: 'Line B base' };
     render(<RunsTab projectId={VOMERO_IDS.project} initialRuns={[vomeroRunList.runs[0]!, second]} />);

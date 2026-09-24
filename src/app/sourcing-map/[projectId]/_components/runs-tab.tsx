@@ -96,7 +96,7 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
           key={deleting.template_id}
           open
           title={`Delete ${deleting.template_name}`}
-          onCancel={() => setDeleting(null)}
+          onCancel={() => { setDeleting(null); setError(null); }}
           onConfirm={(d) => void remove(deleting, d)}
           busy={busy}
           error={error}
