@@ -13,4 +13,12 @@ describe('AgentBomView', () => {
     expect(screen.getByRole('row', { name: /Flat lace 137 cm/ })).toHaveTextContent('Unclassified');
     expect(screen.queryByRole('textbox')).toBeNull();
   });
+
+  it('shows the unreachable state when the live read returned nothing (a-G9), never an empty BOM', () => {
+    render(<AgentBomView detail={{ ...vomeroAgentDetail, lines: [], lines_fetched_at: null }} />);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      "Your agent did not answer, so its BOM can't be shown. Runs still read it fresh; while the agent is down the product is marked 'BOM unavailable from agent'.",
+    );
+    expect(screen.queryByRole('table')).toBeNull();
+  });
 });

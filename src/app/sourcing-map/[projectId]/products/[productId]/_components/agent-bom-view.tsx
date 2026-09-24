@@ -33,7 +33,13 @@ export function AgentBomView({ detail }: { detail: SmProductDetail }) {
       <h2 className="sm-heading text-lg font-semibold">Bill of materials</h2>
       <p className="mt-1 text-sm">Linked to your agent · {detail.agent_root_sku}</p>
       <p className="sm-muted text-sm">Read fresh at each run</p>
-      <AgentLines detail={detail} />
+      {detail.lines.length === 0 && detail.lines_fetched_at === null ? (
+        <p role="status" className="sm-warn mt-4 text-sm">
+          Your agent did not answer, so its BOM can&apos;t be shown. Runs still read it fresh; while the agent is down the product is marked &apos;BOM unavailable from agent&apos;.
+        </p>
+      ) : (
+        <AgentLines detail={detail} />
+      )}
     </div>
   );
 }
