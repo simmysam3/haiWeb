@@ -581,6 +581,20 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled();
   });
 
+  it('sends no lookup when every data row has an error, and Review lists those rows and keeps Save disabled (contract §3.4)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,Vendor', 'Upper leather tumbled,two,Leon Cuero SA', 'Lining,three,Leon Cuero SA']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Row 2: 'two' is not a quantity per unit.");
+    expect(alert).toHaveTextContent("Row 3: 'three' is not a quantity per unit.");
+    expect(screen.getByRole('button', { name: 'Save 0 lines' })).toBeDisabled();
+    // class suggestions take at least one line (contract §3.4) and no line names a supplier: no request is made at all
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {

@@ -43,6 +43,9 @@ export function ResolveStep({ lines, onBack, onContinue }: {
     let live = true;
     void (async () => {
       const labels = [...new Set(lines.map((l) => l.component_label))];
+      // Every data row had an error: nothing to look up, and suggestions take at least one line (contract §3.4).
+      // With no lines no supplier is named either, so Review is reached with the row errors and no request.
+      if (labels.length === 0) return;
       const sug = await smFetch<ClassSuggestionsResponse>('/api/account/sourcing-map/class-suggestions', {
         method: 'POST',
         body: { lines: labels.map((label) => ({ label })) },
