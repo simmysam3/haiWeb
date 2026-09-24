@@ -8,7 +8,7 @@ import { smFetch } from '@/lib/sourcing-map/client';
 import { DemandEditor } from './demand-editor';
 
 /** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
-type FocusTarget = { productId: string; control: 'up' | 'down' | 'remove' } | { productId: null; control: 'add-select' };
+type FocusTarget = { productId: string; control: 'heading' | 'up' | 'down' | 'remove' } | { productId: null; control: 'add-select' };
 
 function nextFirstDue(scope: SourcingMapScope): string {
   const latest = scope.products.flatMap((p) => p.demand.drops.map((d) => d.due_date)).sort().at(-1);
@@ -57,6 +57,16 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     control?.focus();
   });
 
+  function add() {
+    const p = byId.get(adding);
+    if (p) {
+      // Add is disabled again once the picker resets, so the new product's heading takes focus.
+      focusAfterRender.current = { productId: p.product_id, control: 'heading' };
+      setScope((s) => addProduct(s, p, nextFirstDue(s)));
+    }
+    setAdding('');
+  }
+
   function move(productId: string, dir: -1 | 1) {
     focusAfterRender.current = { productId, control: dir === -1 ? 'up' : 'down' };
     setScope((s) => moveProduct(s, productId, dir));
@@ -102,11 +112,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               type="button"
               className="sm-btn sm-btn-ghost"
               disabled={!adding || scope.products.length >= SM_LIMITS.PRODUCTS_PER_RUN}
-              onClick={() => {
-                const p = byId.get(adding);
-                if (p) setScope((s) => addProduct(s, p, nextFirstDue(s)));
-                setAdding('');
-              }}
+              onClick={add}
             >
               Add
             </button>
@@ -117,7 +123,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
             return (
               <section key={rp.product_id} data-product-id={rp.product_id} className="sm-card mt-4 p-4">
                 <div className="flex items-center gap-2">
-                  <h3 className="sm-heading mr-auto font-semibold">{name}</h3>
+                  <h3 tabIndex={-1} data-control="heading" className="sm-heading mr-auto font-semibold outline-none">{name}</h3>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} up`} data-control="up" disabled={i === 0} onClick={() => move(rp.product_id, -1)}>Up</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} data-control="down" disabled={i === scope.products.length - 1} onClick={() => move(rp.product_id, 1)}>Down</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} data-control="remove" onClick={() => remove(rp.product_id)}>Remove</button>

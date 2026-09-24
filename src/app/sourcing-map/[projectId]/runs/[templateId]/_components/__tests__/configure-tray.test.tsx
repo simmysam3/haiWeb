@@ -80,6 +80,14 @@ describe('ConfigureTray', () => {
     expect(screen.getByRole('button', { name: 'Move Metcon Iron down' })).toHaveFocus();
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Metcon Iron', 'Court Classic', 'Pegasus Trail']);
   });
+
+  it('after Add, focus lands on the new product’s heading, since Add is disabled again (R3)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Add a product'), { target: { value: VOMERO_IDS.metcon } });
+    press('Add');
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
+    expect(screen.getByRole('heading', { level: 3, name: 'Metcon Iron' })).toHaveFocus();
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
