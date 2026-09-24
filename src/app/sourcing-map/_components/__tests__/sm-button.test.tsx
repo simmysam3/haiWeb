@@ -23,4 +23,16 @@ describe('SmButton (LW-a, WCAG 2.4.3)', () => {
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('an explicit aria-disabled is inert the same way, without aria-busy (Run: each of its reasons is described)', () => {
+    const onClick = vi.fn();
+    render(<SmButton aria-disabled onClick={onClick}>Run</SmButton>);
+    const button = screen.getByRole('button', { name: 'Run' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toHaveAttribute('aria-busy');
+    expect(button).not.toBeDisabled();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });
+
