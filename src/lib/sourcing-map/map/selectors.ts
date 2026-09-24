@@ -52,10 +52,13 @@ export function candidateWeekAt(c: SmCandidateResult, week: string | null): SmCa
   return week === null ? null : c.weeks.find((w) => w.week === week) ?? null;
 }
 
+const NOT_PROBED_TRUST = 'Not probed at this trust level';
+const NO_DEMAND_YET = 'No demand yet';
+
 /** D-148 pill wording (spec §9.3): an explicit quantity up to the ask, a verdict, or not probed. */
 export function availabilityText(c: SmCandidateResult, week: string | null, demand: number, uom: string): string {
-  if (c.availability_form === 'not_probed_trust') return 'Not probed at this trust level';
-  if (demand === 0) return 'No demand yet';
+  if (c.availability_form === 'not_probed_trust') return NOT_PROBED_TRUST;
+  if (demand === 0) return NO_DEMAND_YET;
   const w = candidateWeekAt(c, week);
   if (!w) return '—';
   const full = w.cum_achievable >= demand;
@@ -84,6 +87,11 @@ const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
 /** A card's status line when it has no answer to show; null when it answered. */
 export function gapText(status: SmCandidateLiveStatus): string | null {
   return GAP_TEXT[status] ?? null;
+}
+
+/** What a details coverage cell says when it has no figure (AC 17): a drop with no need week yet has no demand. */
+export function noCoverageText(week: string | null): string {
+  return week === null ? NO_DEMAND_YET : 'no answer';
 }
 
 export function slotWeekFor(slot: SmSlotResult, drop: string | null): string | null {

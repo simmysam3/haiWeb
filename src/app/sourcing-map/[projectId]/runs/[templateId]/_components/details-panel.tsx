@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import type { SmCandidateResult, SmSlotResult } from '@/lib/sourcing-map/contract';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
-import { candidateWeekAt, formatDropDate, formatPct, formatQty, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import { candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 
 /**
@@ -45,7 +45,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
                 <td>{week ? formatDropDate(week) : '—'}</td>
                 <td>{formatQty(slotDemandAt(slot, week))}</td>
                 <td>{w ? formatQty(w.cum_achievable) : '—'}</td>
-                <td>{w ? formatPct(w.option_coverage) : 'no answer'}</td>
+                <td>{w ? formatPct(w.option_coverage) : noCoverageText(week)}</td>
               </tr>
             );
           })}
