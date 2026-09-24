@@ -26,6 +26,13 @@ export interface DropsGeneratorInput {
   shape: 'flat' | 'ramp' | 'front_loaded';
 }
 
+/** 'YYYY-MM-DD' that round-trips through Date.UTC: an empty, partial or impossible date (2027-02-30) is not one. */
+function isIsoDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).toISOString().slice(0, 10) === s;
+}
+
 function dropDates(first: string, spacing: 'weekly' | 'monthly', count: number): string[] {
   const [y, m, d] = first.split('-').map(Number) as [number, number, number];
   return Array.from({ length: count }, (_, i) => {
@@ -44,6 +51,8 @@ export function generateDrops(g: DropsGeneratorInput): { ok: true; drops: Demand
   if (!Number.isInteger(g.total) || g.total < g.count) {
     return { ok: false, message: `The total must be a whole number of at least ${g.count} (one per drop).` };
   }
+  // Checked before dropDates, which throws RangeError on an empty date and rolls an impossible one over.
+  if (!isIsoDate(g.first_due_date)) return { ok: false, message: 'The first due date must be a valid date.' };
   const weights = Array.from({ length: g.count }, (_, i) => (g.shape === 'flat' ? 1 : g.shape === 'ramp' ? i + 1 : g.count - i));
   const extra = largestRemainder(g.total - g.count, weights);
   return {

@@ -31,6 +31,13 @@ describe('demand math', () => {
     expect(generateDrops({ total: 999, first_due_date: '2027-01-04', spacing: 'weekly', count: SM_LIMITS.DROPS_PER_PRODUCT + 1, shape: 'flat' })).toEqual({ ok: false, message: `Drops must be between 1 and ${SM_LIMITS.DROPS_PER_PRODUCT}.` });
   });
 
+  it('refuses a first due date that is empty, partial or not a calendar date, instead of throwing (Task 34 fix I-1)', () => {
+    // '' threw RangeError: Invalid time value; 2027-02-30 silently rolled over to March 2.
+    for (const first_due_date of ['', '2027-1-15', '2027-02-30']) {
+      expect(generateDrops({ total: 12, first_due_date, spacing: 'monthly', count: 6, shape: 'flat' })).toEqual({ ok: false, message: 'The first due date must be a valid date.' });
+    }
+  });
+
   it('curveMix (the prototype curve) totals exactly 10,000 hundredths, peaks at the center, and honours half sizes', () => {
     const mix = curveMix(MENS_US_7_13, { center: '9.5', spread: 1.5, half_sizes: true });
     const hundredths = MENS_US_7_13.map((v) => Math.round(mix[v]! * 100));
