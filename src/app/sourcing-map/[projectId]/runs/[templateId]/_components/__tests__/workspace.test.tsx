@@ -228,4 +228,19 @@ describe('Workspace', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
     expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveFocus();
   });
+
+  it('a switch of result closes the details panel, whose pick named a card of the previous result (R3)', async () => {
+    const old = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, old);
+      return reply(404, {});
+    });
+    mount(vomeroDetail, [vomeroExecution, old.execution]);
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+  });
 });

@@ -76,6 +76,8 @@ export function Workspace({
       return;
     }
     setLoaded(out.data);
+    // R3: the pick is by slot and candidate index, so it named a card of the result just replaced.
+    setSelected(null);
     // The loaded execution's summary replaces (or joins) its picker entry, so a new run needs no list refetch.
     setExecutions((xs) => [out.data.execution, ...xs.filter((x) => x.execution_id !== out.data.execution.execution_id)]);
   }
