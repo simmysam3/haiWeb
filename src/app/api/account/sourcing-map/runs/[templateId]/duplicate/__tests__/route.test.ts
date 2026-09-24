@@ -46,4 +46,12 @@ describe('/api/account/sourcing-map/runs/[templateId]/duplicate', () => {
     expect(name.length).toBe(200);
     expect(name.endsWith(' (copy)')).toBe(true);
   });
+
+  it('relays a 404 from the read and never creates a copy', async () => {
+    fetchRaw.mockResolvedValueOnce(haiCoreOk({ error: { code: 'NOT_FOUND', message: 'no such template' } }, 404));
+    const { POST } = await import('../route');
+    const res = await POST(smReq('POST', '/x'), smCtx({ templateId: VOMERO_IDS.template }));
+    expect(res.status).toBe(404);
+    expect(fetchRaw).toHaveBeenCalledTimes(1);
+  });
 });

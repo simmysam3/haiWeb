@@ -1,6 +1,7 @@
 import { withHaiCore } from '@/lib/with-hai-core';
 import { seg, smForward } from '@/lib/sourcing-map/bff';
 import type { SmRunTemplate } from '@/lib/sourcing-map/contract';
+import { forwardHaiCoreResponse } from '@/lib/forward-haicore-response';
 
 type P = { templateId: string };
 const SUFFIX = ' (copy)';
@@ -11,6 +12,7 @@ const SUFFIX = ' (copy)';
  */
 export const POST = withHaiCore<P>(async ({ client, request, params }) => {
   const got = await client.fetchRaw(`/sonar/templates/${seg(params.templateId)}`, { method: 'GET' });
+  if (got.status !== 200) return forwardHaiCoreResponse(got);
   const { template } = JSON.parse(await got.text()) as { template: SmRunTemplate };
   const body = {
     observation_class: 'sourcing_map',
