@@ -24,15 +24,20 @@ export function ProductEditorBody({ projectName, detail }: { projectName: string
           toolbar={<button type="button" className="sm-btn sm-btn-ghost" onClick={() => setImporting(true)}>Import from agent</button>}
         />
       )}
-      <ImportAgentDialog
-        productId={detail.product_id}
-        open={importing}
-        onClose={() => setImporting(false)}
-        onImported={() => {
-          setImporting(false);
-          router.refresh();
-        }}
-      />
+      {/* Mounted only while open (the codebase's own precedent: DispositionDialog at runs-tab.tsx, projects-grid.tsx):
+          this dialog is otherwise never unmounted, so an earlier open's typed SKU, mode and error would
+          otherwise survive Cancel and a reopen. */}
+      {importing && (
+        <ImportAgentDialog
+          productId={detail.product_id}
+          open
+          onClose={() => setImporting(false)}
+          onImported={() => {
+            setImporting(false);
+            router.refresh();
+          }}
+        />
+      )}
     </ProductEditor>
   );
 }
