@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import {
-  detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid,
+  detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid, type SheetsOutcome,
 } from '@/lib/scope-import/parse-workbook';
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
@@ -89,7 +89,14 @@ export function UploadWizard(props: UploadWizardProps) {
       setError(unreadableDetail(file.name));
       return;
     }
-    const out = await readWorkbookSheets(bytes, { fileName: file.name });
+    let out: SheetsOutcome;
+    try {
+      out = await readWorkbookSheets(bytes, { fileName: file.name });
+    } catch {
+      // The spreadsheet library's chunk failed to load, or decoding threw past the reader's own guard (Ruling M1).
+      setError(unreadableDetail(file.name));
+      return;
+    }
     if (!out.ok) {
       setError(out.detail);
       return;

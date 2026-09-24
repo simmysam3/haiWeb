@@ -3,7 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { readWorkbookSheets } from '@/lib/scope-import/parse-workbook';
 import { UploadWizard } from '../upload-wizard';
+
+// A pass-through: every test reads with the real reader. Only Ruling M1's test makes one read reject, as a failed
+// load of the spreadsheet library's chunk does in a browser (jsdom cannot fail a dynamic import on its own).
+vi.mock('@/lib/scope-import/parse-workbook', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/scope-import/parse-workbook')>();
+  return { ...actual, readWorkbookSheets: vi.fn(actual.readWorkbookSheets) };
+});
 
 const NL = String.fromCharCode(10);
 const AXIS = vomeroWorkbenchDetail.variant_axis!;
@@ -368,6 +376,15 @@ describe('UploadWizard (BOM)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(await screen.findByLabelText('Map column Description')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('says the file cannot be read when the reader rejects, and stays on the File step (Ruling M1)', async () => {
+    vi.mocked(readWorkbookSheets).mockRejectedValueOnce(new TypeError('Failed to fetch dynamically imported module'));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not read bom.csv as a spreadsheet.');
+    expect(fileInput()).toBeInTheDocument();
+    expect(screen.queryByLabelText('Header row')).toBeNull();
   });
 
 });
