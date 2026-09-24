@@ -101,7 +101,10 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
                       <SizeTable axis={axis} qtyPerUnit={l.qty_per_unit} value={l.qty_by_variant} onChange={(v) => update(l.key, { qty_by_variant: v })} />
                     )}
                   </td>
-                  <td><PinEditor classId={l.class_id} pins={l.pins} names={names} onChange={(pins) => update(l.key, { pins })} /></td>
+                  <td>
+                    {/* Keyed by class: an editor opened for the old class must not offer that class's publishers. */}
+                    <PinEditor key={l.class_id ?? ''} classId={l.class_id} pins={l.pins} names={names} onChange={(pins) => update(l.key, { pins })} />
+                  </td>
                   <td><button type="button" className="sm-link text-xs" aria-label={`Remove line ${n}`} onClick={() => setLines((all) => all.filter((x) => x.key !== l.key))}>Remove</button></td>
                 </tr>
               );

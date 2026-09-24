@@ -107,4 +107,30 @@ describe('BomGrid', () => {
     expect(alerts[0]).toHaveTextContent('Line 2: Component is required.');
     expect(screen.queryByText('The BOM could not be saved.')).toBeNull();
   });
+
+  it('a line whose class changes drops the supplier picker it opened for the old class, so no stale publisher can be pinned', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.startsWith('/api/account/sourcing-map/class-suppliers?')) {
+        return reply(200, {
+          class_id: 'cpt_flat_laces',
+          suppliers: [{ participant_id: VOMERO_IDS.aglet, legal_name: 'Aglet & Cord', country: 'IN', skus: [{ supplier_sku: 'AC-FLAT-120', class_id: 'cpt_flat_laces', class_depth: 0 }] }],
+        });
+      }
+      if (url.startsWith('/api/account/sourcing-map/classes?')) {
+        return reply(200, { classes: [{ class_id: 'cpt_waxed_laces', label: 'Waxed laces', class_path: ['Components', 'Trims', 'Laces', 'Waxed laces'] }] });
+      }
+      return reply(404, {});
+    });
+    mount();
+    const laces = screen.getByRole('row', { name: /^Line 5:/ });
+    fireEvent.click(within(laces).getByRole('button', { name: 'Add supplier' }));
+    expect(await within(laces).findByRole('option', { name: 'Aglet & Cord' })).toBeInTheDocument();
+    fireEvent.change(within(laces).getByLabelText('Class search for Flat lace 137 cm'), { target: { value: 'waxed' } });
+    fireEvent.click(within(laces).getByRole('button', { name: 'Find class for Flat lace 137 cm' }));
+    fireEvent.click(await within(laces).findByRole('button', { name: /Waxed laces/ }));
+    expect(within(laces).getByText('Waxed laces')).toBeInTheDocument();
+    expect(within(laces).queryByLabelText('Supplier')).toBeNull();
+    expect(within(laces).queryByRole('option', { name: 'Aglet & Cord' })).toBeNull();
+    expect(within(laces).getByRole('button', { name: 'Add supplier' })).toBeEnabled();
+  });
 });
