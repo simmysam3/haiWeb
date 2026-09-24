@@ -68,6 +68,19 @@ describe('OptionCard', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('marks a selected card by a heavier border, not by colour alone, on a normal card and on a gap card (ruling F-b)', () => {
+    // The width cue differs from the focus indicator, an outline on the button (sourcing-map.css:4).
+    for (const candidate of [leather.candidates[0]!, leather.candidates[2]!]) {
+      const { rerender, unmount } = render(<OptionCard slot={leather} candidate={candidate} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+      const card = screen.getByRole('button').closest<HTMLElement>('.sm-card')!;
+      expect(card.style.borderWidth).toBe('');
+      rerender(<OptionCard slot={leather} candidate={candidate} asOfDrop="2027-03-15" drops={drops} selected onSelect={vi.fn()} />);
+      expect(card.style.borderWidth).toBe('2px');
+      if (candidate === leather.candidates[2]) expect(card.style.borderStyle).toBe('dashed');
+      unmount();
+    }
+  });
+
   it('renders a gap as itself with a dashed border, and an allocation-only answer as such (AC 15, spec §8.4)', () => {
     const arno = leather.candidates[2]!;
     const { unmount } = render(<OptionCard slot={leather} candidate={arno} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);

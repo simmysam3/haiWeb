@@ -17,6 +17,7 @@ const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
  * whose header is the selecting <button>; the rest is ordinary readable content (controller ruling F-a).
  * A gap (no answer) is dashed and says so, never zero or full coverage (AC 15).
  * The dash is also inline: `.sm-card`'s unlayered `border` shorthand outranks the layered `border-dashed` utility.
+ * A selected card has a 2px border as well as its colour; focus is a separate outline on the button.
  */
 export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSelect }: {
   slot: SmSlotResult; candidate: SmCandidateResult; asOfDrop: string | null; drops: SmPortfolioDrop[]; selected: boolean; onSelect(): void;
@@ -37,7 +38,11 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
         onSelect();
       }}
       className={`sm-card group flex h-full w-full cursor-pointer flex-col p-3 text-left text-xs ${gap ? 'border-dashed' : ''}`}
-      style={gap ? { borderColor: 'var(--sm-gap-border)', borderStyle: 'dashed' } : selected ? { borderColor: 'var(--sm-teal)' } : undefined}
+      style={{
+        ...(gap ? { borderColor: 'var(--sm-gap-border)', borderStyle: 'dashed' } : selected ? { borderColor: 'var(--sm-teal)' } : {}),
+        // Selection is never shown by hue alone (ruling F-b); a gap card that is selected gets the same width.
+        ...(selected ? { borderWidth: '2px' } : {}),
+      }}
     >
       <button
         type="button"
