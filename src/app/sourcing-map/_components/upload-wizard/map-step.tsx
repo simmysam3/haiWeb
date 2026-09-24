@@ -1,5 +1,5 @@
 'use client';
-import type { SheetGrid } from '@/lib/scope-import/parse-workbook';
+import { HEADER_ROWS_OFFERED, type SheetGrid } from '@/lib/scope-import/parse-workbook';
 import { BOM_TARGETS, DEMAND_TARGETS, TARGET_LABELS, type UploadKind } from '@/lib/sourcing-map/upload/header-map';
 
 export function MapStep(props: {
@@ -25,7 +25,7 @@ export function MapStep(props: {
         <label>
           Header row
           <select aria-label="Header row" className="sm-input ml-2" value={headerIndex} onChange={(e) => props.onHeader(Number(e.target.value))}>
-            {sheet.rows.slice(0, 10).map((r, i) => (
+            {sheet.rows.slice(0, HEADER_ROWS_OFFERED).map((r, i) => (
               <option key={r.row} value={i}>{`Row ${r.row}: ${r.cells.filter((c) => c.trim() !== '').slice(0, 3).join(' · ')}`}</option>
             ))}
           </select>
