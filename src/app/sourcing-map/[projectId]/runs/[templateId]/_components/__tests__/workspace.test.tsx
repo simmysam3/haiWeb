@@ -509,4 +509,13 @@ describe('Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
     expectBesideTheMapBelowTheHeader(screen.getByRole('complementary', { name: 'Configure run' }));
   });
+
+  it('opening Configure closes the details, so one side column shows at a time and the row never overflows (P2)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+  });
 });

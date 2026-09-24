@@ -153,6 +153,11 @@ export function Workspace({
 
   // R2: the tray moves focus into itself on open; closing it gives focus back to Configure, which opened it.
   const configureRef = useRef<HTMLButtonElement | null>(null);
+  // P2: the side column holds one panel at a time (the details and the tray side by side would overflow the row).
+  function openTray() {
+    setSelected(null);
+    setTrayOpen(true);
+  }
   function closeTray() {
     configureRef.current?.focus();
     setTrayOpen(false);
@@ -181,7 +186,7 @@ export function Workspace({
               <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
             </span>
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
-            <button ref={configureRef} type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>
+            <button ref={configureRef} type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={openTray}>
               Configure
             </button>
             <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : estimateError} running={running} busy={busy} onRun={() => void run()} />
