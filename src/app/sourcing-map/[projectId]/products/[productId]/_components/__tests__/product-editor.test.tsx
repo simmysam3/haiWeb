@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ProductEditor } from '../product-editor';
+import { ProductEditorBody } from '../product-editor-body';
 
 const { push, refresh, replace } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
@@ -39,5 +40,13 @@ describe('ProductEditor header', () => {
     expect(JSON.parse(init.body)).toEqual({
       name: 'Pegasus Trail', unit_label: 'pairs', assembly_days: 14, variant_axis: vomeroWorkbenchDetail.variant_axis,
     });
+  });
+});
+
+describe('ProductEditorBody', () => {
+  it('renders the BOM grid for a workbench product', () => {
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    expect(screen.getByRole('heading', { name: 'Bill of materials' })).toBeInTheDocument();
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(5);
   });
 });
