@@ -103,4 +103,23 @@ describe('ProjectsGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Other Project' }));
     expect(screen.getByRole('radio', { name: /Archive them/ })).toBeChecked();
   });
+
+  it('does not leak a stale error between dialogs (a failed create does not show in a later rename)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { error: { message: 'Name already used.' } }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Spring 2027' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Name already used.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Spring 2027' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('shows the "Show archived" reload failure as a page-level alert (a-G4: the UI shows error.message)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(500, { error: { message: 'Could not load archived projects.' } }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByLabelText('Show archived'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load archived projects.');
+  });
 });

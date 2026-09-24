@@ -29,6 +29,9 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   const [deleting, setDeleting] = useState<SmProject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // No dialog is open while the list reloads (a-G4: the UI shows error.message), so this failure
+  // gets its own page-level alert rather than the dialogs' shared `error`.
+  const [listError, setListError] = useState<string | null>(null);
 
   const visible = projects.filter((p) => showArchived || p.archived_at === null);
 
@@ -73,10 +76,11 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   // The list endpoint hides archived projects unless ?include_archived=true is passed (a-G7), so "Show archived" reloads.
   async function toggleArchived(on: boolean) {
     setShowArchived(on);
+    setListError(null);
     if (!on) return;
     const out = await smFetch<SmProjectListResponse>(`${BASE}?include_archived=true`);
     if (out.ok) setProjects(out.data.projects);
-    else setError(out.message);
+    else setListError(out.message);
   }
 
   return (
@@ -88,6 +92,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
           Show archived
         </label>
       </div>
+      {listError && <p role="alert" className="sm-error mt-2 text-sm">{listError}</p>}
       <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visible.map((p) => (
           <li key={p.project_id} aria-label={p.name} className="sm-card p-5">
@@ -101,7 +106,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
               {p.archived_at && ` · Archived ${DATE.format(new Date(p.archived_at))}`}
             </p>
             <div className="mt-4 flex gap-2">
-              <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Rename ${p.name}`} onClick={() => { setRenaming(p); setNewName(p.name); }}>Rename</button>
+              <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Rename ${p.name}`} onClick={() => { setError(null); setRenaming(p); setNewName(p.name); }}>Rename</button>
               {p.archived_at === null && (
                 <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Archive ${p.name}`} disabled={busy} onClick={() => void patch(p, { archived: true })}>Archive</button>
               )}
@@ -110,7 +115,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
           </li>
         ))}
         <li>
-          <button type="button" className="sm-card flex h-full w-full items-center justify-center p-5 text-sm" onClick={() => setCreating(true)}>
+          <button type="button" className="sm-card flex h-full w-full items-center justify-center p-5 text-sm" onClick={() => { setError(null); setCreating(true); }}>
             + New project
           </button>
         </li>
