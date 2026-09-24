@@ -174,5 +174,17 @@ describe('BomGrid', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(save).not.toHaveAttribute('aria-busy');
   });
+
+  it('removing the last pin of a line with no class hands focus to that line’s class search, never <body> (L176, WCAG 2.4.3)', () => {
+    // Add supplier is disabled without a class, so it cannot take focus.
+    const unclassed = { ...vomeroWorkbenchDetail.lines[2]!, class_id: null };
+    mount([unclassed]);
+    expect(screen.getByRole('button', { name: 'Add supplier' })).toBeDisabled();
+    const remove = screen.getByRole('button', { name: 'Remove ZC-OUT-R2' });
+    remove.focus();
+    fireEvent.click(remove);
+    expect(screen.queryByRole('button', { name: 'Remove ZC-OUT-R2' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText('Class search for Rubber outsole'));
+  });
 });
 

@@ -24,6 +24,8 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
   const [busy, setBusy] = useState(false);
   // Remove line moves keyboard focus before the row goes (WCAG 2.4.3): to the next row's Component, else Add line.
   const componentRefs = useRef(new Map<string, HTMLInputElement>());
+  // A line's class search, where its pin editor hands focus when Add supplier is disabled (L176).
+  const classSearchRefs = useRef(new Map<string, HTMLInputElement>());
   const addLineRef = useRef<HTMLButtonElement>(null);
 
   // d-G9: a stored pin carries only the supplier's id. Each distinct supplier's name is looked up once, from the
@@ -100,6 +102,10 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       value={l.class_id ? { class_id: l.class_id, label: l.class_label ?? l.class_id } : null}
                       suggestion={suggestions[l.key] ?? null}
                       onChange={(c) => update(l.key, { class_id: c.class_id, class_label: c.label })}
+                      inputRef={(el) => {
+                        if (el) classSearchRefs.current.set(l.key, el);
+                        else classSearchRefs.current.delete(l.key);
+                      }}
                     />
                   </td>
                   <td><input type="number" step="any" min={0} aria-label={`Qty per unit for line ${n}`} className="sm-input w-20" value={l.qty_per_unit} onChange={(e) => update(l.key, { qty_per_unit: Number.parseFloat(e.target.value) })} /></td>
@@ -115,7 +121,14 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                   </td>
                   <td>
                     {/* Keyed by class: an editor opened for the old class must not offer that class's publishers. */}
-                    <PinEditor key={l.class_id ?? ''} classId={l.class_id} pins={l.pins} names={names} onChange={(pins) => update(l.key, { pins })} />
+                    <PinEditor
+                      key={l.class_id ?? ''}
+                      classId={l.class_id}
+                      pins={l.pins}
+                      names={names}
+                      onChange={(pins) => update(l.key, { pins })}
+                      fallbackFocus={() => classSearchRefs.current.get(l.key)?.focus()}
+                    />
                   </td>
                   <td>
                     <button

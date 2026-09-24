@@ -9,8 +9,10 @@ import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
  * partners publishing the line's class, a SKU from that supplier's catalog
  * in the class, and a share. Shares total at most 100; the rest is unallocated.
  */
-export function PinEditor({ classId, pins, onChange, names = {} }: {
+export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus }: {
   classId: string | null; pins: BomLinePin[]; onChange(p: BomLinePin[]): void; names?: Record<string, string | null>;
+  /** Takes focus when a removed pin leaves nothing here to take it: Add supplier is disabled without a class (L176). */
+  fallbackFocus?(): void;
 }) {
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<ClassSuppliersResponse['suppliers']>([]);
@@ -72,8 +74,11 @@ export function PinEditor({ classId, pins, onChange, names = {} }: {
                 className="sm-link"
                 aria-label={`Remove ${p.supplier_sku}`}
                 onClick={() => {
-                  // Focus moves before the pin goes, to controls that stay mounted: the next pin's Remove, else Add supplier.
-                  (removeRefs.current[i + 1] ?? addRef.current)?.focus();
+                  // Focus moves before the pin goes, to controls that stay mounted: the next pin's Remove, else Add
+                  // supplier, else (no class, so Add supplier is disabled) the line's class search.
+                  const target = removeRefs.current[i + 1] ?? (classId ? addRef.current : null);
+                  if (target) target.focus();
+                  else fallbackFocus?.();
                   onChange(pins.filter((_, j) => j !== i));
                 }}
               >
