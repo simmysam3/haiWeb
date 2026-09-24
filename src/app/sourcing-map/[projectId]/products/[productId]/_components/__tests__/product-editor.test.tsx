@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroAgentDetail, vomeroProducts, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { presetAxis } from '@/lib/sourcing-map/variant-presets';
 import { ProductEditor } from '../product-editor';
 import { ProductEditorBody } from '../product-editor-body';
 
@@ -202,6 +203,29 @@ describe('ProductEditorBody', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
     expect(await screen.findByText('Not ready')).toBeInTheDocument();
+  });
+
+  it('hands the grid and the upload wizard the saved variant axis as soon as the header PATCH answers (LW-b)', async () => {
+    // A new product: no axis yet, no lines. The PATCH answers the axis the header saved.
+    const fresh = { ...vomeroWorkbenchDetail, name: 'Walk trainer', variant_axis: null, lines: [], line_count: 0 };
+    const axis = presetAxis('mens_us_6_15', false);
+    fetchMock.mockImplementation(async (_path: unknown, init?: RequestInit) =>
+      init?.method === 'PATCH' ? reply(200, { ...vomeroProducts[0]!, name: 'Walk trainer (saved)', variant_axis: axis }) : reply(404, {}));
+    render(<ProductEditorBody projectName="Spring 2027" detail={fresh} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    expect(screen.getByRole('checkbox', { name: 'Size-bound' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Walk trainer (saved)' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Half sizes' }));
+    fireEvent.change(screen.getByLabelText('Variant preset'), { target: { value: 'mens_us_6_15' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    // The crumb reads the saved product, so it says when the PATCH has answered.
+    expect(await within(screen.getByRole('navigation', { name: 'Breadcrumb' })).findByText('Walk trainer (saved)')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Size-bound' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    await userEvent.upload(screen.getByLabelText('Spreadsheet file'), new File([['Description,Usage,9,10', 'Outsole,1,1,1.1'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    // A size header is a per-size column only against the product's axis: against the pre-save null axis it is ignored.
+    expect(await screen.findByLabelText('Map column 9')).toHaveValue('variant_qty');
+    expect(screen.getByLabelText('Map column 10')).toHaveValue('variant_qty');
   });
 });
 
