@@ -40,10 +40,13 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockImplementation(async (url: string) => (url.endsWith('/estimate') ? reply(200, vomeroEstimate) : reply(404, { error: `unexpected ${url}` })));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 function mount(detail = vomeroDetail, executions = [vomeroExecution]) {
-  render(
+  return render(
     <Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={executions} initialDetail={detail} />,
   );
 }
@@ -321,5 +324,19 @@ describe('Workspace', () => {
     await settle(() => first.resolve(reply(200, vomeroEstimate)));
     expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+  });
+
+  it('warns in the header once the answers are more than 7 days old, and not before (R5: answersAreStale kept)', () => {
+    const STALE = 'Answers are more than 7 days old; run again for fresh answers.';
+    // The fixture's answers are from 2026-09-23T10:42Z; only Date is faked, so every timer stays real.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T12:00:00.000Z'));
+    const stale = mount();
+    expect(screen.getByText(STALE)).toBeInTheDocument();
+    stale.unmount();
+    vi.setSystemTime(new Date('2026-09-24T12:00:00.000Z'));
+    mount();
+    expect(screen.getByText('Answers as of Sep 23, 10:42 UTC')).toBeInTheDocument();
+    expect(screen.queryByText(STALE)).toBeNull();
   });
 });
