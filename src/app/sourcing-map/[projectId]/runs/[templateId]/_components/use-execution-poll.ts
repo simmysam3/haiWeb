@@ -63,7 +63,7 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
         );
         if (!LIVE.has(s.status)) {
           void smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${s.execution_id}`).then((out) => {
-            if (out.ok) setState((st) => ({ ...st, detail: out.data }));
+            setState((st) => (out.ok ? { ...st, detail: out.data } : { ...st, error: out.message }));
           });
         }
       },

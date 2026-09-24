@@ -115,4 +115,14 @@ describe('useExecutionPoll', () => {
     });
     expect(screen.getByTestId('poll-error').textContent).toBe('Progress could not be refreshed. Retrying.');
   });
+
+  it('says why the composed result could not be loaded once the execution ends (R2)', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404, text: async () => JSON.stringify({ error: { code: 'not_found', message: 'Execution not found.' } }) });
+    render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] });
+    });
+    await waitFor(() => expect(screen.getByTestId('poll-error').textContent).toBe('Execution not found.'));
+    expect(screen.getByTestId('probe')).toHaveTextContent('completed:probing');
+  });
 });
