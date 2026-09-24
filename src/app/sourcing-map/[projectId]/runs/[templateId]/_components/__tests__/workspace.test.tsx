@@ -43,6 +43,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 function mount(detail = vomeroDetail, executions = [vomeroExecution]) {
@@ -112,13 +113,16 @@ function pick(id: string) {
 }
 
 describe('Workspace', () => {
-  it('reads the as-of drop from ?drop= and writes a clicked drop back to the URL (spec §9.3)', async () => {
+  it('reads the as-of drop from ?drop= and writes a clicked drop to the URL through the history API, never a server re-render (spec §9.3, F2)', async () => {
+    // Next syncs useSearchParams with the native history API; a router navigation would re-run the page's reads.
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
     search.value = 'drop=2027-04-15';
     mount();
     const leather = screen.getByRole('group', { name: 'Full grain leather hides' });
     expect(within(leather).getByText('16,000 sq ft by Mar 22')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
-    expect(replace).toHaveBeenCalledWith('/sourcing-map/p/runs/t?drop=2027-01-15', { scroll: false });
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/sourcing-map/p/runs/t?drop=2027-01-15');
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it('shows a failed progress poll in the alert area (Task 38 R2)', () => {
@@ -643,10 +647,11 @@ describe('Workspace', () => {
     expect(await screen.findByText('A BOM line of Court Classic has no class.')).toHaveAttribute('role', 'alert');
   });
 
-  it('a clicked drop keeps the other query parameters in the URL (M4)', () => {
+  it('a clicked drop keeps the other query parameters in the URL (M4, F2)', () => {
+    const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
     search.value = 'x=1&drop=2027-04-15';
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
-    expect(replace).toHaveBeenCalledWith('/sourcing-map/p/runs/t?x=1&drop=2027-01-15', { scroll: false });
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/sourcing-map/p/runs/t?x=1&drop=2027-01-15');
   });
 });

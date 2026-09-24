@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct, SmRunTemplate } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
@@ -36,7 +36,6 @@ export function Workspace({
   projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail,
   projectError = null, productsError = null, executionsError = null, detailError = null,
 }: WorkspaceProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const [template, setTemplate] = useState(initialTemplate);
@@ -179,10 +178,13 @@ export function Workspace({
     setTrayOpen(false);
   }
 
+  // F2: the drop is view state the server render never reads. A router navigation would re-render the page's server
+  // reads on every click (a new ?drop= is a new, uncached page segment); the history API keeps the link shareable,
+  // and Next syncs useSearchParams with it (next/dist/client/components/app-router.js patches replaceState).
   function setDrop(drop: string) {
     const q = new URLSearchParams(params.toString());
     q.set('drop', drop);
-    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    window.history.replaceState(null, '', `${pathname}?${q.toString()}`);
   }
 
   const result = detail?.result ?? null;
