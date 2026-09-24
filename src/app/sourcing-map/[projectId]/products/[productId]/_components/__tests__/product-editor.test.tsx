@@ -47,17 +47,20 @@ describe('ProductEditor header', () => {
     });
   });
 
-  it('refreshes the page after a successful header save, so the page re-reads the product; a failed save does not', async () => {
+  it('reports a saved header upward and never refreshes the page, which holds nothing it keys on (LW-b); a failed save reports nothing', async () => {
     refresh.mockClear();
+    const onSaved = vi.fn();
     fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Unit label is required.' } }));
-    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} onSaved={vi.fn()} />);
+    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} onSaved={onSaved} />);
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Unit label is required.');
-    expect(refresh).not.toHaveBeenCalled();
-    fetchMock.mockResolvedValueOnce(reply(200, vomeroWorkbenchDetail));
+    expect(onSaved).not.toHaveBeenCalled();
+    fetchMock.mockResolvedValueOnce(reply(200, vomeroProducts[0]));
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
-    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(vomeroProducts[0]));
+    expect(onSaved).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
 

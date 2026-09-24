@@ -1,6 +1,5 @@
 'use client';
 import { useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import type { SmProduct, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
@@ -16,7 +15,6 @@ import { VariantAxisEditor } from './variant-axis-editor';
 export function ProductEditor({ projectName, detail, onSaved, children }: {
   projectName: string; detail: SmProductDetail; onSaved(product: SmProduct): void; children?: ReactNode;
 }) {
-  const router = useRouter();
   const [name, setName] = useState(detail.name);
   const [unitLabel, setUnitLabel] = useState(detail.unit_label);
   const [assemblyDays, setAssemblyDays] = useState(String(detail.assembly_days));
@@ -39,7 +37,6 @@ export function ProductEditor({ projectName, detail, onSaved, children }: {
       return;
     }
     onSaved(out.data);
-    router.refresh();
   }
 
   return (
