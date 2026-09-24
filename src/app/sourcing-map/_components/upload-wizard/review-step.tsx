@@ -24,7 +24,8 @@ export function ReviewStep({ summary, errors, ignoredColumns, commitLabel, busy,
       )}
       {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       <div className="mt-4 flex justify-between">
-        <button type="button" className="sm-btn sm-btn-ghost" onClick={onBack}>Back</button>
+        {/* A save in flight answers on this step: Back would strand a failure's message on Resolve (a-G4), or close the dialog. */}
+        <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={onBack}>Back</button>
         <button type="button" className="sm-btn sm-btn-primary" disabled={busy || rowErrors.length > 0} onClick={onCommit}>{commitLabel}</button>
       </div>
     </div>

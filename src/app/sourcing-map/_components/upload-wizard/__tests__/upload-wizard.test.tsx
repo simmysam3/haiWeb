@@ -558,6 +558,29 @@ describe('UploadWizard (BOM)', () => {
     expect(line.note).toBeNull();
   });
 
+  it("keeps Back disabled while the save is in flight, so a failed save's message is shown on Review (a-G4)", async () => {
+    const answer = route();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/bom-lines')) return answer(url, init);
+      await held;
+      return reply(409, { error: { code: 'conflict', message: 'The BOM changed while you were uploading.' } });
+    });
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save 1 line' }));
+    // the PUT is in flight: Back now would leave its answer on Resolve, which never shows it (or close the dialog on success)
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
+    release();
+    expect(await screen.findByRole('alert')).toHaveTextContent('The BOM changed while you were uploading.');
+    expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {
