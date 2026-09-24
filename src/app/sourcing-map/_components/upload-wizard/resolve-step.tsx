@@ -62,6 +62,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
       const classId = p.class_id;
       void smFetch<ClassSuppliersResponse>(`/api/account/sourcing-map/class-suppliers?class_id=${encodeURIComponent(classId)}`).then((out) => {
         if (out.ok) setCatalog((c) => ({ ...c, [classId]: out.data.suppliers }));
+        else setError(out.message);
       });
     }
   }, [lines, picked, matches]);

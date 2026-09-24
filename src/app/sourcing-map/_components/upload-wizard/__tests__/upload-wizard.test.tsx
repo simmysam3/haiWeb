@@ -426,6 +426,21 @@ describe('UploadWizard (BOM)', () => {
     expect(document.activeElement).toBe(within(screen.getByRole('row', { name: /Lining mesh/ })).getByRole('textbox'));
   });
 
+  it("shows the message when the supplier's SKUs in the picked class cannot be read (a-G4)", async () => {
+    const answer = route();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.includes('/class-suppliers')
+        ? reply(502, { error: { code: 'agent_unreachable', message: 'The class catalog did not answer.' } })
+        : answer(url, init));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,Vendor', 'Upper leather tumbled,0.25,Leon Cuero SA']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByText('Exact');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The class catalog did not answer.');
+    expect(screen.getByText("Supplier 'Leon Cuero SA' has no SKU picked in this class; not pinned")).toBeInTheDocument();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {
