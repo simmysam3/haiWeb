@@ -37,4 +37,46 @@ describe('ProjectsGrid', () => {
     expect(within(card).getByRole('link', { name: 'Open Spring 2027' })).toHaveAttribute('href', `/sourcing-map/${VOMERO_IDS.project}`);
     expect(screen.getByRole('button', { name: '+ New project' })).toBeInTheDocument();
   });
+
+  it('creates a project and opens it', async () => {
+    fetchMock.mockResolvedValue(reply(201, { ...vomeroProject, project_id: VOMERO_IDS.project, name: 'Fall 2027' }));
+    render(<ProjectsGrid initialProjects={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Fall 2027' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/sourcing-map/${VOMERO_IDS.project}`));
+    const [path, init] = fetchMock.mock.calls[0]!;
+    expect(path).toBe('/api/account/sourcing-map/projects');
+    expect(JSON.parse(init.body)).toEqual({ name: 'Fall 2027', description: null });
+  });
+
+
+  it('renames a project in place', async () => {
+    fetchMock.mockResolvedValue(reply(200, { ...vomeroProject, name: 'Spring 2027 (v2)' }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Spring 2027' }));
+    fireEvent.change(screen.getByLabelText('New name'), { target: { value: 'Spring 2027 (v2)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    await waitFor(() => expect(screen.getByRole('listitem', { name: 'Spring 2027 (v2)' })).toBeInTheDocument());
+    const [path, init] = fetchMock.mock.calls[0]!;
+    expect(path).toBe(`/api/account/sourcing-map/projects/${VOMERO_IDS.project}`);
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body)).toEqual({ name: 'Spring 2027 (v2)' });
+  });
+
+
+  it('archives a project, which then hides until "Show archived" reloads with include_archived (a-G7)', async () => {
+    const archived = { ...vomeroProject, archived_at: '2026-09-23T12:00:00.000Z' };
+    fetchMock
+      .mockResolvedValueOnce(reply(200, archived))
+      .mockResolvedValueOnce(reply(200, { projects: [archived] }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Spring 2027' }));
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull());
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ archived: true });
+    fireEvent.click(screen.getByLabelText('Show archived'));
+    expect(await screen.findByRole('listitem', { name: 'Spring 2027' })).toHaveTextContent('Archived Sep 23, 2026');
+    expect(fetchMock.mock.calls[1]![0]).toBe('/api/account/sourcing-map/projects?include_archived=true');
+  });
+
 });
