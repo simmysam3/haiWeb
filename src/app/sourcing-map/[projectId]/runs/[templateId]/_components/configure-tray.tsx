@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Cadence } from '@haiwave/protocol';
 import type { SmProduct, SmRunTemplate, SourcingMapScope } from '@/lib/sourcing-map/contract';
 import { SM_LIMITS } from '@/lib/sourcing-map/contract';
@@ -26,6 +26,12 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   const dirty = JSON.stringify({ scope, cadence }) !== JSON.stringify({ scope: template.scope, cadence: template.cadence });
   const available = library.filter((p) => !scope.products.some((x) => x.product_id === p.product_id));
 
+  // WCAG 2.1 AA (R3): opening the tray moves focus into it; returning focus to the opener is the page's (Task 39).
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+
   async function apply() {
     setBusy(true);
     setError(null);
@@ -41,7 +47,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   return (
     <aside aria-label="Configure run" className="sm-surface fixed right-0 top-0 z-40 h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--sm-line)] p-6">
       <div className="flex items-center justify-between">
-        <h2 className="sm-heading text-lg font-semibold">Configure</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold outline-none">Configure</h2>
         <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
       </div>
       <div role="tablist" aria-label="Configure" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">

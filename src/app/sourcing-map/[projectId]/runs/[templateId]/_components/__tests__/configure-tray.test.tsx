@@ -54,4 +54,9 @@ describe('ConfigureTray', () => {
     expect(body.scope.products.map((p: { product_id: string }) => p.product_id)).toEqual([VOMERO_IDS.metcon, VOMERO_IDS.court]);
     expect(body.cadence).toEqual({ kind: 'manual_only' });
   });
+
+  it('moves focus into the tray when it opens (R3, WCAG 2.1 AA)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Configure' })).toHaveFocus();
+  });
 });
