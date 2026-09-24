@@ -397,6 +397,35 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('keeps focus inside the dialog when a class pick (a suggestion or a search result) replaces the control that made it (keyboard)', async () => {
+    const answer = route({ suggest: { retrieval: 'hybrid', lines: [{ suggestions: [{ ...LEATHER, band: 'medium' }] }, { suggestions: [] }] } });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.includes('/classes?q=')
+        ? reply(200, { classes: [{ class_id: 'cpt_textile_linings', label: 'Textile linings', class_path: ['Materials', 'Textile linings'] }] })
+        : answer(url, init));
+    renderBom();
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25', 'Lining mesh,1']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    // a suggestion chip
+    const chip = await screen.findByRole('button', { name: /Full grain leather hides/ });
+    chip.focus();
+    fireEvent.click(chip);
+    expect(screen.getByRole('row', { name: /Upper leather tumbled/ })).toHaveTextContent('Full grain leather hides');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(within(screen.getByRole('row', { name: /Upper leather tumbled/ })).getByRole('textbox'));
+    // a search result
+    const lining = screen.getByRole('row', { name: /Lining mesh/ });
+    fireEvent.change(within(lining).getByRole('textbox'), { target: { value: 'lining' } });
+    fireEvent.click(within(lining).getByRole('button', { name: /^Find class for/ }));
+    const result = await within(lining).findByRole('button', { name: /Textile linings/ });
+    result.focus();
+    fireEvent.click(result);
+    expect(screen.getByRole('row', { name: /Lining mesh/ })).toHaveTextContent('Textile linings');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(within(screen.getByRole('row', { name: /Lining mesh/ })).getByRole('textbox'));
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {

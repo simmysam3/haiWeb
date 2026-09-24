@@ -114,18 +114,25 @@ export function ResolveStep({ lines, onBack, onContinue }: {
                   {l.class_text && <p className="sm-muted text-xs">File says: {l.class_text}</p>}
                 </td>
                 <td>
-                  {p ? (
-                    <span>{p.label}</span>
-                  ) : (
-                    <div className="flex flex-wrap items-start gap-2">
-                      {(suggestions[l.component_label] ?? []).map((s) => (
-                        <button key={s.class_id} type="button" className="sm-btn sm-btn-ghost text-xs" onClick={() => setPicked((c) => ({ ...c, [l.key]: { class_id: s.class_id, label: s.label } }))}>
-                          {s.label} <Pill themed category="sm_band" value={s.band} />
-                        </button>
-                      ))}
-                      <ClassPicker label={l.component_label} value={null} suggestion={null} onChange={(c) => setPicked((cur) => ({ ...cur, [l.key]: c }))} />
-                    </div>
-                  )}
+                  {/* The picker stays mounted with the pick as its value (as in the BOM grid), so a pick can be changed
+                      and focus has somewhere to stay: a chip that picks is removed, so it hands focus to this row's
+                      class search; a search result's pick keeps it there itself (ClassPicker). */}
+                  <div className="flex flex-wrap items-start gap-2">
+                    {!p && (suggestions[l.component_label] ?? []).map((s) => (
+                      <button
+                        key={s.class_id}
+                        type="button"
+                        className="sm-btn sm-btn-ghost text-xs"
+                        onClick={(e) => {
+                          e.currentTarget.closest('td')?.querySelector<HTMLInputElement>('input')?.focus();
+                          setPicked((c) => ({ ...c, [l.key]: { class_id: s.class_id, label: s.label } }));
+                        }}
+                      >
+                        {s.label} <Pill themed category="sm_band" value={s.band} />
+                      </button>
+                    ))}
+                    <ClassPicker label={`${l.component_label} (row ${l.rows.join(', ')})`} value={p ?? null} suggestion={null} onChange={(c) => setPicked((cur) => ({ ...cur, [l.key]: c }))} />
+                  </div>
                 </td>
                 <td className="text-xs">
                   {l.supplier_name ? (
