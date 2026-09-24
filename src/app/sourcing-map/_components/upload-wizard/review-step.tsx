@@ -1,6 +1,7 @@
 // src/app/sourcing-map/_components/upload-wizard/review-step.tsx
 'use client';
 import type { RowError } from '@/lib/sourcing-map/upload/bom-rows';
+import { SmButton } from '../sm-button';
 
 /** Spec §7.3 step 4: counts, per-row errors with source rows; nothing is saved until Review passes. */
 export function ReviewStep({ summary, errors, ignoredColumns, commitLabel, busy, error, onBack, onCommit }: {
@@ -26,7 +27,7 @@ export function ReviewStep({ summary, errors, ignoredColumns, commitLabel, busy,
       <div className="mt-4 flex justify-between">
         {/* A save in flight answers on this step: Back would strand a failure's message on Resolve (a-G4), or close the dialog. */}
         <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={onBack}>Back</button>
-        <button type="button" className="sm-btn sm-btn-primary" disabled={busy || rowErrors.length > 0} onClick={onCommit}>{commitLabel}</button>
+        <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={rowErrors.length > 0} onClick={onCommit}>{commitLabel}</SmButton>
       </div>
     </div>
   );

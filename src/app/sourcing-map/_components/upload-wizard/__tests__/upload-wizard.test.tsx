@@ -595,6 +595,33 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('keeps "Save 1 line" focusable while its PUT is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    const answer = route();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/bom-lines')) return answer(url, init);
+      await held;
+      return reply(200, vomeroWorkbenchDetail);
+    });
+    const { onCommitted } = renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    const save = await screen.findByRole('button', { name: 'Save 1 line' });
+    save.focus();
+    fireEvent.click(save);
+    expect(save).toHaveAttribute('aria-busy', 'true');
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveFocus();
+    fireEvent.click(save);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/bom-lines'))).toHaveLength(1);
+    release();
+    await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
+  });
 });
 
 describe('UploadWizard (demand)', () => {
