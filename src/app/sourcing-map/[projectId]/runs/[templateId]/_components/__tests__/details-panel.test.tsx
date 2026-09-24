@@ -73,6 +73,21 @@ describe('DetailsPanel', () => {
     render(<DetailsPanel slot={leather} candidate={notProbed} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
     expect(within(screen.getByRole('table', { name: 'Coverage by drop' })).getByRole('row', { name: 'Mar 15' })).toHaveTextContent('Mar 15Feb 2212,000—Not probed at this trust level');
   });
+
+  it('a size with no demand reads covered in full, never NaN% or Infinity% (fix round 1, M1)', () => {
+    const leather = structuredCloneSafe(vomeroResult.slots[0]!);
+    // Feb 22 (index 2) is the Mar 15 drop's need week: size 13 needs nothing; one row answers 0 (0 / 0), one answers 5 (5 / 0).
+    leather.demand[2]!.cum_qty_by_variant!['13'] = 0;
+    leather.demand[2]!.cum_qty_by_variant!['12.5'] = 0;
+    const leon = leather.candidates[0]!;
+    leon.weeks[2]!.cum_achievable_by_variant!['13'] = 0;
+    leon.weeks[2]!.cum_achievable_by_variant!['12.5'] = 5;
+    render(<DetailsPanel slot={leather} candidate={leon} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const perSize = screen.getByRole('table', { name: 'Coverage by size at Feb 22' });
+    expect(within(perSize).getByRole('row', { name: '13' })).toHaveTextContent('1300100%');
+    expect(within(perSize).getByRole('row', { name: '12.5' })).toHaveTextContent('12.505100%');
+    expect(perSize.textContent).not.toMatch(/NaN|Infinity/);
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {
