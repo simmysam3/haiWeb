@@ -347,6 +347,29 @@ describe('UploadWizard (BOM)', () => {
     });
   });
 
+  it("drops a failed save's message on Back, so it never reappears on the next Review or on Map (a-G4)", async () => {
+    const answer = route();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/bom-lines')
+        ? reply(409, { error: { code: 'product_not_workbench', message: 'This product reads its BOM from your agent.' } })
+        : answer(url, init));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save 1 line' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('This product reads its BOM from your agent.');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    expect(await screen.findByRole('button', { name: 'Save 1 line' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await screen.findByRole('button', { name: 'Continue to review' });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByLabelText('Map column Description')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {

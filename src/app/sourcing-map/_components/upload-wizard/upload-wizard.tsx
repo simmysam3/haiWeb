@@ -206,7 +206,16 @@ export function UploadWizard(props: UploadWizardProps) {
             error={error}
           />
         )}
-        {step === 'resolve' && bom && <ResolveStep lines={bom.lines} onBack={() => setStep('map')} onContinue={(r) => { setResolved(r); setStep('review'); }} />}
+        {step === 'resolve' && bom && (
+          <ResolveStep
+            lines={bom.lines}
+            onBack={() => {
+              setError(null); // like every Back: an error answers the step it was raised on, never the one returned to
+              setStep('map');
+            }}
+            onContinue={(r) => { setResolved(r); setStep('review'); }}
+          />
+        )}
         {step === 'review' && props.kind === 'bom' && bom && (
           <ReviewStep
             summary={bomSummary(resolved)}
@@ -215,7 +224,10 @@ export function UploadWizard(props: UploadWizardProps) {
             commitLabel={`Save ${resolved.length} line${resolved.length === 1 ? '' : 's'}`}
             busy={busy}
             error={error}
-            onBack={() => setStep('resolve')}
+            onBack={() => {
+              setError(null); // a failed save's message answered that Save; it must not greet the next Review or Map
+              setStep('resolve');
+            }}
             onCommit={() => void commitBom()}
           />
         )}
@@ -227,7 +239,10 @@ export function UploadWizard(props: UploadWizardProps) {
             commitLabel="Apply schedule"
             busy={false}
             error={null}
-            onBack={() => setStep('map')}
+            onBack={() => {
+              setError(null);
+              setStep('map');
+            }}
             onCommit={() => props.onApply(demand)}
           />
         )}
