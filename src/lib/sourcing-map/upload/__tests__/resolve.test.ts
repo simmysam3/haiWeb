@@ -1,6 +1,7 @@
 // src/lib/sourcing-map/upload/__tests__/resolve.test.ts
 import { describe, it, expect } from 'vitest';
-import { resolveLine, toUploadInput } from '../resolve';
+import { resolveLine, toUploadInput, uploadRowErrors } from '../resolve';
+import { SmBomLineInputSchema } from '../../contract';
 import type { UploadedBomLine } from '../bom-rows';
 import { VOMERO_IDS } from '../../__fixtures__/vomero';
 
@@ -30,3 +31,17 @@ describe('resolveLine (spec §7.3 step 3)', () => {
     });
   });
 });
+
+/** Limits read from the PUT's own schema, never retyped. */
+const FIELDS = SmBomLineInputSchema.innerType().shape;
+
+describe('uploadRowErrors (A5-I1: Review passes only lines the PUT takes, spec §7.3 step 4)', () => {
+  it('names the source row of a line whose UoM is longer than the schema allows', () => {
+    const max = FIELDS.uom.maxLength!;
+    const long = resolveLine({ ...LINE, rows: [7], uom: 'u'.repeat(max + 1) }, PICK, null, null);
+    expect(uploadRowErrors([resolveLine(LINE, PICK, null, null), long])).toEqual([
+      { row: 7, message: `Row 7: Unit of measure is longer than ${max} characters.` },
+    ]);
+  });
+});
+

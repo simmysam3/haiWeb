@@ -1,6 +1,7 @@
 // src/lib/sourcing-map/upload/resolve.ts
-import type { SmBomLineInput, SupplierMatch } from '../contract';
-import type { UploadedBomLine } from './bom-rows';
+import { SmBomLineInputSchema, type SmBomLineInput, type SupplierMatch } from '../contract';
+import type { RowError, UploadedBomLine } from './bom-rows';
+import { TARGET_LABELS } from './header-map';
 
 export interface ResolvedLine extends UploadedBomLine {
   class_id: string | null;
@@ -49,3 +50,27 @@ export function toUploadInput(l: ResolvedLine): SmBomLineInput {
     pins: l.pin ? [l.pin] : [], origin: 'uploaded', note: l.note,
   };
 }
+
+/** The Map step's name for the column a PUT field came from (header-map.ts TARGET_LABELS), so an error names it as mapped. */
+const FIELD_TARGET: Record<string, string> = {
+  component_label: 'component', part_ref: 'part_ref', class_id: 'class', uom: 'uom', qty_per_unit: 'qty_per_unit',
+};
+
+/**
+ * A5-I1 (spec §7.3 step 4: "nothing is saved until Review passes", with source row numbers): each line as the PUT
+ * would send it, checked against the PUT's own schema, so a line haiCore would refuse is a row error on Review, named
+ * by its first source row. The limits are the schema's (each issue's `maximum`), never retyped.
+ */
+export function uploadRowErrors(lines: ResolvedLine[]): RowError[] {
+  return lines.flatMap((l) => {
+    const out = SmBomLineInputSchema.safeParse(toUploadInput(l));
+    if (out.success) return [];
+    const row = l.rows[0] ?? 0;
+    return out.error.issues.map((issue) => {
+      const label = TARGET_LABELS[FIELD_TARGET[String(issue.path[0])] ?? ''] ?? String(issue.path[0]);
+      const what = issue.code === 'too_big' && issue.type === 'string' ? `is longer than ${issue.maximum} characters.` : issue.message;
+      return { row, message: `Row ${row}: ${label} ${what}` };
+    });
+  });
+}
+
