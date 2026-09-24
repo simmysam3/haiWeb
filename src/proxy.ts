@@ -413,7 +413,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // /login (it breaks fetch); they fall through and let the BFF answer 401.
   if (
     !isApi &&
-    (pathname.startsWith('/account') || pathname.startsWith('/admin')) &&
+    (pathname.startsWith('/account') ||
+      pathname.startsWith('/admin') ||
+      pathname === '/sourcing-map' ||
+      pathname.startsWith('/sourcing-map/')) &&
     !hasSession
   ) {
     // Skip the /login interstitial: go straight to the OIDC start route,
