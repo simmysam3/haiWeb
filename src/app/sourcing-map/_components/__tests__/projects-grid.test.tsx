@@ -240,5 +240,26 @@ describe('ProjectsGrid', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Name already used.');
     expect(cancel).toBeEnabled();
   });
+
+  it('a pending rename cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (A5-m9, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Spring 2027' }));
+    fireEvent.change(screen.getByLabelText('New name'), { target: { value: 'Spring 2027 (v2)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    const dialog = screen.getByRole('dialog', { name: 'Rename project' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Rename project' })).toBeInTheDocument();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('dialog', { name: 'Rename project' })).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'Rename project' })).toBeInTheDocument();
+    settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Name already used.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Name already used.');
+    expect(cancel).toBeEnabled();
+  });
 });
 

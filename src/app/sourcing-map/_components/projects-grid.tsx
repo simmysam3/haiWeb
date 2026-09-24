@@ -176,9 +176,11 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         title="Rename project"
         open={renaming !== null}
         onClose={() => setRenaming(null)}
+        // A5-m9: a pending rename answers in this dialog; Escape, the backdrop and Cancel wait for it.
+        busy={busy}
         footer={
           <>
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setRenaming(null)}>Cancel</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={() => setRenaming(null)}>Cancel</button>
             <SmButton
               className="sm-btn sm-btn-primary"
               busy={busy}
