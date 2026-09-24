@@ -58,7 +58,7 @@ function earlier(id: string, startedAt: string): SmExecutionDetail {
 
 async function pressRun() {
   const run = await screen.findByRole('button', { name: 'Run' });
-  await waitFor(() => expect(run).toBeEnabled());
+  await waitFor(() => expect(run).not.toHaveAttribute('aria-disabled'));
   fireEvent.click(run);
 }
 
@@ -135,7 +135,7 @@ describe('Workspace', () => {
       url.endsWith('/estimate') ? reply(503, { error: { code: 'unavailable', message: 'haiCore is unavailable.' } }) : reply(404, {}));
     mount();
     expect(await screen.findByText('Readiness could not be checked: haiCore is unavailable.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('Run triggers, loads the execution its run_id names without refetching the list, and shows it probing (AC 17, d-G4)', async () => {
@@ -150,7 +150,7 @@ describe('Workspace', () => {
     });
     mount(null as never);
     const run = await screen.findByRole('button', { name: 'Run' });
-    await waitFor(() => expect(run).toBeEnabled());
+    await waitFor(() => expect(run).not.toHaveAttribute('aria-disabled'));
     fireEvent.click(run);
     // a status ("No execution yet…") exists before Run, so wait for its text to change
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Probing: 3 of 7 probes answered'));
@@ -170,7 +170,7 @@ describe('Workspace', () => {
     });
     mount();
     const run = await screen.findByRole('button', { name: 'Run' });
-    await waitFor(() => expect(run).toBeEnabled());
+    await waitFor(() => expect(run).not.toHaveAttribute('aria-disabled'));
     fireEvent.click(run);
     // by text, not role: the fixture's answers turn stale 7 days after 2026-09-23 and add their own alert
     expect(await screen.findByText('Line A base already has an execution running.')).toBeInTheDocument();
@@ -309,11 +309,11 @@ describe('Workspace', () => {
       return reply(404, {});
     });
     mount();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).not.toHaveAttribute('aria-disabled'));
     applyDepthCap4();
     await waitFor(() => expect(estimates).toBe(2));
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
-    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByText('Checking whether the run is ready…')).toBeInTheDocument();
     await settle(() => second.resolve(reply(200, NOT_READY)));
     expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
@@ -336,7 +336,7 @@ describe('Workspace', () => {
     // The mount's read (the old scope, ready) answers last.
     await settle(() => first.resolve(reply(200, vomeroEstimate)));
     expect(screen.getByText('A workbench product has no BOM lines.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('warns in the header once the answers are more than 7 days old, and not before (R5: answersAreStale kept)', () => {
@@ -493,9 +493,16 @@ describe('Workspace', () => {
     mount();
     await pressRun();
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith(`/executions/${NEW_ID}`))).toBe(true));
-    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-busy', 'true');
+    // LW-a: busy, not disabled, so the pressed button keeps focus; a second press sends nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/trigger'))).toHaveLength(1);
     await settle(() => slowDetail.resolve(reply(200, fresh)));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Probing: 3 of 7 probes answered'));
+    // Running: still aria-disabled with its reason, never `disabled`.
+    expect(screen.getByRole('button', { name: 'Run' })).toHaveAccessibleDescription('An execution is running.');
+    expect(screen.getByRole('button', { name: 'Run' })).not.toBeDisabled();
   });
 
   it('the details panel sits in the page flow below the header, beside the map, never over the header’s controls (P2)', () => {

@@ -1,6 +1,7 @@
 'use client';
 import { useId } from 'react';
 import type { SmEstimateResponse, SmReadinessRule } from '@/lib/sourcing-map/contract';
+import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 
 /** Wording for a readiness rule when haiCore sends no detail (a-G12: the window rule measures need-weeks). */
 const RULE_TEXT: Record<SmReadinessRule, string> = {
@@ -30,9 +31,11 @@ export function RunButton({ estimate, blockedReason, running, busy, onRun }: {
       : estimate.readiness.detail ?? RULE_TEXT[estimate.readiness.first_failing_rule as SmReadinessRule] ?? 'The run is not ready.');
   return (
     <span className="flex flex-col items-end">
-      <button type="button" className="sm-btn sm-btn-primary" disabled={reason !== null || busy} aria-describedby={reason ? reasonId : undefined} onClick={onRun}>
+      {/* LW-a: never `disabled`, which would drop focus to <body> when a press turns it to "An execution is running.";
+          every reason it is unavailable is described through aria-describedby. */}
+      <SmButton className="sm-btn sm-btn-primary" busy={busy} aria-disabled={reason !== null} aria-describedby={reason ? reasonId : undefined} onClick={onRun}>
         Run
-      </button>
+      </SmButton>
       {reason ? (
         <span id={reasonId} className="sm-muted mt-1 text-xs">{reason}</span>
       ) : (
