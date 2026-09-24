@@ -42,7 +42,7 @@ export function Workspace({
   const [executions, setExecutions] = useState(initialExecutions);
   const [loaded, setLoaded] = useState(initialDetail);
   // `loaded` is state, so it is referentially stable, as the hook requires.
-  const { detail } = useExecutionPoll(loaded);
+  const { detail, error: pollError } = useExecutionPoll(loaded);
   const [estimate, setEstimate] = useState<SmEstimateResponse | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
@@ -90,6 +90,7 @@ export function Workspace({
       {productsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{productsError}</p>}
       {executionsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{executionsError}</p>}
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
+      {pollError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{pollError}</p>}
       {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
       {!(detail === null && (executionsError !== null || detailError !== null)) && <ExecutionBanner execution={detail?.execution ?? null} />}
       {result && (

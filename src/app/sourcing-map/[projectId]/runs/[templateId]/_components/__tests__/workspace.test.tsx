@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
+import { runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { Workspace } from '../workspace';
 
 const { push, refresh, replace, search } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), search: { value: '' } }));
@@ -10,7 +10,16 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(search.value),
 }));
 vi.mock('next/image', () => ({ default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} /> }));
-vi.mock('swr', () => ({ default: () => ({ data: undefined, error: undefined }) }));
+// SWR never answers here; the latest key and options are kept so a test can deliver a poll failure itself.
+type SwrOptions = { onError?(e: unknown, key: string): void };
+const { swr } = vi.hoisted(() => ({ swr: { key: null as string | null, options: {} as SwrOptions } }));
+vi.mock('swr', () => ({
+  default: (key: string | null, _fetcher: unknown, options: SwrOptions) => {
+    swr.key = key;
+    swr.options = options;
+    return { data: undefined, error: undefined };
+  },
+}));
 
 const fetchMock = vi.fn();
 function reply(status: number, body?: unknown) {
@@ -39,5 +48,14 @@ describe('Workspace', () => {
     expect(within(leather).getByText('16,000 sq ft by Mar 22')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
     expect(replace).toHaveBeenCalledWith('/sourcing-map/p/runs/t?drop=2027-01-15', { scroll: false });
+  });
+
+  it('shows a failed progress poll in the alert area (Task 38 R2)', () => {
+    const running = runningDetail();
+    mount(running);
+    const key = `/api/account/sourcing-map/executions/${running.execution.execution_id}/status`;
+    expect(swr.key).toBe(key);
+    act(() => swr.options.onError?.(new Error('network down'), key));
+    expect(screen.getByText('Progress could not be refreshed. Retrying.')).toHaveAttribute('role', 'alert');
   });
 });
