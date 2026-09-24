@@ -35,4 +35,21 @@ describe('<Pill themed> (Sourcing Map)', () => {
     const missing = cases.flatMap(([cat, values]) => values.filter((v) => !definitionFor(cat, v)).map((v) => `${cat}:${v}`));
     expect(missing).toEqual([]);
   });
+
+  it('the six new categories resolve a non-neutral tone (SM_TONES, not just a definition)', () => {
+    const cases: Array<[string, string, string]> = [
+      ['sm_execution_status', 'failed', 'bg-[var(--sm-pill-problem-bg)]'],
+      ['sm_readiness', 'not_ready', 'bg-[var(--sm-pill-warn-bg)]'],
+      ['sm_bom_source', 'workbench', 'bg-[var(--sm-pill-info-bg)]'],
+      ['sm_band', 'high', 'bg-[var(--sm-pill-success-bg)]'],
+      ['sm_match', 'low', 'bg-[var(--sm-pill-warn-bg)]'],
+      ['sm_utilization', 'at_capacity', 'bg-[var(--sm-pill-problem-bg)]'],
+    ];
+    for (const [category, value, expectedClass] of cases) {
+      const { unmount } = render(<Pill themed category={category} value={value} />);
+      const pill = screen.getByTestId('pill');
+      expect(pill.className).toContain(expectedClass);
+      unmount();
+    }
+  });
 });

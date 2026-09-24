@@ -484,6 +484,12 @@ const SM_TONES: Record<string, Record<string, PillTone>> = {
     answered: 'success', unsupported: 'info', probing: 'neutral', cap_reached: 'neutral',
     declined: 'warn', timeout: 'warn', unreachable: 'warn', not_connected: 'warn', rate_limited: 'warn',
   },
+  sm_execution_status: { queued: 'info', running: 'info', completed: 'success', failed: 'problem', cancelled: 'neutral' },
+  sm_readiness: { ready: 'success', not_ready: 'warn' },
+  sm_bom_source: { workbench: 'info', agent: 'neutral' },
+  sm_band: { high: 'success', medium: 'info', low: 'warn' },
+  sm_match: { exact: 'success', high: 'success', low: 'warn', not_on_network: 'warn', not_a_trading_partner: 'warn', ambiguous: 'warn' },
+  sm_utilization: { low: 'success', moderate: 'info', high: 'warn', at_capacity: 'problem' },
 };
 
 function deriveTone(category?: string, value?: string): NonNullable<PillProps['tone']> {
