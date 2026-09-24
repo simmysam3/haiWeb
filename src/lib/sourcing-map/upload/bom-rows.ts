@@ -129,7 +129,11 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
       const t = (r.cells[w.i] ?? '').trim();
       if (t === '') continue;
       const q = parseQty(t, decimalComma);
-      if (q !== null && q >= 0) byVariant[w.variant] = q;
+      if (q === null || q < 0) {
+        errors.push({ row: r.row, message: `Row ${r.row}: '${t}' under size ${w.variant} is not a quantity.` });
+        continue;
+      }
+      byVariant[w.variant] = q;
     }
     const values = Object.values(byVariant);
     const uniformText = cell(r.cells, 'qty_per_unit');

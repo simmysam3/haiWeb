@@ -87,4 +87,24 @@ describe('buildBomLines', () => {
     ]);
     expect(bad.ok && bad.lines.map((l) => l.component_label)).toEqual(['Eyelet']);
   });
+
+  it('a bad per-size cell in a wide BOM is a row error, never silently dropped (Review Focus 2)', () => {
+    const out = buildBomLines({
+      headers: ['Component', '9', '9.5'],
+      mapping: ['component', 'variant_qty', 'variant_qty'],
+      rows: [
+        { row: 2, cells: ['Foam', 'x', '0.3'] },
+        { row: 3, cells: ['Trim', '0.2', '-1'] },
+      ],
+      variantValues: MENS_US_7_13,
+      decimalComma: false,
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.errors).toEqual([
+      { row: 2, message: "Row 2: 'x' under size 9 is not a quantity." },
+      { row: 3, message: "Row 3: '-1' under size 9.5 is not a quantity." },
+    ]);
+    expect(out.lines.map((l) => l.qty_by_variant)).toEqual([{ '9.5': 0.3 }, { '9': 0.2 }]);
+  });
 });
