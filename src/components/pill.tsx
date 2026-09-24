@@ -385,6 +385,40 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     cap_reached: 'Beyond the six candidates probed per slot; not probed this run.',
     probing: 'The probe is in flight; the answer will appear here.',
   },
+  sm_execution_status: {
+    queued: 'Waiting to start.',
+    running: 'Probing your direct suppliers; answers appear as they arrive.',
+    completed: 'Every probe finished; the map shows the composed result.',
+    failed: 'The execution stopped before it finished. See the reason.',
+    cancelled: 'Cancelled; answers that arrived afterwards were discarded.',
+  },
+  sm_readiness: {
+    ready: 'Every rule for running holds.',
+    not_ready: 'A rule for running does not hold yet; the reason names the first one.',
+  },
+  sm_bom_source: {
+    workbench: 'Lines authored, uploaded or copied in, held centrally for planning.',
+    agent: "Read fresh from your own agent's BOM at each run.",
+  },
+  sm_band: {
+    high: 'A confident class suggestion; "Accept all confident" takes it.',
+    medium: 'A plausible class; check it before accepting.',
+    low: 'A weak match; pick a class from the suggestions or search.',
+  },
+  sm_match: {
+    exact: 'Exactly one of your trading partners has this name.',
+    high: 'A close match among your trading partners.',
+    low: 'A weak match; confirm the supplier by hand.',
+    not_on_network: 'No participant with this name is on the network; the line stays unpinned.',
+    not_a_trading_partner: 'This company is on the network but is not your trading partner; the line stays unpinned.',
+    ambiguous: 'More than one trading partner matches; pick one by hand.',
+  },
+  sm_utilization: {
+    low: 'The supplier reports low utilization.',
+    moderate: 'The supplier reports moderate utilization.',
+    high: 'The supplier reports high utilization.',
+    at_capacity: 'The supplier reports running at capacity.',
+  },
 };
 
 /** Resolve definition copy without exposing the map. Used by <ColumnHeader>. */

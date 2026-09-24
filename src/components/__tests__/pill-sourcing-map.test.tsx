@@ -1,7 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Pill } from '../pill';
+import { Pill, definitionFor } from '../pill';
+import {
+  SmCandidateLiveStatusSchema, SmExecutionStatusSchema, ClassSuggestionBandSchema, SmBomSourceSchema, UtilizationBandSchema,
+} from '@/lib/sourcing-map/contract';
 
 function tipText(): string {
   const pill = screen.getByTestId('pill');
@@ -17,5 +20,19 @@ describe('<Pill themed> (Sourcing Map)', () => {
     expect(pill.className).not.toContain('bg-warning/10');
     expect(tipText()).toMatch(/did not answer within/i);
     expect(screen.getByText('Timeout')).toBeInTheDocument();
+  });
+
+  it('every Sourcing Map pill value resolves a definition (no dev warning on the map)', () => {
+    const cases: Array<[string, readonly string[]]> = [
+      ['sm_candidate_status', SmCandidateLiveStatusSchema.options],
+      ['sm_execution_status', SmExecutionStatusSchema.options],
+      ['sm_band', ClassSuggestionBandSchema.options],
+      ['sm_bom_source', SmBomSourceSchema.options],
+      ['sm_utilization', UtilizationBandSchema.options],
+      ['sm_readiness', ['ready', 'not_ready']],
+      ['sm_match', ['exact', 'high', 'low', 'not_on_network', 'not_a_trading_partner', 'ambiguous']],
+    ];
+    const missing = cases.flatMap(([cat, values]) => values.filter((v) => !definitionFor(cat, v)).map((v) => `${cat}:${v}`));
+    expect(missing).toEqual([]);
   });
 });
