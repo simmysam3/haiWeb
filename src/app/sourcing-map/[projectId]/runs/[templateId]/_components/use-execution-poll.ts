@@ -83,6 +83,11 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
       onError: (e: unknown, failedKey: string) => {
         setState((st) => (statusKeyOf(st.detail) === failedKey ? { ...st, error: pollErrorText(e) } : st));
       },
+      // M3: while an error is cached SWR skips refresh ticks and backs off 5 s × 2^n; retry at the poll cadence so
+      // "Retrying." stays true. A retry for a key no longer polled finds no revalidator and does nothing.
+      onErrorRetry: (_e, _key, _config, retry, retryOpts) => {
+        setTimeout(() => void retry(retryOpts), SM_POLL_MS);
+      },
     },
   );
   return { detail, error: state.error };
