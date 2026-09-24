@@ -44,4 +44,16 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(detectHeaderRow({ name: 'x', rows: [{ row: 1, cells: ['only'] }] })).toBe(0);
   });
 
+  it('reads an Excel "CSV UTF-8" (byte-order mark, semicolons, decimal commas) exactly like the comma file', async () => {
+    const comma = await readWorkbookSheets(csv(['Component,Qty per unit,UOM', 'Upper leather,0.25,sq ft'].join(NL)), { fileName: 'bom.csv' });
+    const euro = await readWorkbookSheets(csv(BOM + ['Component;Qty per unit;UOM', 'Upper leather;0,25;sq ft'].join(NL)), { fileName: 'bom.csv' });
+    expect(comma.ok && euro.ok).toBe(true);
+    if (!comma.ok || !euro.ok) return;
+    expect(euro.sheets[0]!.rows[0]!.cells).toEqual(['Component', 'Qty per unit', 'UOM']);
+    expect(euro.sheets[0]!.rows[0]!.cells).toEqual(comma.sheets[0]!.rows[0]!.cells);
+    expect(euro.sheets[0]!.rows[1]!.cells).toEqual(['Upper leather', '0,25', 'sq ft']);
+    expect(euro.decimalComma).toBe(true);
+    expect(comma.decimalComma).toBe(false);
+  });
+
 });

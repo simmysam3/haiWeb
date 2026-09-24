@@ -204,6 +204,20 @@ export type SheetsOutcome =
   | { ok: true; sheets: SheetGrid[]; decimalComma: boolean }
   | { ok: false; reason: ParseRefusal; detail: string };
 
+const LF = String.fromCharCode(10);
+
+/**
+ * A semicolon CSV is European Excel's, whose numbers use decimal commas
+ * (Review Focus 1). SheetJS already picks the separator and drops a byte-order
+ * mark, so only the locale is read here, from the header line.
+ */
+function semicolonHeader(bytes: ArrayBuffer): boolean {
+  const text = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+  const end = text.indexOf(LF);
+  const header = end === -1 ? text : text.slice(0, end);
+  return header.split(';').length > header.split(',').length;
+}
+
 export async function readWorkbookSheets(
   bytes: ArrayBuffer,
   opts: { fileName: string; maxBytes?: number; maxRows?: number },
@@ -231,7 +245,7 @@ export async function readWorkbookSheets(
       .filter((r) => r.cells.some((c) => c.trim() !== ''));
     sheets.push({ name, rows });
   }
-  return { ok: true, sheets, decimalComma: false };
+  return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };
 }
 
 /** Index into `sheet.rows` of the header: the first row with at least two filled cells (the rule at :130); 0 when none. */
