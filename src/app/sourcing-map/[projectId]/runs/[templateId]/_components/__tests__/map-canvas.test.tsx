@@ -11,6 +11,7 @@ const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athleti
 const NAMES = { [VOMERO_IDS.pegasus]: 'Pegasus Trail', [VOMERO_IDS.court]: 'Court Classic', [VOMERO_IDS.metcon]: 'Metcon Iron' };
 const UNAVAILABLE = "Nothing to map: every product's BOM was unavailable from the agent.";
 const NO_LINES = 'Nothing to map: the products in this run have no BOM lines yet.';
+const SOME_UNAVAILABLE = "Nothing to map: some products' BOMs were unavailable from the agent, and the others have no BOM lines yet.";
 
 function mount(result: SourcingMapExecutionResult, extra: Partial<Parameters<typeof MapCanvas>[0]> = {}) {
   return render(
@@ -97,12 +98,13 @@ describe('MapCanvas', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent(UNAVAILABLE);
   });
 
-  it('names both reasons when a zero-slot run has some failed BOMs and the rest have no lines (Review Focus 5)', () => {
+  it('says so in one sentence when a zero-slot run has some failed BOMs and the rest have no lines (Review Focus 5, M2 amended)', () => {
     const mixed = zeroSlotResult();
     mixed.products = mixed.products.map((p, i) => (i === 0 ? p : { ...p, status: 'composed' as const, failure: null }));
     mount(mixed, { asOfDrop: null });
-    expect(screen.getByRole('status')).toHaveTextContent(UNAVAILABLE);
-    expect(screen.getByRole('status')).toHaveTextContent(NO_LINES);
+    expect(screen.getByRole('status')).toHaveTextContent(SOME_UNAVAILABLE);
+    expect(screen.getByRole('status')).not.toHaveTextContent(UNAVAILABLE);
+    expect(screen.getByRole('status')).not.toHaveTextContent(NO_LINES);
   });
 
   it("dims slots the filtered product does not use and shows that product's share of the others (d-G8)", () => {

@@ -61,19 +61,18 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
     }
   }
   if (result.slots.length === 0) {
-    // Review Focus 5: every reason that applies, each said as itself.
+    // Review Focus 5: the reason as it is, whether every BOM failed, some did, or none did (M2 amended).
     const anyFailed = result.products.some((p) => p.status === 'failed');
     const allFailed = anyFailed && result.products.every((p) => p.status === 'failed');
-    const reasons = [
-      ...(anyFailed ? ["Nothing to map: every product's BOM was unavailable from the agent."] : []),
-      ...(allFailed ? [] : ['Nothing to map: the products in this run have no BOM lines yet.']),
-    ];
+    const reason = allFailed
+      ? "Nothing to map: every product's BOM was unavailable from the agent."
+      : anyFailed
+        ? "Nothing to map: some products' BOMs were unavailable from the agent, and the others have no BOM lines yet."
+        : 'Nothing to map: the products in this run have no BOM lines yet.';
     return (
       <section aria-label="Sourcing map" className="p-6">
         <p className="sm-muted text-xs">Direct suppliers only; nothing below tier 1 has been traced.</p>
-        <div role="status" className="sm-card mt-4 space-y-2 p-6 text-sm">
-          {reasons.map((r) => <p key={r}>{r}</p>)}
-        </div>
+        <p role="status" className="sm-card mt-4 p-6 text-sm">{reason}</p>
       </section>
     );
   }
