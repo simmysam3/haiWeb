@@ -73,4 +73,18 @@ describe('buildDemand', () => {
     ]);
     expect(out.perProduct).toEqual([]);
   });
+
+  it('refuses a product whose rows leave no drop with a quantity above 0 (contract §3.5: drops has at least one)', () => {
+    const out = buildDemand({
+      headers: ['Due date', '9', '9.5'],
+      mapping: ['due_date', 'variant_qty', 'variant_qty'],
+      rows: [
+        { row: 2, cells: ['2027-01-15', '', ''] },
+        { row: 3, cells: ['2027-02-15', '', ''] },
+      ],
+      products: [PRODUCTS[0]!],
+      decimalComma: false,
+    });
+    expect(out.errors).toEqual([{ row: 0, message: 'Pegasus Trail has no drop with a quantity above 0.' }]);
+  });
 });

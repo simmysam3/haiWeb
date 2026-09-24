@@ -117,8 +117,12 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
     drops: [...perDate.values()].filter((d) => d.qty > 0).sort((a, b) => a.due_date.localeCompare(b.due_date)),
   }));
   for (const p of perProduct) {
+    const name = products.find((x) => x.product_id === p.product_id)?.name ?? p.product_id;
+    // A schedule takes at least one drop (contract §3.5); blank or zero quantities leave none.
+    if (p.drops.length === 0) {
+      errors.push({ row: 0, message: `${name} has no drop with a quantity above 0.` });
+    }
     if (p.drops.length > SM_LIMITS.DROPS_PER_PRODUCT) {
-      const name = products.find((x) => x.product_id === p.product_id)?.name ?? p.product_id;
       errors.push({ row: 0, message: `${name} has ${p.drops.length} drops; a product takes at most ${SM_LIMITS.DROPS_PER_PRODUCT}.` });
     }
   }
