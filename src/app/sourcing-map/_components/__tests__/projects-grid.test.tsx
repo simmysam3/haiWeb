@@ -129,4 +129,24 @@ describe('ProjectsGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archive Spring 2027' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not archive the project.');
   });
+
+  it('keeps Create project focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ProjectsGrid initialProjects={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New project' }));
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Fall 2027' } });
+    const create = screen.getByRole('button', { name: 'Create project' });
+    create.focus();
+    fireEvent.click(create);
+    expect(create).toHaveAttribute('aria-busy', 'true');
+    expect(create).toHaveAttribute('aria-disabled', 'true');
+    expect(create).not.toBeDisabled();
+    expect(create).toHaveFocus();
+    fireEvent.click(create);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(201, { ...vomeroProject, name: 'Fall 2027' }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
 });
+

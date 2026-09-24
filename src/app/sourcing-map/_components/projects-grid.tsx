@@ -6,6 +6,7 @@ import type { SmProject, SmProjectListResponse } from '@/lib/sourcing-map/contra
 import { smFetch } from '@/lib/sourcing-map/client';
 import { smProjectHref } from '@/lib/sourcing-map/routes';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
+import { SmButton } from './sm-button';
 import { SmDialog } from './sm-dialog';
 import { DispositionDialog, type Disposition } from './disposition-dialog';
 
@@ -141,7 +142,7 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         footer={
           <>
             <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setCreating(false)}>Cancel</button>
-            <button type="button" className="sm-btn sm-btn-primary" disabled={busy || name.trim() === ''} onClick={create}>Create project</button>
+            <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={name.trim() === ''} onClick={create}>Create project</SmButton>
           </>
         }
       >
