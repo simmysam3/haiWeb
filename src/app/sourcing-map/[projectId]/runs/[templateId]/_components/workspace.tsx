@@ -151,6 +151,18 @@ export function Workspace({
     setSelected(null);
   }
 
+  // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
+  // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle.
+  function toggleLane(i: number) {
+    if (!collapsed.has(i) && selected?.slot === i) setSelected(null);
+    setCollapsed((c) => {
+      const n = new Set(c);
+      if (n.has(i)) n.delete(i);
+      else n.add(i);
+      return n;
+    });
+  }
+
   // R2: the tray moves focus into itself on open; closing it gives focus back to Configure, which opened it.
   const configureRef = useRef<HTMLButtonElement | null>(null);
   // P2: the side column holds one panel at a time (the details and the tray side by side would overflow the row).
@@ -242,7 +254,7 @@ export function Workspace({
                 selected={selected}
                 onSelect={setSelected}
                 collapsed={collapsed}
-                onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
+                onToggle={toggleLane}
               />
             </div>
           )}

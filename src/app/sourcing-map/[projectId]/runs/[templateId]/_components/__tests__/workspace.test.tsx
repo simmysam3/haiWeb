@@ -547,4 +547,16 @@ describe('Workspace', () => {
       swr.options.onSuccess?.({ execution_id: id, status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] }, key));
     await waitFor(() => expect(select.selectedOptions[0]!.textContent).toMatch(/· completed$/));
   });
+
+  it('collapsing the lane that holds the open card closes its details; focus stays on the lane’s toggle, never <body> (M1)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    rail.focus();
+    fireEvent.click(rail);
+    expect(rail).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(rail).toHaveFocus();
+  });
 });
