@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { readWorkbookSheets } from '@/lib/scope-import/parse-workbook';
+import { SmBomLineInputSchema } from '@/lib/sourcing-map/contract';
 import { UploadWizard } from '../upload-wizard';
 
 // A pass-through: every test reads with the real reader. Only Ruling M1's test makes one read reject, as a failed
@@ -621,6 +622,18 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/bom-lines'))).toHaveLength(1);
     release();
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
+  });
+  it('lists a line the PUT schema refuses as a row error in Review, by its source row, and saves nothing (A5-I1, spec §7.3)', async () => {
+    fetchMock.mockImplementation(route());
+    renderBom();
+    // One character over the schema's own UoM limit.
+    const uom = 'u'.repeat(SmBomLineInputSchema.innerType().shape.uom.maxLength! + 1);
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,UOM', `Upper leather tumbled,0.25,${uom}`]));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to review' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Row 2: Unit of measure is longer than ${uom.length - 1} characters.`);
+    expect(screen.getByRole('button', { name: 'Save 1 line' })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
   });
 });
 

@@ -7,7 +7,7 @@ import {
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
 import { buildDemand, type DemandBuild, type DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
-import { toUploadInput, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
+import { toUploadInput, uploadRowErrors, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SmDialog } from '../sm-dialog';
 import { FileStep } from './file-step';
@@ -232,7 +232,9 @@ export function UploadWizard(props: UploadWizardProps) {
         {step === 'review' && props.kind === 'bom' && bom && (
           <ReviewStep
             summary={bomSummary(resolved)}
-            errors={bom.errors}
+            // A5-I1: the lines Continue to review resolved, checked against the PUT's schema, so Review never
+            // passes a line haiCore would refuse without a row number.
+            errors={[...bom.errors, ...uploadRowErrors(resolved)]}
             ignoredColumns={bom.ignoredColumns}
             commitLabel={`Save ${resolved.length} line${resolved.length === 1 ? '' : 's'}`}
             busy={busy}
