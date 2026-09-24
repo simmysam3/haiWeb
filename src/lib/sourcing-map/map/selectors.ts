@@ -92,3 +92,14 @@ export function slotDemandAt(slot: SmSlotResult, week: string | null): number {
 export function slotCoverageAt(slot: SmSlotResult, week: string | null): SmCoverageWeek | null {
   return week === null ? null : slot.coverage.find((c) => c.week === week) ?? null;
 }
+
+/**
+ * A variant record's entries in axis order. JS objects list integer-like keys
+ * ("7", "13") before the others ("7.5"), so numeric keys are sorted numerically.
+ */
+export function sortedVariantEntries<T>(record: Record<string, T>): Array<[string, T]> {
+  const entries = Object.entries(record);
+  return entries.every(([k]) => k.trim() !== '' && Number.isFinite(Number(k)))
+    ? entries.sort(([a], [b]) => Number(a) - Number(b))
+    : entries;
+}

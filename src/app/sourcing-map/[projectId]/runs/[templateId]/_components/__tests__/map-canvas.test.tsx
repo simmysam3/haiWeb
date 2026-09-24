@@ -65,6 +65,19 @@ describe('MapCanvas', () => {
     expect(leather.className).not.toContain('opacity-40');
     expect(within(leather).getByText('Metcon Iron: 3,750 of 12,000 sq ft (31%)')).toBeInTheDocument();
   });
+
+  it('shows a size-bound slot’s per-size strip at the as-of drop, in size order, each size with its percentage (Zephyr sizes 9 and 10 bind)', () => {
+    mount(vomeroResult);
+    const outsole = screen.getByRole('group', { name: 'Rubber outsoles' });
+    const strip = within(outsole).getByRole('list', { name: 'Coverage by size' });
+    const cells = within(strip).getAllByRole('listitem');
+    expect(cells).toHaveLength(13);
+    expect(cells.slice(0, 3).map((c) => c.textContent)).toEqual(['7 100%', '7.5 100%', '8 100%']);
+    expect(within(strip).getByLabelText('Size 9: 79% covered')).toHaveTextContent('9 79%');
+    expect(within(strip).getByLabelText('Size 10: 79% covered')).toBeInTheDocument();
+    expect(within(strip).getByLabelText('Size 9.5: 100% covered')).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Metal eyelets' })).queryByRole('list', { name: 'Coverage by size' })).toBeNull();
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {

@@ -1,6 +1,6 @@
 'use client';
 import type { SmSlotResult } from '@/lib/sourcing-map/contract';
-import { formatDropDate, formatPct, formatQty, slotCoverageAt, slotDemandAt, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
+import { formatDropDate, formatPct, formatQty, heatVar, slotCoverageAt, slotDemandAt, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 
 /** Slot rail header (spec §9.3): class, requirement by the as-of drop, products, coverage, size-bound mark. */
@@ -33,6 +33,21 @@ export function SlotRail({ slot, asOfDrop, collapsed, onToggle, productNames, pr
         <p>{`Covered ${formatPct(cov.coverage)} by this drop${slot.observed ? '' : ' · not fully observed'}`}</p>
       ) : null}
       {slot.slot_key.variant_bound && <p className="sm-muted text-xs">Size-bound</p>}
+      {slot.slot_key.variant_bound && cov?.coverage_by_variant && (
+        <ol aria-label="Coverage by size" className="mt-1 flex flex-wrap gap-1">
+          {sortedVariantEntries(cov.coverage_by_variant).map(([v, r]) => (
+            <li key={v}>
+              <span
+                aria-label={`Size ${v}: ${formatPct(r)} covered`}
+                className="block px-1 text-[10px]"
+                style={{ borderBottom: `2px solid ${heatVar(r)}` }}
+              >
+                {`${v} ${formatPct(r)}`}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
