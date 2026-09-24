@@ -4,6 +4,7 @@ import type { SmProduct, SmProductDetail, VariantAxis } from '@/lib/sourcing-map
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
 import { Pill } from '@/components/pill';
+import { SmButton } from '../../../../_components/sm-button';
 import { SmHeader } from '../../../../_components/sm-header';
 import { VariantAxisEditor } from './variant-axis-editor';
 
@@ -54,7 +55,7 @@ export function ProductEditor({ projectName, detail, onSaved, children }: {
             <VariantAxisEditor axis={axis} onChange={setAxis} />
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={save}>Save product</button>
+            <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={save}>Save product</SmButton>
             {error && <p role="alert" className="sm-error text-sm">{error}</p>}
           </div>
         </div>
