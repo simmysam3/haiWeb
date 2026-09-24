@@ -33,7 +33,8 @@ export interface WorkspaceProps {
 
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
-  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null, executionsError = null, detailError = null,
+  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail,
+  projectError = null, productsError = null, executionsError = null, detailError = null,
 }: WorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
