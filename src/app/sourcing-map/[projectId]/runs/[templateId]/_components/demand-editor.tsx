@@ -17,6 +17,7 @@ export function DemandEditor({ product, demand, onChange }: { product: SmProduct
   const [error, setError] = useState<string | null>(null);
   const axis = product.variant_axis;
   const totalQty = demand.drops.reduce((a, d) => a + d.qty, 0);
+  const outOfOrder = demand.drops.some((d, i) => i > 0 && d.due_date <= demand.drops[i - 1]!.due_date);
 
   function generate() {
     const input: DropsGeneratorInput = { total: Number(total), first_due_date: first, spacing, count: Number(count), shape };
@@ -83,6 +84,7 @@ export function DemandEditor({ product, demand, onChange }: { product: SmProduct
           ))}
         </tbody>
       </table>
+      {outOfOrder && <p role="alert" className="sm-error mt-2 text-sm">Drops must be in date order, with no date repeated.</p>}
       {axis && (
         <SizeMixEditor
           axis={axis}

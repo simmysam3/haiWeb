@@ -26,4 +26,15 @@ describe('DemandEditor', () => {
     fireEvent.click(screen.getByLabelText('Override the mix for drop 3 of Pegasus Trail'));
     expect(onChange.mock.lastCall![0].drops[2].mix_override).toEqual(demand.mix);
   });
+
+  it('flags drops that are out of date order or repeat a date (spec §7.4)', () => {
+    const demand = vomeroRunTemplate.scope.products[0]!.demand;
+    const [first, second, ...rest] = demand.drops;
+    const { rerender } = render(<DemandEditor product={vomeroProducts[0]!} demand={demand} onChange={vi.fn()} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+    rerender(<DemandEditor product={vomeroProducts[0]!} demand={{ ...demand, drops: [second!, first!, ...rest] }} onChange={vi.fn()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Drops must be in date order, with no date repeated.');
+    rerender(<DemandEditor product={vomeroProducts[0]!} demand={{ ...demand, drops: [first!, { ...second!, due_date: first!.due_date }, ...rest] }} onChange={vi.fn()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Drops must be in date order, with no date repeated.');
+  });
 });
