@@ -24,4 +24,9 @@ describe('RunButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run' }));
     expect(onRun).toHaveBeenCalled();
   });
+
+  it('says "1 slot" and "1 probe" in the singular, as the responders line does (R4)', () => {
+    render(<RunButton estimate={{ ...vomeroEstimate, slot_count: 1, probe_count: 1, probe_count_worst_case: 3 }} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
+    expect(screen.getByText('1 slot · 1 probe (up to 3 with re-probes)')).toBeInTheDocument();
+  });
 });

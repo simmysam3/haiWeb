@@ -38,7 +38,7 @@ export function RunButton({ estimate, blockedReason, running, busy, onRun }: {
       ) : (
         estimate && (
           <span className="sm-muted mt-1 text-xs">
-            <span>{`${estimate.slot_count} slots · ${estimate.probe_count} probes (up to ${estimate.probe_count_worst_case} with re-probes)`}</span>
+            <span>{`${estimate.slot_count} slot${estimate.slot_count === 1 ? '' : 's'} · ${estimate.probe_count} probe${estimate.probe_count === 1 ? '' : 's'} (up to ${estimate.probe_count_worst_case} with re-probes)`}</span>
             {estimate.responders_short.map((r) => (
               <span key={r.participant_id} className="sm-warn block">
                 {`${r.legal_name} has ${r.remaining_allowance} probe${r.remaining_allowance === 1 ? '' : 's'} left this hour for ${r.probes_planned} planned.`}
