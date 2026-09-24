@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { readWorkbookSheets, detectHeaderRow, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
+import { readWorkbookSheets, detectHeaderRow, MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
 
 const NL = String.fromCharCode(10);
 const BOM = String.fromCharCode(0xfeff);
@@ -90,6 +90,18 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     const lines = ['Description,Usage', 'a,1', 'b,2', ...Array.from({ length: 14 }, () => ''), 'c,3', 'd,4', 'e,5'];
     const out = await readWorkbookSheets(csv(lines.join(NL)), { fileName: 'long.csv', maxRows: 4 });
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', lines.length, 4) });
+  });
+
+  it('reads at most the column ceiling of a sheet that declares a far wider range, keeping its data (security L1)', async () => {
+    // Within the row bound, but 16,384 columns wide as declared: expanded, every row would carry 16,384 cells.
+    const wide = declared([['Description', 'Usage'], ['Upper leather', 0.25]], 'A1:XFD30');
+    const out = await readWorkbookSheets(wide, { fileName: 'wide.xlsx' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const [header, data] = out.sheets[0]!.rows;
+    expect(header!.cells).toHaveLength(MAX_IMPORT_COLUMNS);
+    expect(header!.cells.slice(0, 2)).toEqual(['Description', 'Usage']);
+    expect(data!.cells.slice(0, 2)).toEqual(['Upper leather', '0.25']);
   });
 });
 

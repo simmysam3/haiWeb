@@ -201,6 +201,14 @@ export async function parseWorkbook(
 /** The rows the Map step offers as the header row (map-step.tsx); a title block above the header fits in them. */
 export const HEADER_ROWS_OFFERED = 10;
 
+/**
+ * Columns the upload reader reads from a sheet (security L1). A declared range can be far wider than its data, and
+ * the grid holds every declared cell. 256 is the legacy .xls sheet's own width, well past what an upload maps (its
+ * targets plus one column per size; an axis holds at most 40), and keeps a full sheet's grid to about 1.3 million
+ * cells. Columns past it are not offered on the Map step.
+ */
+export const MAX_IMPORT_COLUMNS = 256;
+
 export interface SheetGrid {
   name: string;
   /** Non-blank rows; `row` is the 1-based sheet row the user sees. */
@@ -265,8 +273,10 @@ export async function readWorkbookSheets(
       const rowCount = ws['!fullref'] ? declaredRows : lineCount(bytes);
       return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, rowCount, maxRows) };
     }
-    const start = XLSX.utils.decode_range(ws['!ref'] ?? 'A1').s.r;
-    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true });
+    const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
+    range.e.c = Math.min(range.e.c, range.s.c + MAX_IMPORT_COLUMNS - 1);
+    const start = range.s.r;
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true, range });
     const rows = grid
       .map((cells, i) => ({ row: start + i + 1, cells: cells.map(cellText) }))
       .filter((r) => r.cells.some((c) => c.trim() !== ''));
