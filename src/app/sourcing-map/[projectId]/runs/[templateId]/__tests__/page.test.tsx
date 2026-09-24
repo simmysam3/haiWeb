@@ -60,4 +60,11 @@ describe('run workspace page', () => {
     await expect(Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: decodeURIComponent('..%2Fprojects') }) })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(fetchBffJson).not.toHaveBeenCalled();
   });
+
+  it('is a 404, before any fetch, when the project segment is not an id (R6)', async () => {
+    queueGoodLoad();
+    const { default: Page } = await import('../page');
+    await expect(Page({ params: Promise.resolve({ projectId: decodeURIComponent('..%2F..%2Fx'), templateId: VOMERO_IDS.template }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).not.toHaveBeenCalled();
+  });
 });
