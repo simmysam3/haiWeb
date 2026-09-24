@@ -30,4 +30,12 @@ describe('/api/account/sourcing-map/runs', () => {
       retention_days: 365,
     });
   });
+
+  it('POST refuses an invalid body with 400 and never calls haiCore', async () => {
+    const { POST } = await import('../route');
+    const res = await POST(smReq('POST', '/x', { template_name: '' }), smCtx({}));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
+    expect(fetchRaw).not.toHaveBeenCalled();
+  });
 });
