@@ -465,6 +465,7 @@ export const config = {
   matcher: [
     '/account/:path*',
     '/admin/:path*',
+    '/sourcing-map/:path*',
     '/api/account/:path*',
     '/api/sonar/:path*',
     '/api/search',

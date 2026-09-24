@@ -354,4 +354,9 @@ describe('sliding-refresh matcher covers every mutating BFF surface', () => {
     expect(config.matcher).toContain('/api/search');
     expect(config.matcher).toContain('/api/account/:path*');
   });
+
+  it('runs on /sourcing-map pages; /api/account/:path* already covers the sourcing-map BFF', () => {
+    expect(config.matcher).toContain('/sourcing-map/:path*');
+    expect(config.matcher).toContain('/api/account/:path*');
+  });
 });
