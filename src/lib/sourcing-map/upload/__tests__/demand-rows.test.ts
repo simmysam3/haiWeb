@@ -53,4 +53,24 @@ describe('buildDemand', () => {
     // totals-only: no sizes, so no pairs; the mix comes from the curve (Task 34)
     expect(tooMany.perProduct[0]!.drops[0]).toEqual({ due_date: '2027-01-04', qty: 100, pairs: null });
   });
+
+  it('names an unreadable date, a fractional quantity and an unknown product by source row', () => {
+    const out = buildDemand({
+      headers: ['Style', 'Due', 'Size', 'Pairs'],
+      mapping: ['product', 'due_date', 'variant', 'quantity'],
+      rows: [
+        { row: 2, cells: ['Pegasus Trail', '31/31/2027', '9', '10'] },
+        { row: 3, cells: ['Pegasus Trail', '2027-01-15', '9', '10.5'] },
+        { row: 4, cells: ['Vomero 18', '2027-01-15', '9', '10'] },
+      ],
+      products: PRODUCTS,
+      decimalComma: false,
+    });
+    expect(out.errors).toEqual([
+      { row: 2, message: "Row 2: '31/31/2027' is not a date." },
+      { row: 3, message: "Row 3: '10.5' is not a whole quantity." },
+      { row: 4, message: "Row 4: product 'Vomero 18' is not in this run." },
+    ]);
+    expect(out.perProduct).toEqual([]);
+  });
 });

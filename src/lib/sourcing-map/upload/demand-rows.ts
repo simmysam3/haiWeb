@@ -26,6 +26,11 @@ export interface DemandBuildInput {
   decimalComma: boolean;
 }
 
+function wholeQty(text: string, decimalComma: boolean): number | null {
+  const q = parseQty(text, decimalComma);
+  return q !== null && q >= 0 && Number.isInteger(q) ? q : null;
+}
+
 /** Mapped demand rows → drops per run product (spec §7.3 demand targets): the long and wide layouts. */
 export function buildDemand(input: DemandBuildInput): DemandBuild {
   const { rows, headers, mapping, products, decimalComma } = input;
@@ -53,15 +58,29 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
   for (const r of rows) {
     // A single-product run needs no product column (spec §7.3).
     const product = col('product') < 0 ? products[0] : byName.get(cell(r.cells, 'product').toLocaleLowerCase());
-    if (!product) continue;
-    const due = parseSheetDate(cell(r.cells, 'due_date'));
-    if (!due) continue;
+    if (!product) {
+      errors.push({ row: r.row, message: `Row ${r.row}: product '${cell(r.cells, 'product')}' is not in this run.` });
+      continue;
+    }
+    const dateText = cell(r.cells, 'due_date');
+    const due = parseSheetDate(dateText);
+    if (!due) {
+      errors.push({ row: r.row, message: `Row ${r.row}: '${dateText}' is not a date.` });
+      continue;
+    }
     const pairs: Record<string, number> = {};
     let qty = 0;
     if (col('variant') >= 0) {
       const v = matchVariantHeader(cell(r.cells, 'variant'), product.variant_values);
-      const q = parseQty(cell(r.cells, 'quantity'), decimalComma);
-      if (v === null || q === null) continue;
+      const q = wholeQty(cell(r.cells, 'quantity'), decimalComma);
+      if (v === null) {
+        errors.push({ row: r.row, message: `Row ${r.row}: size '${cell(r.cells, 'variant')}' is not on ${product.name}.` });
+        continue;
+      }
+      if (q === null) {
+        errors.push({ row: r.row, message: `Row ${r.row}: '${cell(r.cells, 'quantity')}' is not a whole quantity.` });
+        continue;
+      }
       pairs[v] = q;
       qty = q;
     } else if (wideCols.length > 0) {
@@ -69,14 +88,20 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
         const v = matchVariantHeader(headers[i] ?? '', product.variant_values);
         const t = (r.cells[i] ?? '').trim();
         if (v === null || t === '') continue;
-        const q = parseQty(t, decimalComma);
-        if (q === null) continue;
+        const q = wholeQty(t, decimalComma);
+        if (q === null) {
+          errors.push({ row: r.row, message: `Row ${r.row}: '${t}' under ${(headers[i] ?? '').trim()} is not a whole quantity.` });
+          continue;
+        }
         pairs[v] = (pairs[v] ?? 0) + q;
         qty += q;
       }
     } else {
-      const q = parseQty(cell(r.cells, 'quantity'), decimalComma);
-      if (q === null) continue;
+      const q = wholeQty(cell(r.cells, 'quantity'), decimalComma);
+      if (q === null || q === 0) {
+        errors.push({ row: r.row, message: `Row ${r.row}: '${cell(r.cells, 'quantity')}' is not a whole quantity.` });
+        continue;
+      }
       qty = q;
     }
     const perDate = acc.get(product.product_id) ?? new Map<string, DemandBuildDrop>();
