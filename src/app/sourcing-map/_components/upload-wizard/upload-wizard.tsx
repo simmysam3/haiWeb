@@ -6,7 +6,7 @@ import {
 } from '@/lib/scope-import/parse-workbook';
 import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
-import type { DemandBuild, DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
+import { buildDemand, type DemandBuild, type DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
 import { toUploadInput, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SmDialog } from '../sm-dialog';
@@ -31,6 +31,15 @@ function bomSummary(lines: ResolvedLine[]): string[] {
   return out;
 }
 
+function demandSummary(build: DemandBuild, products: DemandBuildProduct[]): string[] {
+  if (build.perProduct.length === 0) return ['No drops were read from the file.'];
+  return build.perProduct.map((p) => {
+    const name = products.find((x) => x.product_id === p.product_id)?.name ?? p.product_id;
+    const total = p.drops.reduce((a, d) => a + d.qty, 0);
+    return `${name}: ${p.drops.length} drop${p.drops.length === 1 ? '' : 's'} · ${total.toLocaleString('en-US')} units`;
+  });
+}
+
 /** Spec §7.3: File → Map columns → Resolve (BOM only) → Review. Only mapped rows leave the browser. */
 export function UploadWizard(props: UploadWizardProps) {
   const { kind } = props;
@@ -46,6 +55,7 @@ export function UploadWizard(props: UploadWizardProps) {
   const [mapping, setMapping] = useState<string[]>([]);
   const [decimalComma, setDecimalComma] = useState(false);
   const [bom, setBom] = useState<Extract<BomBuild, { ok: true }> | null>(null);
+  const [demand, setDemand] = useState<DemandBuild | null>(null);
   const [resolved, setResolved] = useState<ResolvedLine[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +114,17 @@ export function UploadWizard(props: UploadWizardProps) {
 
   function onContinueMap() {
     setError(null);
-    if (props.kind !== 'bom') return; // Cycle 32.7 adds the demand path
+    if (props.kind === 'demand') {
+      const out = buildDemand({ rows: dataRows, headers, mapping, products: props.products, decimalComma });
+      if (out.perProduct.length === 0 && out.errors.some((e) => e.row === 0)) {
+        setError(out.errors.filter((e) => e.row === 0).map((e) => e.message).join(' '));
+        return;
+      }
+      rememberMapping('demand', headers, mapping);
+      setDemand(out);
+      setStep('review');
+      return;
+    }
     // Nothing under the header would reach Review as "Save 0 lines" and replace the BOM with an empty one.
     if (dataRows.length === 0) {
       setError(`There are no rows under the header row (Row ${rows[headerIndex]?.row ?? headerIndex + 1}).`);
@@ -197,6 +217,18 @@ export function UploadWizard(props: UploadWizardProps) {
             error={error}
             onBack={() => setStep('resolve')}
             onCommit={() => void commitBom()}
+          />
+        )}
+        {step === 'review' && props.kind === 'demand' && demand && (
+          <ReviewStep
+            summary={demandSummary(demand, props.products)}
+            errors={demand.errors}
+            ignoredColumns={demand.ignoredColumns}
+            commitLabel="Apply schedule"
+            busy={false}
+            error={null}
+            onBack={() => setStep('map')}
+            onCommit={() => props.onApply(demand)}
           />
         )}
       </div>

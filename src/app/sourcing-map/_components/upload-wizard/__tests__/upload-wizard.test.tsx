@@ -349,5 +349,39 @@ describe('UploadWizard (BOM)', () => {
 
 });
 
-// `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
-// vitest fails an empty suite ("No test found in suite").
+describe('UploadWizard (demand)', () => {
+  const PRODUCTS = [
+    { product_id: VOMERO_IDS.pegasus, name: 'Pegasus Trail', variant_values: AXIS.values },
+    { product_id: VOMERO_IDS.court, name: 'Court Classic', variant_values: AXIS.values },
+  ];
+
+  it('reads a demand file, reviews the drops per product, and applies the build (spec §7.3, §7.4 "Upload schedule")', async () => {
+    const onApply = vi.fn();
+    render(<UploadWizard kind="demand" products={PRODUCTS.slice(0, 1)} onApply={onApply} onClose={vi.fn()} />);
+    expect(screen.getByRole('dialog', { name: 'Upload schedule' })).toBeInTheDocument();
+    await userEvent.upload(fileInput(), csvFile(['Style,Due,Size,Pairs', 'Pegasus Trail,46402,9,300', 'Pegasus Trail,46433,9,400'], 'demand.csv'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Pegasus Trail: 2 drops · 700 units')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }));
+    expect(onApply).toHaveBeenCalledWith({
+      perProduct: [{
+        product_id: VOMERO_IDS.pegasus,
+        drops: [
+          { due_date: '2027-01-15', qty: 300, pairs: { '9': 300 } },
+          { due_date: '2027-02-15', qty: 400, pairs: { '9': 400 } },
+        ],
+      }],
+      errors: [],
+      ignoredColumns: [],
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a two-product run on the mapping step when the file has no Product column', async () => {
+    render(<UploadWizard kind="demand" products={PRODUCTS} onApply={vi.fn()} onClose={vi.fn()} />);
+    await userEvent.upload(fileInput(), csvFile(['Due,Pairs', '2027-01-15,300'], 'demand.csv'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Map a Product column; this run has 2 products.');
+    expect(screen.getByLabelText('Map column Due')).toBeInTheDocument();
+  });
+});
