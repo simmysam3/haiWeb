@@ -43,6 +43,7 @@ export function Workspace({
   const [loaded, setLoaded] = useState(initialDetail);
   // `loaded` is state, so it is referentially stable, as the hook requires.
   const { detail, error: pollError } = useExecutionPoll(loaded);
+  const running = detail !== null && (detail.execution.status === 'queued' || detail.execution.status === 'running');
   const [estimate, setEstimate] = useState<SmEstimateResponse | null>(null);
   // R5: a failed readiness read blocks Run with its reason; RunButton would otherwise say "Checking…" for ever.
   const [estimateError, setEstimateError] = useState<string | null>(null);
@@ -101,6 +102,17 @@ export function Workspace({
     await selectExecution(t.data.run_id);
   }
 
+  // R2: a successful Cancel removes its own button. Once no execution runs any more (the reload, or a poll, says so),
+  // focus goes to the result picker: it is always enabled then, as the cancelled execution is listed. Run may be
+  // disabled (not ready, or the tray open), and a disabled control can't take focus.
+  const pickerRef = useRef<HTMLSpanElement | null>(null);
+  const focusAfterCancel = useRef(false);
+  useEffect(() => {
+    if (!focusAfterCancel.current || running) return;
+    focusAfterCancel.current = false;
+    pickerRef.current?.querySelector('select')?.focus();
+  });
+
   async function cancel(id: string) {
     setCancelling(true);
     setError(null);
@@ -112,6 +124,7 @@ export function Workspace({
     }
     // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
     // Cancel stays disabled through the reload, which removes it.
+    focusAfterCancel.current = true;
     await selectExecution(id);
     setCancelling(false);
   }
@@ -140,7 +153,6 @@ export function Workspace({
 
   const result = detail?.result ?? null;
   const asOfDrop = result ? resolveAsOfDrop(params.get('drop'), result.portfolio) : null;
-  const running = detail !== null && (detail.execution.status === 'queued' || detail.execution.status === 'running');
   const productNames = Object.fromEntries(library.map((p) => [p.product_id, p.name]));
   const inRun = library.filter((p) => template.scope.products.some((x) => x.product_id === p.product_id));
   const units = [...new Set(inRun.map((p) => p.unit_label))];
@@ -152,7 +164,9 @@ export function Workspace({
         crumbs={[{ label: 'Projects', href: SM_HOME }, { label: projectName, href: smProjectHref(template.scope.project_id) }, { label: template.template_name }]}
         actions={
           <>
-            <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
+            <span ref={pickerRef} className="contents">
+              <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
+            </span>
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
             <button ref={configureRef} type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>
               Configure
