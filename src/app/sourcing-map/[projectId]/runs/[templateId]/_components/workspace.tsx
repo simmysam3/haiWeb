@@ -116,19 +116,24 @@ export function Workspace({
   });
 
   async function cancel(id: string) {
+    const seq = selectSeq.current;
     setCancelling(true);
     setError(null);
-    const out = await smFetch(`/api/account/sourcing-map/executions/${id}/cancel`, { method: 'POST' });
-    if (!out.ok) {
+    try {
+      const out = await smFetch(`/api/account/sourcing-map/executions/${id}/cancel`, { method: 'POST' });
+      // R3: a switch of result made while the request was in flight wins; this answer, and its reload, no longer apply.
+      if (seq !== selectSeq.current) return;
+      if (!out.ok) {
+        setError(out.message);
+        return;
+      }
+      // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
+      // Cancel stays disabled through the reload, which removes it.
+      focusAfterCancel.current = true;
+      await selectExecution(id);
+    } finally {
       setCancelling(false);
-      setError(out.message);
-      return;
     }
-    // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
-    // Cancel stays disabled through the reload, which removes it.
-    focusAfterCancel.current = true;
-    await selectExecution(id);
-    setCancelling(false);
   }
 
   // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed

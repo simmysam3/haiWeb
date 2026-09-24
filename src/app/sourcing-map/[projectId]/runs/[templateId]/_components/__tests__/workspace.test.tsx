@@ -410,4 +410,24 @@ describe('Workspace', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
     expect(trayHeading).toHaveFocus();
   });
+
+  it('a Cancel answered after the user picked another result never switches back to the cancelled one (R3)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    const other = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    const slowCancel = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return slowCancel.promise;
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, other);
+      if (url.endsWith(`/executions/${id}`)) return reply(200, { ...running, execution: { ...running.execution, status: 'cancelled' } });
+      return reply(404, {});
+    });
+    mount(running, [running.execution, other.execution]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    await settle(() => slowCancel.resolve(reply(200, { ...running.execution, status: 'cancelled' })));
+    expect(picked()).toBe(VOMERO_IDS.executionOld);
+  });
 });
