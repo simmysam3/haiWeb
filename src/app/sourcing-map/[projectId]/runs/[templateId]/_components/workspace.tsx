@@ -103,13 +103,15 @@ export function Workspace({
   }
 
   // R2: a successful Cancel removes its own button. Once no execution runs any more (the reload, or a poll, says so),
-  // focus goes to the result picker: it is always enabled then, as the cancelled execution is listed. Run may be
-  // disabled (not ready, or the tray open), and a disabled control can't take focus.
+  // a focus that fell to <body> goes to the result picker: it is always enabled then, as the cancelled execution is
+  // listed. Run may be disabled (not ready, or the tray open), and a disabled control can't take focus. A focus the
+  // user has since moved elsewhere (the tray, say) is left where it is.
   const pickerRef = useRef<HTMLSpanElement | null>(null);
   const focusAfterCancel = useRef(false);
   useEffect(() => {
     if (!focusAfterCancel.current || running) return;
     focusAfterCancel.current = false;
+    if (document.activeElement !== null && document.activeElement !== document.body) return;
     pickerRef.current?.querySelector('select')?.focus();
   });
 

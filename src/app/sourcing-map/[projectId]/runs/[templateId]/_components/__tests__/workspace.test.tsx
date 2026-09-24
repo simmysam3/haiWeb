@@ -390,4 +390,24 @@ describe('Workspace', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
     expect(screen.getByLabelText('Result')).toHaveFocus();
   });
+
+  it('a Cancel answered while the user works in the Configure tray leaves focus in the tray (R2: only a fallen focus is moved)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    const slowCancel = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return slowCancel.promise;
+      if (url.endsWith(`/executions/${id}`)) return reply(200, { ...running, execution: { ...running.execution, status: 'cancelled' } });
+      return reply(404, {});
+    });
+    mount(running);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel execution' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    const trayHeading = screen.getByRole('heading', { name: 'Configure' });
+    expect(trayHeading).toHaveFocus();
+    await settle(() => slowCancel.resolve(reply(200, { ...running.execution, status: 'cancelled' })));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
+    expect(trayHeading).toHaveFocus();
+  });
 });
