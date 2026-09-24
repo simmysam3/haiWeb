@@ -1,6 +1,6 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
 import type { SmCandidateLiveStatus, SmCandidateResult, SmSlotResult } from '../contract';
-import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioResult } from '../types';
+import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '../contract';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
@@ -113,4 +113,33 @@ export function isUnclassifiedSlot(slot: SmSlotResult): boolean {
 /** The rail's title: "Unclassified · <component>" for such a slot, otherwise the class label. */
 export function slotTitle(slot: SmSlotResult): string {
   return isUnclassifiedSlot(slot) ? `Unclassified · ${slot.class_label}` : slot.class_label;
+}
+
+export interface DropGroup {
+  key: string;
+  label: string;
+  drops: SmPortfolioDrop[];
+  /** the group's lowest drop coverage (a month is as short as its shortest drop) */
+  coverage: number;
+}
+
+const MONTH = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Spec §9.3: one segment per drop, grouped by month beyond 12 drops. */
+export function groupDrops(drops: SmPortfolioDrop[]): DropGroup[] {
+  if (drops.length <= 12) {
+    return drops.map((d) => ({ key: d.due_date, label: formatDropDate(d.due_date), drops: [d], coverage: d.coverage }));
+  }
+  const groups: DropGroup[] = [];
+  for (const d of drops) {
+    const key = d.due_date.slice(0, 7);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) {
+      g = { key, label: MONTH.format(new Date(`${key}-01T00:00:00Z`)), drops: [], coverage: 1 };
+      groups.push(g);
+    }
+    g.drops.push(d);
+    g.coverage = Math.min(g.coverage, d.coverage);
+  }
+  return groups;
 }

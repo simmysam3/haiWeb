@@ -35,4 +35,26 @@ describe('SeatBar', () => {
     fireEvent.click(within(strip).getByRole('button', { name: 'Apr 15 83%' }));
     expect(onDrop).toHaveBeenCalledWith('2027-04-15');
   });
+
+  it('groups 52 weekly drops into months; a month expands to its own drops (spec §9.3)', () => {
+    const onDrop = vi.fn();
+    render(<SeatBar result={weeklyDropsResult(52)} unitLabel="pairs" asOfDrop="2027-01-25" onDrop={onDrop} productFilter={null} onProduct={vi.fn()} />);
+    const strip = screen.getByRole('group', { name: 'Drops: choose the drop the map shows' });
+    const months = within(strip).getAllByRole('button');
+    expect(months).toHaveLength(12);
+    expect(months[0]!.textContent).toBe('Jan 2027 · 4 drops · lowest 81%');
+    // Lane pre-empt: the month holding the as-of drop is pressed, and a month exposes whether it is expanded.
+    expect(months[0]).toHaveAttribute('aria-pressed', 'true');
+    const febMonth = within(strip).getByRole('button', { name: 'Feb 2027 · 4 drops · lowest 64%' });
+    expect(febMonth).toHaveAttribute('aria-expanded', 'false');
+    // House rule (haiWeb CLAUDE.md): an inline expander carries the DetailChevron, which turns down when open.
+    expect(febMonth.querySelector('svg')).not.toHaveClass('rotate-90');
+    fireEvent.click(febMonth);
+    expect(febMonth).toHaveAttribute('aria-expanded', 'true');
+    expect(febMonth.querySelector('svg')).toHaveClass('rotate-90');
+    expect(onDrop).not.toHaveBeenCalled();
+    const feb = screen.getByRole('group', { name: 'Drops in Feb 2027' });
+    fireEvent.click(within(feb).getByRole('button', { name: 'Feb 8 100%' }));
+    expect(onDrop).toHaveBeenCalledWith('2027-02-08');
+  });
 });

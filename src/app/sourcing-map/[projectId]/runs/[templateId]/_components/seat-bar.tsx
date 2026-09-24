@@ -1,7 +1,9 @@
 'use client';
+import { useState } from 'react';
 import type { SmProductResult, SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
-import { formatDropDate, formatPct, formatQty, heatVar } from '@/lib/sourcing-map/map/selectors';
+import { formatDropDate, formatPct, formatQty, groupDrops, heatVar } from '@/lib/sourcing-map/map/selectors';
+import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 
 export interface SeatBarProps {
   result: SourcingMapExecutionResult;
@@ -30,22 +32,47 @@ export function ProductStrip({ products, selected, onSelect }: { products: SmPro
   );
 }
 
-/** One segment per drop with its coverage (spec §9.3). Colour is never the only carrier. */
+/** One segment per drop with its coverage; grouped by month beyond 12 drops (spec §9.3). Colour is never the only carrier. */
 export function DropStrip({ drops, asOfDrop, onDrop }: { drops: SmPortfolioDrop[]; asOfDrop: string | null; onDrop(drop: string): void }) {
+  const groups = groupDrops(drops);
+  const byMonth = drops.length > 12;
+  const [open, setOpen] = useState<string | null>(null);
+  const openGroup = groups.find((g) => g.key === open);
   return (
-    <div role="group" aria-label="Drops: choose the drop the map shows" className="mt-3 flex flex-wrap gap-1">
-      {drops.map((d) => (
-        <button
-          key={d.due_date}
-          type="button"
-          aria-pressed={d.due_date === asOfDrop}
-          onClick={() => onDrop(d.due_date)}
-          className="sm-btn sm-btn-ghost text-xs"
-          style={{ borderBottom: `3px solid ${heatVar(d.coverage)}` }}
-        >
-          {`${formatDropDate(d.due_date)} ${formatPct(d.coverage)}`}
-        </button>
-      ))}
+    <div className="mt-3">
+      <div role="group" aria-label="Drops: choose the drop the map shows" className="flex flex-wrap gap-1">
+        {groups.map((g) => (
+          <button
+            key={g.key}
+            type="button"
+            aria-pressed={g.drops.some((d) => d.due_date === asOfDrop)}
+            aria-expanded={byMonth ? open === g.key : undefined}
+            onClick={() => (byMonth ? setOpen(open === g.key ? null : g.key) : onDrop(g.drops[0]!.due_date))}
+            className="group sm-btn sm-btn-ghost text-xs"
+            style={{ borderBottom: `3px solid ${heatVar(g.coverage)}` }}
+          >
+            {/* A month expands inline, so it carries the house drill-down chevron (haiWeb CLAUDE.md); it is aria-hidden and adds no text. */}
+            {byMonth && <DetailChevron expanded={open === g.key} />}
+            {byMonth ? `${g.label} · ${g.drops.length} drops · lowest ${formatPct(g.coverage)}` : `${g.label} ${formatPct(g.coverage)}`}
+          </button>
+        ))}
+      </div>
+      {byMonth && openGroup && (
+        <div role="group" aria-label={`Drops in ${openGroup.label}`} className="mt-2 flex flex-wrap gap-1">
+          {openGroup.drops.map((d) => (
+            <button
+              key={d.due_date}
+              type="button"
+              aria-pressed={d.due_date === asOfDrop}
+              onClick={() => onDrop(d.due_date)}
+              className="sm-btn sm-btn-ghost text-xs"
+              style={{ borderBottom: `3px solid ${heatVar(d.coverage)}` }}
+            >
+              {`${formatDropDate(d.due_date)} ${formatPct(d.coverage)}`}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
