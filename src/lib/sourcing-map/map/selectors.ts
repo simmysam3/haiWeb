@@ -171,3 +171,6 @@ export const STALE_AFTER_MS = 7 * 86_400_000;
 export function answersAreStale(asOf: string, now: Date): boolean {
   return now.getTime() - Date.parse(asOf) > STALE_AFTER_MS;
 }
+
+/** Spec §8.9: the workspace polls every 1.5 s (run-detail-shell.tsx:27). */
+export const SM_POLL_MS = 1500;
