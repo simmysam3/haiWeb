@@ -63,6 +63,10 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     setError(null);
     setScope(update);
   }
+  function editCadence(next: Cadence) {
+    setError(null);
+    setCadence(next);
+  }
 
   function add() {
     const p = byId.get(adding);
@@ -149,7 +153,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               value={scope.depth_cap}
               onChange={(e) => {
                 const n = Number.parseInt(e.target.value, 10);
-                if (Number.isInteger(n) && n >= SM_LIMITS.DEPTH_CAP_MIN && n <= SM_LIMITS.DEPTH_CAP_MAX) setScope((s) => ({ ...s, depth_cap: n }));
+                if (Number.isInteger(n) && n >= SM_LIMITS.DEPTH_CAP_MIN && n <= SM_LIMITS.DEPTH_CAP_MAX) edit((s) => ({ ...s, depth_cap: n }));
               }}
             />
           </label>
@@ -159,7 +163,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               value={scope.seat_weekly_capacity ?? ''}
               onChange={(e) => {
                 const n = Number.parseInt(e.target.value, 10);
-                setScope((s) => ({ ...s, seat_weekly_capacity: Number.isInteger(n) && n > 0 ? n : null }));
+                edit((s) => ({ ...s, seat_weekly_capacity: Number.isInteger(n) && n > 0 ? n : null }));
               }}
             />
           </label>
@@ -169,9 +173,9 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               value={cadence.kind === 'manual_only' || cadence.kind === 'weekly' || cadence.kind === 'monthly' ? cadence.kind : 'current'}
               onChange={(e) => {
                 const v = e.target.value;
-                if (v === 'manual_only') setCadence({ kind: 'manual_only' });
-                if (v === 'weekly') setCadence({ kind: 'weekly', day_of_week: 'mon', time_of_day: '06:00' });
-                if (v === 'monthly') setCadence({ kind: 'monthly', day_of_month: 1, time_of_day: '06:00' });
+                if (v === 'manual_only') editCadence({ kind: 'manual_only' });
+                if (v === 'weekly') editCadence({ kind: 'weekly', day_of_week: 'mon', time_of_day: '06:00' });
+                if (v === 'monthly') editCadence({ kind: 'monthly', day_of_month: 1, time_of_day: '06:00' });
               }}
             >
               <option value="manual_only">Manual only</option>

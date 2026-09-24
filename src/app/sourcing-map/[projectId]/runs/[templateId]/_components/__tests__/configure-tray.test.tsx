@@ -124,6 +124,27 @@ describe('ConfigureTray', () => {
     expect(body.scope.seat_weekly_capacity).toBeNull();
     expect(body.cadence).toEqual({ kind: 'weekly', day_of_week: 'mon', time_of_day: '06:00' });
   });
+
+  it('a run-settings edit also clears a refused Apply’s message', async () => {
+    const REFUSAL = 'depth_cap must be between 1 and 8.';
+    fetchMock.mockResolvedValue(reply(400, { error: { code: 'VALIDATION_ERROR', message: REFUSAL } }));
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Run settings' }));
+    fireEvent.change(screen.getByLabelText('Depth cap'), { target: { value: '3' } });
+    const refuse = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent(REFUSAL);
+    };
+    await refuse();
+    fireEvent.change(screen.getByLabelText('Depth cap'), { target: { value: '4' } });
+    expect(screen.queryByText(REFUSAL)).toBeNull();
+    await refuse();
+    fireEvent.change(screen.getByLabelText('Seat weekly capacity (units per week, optional)'), { target: { value: '9000' } });
+    expect(screen.queryByText(REFUSAL)).toBeNull();
+    await refuse();
+    fireEvent.change(screen.getByLabelText('Cadence'), { target: { value: 'monthly' } });
+    expect(screen.queryByText(REFUSAL)).toBeNull();
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
