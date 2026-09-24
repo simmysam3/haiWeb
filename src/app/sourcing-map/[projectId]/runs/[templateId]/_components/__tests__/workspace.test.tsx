@@ -206,4 +206,17 @@ describe('Workspace', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
     expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
   });
+
+  it('moves focus into the details on each new pick, not only the first (R2)', () => {
+    mount();
+    // A real click focuses the button it presses; fireEvent.click does not, so the test focuses it first.
+    const leon = screen.getByRole('button', { name: /^León Cuero, MX/ });
+    leon.focus();
+    fireEvent.click(leon);
+    expect(screen.getByRole('heading', { name: 'León Cuero · MX' })).toHaveFocus();
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    mekong.focus();
+    fireEvent.click(mekong);
+    expect(screen.getByRole('heading', { name: 'Mekong Tannery · VN' })).toHaveFocus();
+  });
 });

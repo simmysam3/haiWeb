@@ -160,6 +160,8 @@ export function Workspace({
       )}
       {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
         <DetailsPanel
+          // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
+          key={`${selected.slot}:${selected.candidate}`}
           slot={result.slots[selected.slot]!}
           candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
           drops={result.portfolio.drops}
