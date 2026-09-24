@@ -4,6 +4,11 @@ import { mixTotalsHundred, type SmMix, type VariantAxis } from '@/lib/sourcing-m
 import { curveMix, mixFromPairs, mixTotal, normalizeMix, pairsFromMix } from '@/lib/sourcing-map/demand-math';
 
 type Curve = { center: string; spread: number; half_sizes: boolean };
+type PairsDraft = { pairs: Record<string, number>; mix: SmMix; totalQty: number };
+
+function sameMix(a: SmMix, b: SmMix, order: readonly string[]): boolean {
+  return order.every((v) => (a[v] ?? 0) === (b[v] ?? 0));
+}
 
 /**
  * The prototype's size-mix controls (spec §7.4): center, spread, half sizes,
@@ -17,8 +22,13 @@ export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
   const [spread, setSpread] = useState(String(curve?.spread ?? 1.5));
   const [half, setHalf] = useState(curve?.half_sizes ?? axis.values.some((v) => v.includes('.')));
   const [mode, setMode] = useState<'pct' | 'pairs'>('pct');
+  // Edit by pairs (spec §7.4): a typed count stays as typed. The draft keeps the pairs as typed with the mix they
+  // produced, and shows only while that mix, at this total, is still the prop. A mix from anywhere else (Generate
+  // curve, Normalize, a % edit, an upload) or a new total re-seeds the pairs from the mix; entering pairs mode drops it.
+  const [draft, setDraft] = useState<PairsDraft | null>(null);
   const current: SmMix = mix ?? Object.fromEntries(axis.values.map((v) => [v, 0]));
-  const pairs = pairsFromMix(totalQty, current, axis.values);
+  const ownDraft = draft !== null && draft.totalQty === totalQty && sameMix(draft.mix, current, axis.values) ? draft : null;
+  const pairs = ownDraft ? ownDraft.pairs : pairsFromMix(totalQty, current, axis.values);
   const valid = mixTotalsHundred(current);
   const curveNow: Curve = { center, spread: Number(spread) || 1.5, half_sizes: half };
 
@@ -38,7 +48,7 @@ export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
         <button type="button" className="sm-btn sm-btn-ghost" onClick={() => onChange(curveMix(axis.values, curveNow), curveNow)}>Generate curve</button>
         <div role="radiogroup" aria-label="Edit the mix by" className="flex gap-2">
           <label className="flex items-center gap-1"><input type="radio" name={`mix-mode-${label}`} checked={mode === 'pct'} onChange={() => setMode('pct')} />Edit by %</label>
-          <label className="flex items-center gap-1"><input type="radio" name={`mix-mode-${label}`} checked={mode === 'pairs'} onChange={() => setMode('pairs')} />Edit by pairs</label>
+          <label className="flex items-center gap-1"><input type="radio" name={`mix-mode-${label}`} checked={mode === 'pairs'} onChange={() => { setDraft(null); setMode('pairs'); }} />Edit by pairs</label>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
@@ -60,7 +70,11 @@ export function SizeMixEditor({ axis, mix, totalQty, curve, label, onChange }: {
                 value={pairs[v] ?? 0}
                 onChange={(e) => {
                   const n = Number.parseInt(e.target.value, 10);
-                  if (Number.isFinite(n) && n >= 0) onChange(mixFromPairs({ ...pairs, [v]: n }, axis.values), curve);
+                  if (!Number.isFinite(n) || n < 0) return;
+                  const typed = { ...pairs, [v]: n };
+                  const next = mixFromPairs(typed, axis.values);
+                  setDraft({ pairs: typed, mix: next, totalQty });
+                  onChange(next, curve);
                 }}
               />
             )}

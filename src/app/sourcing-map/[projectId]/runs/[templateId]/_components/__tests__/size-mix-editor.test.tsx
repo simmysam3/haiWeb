@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { mixTotalsHundred } from '@/lib/sourcing-map/contract';
+import { mixTotalsHundred, type SmMix } from '@/lib/sourcing-map/contract';
+import { pairsFromMix } from '@/lib/sourcing-map/demand-math';
 import { vomeroWorkbenchDetail } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SizeMixEditor } from '../size-mix-editor';
 
@@ -36,5 +38,30 @@ describe('SizeMixEditor', () => {
     expect(screen.getByLabelText('9 pairs')).toHaveValue(500);
     fireEvent.change(screen.getByLabelText('10 pairs'), { target: { value: '1000' } });
     expect(onChange).toHaveBeenLastCalledWith({ '9': 33.33, '10': 66.67 }, null);
+  });
+
+  it('in pairs mode a typed count stays as typed while the mix follows it; Generate curve re-seeds the pairs (Task 34 fix I-2)', () => {
+    const axis = { name: 'Size', system: "Men's US", values: ['9', '10'] };
+    const emitted: SmMix[] = [];
+    // A stateful parent, as the demand editor is: each emitted mix comes back as the prop.
+    function Harness() {
+      const [mix, setMix] = useState<SmMix | null>({ '9': 50, '10': 50 });
+      return <SizeMixEditor axis={axis} mix={mix} totalQty={1000} curve={null} label="Court Classic" onChange={(m) => { emitted.push(m); setMix(m); }} />;
+    }
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Edit by pairs' }));
+    const ten = screen.getByLabelText('10 pairs');
+    fireEvent.change(ten, { target: { value: '501' } }); // ArrowUp from 500
+    expect(ten).toHaveValue(501);
+    expect(screen.getByLabelText('9 pairs')).toHaveValue(500);
+    expect(emitted.at(-1)).toEqual({ '9': 49.95, '10': 50.05 });
+    for (const typed of ['1', '10', '100', '1000']) fireEvent.change(ten, { target: { value: typed } }); // typed key by key
+    expect(ten).toHaveValue(1000);
+    expect(emitted.at(-1)).toEqual({ '9': 33.33, '10': 66.67 });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate curve' }));
+    const curve = emitted.at(-1)!;
+    expect(curve).not.toEqual({ '9': 33.33, '10': 66.67 });
+    expect(ten).toHaveValue(pairsFromMix(1000, curve, axis.values)['10']);
+    expect(screen.getByLabelText('9 pairs')).toHaveValue(pairsFromMix(1000, curve, axis.values)['9']);
   });
 });
