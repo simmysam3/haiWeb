@@ -78,6 +78,9 @@ describe('MapCanvas', () => {
     expect(within(strip).getByLabelText('Size 9: 79% covered')).toHaveTextContent('9 79%');
     expect(within(strip).getByLabelText('Size 10: 79% covered')).toBeInTheDocument();
     expect(within(strip).getByLabelText('Size 9.5: 100% covered')).toBeInTheDocument();
+    // Ruling F-c: a name on a generic <span> is prohibited; each cell is an image, as the pips are.
+    expect(within(strip).getAllByRole('img')).toHaveLength(13);
+    expect(within(strip).getByRole('img', { name: 'Size 9: 79% covered' })).toHaveTextContent('9 79%');
     expect(within(screen.getByRole('group', { name: 'Metal eyelets' })).queryByRole('list', { name: 'Coverage by size' })).toBeNull();
   });
 

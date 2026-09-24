@@ -40,6 +40,7 @@ export function SlotRail({ slot, asOfDrop, collapsed, onToggle, productNames, pr
           {sortedVariantEntries(cov.coverage_by_variant).map(([v, r]) => (
             <li key={v}>
               <span
+                role="img"
                 aria-label={`Size ${v}: ${formatPct(r)} covered`}
                 className="block px-1 text-[10px]"
                 style={{ borderBottom: `2px solid ${heatVar(r)}` }}
