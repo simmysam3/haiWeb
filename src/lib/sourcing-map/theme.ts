@@ -57,3 +57,18 @@ export const SM_PILL_TOKENS: Record<SmTheme, Record<SmPillTone, { bg: string; fg
     stock: { bg: '#047857', fg: '#FFFFFF' },
   },
 };
+
+/** The custom properties the theme root puts on its element (spec §9.1: tokens on the app's root). */
+export function smThemeStyle(theme: SmTheme): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(SM_THEME_TOKENS[theme])) out[`--sm-${k}`] = v;
+  for (const tone of SM_PILL_TONES) {
+    out[`--sm-pill-${tone}-bg`] = SM_PILL_TOKENS[theme][tone].bg;
+    out[`--sm-pill-${tone}-fg`] = SM_PILL_TOKENS[theme][tone].fg;
+  }
+  out['--sm-header-bg'] = SM_HEADER.bg;
+  out['--sm-header-ink'] = SM_HEADER.ink;
+  out['--sm-header-ink-2'] = SM_HEADER.ink2;
+  out['--sm-button-primary-fg'] = SM_BUTTON_PRIMARY_FG;
+  return out;
+}

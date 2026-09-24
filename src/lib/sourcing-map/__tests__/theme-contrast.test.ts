@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SM_THEME_TOKENS, SM_PILL_TONES, SM_PILL_TOKENS, SM_HEADER, SM_BUTTON_PRIMARY_FG } from '../theme';
+import { SM_THEME_TOKENS, SM_PILL_TONES, SM_PILL_TOKENS, SM_HEADER, SM_BUTTON_PRIMARY_FG, smThemeStyle } from '../theme';
 
 // The WCAG 2.1 instrument lives here: nothing in production calls it.
 function channel(c: number): number {
@@ -55,5 +55,18 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
       'orange-text': '#F7A25A', red: '#DC2626', 'red-text': '#F87171',
     });
     expect(SM_THEME_TOKENS.light['teal-text']).toBe('#007585');
+  });
+
+  it('smThemeStyle emits every token, pill tone and header value as --sm-* custom properties', () => {
+    const dark = smThemeStyle('dark');
+    expect(dark['--sm-canvas']).toBe('#10132A');
+    expect(dark['--sm-red-text']).toBe('#F87171');
+    expect(dark['--sm-pill-problem-bg']).toBe('#3F1D29');
+    expect(dark['--sm-header-bg']).toBe('#1A1F36');
+    expect(smThemeStyle('light')['--sm-canvas']).toBe('#ECF0F4');
+    for (const tone of SM_PILL_TONES) {
+      expect(dark[`--sm-pill-${tone}-fg`]).toBeTruthy();
+      expect(smThemeStyle('light')[`--sm-pill-${tone}-bg`]).toBeTruthy();
+    }
   });
 });
