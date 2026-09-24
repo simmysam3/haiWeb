@@ -109,6 +109,22 @@ describe('UploadWizard (BOM)', () => {
     expect(read).not.toHaveBeenCalled();
   });
 
+  it('is a wide, labelled modal on SmDialog: focus moves in, and Escape or Close call onClose (controller ruling, I07)', () => {
+    const onClose = vi.fn();
+    render(<UploadWizard kind="bom" productId={VOMERO_IDS.pegasus} axis={AXIS} onCommitted={vi.fn()} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    // The Map step's column table needs the wide panel; a tall one scrolls under a dim that stays put, never clips.
+    expect(dialog).toHaveClass('max-w-5xl');
+    expect(dialog.parentElement).toHaveClass('items-start', 'overflow-y-auto');
+    expect(dialog.previousElementSibling).toHaveClass('fixed', 'inset-0');
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

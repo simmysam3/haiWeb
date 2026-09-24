@@ -97,7 +97,7 @@ export function UploadWizard(props: UploadWizardProps) {
   const title = kind === 'bom' ? 'Upload BOM' : 'Upload schedule';
   // The modal shell (backdrop, labelled dialog, Escape, focus in / trap / return) is SmDialog's (controller ruling, I07).
   return (
-    <SmDialog open title={title} onClose={props.onClose}>
+    <SmDialog open wide title={title} onClose={props.onClose}>
       <div className="flex items-center justify-between gap-4">
         <ol aria-label="Upload steps" className="flex gap-4 text-xs">
           {steps.map((s, i) => (

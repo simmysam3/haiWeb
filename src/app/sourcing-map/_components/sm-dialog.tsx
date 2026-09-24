@@ -32,10 +32,29 @@ function focusablesIn(root: HTMLElement): HTMLElement[] {
   return items;
 }
 
+/**
+ * Complete literal class sets (Tailwind v4). `wide` is the upload wizard's: a
+ * wider panel whose overlay scrolls a tall column table instead of clipping it,
+ * under a dim fixed to the viewport.
+ */
+const LAYOUT = {
+  normal: {
+    overlay: 'fixed inset-0 z-50 flex items-center justify-center p-4',
+    backdrop: 'absolute inset-0 bg-black/60',
+    panel: 'sm-card relative w-full max-w-lg p-6',
+  },
+  wide: {
+    overlay: 'fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-6',
+    backdrop: 'fixed inset-0 bg-black/60',
+    panel: 'sm-card relative w-full max-w-5xl p-6',
+  },
+} as const;
+
 /** App-themed modal (the console Modal is white-on-light; the app is dark by default). */
-export function SmDialog({ title, open, onClose, children, footer }: {
-  title: string; open: boolean; onClose(): void; children: ReactNode; footer?: ReactNode;
+export function SmDialog({ title, open, onClose, children, footer, wide = false }: {
+  title: string; open: boolean; onClose(): void; children: ReactNode; footer?: ReactNode; wide?: boolean;
 }) {
+  const layout = wide ? LAYOUT.wide : LAYOUT.normal;
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -53,8 +72,8 @@ export function SmDialog({ title, open, onClose, children, footer }: {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
+    <div className={layout.overlay}>
+      <div className={layout.backdrop} onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -83,7 +102,7 @@ export function SmDialog({ title, open, onClose, children, footer }: {
             first.focus();
           }
         }}
-        className="sm-card relative w-full max-w-lg p-6"
+        className={layout.panel}
       >
         <h2 id={titleId} className="sm-heading text-lg font-semibold">{title}</h2>
         <div className="mt-4">{children}</div>
