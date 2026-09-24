@@ -8,7 +8,7 @@ import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
 
 const NEUTRAL_STROKE = 'var(--sm-line-2)';
-/** R-9's render-start mark; the layout effect measures from it to commit, then clears it. */
+/** R-9's render-start mark: each render replaces it, and the layout effect measures from it to commit. */
 const RENDER_START = 'sm-map-render:start';
 
 export interface MapCanvasProps {
@@ -27,11 +27,13 @@ export interface MapCanvasProps {
 export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat, selected, onSelect, collapsed, onToggle }: MapCanvasProps) {
   // R-9: time render → commit; the SP1-e walk reads this in a real browser. Hooks come first, before any early return.
   // The start is a timeline mark, not a value read during render, so nothing time-dependent reaches the output (ruling F03).
+  // The render clears the previous mark and the effect never does (F03 amended): StrictMode re-runs the layout effect
+  // without a re-render, sibling canvases share the name, and a server render never runs the effect at all.
+  performance.clearMarks(RENDER_START);
   performance.mark(RENDER_START);
   useLayoutEffect(() => {
     performance.clearMeasures('sm-map-render');
     performance.measure('sm-map-render', RENDER_START);
-    performance.clearMarks(RENDER_START);
   });
   const lay = layoutMap(result.slots, collapsed);
   const seatOutX = lay.seat.x + lay.seat.w;

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
@@ -46,6 +47,22 @@ describe('MapCanvas', () => {
     const measures = performance.getEntriesByName('sm-map-render', 'measure');
     expect(measures).toHaveLength(1);
     expect(Number.isFinite(measures[0]!.duration)).toBe(true);
+  });
+
+  it('keeps R-9 safe under StrictMode: no throw, exactly one measure, and one start mark left however often it renders (ruling F03, amended)', () => {
+    performance.clearMarks('sm-map-render:start');
+    performance.clearMeasures('sm-map-render');
+    // StrictMode (App Router's default) renders twice and re-runs the layout effect without a re-render.
+    expect(() => render(
+      <StrictMode>
+        <MapCanvas result={vomeroResult} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={null}
+          onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} />
+      </StrictMode>,
+    )).not.toThrow();
+    expect(performance.getEntriesByName('sm-map-render', 'measure')).toHaveLength(1);
+    // Each render clears the previous start mark before setting its own, so marks never pile up (a server render
+    // never runs the effect at all).
+    expect(performance.getEntriesByName('sm-map-render:start', 'mark')).toHaveLength(1);
   });
 
   it('renders an honest empty state naming the reason when there are no slots (Review Focus 5)', () => {
