@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { vomeroExecution } from '@/lib/sourcing-map/__fixtures__/vomero';
-import { ExecutionBanner } from '../execution-state';
+import { STALE_AFTER_MS } from '@/lib/sourcing-map/map/selectors';
+import { AnswersAsOf, ExecutionBanner } from '../execution-state';
 
 describe('execution states', () => {
   it('says what state the execution is in, never showing a failed or running one as finished (AC 17)', () => {
@@ -17,5 +18,17 @@ describe('execution states', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     rerender(<ExecutionBanner execution={vomeroExecution} />);
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('shows "Answers as of", warns only once answers are more than 7 days old, and shows nothing without a timestamp (AC 18)', () => {
+    const asOf = '2026-09-23T10:42:00.000Z';
+    // The boundary comes from the imported constant, never retyped (controller dispatch): exactly the limit, then 1 ms past it.
+    const { rerender, container } = render(<AnswersAsOf asOf={asOf} now={new Date(Date.parse(asOf) + STALE_AFTER_MS)} />);
+    expect(screen.getByText('Answers as of Sep 23, 10:42 UTC')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    rerender(<AnswersAsOf asOf={asOf} now={new Date(Date.parse(asOf) + STALE_AFTER_MS + 1)} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Answers are more than 7 days old; run again for fresh answers.');
+    rerender(<AnswersAsOf asOf={null} now={new Date('2030-01-01T00:00:00.000Z')} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

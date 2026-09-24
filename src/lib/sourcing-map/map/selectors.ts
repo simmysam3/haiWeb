@@ -149,3 +149,10 @@ export function groupDrops(drops: SmPortfolioDrop[]): DropGroup[] {
   }
   return groups;
 }
+
+/** Spec §9.3: "Answers as of" warns when answers are more than 7 days old. */
+export const STALE_AFTER_MS = 7 * 86_400_000;
+
+export function answersAreStale(asOf: string, now: Date): boolean {
+  return now.getTime() - Date.parse(asOf) > STALE_AFTER_MS;
+}

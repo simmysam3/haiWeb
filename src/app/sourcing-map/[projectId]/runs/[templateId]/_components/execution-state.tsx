@@ -1,5 +1,6 @@
 'use client';
 import type { SmExecutionSummary } from '@/lib/sourcing-map/contract';
+import { answersAreStale, formatAsOfUtc } from '@/lib/sourcing-map/map/selectors';
 
 const FAILURE: Record<string, string> = {
   interrupted: 'it was interrupted by a restart',
@@ -25,4 +26,17 @@ export function ExecutionBanner({ execution }: { execution: SmExecutionSummary |
     return <p role="status" className="sm-muted px-6 py-3 text-sm">Cancelled. Answers that arrived afterwards were discarded.</p>;
   }
   return null;
+}
+
+/** "Answers as of" (spec §9.3), with a warning when answers are more than 7 days old. */
+export function AnswersAsOf({ asOf, now }: { asOf: string | null; now: Date }) {
+  if (asOf === null) return null;
+  return (
+    <span className="text-xs">
+      <span>{`Answers as of ${formatAsOfUtc(asOf)}`}</span>
+      {answersAreStale(asOf, now) && (
+        <span role="alert" className="sm-warn ml-2">Answers are more than 7 days old; run again for fresh answers.</span>
+      )}
+    </span>
+  );
 }
