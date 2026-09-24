@@ -14,4 +14,9 @@ describe('upload header mapping', () => {
       'component', 'qty_per_unit', 'uom', 'supplier', 'part_ref', 'variant_qty', 'variant_qty', 'variant_qty', 'ignore',
     ]);
   });
+
+  it('pre-maps demand headers, and takes each named target once (a second Qty column is ignored)', () => {
+    expect(autoMap('demand', ['Style', 'Due Date', 'Size', 'Pairs'], MENS_US_7_13)).toEqual(['product', 'due_date', 'variant', 'quantity']);
+    expect(autoMap('bom', ['Component', 'Qty', 'Qty'], MENS_US_7_13)).toEqual(['component', 'qty_per_unit', 'ignore']);
+  });
 });

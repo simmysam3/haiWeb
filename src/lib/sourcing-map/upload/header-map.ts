@@ -41,13 +41,17 @@ export const DEMAND_SYNONYMS: Record<string, string[]> = {
   product: ['product', 'product name', 'style', 'model'],
 };
 
-/** One target per column, left to right; size headers become per-size quantity. */
+/** One target per column, left to right; size headers become per-size quantity, and each named target is taken once. */
 export function autoMap(kind: UploadKind, headers: string[], variantValues: string[]): string[] {
   const synonyms = kind === 'bom' ? BOM_SYNONYMS : DEMAND_SYNONYMS;
+  const taken = new Set<string>();
   return headers.map((h) => {
     const n = normalizeHeader(h);
     for (const [target, list] of Object.entries(synonyms)) {
-      if (list.includes(n)) return target;
+      if (!taken.has(target) && list.includes(n)) {
+        taken.add(target);
+        return target;
+      }
     }
     if (matchVariantHeader(h, variantValues) !== null) return 'variant_qty';
     return 'ignore';
