@@ -29,6 +29,11 @@ export function DemandEditor({ product, demand, onChange }: { product: SmProduct
     setError(null);
     onChange({ ...demand, drops: out.drops, generator: { ...input, curve: demand.generator?.curve ?? null } });
   }
+  // A Generate refusal names the inputs it was given; changing any of them answers it, so it clears (as the tray's edits do).
+  function input<T>(set: (v: T) => void, v: T) {
+    setError(null);
+    set(v);
+  }
   function setDrop(i: number, patch: Partial<DemandDrop>) {
     onChange({ ...demand, drops: demand.drops.map((d, j) => (j === i ? { ...d, ...patch } : d)) });
   }
@@ -36,16 +41,16 @@ export function DemandEditor({ product, demand, onChange }: { product: SmProduct
   return (
     <div>
       <div className="flex flex-wrap items-end gap-3 text-sm">
-        <label>Total<input aria-label={`Total for ${name}`} type="number" min={1} className="sm-input ml-2 w-28" value={total} onChange={(e) => setTotal(e.target.value)} /></label>
-        <label>First due<input aria-label={`First due date for ${name}`} type="date" className="sm-input ml-2" value={first} onChange={(e) => setFirst(e.target.value)} /></label>
+        <label>Total<input aria-label={`Total for ${name}`} type="number" min={1} className="sm-input ml-2 w-28" value={total} onChange={(e) => input(setTotal, e.target.value)} /></label>
+        <label>First due<input aria-label={`First due date for ${name}`} type="date" className="sm-input ml-2" value={first} onChange={(e) => input(setFirst, e.target.value)} /></label>
         <label>Spacing
-          <select aria-label={`Spacing for ${name}`} className="sm-input ml-2" value={spacing} onChange={(e) => setSpacing(e.target.value as DropsGeneratorInput['spacing'])}>
+          <select aria-label={`Spacing for ${name}`} className="sm-input ml-2" value={spacing} onChange={(e) => input(setSpacing, e.target.value as DropsGeneratorInput['spacing'])}>
             <option value="weekly">Weekly</option><option value="monthly">Monthly</option>
           </select>
         </label>
-        <label>Drops<input aria-label={`Drops for ${name}`} type="number" min={1} max={SM_LIMITS.DROPS_PER_PRODUCT} className="sm-input ml-2 w-20" value={count} onChange={(e) => setCount(e.target.value)} /></label>
+        <label>Drops<input aria-label={`Drops for ${name}`} type="number" min={1} max={SM_LIMITS.DROPS_PER_PRODUCT} className="sm-input ml-2 w-20" value={count} onChange={(e) => input(setCount, e.target.value)} /></label>
         <label>Shape
-          <select aria-label={`Shape for ${name}`} className="sm-input ml-2" value={shape} onChange={(e) => setShape(e.target.value as DropsGeneratorInput['shape'])}>
+          <select aria-label={`Shape for ${name}`} className="sm-input ml-2" value={shape} onChange={(e) => input(setShape, e.target.value as DropsGeneratorInput['shape'])}>
             <option value="flat">Flat</option><option value="ramp">Ramp</option><option value="front_loaded">Front-loaded</option>
           </select>
         </label>

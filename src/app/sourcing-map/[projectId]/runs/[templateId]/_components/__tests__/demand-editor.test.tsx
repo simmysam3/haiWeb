@@ -46,4 +46,25 @@ describe('DemandEditor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The first due date must be a valid date.');
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it('a change to any generator input clears the last Generate refusal, which named the old inputs (Task 34 fix M3)', () => {
+    render(<DemandEditor product={vomeroProducts[0]!} demand={vomeroRunTemplate.scope.products[0]!.demand} onChange={vi.fn()} />);
+    const REFUSAL = 'The total must be a whole number of at least';
+    const refuse = () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Generate drops for Pegasus Trail' }));
+      expect(screen.getByRole('alert')).toHaveTextContent(REFUSAL);
+    };
+    fireEvent.change(screen.getByLabelText('Total for Pegasus Trail'), { target: { value: '3' } }); // fewer than the 6 drops
+    for (const [label, value] of [
+      ['Shape for Pegasus Trail', 'ramp'],
+      ['Spacing for Pegasus Trail', 'weekly'],
+      ['First due date for Pegasus Trail', '2027-03-01'],
+      ['Drops for Pegasus Trail', '7'],
+      ['Total for Pegasus Trail', '4'],
+    ] as const) {
+      refuse();
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+      expect(screen.queryByText(REFUSAL, { exact: false })).toBeNull();
+    }
+  });
 });
