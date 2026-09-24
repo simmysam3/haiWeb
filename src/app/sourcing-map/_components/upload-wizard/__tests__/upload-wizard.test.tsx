@@ -481,6 +481,40 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByRole('button', { name: 'Continue to review' })).toBeEnabled();
   });
 
+  it("holds \"Continue to review\" while the supplier's SKUs in a picked class are looked up, so a matched line is saved pinned (AC 7)", async () => {
+    const answer = route();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/class-suppliers')) await held;
+      return answer(url, init);
+    });
+    const { onCommitted } = renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,Vendor', 'Upper leather tumbled,0.25,Leon Cuero SA']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    await screen.findByText('Exact');
+    fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/class-suppliers'))).toBe(true));
+    // the SKU lookup is in flight: a Continue now would save the exact match unpinned, with a "no SKU picked" note
+    expect(screen.getByRole('button', { name: 'Continue to review' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+    expect(screen.queryByRole('button', { name: 'Save 1 line' })).toBeNull();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/bom-lines'))).toBe(false);
+    release();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to review' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save 1 line' }));
+    await waitFor(() => expect(onCommitted).toHaveBeenCalled());
+    const put = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/bom-lines'))!;
+    expect(JSON.parse(put[1].body).lines[0]).toMatchObject({
+      component_label: 'Upper leather tumbled',
+      pins: [{ supplier_participant_id: VOMERO_IDS.leon, supplier_sku: 'LC-BOV-UP-01' }],
+      note: null,
+    });
+  });
+
 });
 
 describe('UploadWizard (demand)', () => {

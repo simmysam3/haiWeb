@@ -12,6 +12,13 @@ import { ClassPicker } from '@/app/sourcing-map/[projectId]/products/[productId]
 
 type Picked = { class_id: string; label: string };
 
+/** The picked class whose supplier SKUs a line waits on: a usable match, and no SKU given in the file. */
+function skuClassFor(l: UploadedBomLine, picked: Record<string, Picked>, matches: Record<string, SupplierMatch>): string | null {
+  const p = picked[l.key];
+  const m = l.supplier_name ? matches[l.supplier_name] : undefined;
+  return p && m?.match && m.match.confidence !== 'low' && !l.supplier_sku ? p.class_id : null;
+}
+
 /** Spec §7.3 step 3. Only component labels are sent for suggestions ([D-j]); part references never. */
 export function ResolveStep({ lines, onBack, onContinue }: {
   lines: UploadedBomLine[]; onBack(): void; onContinue(resolved: ResolvedLine[]): void;
@@ -65,11 +72,9 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   // The supplier's SKUs within the picked class, fetched once per class (spec §7.3 step 3).
   useEffect(() => {
     for (const l of lines) {
-      const p = picked[l.key];
-      const m = l.supplier_name ? matches[l.supplier_name] : undefined;
-      if (!p || !m?.match || m.match.confidence === 'low' || l.supplier_sku || requested.current.has(p.class_id)) continue;
-      requested.current.add(p.class_id);
-      const classId = p.class_id;
+      const classId = skuClassFor(l, picked, matches);
+      if (classId === null || requested.current.has(classId)) continue;
+      requested.current.add(classId);
       void smFetch<ClassSuppliersResponse>(`/api/account/sourcing-map/class-suppliers?class_id=${encodeURIComponent(classId)}`).then((out) => {
         if (out.ok) setCatalog((c) => ({ ...c, [classId]: out.data.suppliers }));
         else setError(out.message);
@@ -100,6 +105,12 @@ export function ResolveStep({ lines, onBack, onContinue }: {
     });
   }
 
+  // Derived in render, so the pick that starts a lookup disables Continue in the same commit: until the class's SKUs
+  // answer, a usable match would be saved unpinned with a "no SKU picked" note (AC 7).
+  const skuLookupPending = lines.some((l) => {
+    const classId = skuClassFor(l, picked, matches);
+    return classId !== null && catalog[classId] === undefined;
+  });
   const resolved = lines.map((l) => resolveLine(l, picked[l.key] ?? null, l.supplier_name ? matches[l.supplier_name] ?? null : null, skuFor(l)));
 
   return (
@@ -171,7 +182,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
       {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
       <div className="mt-4 flex justify-between">
         <button type="button" className="sm-btn sm-btn-ghost" onClick={onBack}>Back</button>
-        <button type="button" className="sm-btn sm-btn-primary" disabled={supplierLookup !== 'done'} onClick={() => onContinue(resolved)}>Continue to review</button>
+        <button type="button" className="sm-btn sm-btn-primary" disabled={supplierLookup !== 'done' || skuLookupPending} onClick={() => onContinue(resolved)}>Continue to review</button>
       </div>
     </div>
   );
