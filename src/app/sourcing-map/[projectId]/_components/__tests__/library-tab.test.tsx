@@ -53,4 +53,17 @@ describe('LibraryTab', () => {
       name: 'Court Classic', unit_label: 'pairs', bom_source: 'workbench', agent_root_sku: null, variant_axis: null, assembly_days: 21,
     });
   });
+
+  it('refuses to delete a product a run uses and names the runs (spec §10)', async () => {
+    fetchMock.mockResolvedValue(reply(409, {
+      error: {
+        code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.', timestamp: '2026-09-23T10:00:00.000Z', request_id: 'req-1',
+        details: { code: 'product_in_use', runs: [{ template_id: VOMERO_IDS.template, template_name: 'Line A base' }] },
+      },
+    }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pegasus Trail is used by Line A base. Remove it from those runs first.');
+    expect(screen.getByRole('row', { name: /Pegasus Trail/ })).toBeInTheDocument();
+  });
 });
