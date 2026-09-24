@@ -7,6 +7,9 @@ import { addProduct, moveProduct, removeProduct, replaceDemand } from '@/lib/sou
 import { smFetch } from '@/lib/sourcing-map/client';
 import { DemandEditor } from './demand-editor';
 
+/** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
+type FocusTarget = { productId: string; control: 'remove' } | { productId: null; control: 'add-select' };
+
 function nextFirstDue(scope: SourcingMapScope): string {
   const latest = scope.products.flatMap((p) => p.demand.drops.map((d) => d.due_date)).sort().at(-1);
   return latest ?? new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
@@ -32,6 +35,28 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     headingRef.current?.focus();
   }, []);
 
+  // A press that removes its own control would drop focus to <body> (R3). The handler names the control that
+  // takes focus instead; after the re-render, it is found by its data attributes (ids compared, never put in a selector).
+  const trayRef = useRef<HTMLElement | null>(null);
+  const focusAfterRender = useRef<FocusTarget | null>(null);
+  useEffect(() => {
+    const target = focusAfterRender.current;
+    const tray = trayRef.current;
+    if (!target || !tray) return;
+    focusAfterRender.current = null;
+    const root = target.productId === null
+      ? tray
+      : Array.from(tray.querySelectorAll<HTMLElement>('section[data-product-id]')).find((el) => el.dataset.productId === target.productId);
+    root?.querySelector<HTMLElement>(`[data-control="${target.control}"]`)?.focus();
+  });
+
+  function remove(productId: string) {
+    const i = scope.products.findIndex((p) => p.product_id === productId);
+    const neighbour = scope.products[i + 1] ?? scope.products[i - 1];
+    focusAfterRender.current = neighbour ? { productId: neighbour.product_id, control: 'remove' } : { productId: null, control: 'add-select' };
+    setScope((s) => removeProduct(s, productId));
+  }
+
   async function apply() {
     setBusy(true);
     setError(null);
@@ -45,7 +70,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   }
 
   return (
-    <aside aria-label="Configure run" className="sm-surface fixed right-0 top-0 z-40 h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--sm-line)] p-6">
+    <aside ref={trayRef} aria-label="Configure run" className="sm-surface fixed right-0 top-0 z-40 h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--sm-line)] p-6">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold outline-none">Configure</h2>
         <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
@@ -57,7 +82,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
       {tab === 'demand' && (
         <div role="tabpanel" className="mt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Add a product" className="sm-input" value={adding} onChange={(e) => setAdding(e.target.value)}>
+            <select aria-label="Add a product" data-control="add-select" className="sm-input" value={adding} onChange={(e) => setAdding(e.target.value)}>
               <option value="">Add a product from the library…</option>
               {available.map((p) => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
             </select>
@@ -78,12 +103,12 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
             const p = byId.get(rp.product_id);
             const name = p?.name ?? rp.product_id;
             return (
-              <section key={rp.product_id} className="sm-card mt-4 p-4">
+              <section key={rp.product_id} data-product-id={rp.product_id} className="sm-card mt-4 p-4">
                 <div className="flex items-center gap-2">
                   <h3 className="sm-heading mr-auto font-semibold">{name}</h3>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => setScope((s) => moveProduct(s, rp.product_id, -1))}>Up</button>
                   <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Move ${name} down`} disabled={i === scope.products.length - 1} onClick={() => setScope((s) => moveProduct(s, rp.product_id, 1))}>Down</button>
-                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} onClick={() => setScope((s) => removeProduct(s, rp.product_id))}>Remove</button>
+                  <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Remove ${name}`} data-control="remove" onClick={() => remove(rp.product_id)}>Remove</button>
                 </div>
                 {p && <DemandEditor product={p} demand={rp.demand} onChange={(d) => setScope((s) => replaceDemand(s, rp.product_id, d))} />}
               </section>

@@ -59,4 +59,21 @@ describe('ConfigureTray', () => {
     render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByRole('heading', { level: 2, name: 'Configure' })).toHaveFocus();
   });
+
+  it('after Remove, focus lands on the next product’s Remove, else the previous one’s, else the product picker (R3)', () => {
+    render(<ConfigureTray template={vomeroRunTemplate} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    press('Remove Court Classic');
+    expect(screen.getByRole('button', { name: 'Remove Metcon Iron' })).toHaveFocus();
+    press('Remove Metcon Iron');
+    expect(screen.getByRole('button', { name: 'Remove Pegasus Trail' })).toHaveFocus();
+    press('Remove Pegasus Trail');
+    expect(screen.getByLabelText('Add a product')).toHaveFocus();
+  });
 });
+
+/** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
+function press(name: string) {
+  const button = screen.getByRole('button', { name });
+  button.focus();
+  fireEvent.click(button);
+}
