@@ -225,6 +225,14 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
   return header.split(';').length > header.split(',').length;
 }
 
+/** A text file's rows are its lines: line feeds, plus a last line with no line feed after it. */
+function lineCount(bytes: ArrayBuffer): number {
+  const u = new Uint8Array(bytes);
+  let n = 0;
+  for (const b of u) if (b === 0x0a) n += 1;
+  return u.length > 0 && u[u.length - 1] !== 0x0a ? n + 1 : n;
+}
+
 export async function readWorkbookSheets(
   bytes: ArrayBuffer,
   opts: { fileName: string; maxBytes?: number; maxRows?: number },
@@ -253,7 +261,9 @@ export async function readWorkbookSheets(
     const full = XLSX.utils.decode_range(ws['!fullref'] ?? ws['!ref'] ?? 'A1');
     const declaredRows = full.e.r - full.s.r + 1;
     if (declaredRows > bound) {
-      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, declaredRows, maxRows) };
+      // A CSV declares no range: SheetJS stops it at `sheetRows` and sets no `!fullref`, so its length is its lines.
+      const rowCount = ws['!fullref'] ? declaredRows : lineCount(bytes);
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, rowCount, maxRows) };
     }
     const start = XLSX.utils.decode_range(ws['!ref'] ?? 'A1').s.r;
     const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true });

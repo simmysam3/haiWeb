@@ -84,5 +84,12 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     const out = await readWorkbookSheets(crafted, { fileName: 'crafted.xlsx' });
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', 200_000, MAX_IMPORT_ROWS) });
   });
+
+  it('refuses a CSV longer than the rows it reads and names its real length, never keeping only its first rows (security L1)', async () => {
+    // Data rows sit past a run of blank lines: a reader that stopped early and kept going would drop them silently.
+    const lines = ['Description,Usage', 'a,1', 'b,2', ...Array.from({ length: 14 }, () => ''), 'c,3', 'd,4', 'e,5'];
+    const out = await readWorkbookSheets(csv(lines.join(NL)), { fileName: 'long.csv', maxRows: 4 });
+    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', lines.length, 4) });
+  });
 });
 
