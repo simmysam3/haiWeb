@@ -64,4 +64,27 @@ describe('buildBomLines', () => {
       rejection: 'Rows 3, 4, 5 are make or sub-assembly lines. Only single-level purchased lines can be uploaded; nothing was flattened.',
     });
   });
+
+  it('names mapping problems (row 0) and each bad row by its source row number', () => {
+    const noComponent = buildBomLines({ headers: ['Qty'], mapping: ['qty_per_unit'], rows: [{ row: 2, cells: ['1'] }], variantValues: [], decimalComma: false });
+    expect(noComponent.ok && noComponent.errors).toEqual([{ row: 0, message: 'Map a column to Component.' }]);
+    const bad = buildBomLines({
+      headers: ['Component', 'Qty', 'Share'],
+      mapping: ['component', 'qty_per_unit', 'share'],
+      rows: [
+        { row: 2, cells: ['Eyelet', '12', '60'] },
+        { row: 3, cells: ['Lace', 'two', ''] },
+        { row: 4, cells: ['', '1', ''] },
+        { row: 5, cells: ['Foam', '1', '150'] },
+      ],
+      variantValues: [],
+      decimalComma: false,
+    });
+    expect(bad.ok && bad.errors).toEqual([
+      { row: 3, message: "Row 3: 'two' is not a quantity per unit." },
+      { row: 4, message: 'Row 4: Component is empty.' },
+      { row: 5, message: "Row 5: '150' is not a share between 0 and 100." },
+    ]);
+    expect(bad.ok && bad.lines.map((l) => l.component_label)).toEqual(['Eyelet']);
+  });
 });

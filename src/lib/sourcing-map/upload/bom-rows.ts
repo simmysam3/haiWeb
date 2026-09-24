@@ -1,4 +1,5 @@
 import { matchVariantHeader, parseQty, parseShare } from './cells';
+import { SM_LIMITS } from '../contract';
 
 export interface RowError {
   /** 1-based source row; 0 = a mapping problem */
@@ -71,11 +72,27 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
   const ignoredColumns = wide.filter((w) => w.variant === null).map((w) => (headers[w.i] ?? '').trim());
   const sized = wide.filter((w): w is { i: number; variant: string } => w.variant !== null);
 
+  if (col('component') < 0) errors.push({ row: 0, message: 'Map a column to Component.' });
+  if (col('variant') < 0 && sized.length === 0 && col('qty_per_unit') < 0) {
+    errors.push({ row: 0, message: 'Map a column to Qty per unit, or map per-size quantity columns.' });
+  }
+  if (errors.length > 0) return { ok: true, lines: [], ignoredColumns, errors };
+
   const lines: UploadedBomLine[] = [];
   const long = col('variant') >= 0;
   const groups = new Map<string, UploadedBomLine>();
   for (const r of rows) {
     const component = cell(r.cells, 'component');
+    if (component === '') {
+      errors.push({ row: r.row, message: `Row ${r.row}: Component is empty.` });
+      continue;
+    }
+    const shareText = cell(r.cells, 'share');
+    const share = shareText === '' ? null : parseShare(shareText);
+    if (shareText !== '' && share === null) {
+      errors.push({ row: r.row, message: `Row ${r.row}: '${shareText}' is not a share between 0 and 100.` });
+      continue;
+    }
     const base = {
       component_label: component,
       part_ref: cell(r.cells, 'part_ref') || null,
@@ -83,12 +100,19 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
       uom: cell(r.cells, 'uom') || 'ea',
       supplier_name: cell(r.cells, 'supplier') || null,
       supplier_sku: cell(r.cells, 'supplier_sku') || null,
-      share_pct: cell(r.cells, 'share') === '' ? null : parseShare(cell(r.cells, 'share')),
+      share_pct: share,
     };
     if (long) {
       const variant = matchVariantHeader(cell(r.cells, 'variant'), variantValues);
       const qty = parseQty(cell(r.cells, 'qty_per_unit'), decimalComma);
-      if (variant === null || qty === null) continue;
+      if (variant === null) {
+        errors.push({ row: r.row, message: `Row ${r.row}: size '${cell(r.cells, 'variant')}' is not on the product.` });
+        continue;
+      }
+      if (qty === null || qty < 0) {
+        errors.push({ row: r.row, message: `Row ${r.row}: '${cell(r.cells, 'qty_per_unit')}' is not a quantity.` });
+        continue;
+      }
       const groupKey = JSON.stringify([base.component_label, base.part_ref, base.uom, base.supplier_name, base.supplier_sku]);
       let g = groups.get(groupKey);
       if (!g) {
@@ -110,12 +134,23 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
     const values = Object.values(byVariant);
     const uniformText = cell(r.cells, 'qty_per_unit');
     const uniform = uniformText === '' ? null : parseQty(uniformText, decimalComma);
+    const qtyPerUnit = uniform ?? (values.length > 0 ? mean(values) : null);
+    if (qtyPerUnit === null || !(qtyPerUnit > 0)) {
+      errors.push({ row: r.row, message: `Row ${r.row}: '${uniformText}' is not a quantity per unit.` });
+      continue;
+    }
     lines.push({
       key: `row-${r.row}`, rows: [r.row], ...base,
-      qty_per_unit: uniform ?? (values.length > 0 ? mean(values) : 0),
+      qty_per_unit: qtyPerUnit,
       variant_bound: values.length > 0, qty_by_variant: values.length > 0 ? byVariant : null,
     });
   }
   for (const g of groups.values()) g.qty_per_unit = mean(Object.values(g.qty_by_variant ?? {}));
+  for (const g of groups.values()) {
+    if (!(g.qty_per_unit > 0)) errors.push({ row: g.rows[0]!, message: `Row ${g.rows[0]}: every size of ${g.component_label} has quantity 0.` });
+  }
+  if (lines.length > SM_LIMITS.BOM_LINES_PER_PRODUCT) {
+    errors.push({ row: 0, message: `The file has ${lines.length} lines; a product holds at most ${SM_LIMITS.BOM_LINES_PER_PRODUCT}.` });
+  }
   return { ok: true, lines, ignoredColumns, errors };
 }
