@@ -19,7 +19,7 @@ vi.mock('recharts', async () => {
   return { ...actual, ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div> };
 });
 // SWR never answers here; the latest key and options are kept so a test can deliver a poll failure itself.
-type SwrOptions = { onError?(e: unknown, key: string): void };
+type SwrOptions = { onError?(e: unknown, key: string): void; onSuccess?(s: unknown, key: string): void };
 const { swr } = vi.hoisted(() => ({ swr: { key: null as string | null, options: {} as SwrOptions } }));
 vi.mock('swr', () => ({
   default: (key: string | null, _fetcher: unknown, options: SwrOptions) => {
@@ -527,5 +527,24 @@ describe('Workspace', () => {
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Close' }));
     // The deliberate exception to R2c's "focus returns to Configure": the user asked for these details.
     expect(screen.getByRole('heading', { name: 'León Cuero · MX' })).toHaveFocus();
+  });
+
+  it('the picker names the status the poll has moved to, not the one the result was loaded with (I-1)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      // the hook's full read once the status is terminal
+      if (url.endsWith(`/executions/${id}`)) return reply(200, vomeroDetail);
+      return reply(404, {});
+    });
+    mount(running, [running.execution]);
+    const select = screen.getByLabelText('Result') as HTMLSelectElement;
+    expect(select.selectedOptions[0]!.textContent).toMatch(/· running$/);
+    const key = `/api/account/sourcing-map/executions/${id}/status`;
+    expect(swr.key).toBe(key);
+    act(() =>
+      swr.options.onSuccess?.({ execution_id: id, status: 'completed', failure_reason: null, probes_planned: 7, probes_done: 7, cursor: 7, changed: [] }, key));
+    await waitFor(() => expect(select.selectedOptions[0]!.textContent).toMatch(/· completed$/));
   });
 });

@@ -170,6 +170,9 @@ export function Workspace({
   }
 
   const result = detail?.result ?? null;
+  // I-1: the poll moves the status inside the hook, so the picker's entry for the loaded execution is derived from
+  // it at render (no effect, no refetch: d-G4 holds).
+  const listed = detail ? executions.map((x) => (x.execution_id === detail.execution.execution_id ? detail.execution : x)) : executions;
   const asOfDrop = result ? resolveAsOfDrop(params.get('drop'), result.portfolio) : null;
   const productNames = Object.fromEntries(library.map((p) => [p.product_id, p.name]));
   const inRun = library.filter((p) => template.scope.products.some((x) => x.product_id === p.product_id));
@@ -183,7 +186,7 @@ export function Workspace({
         actions={
           <>
             <span ref={pickerRef} className="contents">
-              <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
+              <ExecutionPicker executions={listed} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
             </span>
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
             <button ref={configureRef} type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={openTray}>
