@@ -61,7 +61,8 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="sm-heading text-lg font-semibold">Product library</h2>
-        <button type="button" className="sm-btn sm-btn-primary" onClick={() => setCreating(true)}>+ New product</button>
+        {/* a-G4 (controller ruling, Task 21 finding 2a): a dialog's error state resets when it opens. */}
+        <button type="button" className="sm-btn sm-btn-primary" onClick={() => { setError(null); setCreating(true); }}>+ New product</button>
       </div>
       {error && !creating && <p role="alert" className="sm-error mb-3 text-sm">{error}</p>}
       <table className="sm-table">
