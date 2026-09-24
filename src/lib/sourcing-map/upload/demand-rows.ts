@@ -25,31 +25,53 @@ export interface DemandBuildInput {
   decimalComma: boolean;
 }
 
-/** Mapped demand rows → drops per run product (spec §7.3 demand targets). This cycle reads the long layout. */
+/** Mapped demand rows → drops per run product (spec §7.3 demand targets): the long and wide layouts. */
 export function buildDemand(input: DemandBuildInput): DemandBuild {
-  const { rows, mapping, products, decimalComma } = input;
+  const { rows, headers, mapping, products, decimalComma } = input;
   const col = (t: string) => mapping.indexOf(t);
   const cell = (cells: string[], t: string) => {
     const i = col(t);
     return i < 0 ? '' : (cells[i] ?? '').trim();
   };
   const errors: RowError[] = [];
+  const wideCols = mapping.flatMap((t, i) => (t === 'variant_qty' ? [i] : []));
+  const allValues = [...new Set(products.flatMap((p) => p.variant_values))];
+  const ignoredColumns = wideCols.filter((i) => matchVariantHeader(headers[i] ?? '', allValues) === null).map((i) => (headers[i] ?? '').trim());
   const byName = new Map(products.map((p) => [p.name.trim().toLocaleLowerCase(), p]));
   const acc = new Map<string, Map<string, DemandBuildDrop>>();
 
   for (const r of rows) {
-    const product = byName.get(cell(r.cells, 'product').toLocaleLowerCase());
+    // A single-product run needs no product column (spec §7.3).
+    const product = col('product') < 0 ? products[0] : byName.get(cell(r.cells, 'product').toLocaleLowerCase());
     if (!product) continue;
     const due = parseSheetDate(cell(r.cells, 'due_date'));
     if (!due) continue;
-    const v = matchVariantHeader(cell(r.cells, 'variant'), product.variant_values);
-    const q = parseQty(cell(r.cells, 'quantity'), decimalComma);
-    if (v === null || q === null) continue;
+    const pairs: Record<string, number> = {};
+    let qty = 0;
+    if (col('variant') >= 0) {
+      const v = matchVariantHeader(cell(r.cells, 'variant'), product.variant_values);
+      const q = parseQty(cell(r.cells, 'quantity'), decimalComma);
+      if (v === null || q === null) continue;
+      pairs[v] = q;
+      qty = q;
+    } else if (wideCols.length > 0) {
+      for (const i of wideCols) {
+        const v = matchVariantHeader(headers[i] ?? '', product.variant_values);
+        const t = (r.cells[i] ?? '').trim();
+        if (v === null || t === '') continue;
+        const q = parseQty(t, decimalComma);
+        if (q === null) continue;
+        pairs[v] = (pairs[v] ?? 0) + q;
+        qty += q;
+      }
+    } else {
+      continue; // the totals-only layout arrives in Cycle 30.4
+    }
     const perDate = acc.get(product.product_id) ?? new Map<string, DemandBuildDrop>();
     acc.set(product.product_id, perDate);
     const drop = perDate.get(due) ?? { due_date: due, qty: 0, pairs: {} };
-    drop.qty += q;
-    if (drop.pairs) drop.pairs[v] = (drop.pairs[v] ?? 0) + q;
+    drop.qty += qty;
+    if (drop.pairs) for (const [v, q] of Object.entries(pairs)) drop.pairs[v] = (drop.pairs[v] ?? 0) + q;
     perDate.set(due, drop);
   }
 
@@ -57,5 +79,5 @@ export function buildDemand(input: DemandBuildInput): DemandBuild {
     product_id,
     drops: [...perDate.values()].filter((d) => d.qty > 0).sort((a, b) => a.due_date.localeCompare(b.due_date)),
   }));
-  return { perProduct, errors, ignoredColumns: [] };
+  return { perProduct, errors, ignoredColumns };
 }

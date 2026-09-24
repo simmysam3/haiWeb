@@ -26,4 +26,18 @@ describe('buildDemand', () => {
       { product_id: VOMERO_IDS.court, drops: [{ due_date: '2027-03-15', qty: 200, pairs: { '10': 200 } }] },
     ]);
   });
+
+  it('wide layout for a single product needs no product column, and lists a size column that matches none', () => {
+    const out = buildDemand({
+      headers: ['Due date', '9', '9.5', '14'],
+      mapping: ['due_date', 'variant_qty', 'variant_qty', 'variant_qty'],
+      rows: [{ row: 2, cells: ['2027-01-15', '300', '320', '5'] }],
+      products: [PRODUCTS[0]!],
+      decimalComma: false,
+    });
+    expect(out.ignoredColumns).toEqual(['14']);
+    expect(out.perProduct).toEqual([
+      { product_id: VOMERO_IDS.pegasus, drops: [{ due_date: '2027-01-15', qty: 620, pairs: { '9': 300, '9.5': 320 } }] },
+    ]);
+  });
 });
