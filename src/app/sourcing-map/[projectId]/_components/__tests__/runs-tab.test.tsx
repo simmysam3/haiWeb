@@ -109,4 +109,22 @@ describe('RunsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Line B base' }));
     expect(screen.getByRole('radio', { name: /Archive them/ })).toBeChecked();
   });
+
+  it('keeps "+ New run" focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<RunsTab projectId={VOMERO_IDS.project} initialRuns={vomeroRunList.runs} />);
+    const newRun = screen.getByRole('button', { name: '+ New run' });
+    newRun.focus();
+    fireEvent.click(newRun);
+    expect(newRun).toHaveAttribute('aria-busy', 'true');
+    expect(newRun).toHaveAttribute('aria-disabled', 'true');
+    expect(newRun).not.toBeDisabled();
+    expect(newRun).toHaveFocus();
+    fireEvent.click(newRun);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(201, { template: vomeroRunTemplate }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
 });
+

@@ -9,6 +9,7 @@ import { formatPct } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DispositionDialog, type Disposition } from '../../_components/disposition-dialog';
+import { SmButton } from '../../_components/sm-button';
 
 type Run = SmRunListResponse['runs'][number];
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -58,7 +59,7 @@ export function RunsTab({ projectId, initialRuns }: { projectId: string; initial
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="sm-heading text-lg font-semibold">Runs</h2>
-        <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={newRun}>+ New run</button>
+        <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={newRun}>+ New run</SmButton>
       </div>
       {error && !deleting && <p role="alert" className="sm-error mb-3 text-sm">{error}</p>}
       <table className="sm-table">
