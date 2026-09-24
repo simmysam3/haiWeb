@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { detectHeaderRow, readWorkbookSheets, unreadableDetail, type SheetGrid } from '@/lib/scope-import/parse-workbook';
-import { autoMap } from '@/lib/sourcing-map/upload/header-map';
+import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
 import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
 import type { DemandBuild, DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
 import { SmDialog } from '../sm-dialog';
@@ -36,7 +36,7 @@ export function UploadWizard(props: UploadWizardProps) {
 
   function mapFor(all: SheetGrid[], s: number, h: number) {
     const hs = all[s]?.rows[h]?.cells ?? [];
-    setMapping(autoMap(kind, hs, variantValues));
+    setMapping(recallMapping(kind, hs) ?? autoMap(kind, hs, variantValues));
   }
 
   async function onFile(file: File) {
@@ -83,6 +83,7 @@ export function UploadWizard(props: UploadWizardProps) {
       setError(mappingErrors.map((e) => e.message).join(' '));
       return;
     }
+    rememberMapping('bom', headers, mapping);
     setBom(out);
     setStep('resolve');
   }

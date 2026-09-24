@@ -86,6 +86,19 @@ describe('UploadWizard (BOM)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('remembers a mapping on Continue and recalls it for the same header row (spec §7.3)', async () => {
+    fetchMock.mockImplementation(route());
+    const first = render(<UploadWizard kind="bom" productId={VOMERO_IDS.pegasus} axis={AXIS} onCommitted={vi.fn()} onClose={vi.fn()} />);
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,UOM,Remark', 'x,1,ea,y']));
+    fireEvent.change(await screen.findByLabelText('Map column Remark'), { target: { value: 'class' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByRole('button', { name: 'Accept all confident' });
+    first.unmount();
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage,UOM,Remark', 'z,2,ea,w']));
+    expect(await screen.findByLabelText('Map column Remark')).toHaveValue('class');
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
