@@ -58,4 +58,12 @@ describe('Workspace', () => {
     act(() => swr.options.onError?.(new Error('network down'), key));
     expect(screen.getByText('Progress could not be refreshed. Retrying.')).toHaveAttribute('role', 'alert');
   });
+
+  it('says why Run is blocked when readiness cannot be read, never "Checking…" for ever (R5)', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith('/estimate') ? reply(503, { error: { code: 'unavailable', message: 'haiCore is unavailable.' } }) : reply(404, {}));
+    mount();
+    expect(await screen.findByText('Readiness could not be checked: haiCore is unavailable.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+  });
 });

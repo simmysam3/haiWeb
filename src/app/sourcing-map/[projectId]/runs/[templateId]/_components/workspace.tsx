@@ -44,6 +44,8 @@ export function Workspace({
   // `loaded` is state, so it is referentially stable, as the hook requires.
   const { detail, error: pollError } = useExecutionPoll(loaded);
   const [estimate, setEstimate] = useState<SmEstimateResponse | null>(null);
+  // R5: a failed readiness read blocks Run with its reason; RunButton would otherwise say "Checking…" for ever.
+  const [estimateError, setEstimateError] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(null);
@@ -54,6 +56,7 @@ export function Workspace({
   const loadEstimate = useCallback(async () => {
     const out = await smFetch<SmEstimateResponse>(`/api/account/sourcing-map/runs/${template.template_id}/estimate`, { method: 'POST' });
     if (out.ok) setEstimate(out.data);
+    else setEstimateError(`Readiness could not be checked: ${out.message}`);
   }, [template]);
   useEffect(() => {
     void loadEstimate();
@@ -82,7 +85,7 @@ export function Workspace({
             <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={() => undefined} />
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
             <button type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>Configure</button>
-            <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : null} running={running} busy={busy} onRun={() => undefined} />
+            <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : estimateError} running={running} busy={busy} onRun={() => undefined} />
           </>
         }
       />
