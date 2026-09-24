@@ -67,6 +67,17 @@ describe('LibraryTab', () => {
     expect(screen.getByRole('row', { name: /Pegasus Trail/ })).toBeInTheDocument();
   });
 
+  it('clears a resolved create failure when the dialog is cancelled (controller ruling, Task 21 findings 2a/2b)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Name already used.' } }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'X' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Name already used.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('opens "+ New product" without a stale delete error (controller ruling, Task 21 finding 2a)', async () => {
     fetchMock.mockResolvedValue(reply(409, {
       error: {

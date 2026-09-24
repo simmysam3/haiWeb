@@ -39,6 +39,13 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
     router.push(smProductHref(projectId, out.data.product_id));
   }
 
+  // Controller ruling (Task 21 findings 2a/2b class, a-G4): dismissing the dialog also clears its
+  // resolved error, so a create failure doesn't leak onto the page as an unscoped alert.
+  function closeCreate() {
+    setCreating(false);
+    setError(null);
+  }
+
   async function remove(p: SmProduct) {
     setBusy(true);
     setError(null);
@@ -94,10 +101,10 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
       <SmDialog
         title="New product"
         open={creating}
-        onClose={() => setCreating(false)}
+        onClose={closeCreate}
         footer={
           <>
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setCreating(false)}>Cancel</button>
+            <button type="button" className="sm-btn sm-btn-ghost" onClick={closeCreate}>Cancel</button>
             <button type="button" className="sm-btn sm-btn-primary" disabled={busy || name.trim() === '' || unitLabel.trim() === ''} onClick={create}>Create product</button>
           </>
         }
