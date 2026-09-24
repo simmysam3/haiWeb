@@ -77,6 +77,15 @@ describe('UploadWizard (BOM)', () => {
     expect(screen.getByText('File says: Leather')).toBeInTheDocument();
   });
 
+  it('rejects make and multi-level rows by number and stays on the mapping step (AC 5)', async () => {
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Level,Description,Usage', '1,Upper,1', '2,Upper lining,1']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Row 3 is a make or sub-assembly line. Only single-level purchased lines can be uploaded; nothing was flattened.');
+    expect(screen.getByLabelText('Map column Level')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:

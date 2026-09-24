@@ -64,7 +64,7 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
       return {
         ok: false,
         rows: rejected,
-        rejection: `Rows ${rejected.join(', ')} are make or sub-assembly lines. Only single-level purchased lines can be uploaded; nothing was flattened.`,
+        rejection: `${rejected.length === 1 ? `Row ${rejected[0]} is a make or sub-assembly line` : `Rows ${rejected.join(', ')} are make or sub-assembly lines`}. Only single-level purchased lines can be uploaded; nothing was flattened.`,
       };
     }
   }
