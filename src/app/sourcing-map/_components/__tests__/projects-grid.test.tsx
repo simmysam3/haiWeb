@@ -167,5 +167,25 @@ describe('ProjectsGrid', () => {
     settle(reply(200, { ...vomeroProject, name: 'Spring 2027 (v2)' }));
     await waitFor(() => expect(screen.getByRole('listitem', { name: 'Spring 2027 (v2)' })).toBeInTheDocument());
   });
+
+  it("keeps the pressed Archive focusable while its request is in flight: aria-busy, a second press sends nothing, and the other cards' Archive waits (LW-a)", async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    const other = { ...vomeroProject, project_id: VOMERO_IDS.pegasus, name: 'Other Project' };
+    render(<ProjectsGrid initialProjects={[vomeroProject, other]} />);
+    const archive = screen.getByRole('button', { name: 'Archive Spring 2027' });
+    archive.focus();
+    fireEvent.click(archive);
+    expect(archive).toHaveAttribute('aria-busy', 'true');
+    expect(archive).toHaveAttribute('aria-disabled', 'true');
+    expect(archive).not.toBeDisabled();
+    expect(archive).toHaveFocus();
+    fireEvent.click(archive);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Archive Other Project' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Archive Other Project' })).not.toHaveAttribute('aria-busy');
+    settle(reply(200, { ...vomeroProject, archived_at: '2026-09-23T12:00:00.000Z' }));
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Spring 2027' })).toBeNull());
+  });
 });
 

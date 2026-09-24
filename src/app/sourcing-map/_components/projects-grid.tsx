@@ -30,6 +30,8 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   const [deleting, setDeleting] = useState<SmProject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The card whose Archive was pressed: that button stays focusable and busy (LW-a); the others wait, disabled.
+  const [archiving, setArchiving] = useState<string | null>(null);
   // No dialog is open while the list reloads (a-G4: the UI shows error.message), so this failure
   // gets its own page-level alert rather than the dialogs' shared `error`.
   const [listError, setListError] = useState<string | null>(null);
@@ -78,9 +80,11 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
   // page-level alert as the "Show archived" reload, not the dialogs' shared `error`.
   async function archive(p: SmProject) {
     setBusy(true);
+    setArchiving(p.project_id);
     setListError(null);
     const out = await smFetch<SmProject>(`${BASE}/${p.project_id}`, { method: 'PATCH', body: { archived: true } });
     setBusy(false);
+    setArchiving(null);
     if (!out.ok) {
       setListError(out.message);
       return;
@@ -123,7 +127,15 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
             <div className="mt-4 flex gap-2">
               <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Rename ${p.name}`} onClick={() => { setError(null); setRenaming(p); setNewName(p.name); }}>Rename</button>
               {p.archived_at === null && (
-                <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Archive ${p.name}`} disabled={busy} onClick={() => void archive(p)}>Archive</button>
+                <SmButton
+                  className="sm-btn sm-btn-ghost text-xs"
+                  aria-label={`Archive ${p.name}`}
+                  busy={archiving === p.project_id}
+                  disabled={busy && archiving !== p.project_id}
+                  onClick={() => void archive(p)}
+                >
+                  Archive
+                </SmButton>
               )}
               <button type="button" className="sm-btn sm-btn-ghost text-xs" aria-label={`Delete ${p.name}`} onClick={() => { setError(null); setDeleting(p); }}>Delete</button>
             </div>
