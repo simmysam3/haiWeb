@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, fireEvent, within } from '@testing-library/react';
-import { runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import {
+  runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
+} from '@/lib/sourcing-map/__fixtures__/vomero';
 import { Workspace } from '../workspace';
 
 const { push, refresh, replace, search } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), search: { value: '' } }));
@@ -65,5 +67,43 @@ describe('Workspace', () => {
     mount();
     expect(await screen.findByText('Readiness could not be checked: haiCore is unavailable.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run' })).toBeDisabled();
+  });
+
+  it('Run triggers, loads the execution its run_id names without refetching the list, and shows it probing (AC 17, d-G4)', async () => {
+    const NEW_ID = '5a1e0000-0000-4000-8000-000000000033';
+    const running = runningDetail();
+    const fresh = { ...running, execution: { ...running.execution, execution_id: NEW_ID, created_at: '2026-09-24T09:00:00.000Z', started_at: '2026-09-24T09:00:00.000Z' } };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith('/trigger') && init?.method === 'POST') return reply(202, { run_id: NEW_ID });
+      if (url.endsWith(`/executions/${NEW_ID}`)) return reply(200, fresh);
+      return reply(404, { error: `unexpected ${url}` });
+    });
+    mount(null as never);
+    const run = await screen.findByRole('button', { name: 'Run' });
+    await waitFor(() => expect(run).toBeEnabled());
+    fireEvent.click(run);
+    // a status ("No execution yet…") exists before Run, so wait for its text to change
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Probing: 3 of 7 probes answered'));
+    const urls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(urls).toContain(`/api/account/sourcing-map/runs/${VOMERO_IDS.template}/trigger`);
+    expect(urls).toContain(`/api/account/sourcing-map/executions/${NEW_ID}`);
+    expect(urls.some((u) => u.endsWith(`/runs/${VOMERO_IDS.template}/executions`))).toBe(false);
+    // the new execution joins the picker from its own detail, and is the selected one
+    expect((screen.getByLabelText('Result') as HTMLSelectElement).value).toBe(NEW_ID);
+  });
+
+  it('shows the 409 when an execution is already running (AC 17)', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith('/trigger')) return reply(409, { error: { code: 'execution_in_progress', message: 'Line A base already has an execution running.' } });
+      return reply(404, {});
+    });
+    mount();
+    const run = await screen.findByRole('button', { name: 'Run' });
+    await waitFor(() => expect(run).toBeEnabled());
+    fireEvent.click(run);
+    // by text, not role: the fixture's answers turn stale 7 days after 2026-09-23 and add their own alert
+    expect(await screen.findByText('Line A base already has an execution running.')).toBeInTheDocument();
   });
 });

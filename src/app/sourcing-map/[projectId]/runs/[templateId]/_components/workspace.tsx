@@ -62,6 +62,30 @@ export function Workspace({
     void loadEstimate();
   }, [loadEstimate]);
 
+  async function selectExecution(id: string) {
+    const out = await smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${id}`);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    setLoaded(out.data);
+    // The loaded execution's summary replaces (or joins) its picker entry, so a new run needs no list refetch.
+    setExecutions((xs) => [out.data.execution, ...xs.filter((x) => x.execution_id !== out.data.execution.execution_id)]);
+  }
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    // d-G4: the trigger answers { run_id }, and for sourcing_map run_id is the execution_id.
+    const t = await smFetch<{ run_id: string }>(`/api/account/sourcing-map/runs/${template.template_id}/trigger`, { method: 'POST' });
+    setBusy(false);
+    if (!t.ok) {
+      setError(t.message);
+      return;
+    }
+    await selectExecution(t.data.run_id);
+  }
+
   function setDrop(drop: string) {
     const q = new URLSearchParams(params.toString());
     q.set('drop', drop);
@@ -82,10 +106,10 @@ export function Workspace({
         crumbs={[{ label: 'Projects', href: SM_HOME }, { label: projectName, href: smProjectHref(template.scope.project_id) }, { label: template.template_name }]}
         actions={
           <>
-            <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={() => undefined} />
+            <ExecutionPicker executions={executions} selectedId={detail?.execution.execution_id ?? null} onSelect={(id) => void selectExecution(id)} />
             {result && <AnswersAsOf asOf={result.answers_as_of} now={new Date()} />}
             <button type="button" className="sm-btn sm-btn-ghost" disabled={productsError !== null} onClick={() => setTrayOpen(true)}>Configure</button>
-            <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : estimateError} running={running} busy={busy} onRun={() => undefined} />
+            <RunButton estimate={estimate} blockedReason={trayOpen ? 'Apply or close Configure before running.' : estimateError} running={running} busy={busy} onRun={() => void run()} />
           </>
         }
       />
