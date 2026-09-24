@@ -116,4 +116,23 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     rerender(await page(VOMERO_IDS.pegasus));
     expect(screen.getByLabelText('Component for line 1')).toHaveValue('Upper leather, waxed');
   });
+
+  it('keeps the unsaved header draft across a grid save and any re-read of the page after it (LW-b)', async () => {
+    serve(vomeroWorkbenchDetail);
+    // The PUT replaces the lines in one transaction: new line ids, and here a label the server wrote, which the grid
+    // shows once the save has settled.
+    const saved: SmProductDetail = {
+      ...vomeroWorkbenchDetail,
+      lines: vomeroWorkbenchDetail.lines.map((l, i) => ({ ...l, line_id: `5a1e0000-0000-4000-8000-00000000040${i}`, component_label: i === 0 ? 'Upper leather, waxed' : l.component_label })),
+    };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url === `${PRODUCT_URL}/bom-lines` && init?.method === 'PUT' ? reply(200, saved) : reply(404, {}));
+    const { rerender } = render(await page(VOMERO_IDS.pegasus));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Pegasus Trail (edited)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(await screen.findByRole('row', { name: 'Line 1: Upper leather, waxed' })).toBeInTheDocument();
+    serve(saved);
+    rerender(await page(VOMERO_IDS.pegasus));
+    expect(screen.getByLabelText('Product name')).toHaveValue('Pegasus Trail (edited)');
+  });
 });
