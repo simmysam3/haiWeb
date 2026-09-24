@@ -1,11 +1,6 @@
-/// <reference types="vitest/jsdom" />
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SmThemeRoot, ThemeToggle } from '../theme-root';
-
-// Node 26's own (file-less, undefined) localStorage global shadows jsdom's: vitest 4.1.4's
-// populateGlobal skips a key already on global unless it is in its KEYS list. Use jsdom's.
-vi.stubGlobal('localStorage', jsdom.window.localStorage);
 
 afterEach(() => {
   vi.restoreAllMocks();
