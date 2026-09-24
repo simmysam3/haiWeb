@@ -1,5 +1,6 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmPortfolioResult } from '../types';
+import type { SmCandidateLiveStatus, SmCandidateResult } from '../contract';
+import type { SmCandidateWeek, SmOptionLimit, SmPortfolioResult } from '../types';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
 export const HEAT_GOOD = 0.9;
@@ -38,4 +39,42 @@ export function defaultAsOfDrop(p: SmPortfolioResult): string | null {
 /** `?drop=` when it names a portfolio drop, else the default. */
 export function resolveAsOfDrop(param: string | null, p: SmPortfolioResult): string | null {
   return param !== null && p.drops.some((d) => d.due_date === param) ? param : defaultAsOfDrop(p);
+}
+
+export function candidateWeekAt(c: SmCandidateResult, week: string | null): SmCandidateWeek | null {
+  return week === null ? null : c.weeks.find((w) => w.week === week) ?? null;
+}
+
+/** D-148 pill wording (spec §9.3): an explicit quantity up to the ask, a verdict, or not probed. */
+export function availabilityText(c: SmCandidateResult, week: string | null, demand: number, uom: string): string {
+  if (c.availability_form === 'not_probed_trust') return 'Not probed at this trust level';
+  if (demand === 0) return 'No demand yet';
+  const w = candidateWeekAt(c, week);
+  if (!w) return '—';
+  const full = w.cum_achievable >= demand;
+  if (c.availability_form === 'verdict') return full ? 'Yes, can cover in full' : 'No, cannot cover in full';
+  return full ? `Covers full ${formatQty(demand)} ${uom}` : `Can cover ${formatQty(w.cum_achievable)} of ${formatQty(demand)} ${uom}`;
+}
+
+const LIMIT_TEXT: Record<SmOptionLimit, string> = {
+  own: 'Limit: own capacity',
+  lead_time: 'Limit: lead time exceeds window',
+  unknown: 'Schedule not assessed',
+};
+export function limitText(limit: SmOptionLimit | null): string {
+  return limit === null ? 'No limit at the full requirement' : LIMIT_TEXT[limit];
+}
+
+const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
+  declined: 'No answer · declined',
+  timeout: 'No answer · timeout',
+  unreachable: 'No answer · unreachable',
+  not_connected: 'No answer · not connected',
+  rate_limited: 'No answer · rate limited',
+  cap_reached: 'Not probed · cap reached',
+  probing: 'Probing',
+};
+/** A card's status line when it has no answer to show; null when it answered. */
+export function gapText(status: SmCandidateLiveStatus): string | null {
+  return GAP_TEXT[status] ?? null;
 }
