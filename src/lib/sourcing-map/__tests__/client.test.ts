@@ -19,4 +19,26 @@ describe('smFetch', () => {
     expect(typeof init.body).toBe('string');
     expect(JSON.parse(init.body)).toEqual({ name: 'Spring 2027' });
   });
+
+  it('turns failures into a sentence: session, envelope, string, status, network, and relays 204 as null', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(reply(401, { error: 'Unauthorized' }))
+      .mockResolvedValueOnce(reply(409, { error: { code: 'execution_in_progress', message: 'Line A base is running.' } }))
+      .mockResolvedValueOnce(reply(403, { error: 'Forbidden' }))
+      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => '<html>oops</html>' })
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(reply(204)));
+    const a = await smFetch('/a');
+    const b = await smFetch('/b');
+    const c = await smFetch('/c');
+    const d = await smFetch('/d');
+    const e = await smFetch('/e');
+    const f = await smFetch('/f');
+    expect(a).toMatchObject({ ok: false, status: 401, message: 'Your session has expired. Please sign in again.' });
+    expect(b).toMatchObject({ ok: false, status: 409, message: 'Line A base is running.' });
+    expect(c).toMatchObject({ ok: false, status: 403, message: 'Forbidden' });
+    expect(d).toMatchObject({ ok: false, status: 500, message: 'Request failed (500).' });
+    expect(e).toMatchObject({ ok: false, status: 0, message: 'The request did not reach the server. Check your connection and try again.' });
+    expect(f).toEqual({ ok: true, status: 204, data: null });
+  });
 });
