@@ -10,6 +10,7 @@ export function ImportAgentDialog({ productId, open, onClose, onImported }: {
 }) {
   const listId = useId();
   const [skus, setSkus] = useState<AgentParentSkusResponse['skus']>([]);
+  const [listError, setListError] = useState<string | null>(null);
   const [sku, setSku] = useState('');
   const [mode, setMode] = useState<'copy' | 'link'>('copy');
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +20,7 @@ export function ImportAgentDialog({ productId, open, onClose, onImported }: {
     if (!open) return;
     void smFetch<AgentParentSkusResponse>('/api/account/sourcing-map/agent-parent-skus').then((out) => {
       if (out.ok) setSkus(out.data.skus);
+      else setListError(out.message);
     });
   }, [open]);
 
@@ -57,6 +59,9 @@ export function ImportAgentDialog({ productId, open, onClose, onImported }: {
       <datalist id={listId}>
         {skus.map((s) => <option key={s.sku} value={s.sku}>{s.product_name ? `${s.sku} · ${s.product_name}` : s.sku}</option>)}
       </datalist>
+      {listError && (
+        <p role="status" className="sm-muted mt-2 text-xs">{`Parent SKUs could not be listed: ${listError}. You can still type a SKU.`}</p>
+      )}
       <fieldset className="mt-4">
         <legend className="sm-muted text-sm">Mode</legend>
         <label className="mt-1 flex items-center gap-2 text-sm"><input type="radio" name="import-mode" checked={mode === 'copy'} onChange={() => setMode('copy')} />Copy into the workbench (editable lines, pinned and classed)</label>

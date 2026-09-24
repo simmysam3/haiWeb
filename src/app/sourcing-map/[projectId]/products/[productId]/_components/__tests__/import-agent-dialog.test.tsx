@@ -52,4 +52,21 @@ describe('ImportAgentDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("METCON-CROSS-IRON has no BOM in the agent's manifest.");
     expect(onImported).not.toHaveBeenCalled();
   });
+
+  it('shows a non-blocking note when the parent-SKU listing fails, and typing a SKU and importing still works', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(502, { error: { code: 'agent_unreachable', message: 'upstream listing failure' } }))
+      .mockResolvedValueOnce(reply(200, { mode: 'copy', lines_created: 3, lines_unclassified: 0 }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Parent SKUs could not be listed: upstream listing failure. You can still type a SKU.',
+    );
+    expect(screen.getByLabelText('Parent SKU')).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'TYPED-SKU-1' } });
+    expect(screen.getByLabelText('Parent SKU')).toHaveValue('TYPED-SKU-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith({ mode: 'copy', lines_created: 3, lines_unclassified: 0 }));
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ agent_root_sku: 'TYPED-SKU-1', mode: 'copy' });
+  });
 });
