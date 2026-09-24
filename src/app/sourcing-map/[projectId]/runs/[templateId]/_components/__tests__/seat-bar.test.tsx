@@ -65,4 +65,18 @@ describe('SeatBar', () => {
       'Jan 2027 · 4 drops · lowest 81%', 'Feb 2027 · 4 drops · lowest 64%', 'Mar 2027 · 5 drops · lowest 81%', 'Apr 2027 · 1 drop · lowest 64%',
     ]);
   });
+
+  it('shows nothing for an open month that is gone after the drops change, and never throws (lane pre-empt: state between targets)', () => {
+    const r = weeklyDropsResult(52);
+    const props = { unitLabel: 'pairs', asOfDrop: null, onDrop: vi.fn(), productFilter: null, onProduct: vi.fn() };
+    const { rerender } = render(<SeatBar result={r} {...props} />);
+    const strip = screen.getByRole('group', { name: 'Drops: choose the drop the map shows' });
+    fireEvent.click(within(strip).getByRole('button', { name: 'Feb 2027 · 4 drops · lowest 64%' }));
+    expect(screen.getByRole('group', { name: 'Drops in Feb 2027' })).toBeInTheDocument();
+    const withoutFeb = { ...r, portfolio: { ...r.portfolio, drops: r.portfolio.drops.filter((d) => !d.due_date.startsWith('2027-02')) } };
+    rerender(<SeatBar result={withoutFeb} {...props} />);
+    expect(within(strip).getAllByRole('button')).toHaveLength(11);
+    expect(screen.queryByRole('group', { name: /^Drops in / })).toBeNull();
+    expect(within(strip).getAllByRole('button').filter((b) => b.getAttribute('aria-expanded') === 'true')).toHaveLength(0);
+  });
 });
