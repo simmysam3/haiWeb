@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -50,9 +50,13 @@ const LAYOUT = {
   },
 } as const;
 
-/** App-themed modal (the console Modal is white-on-light; the app is dark by default). */
-export function SmDialog({ title, open, onClose, children, footer, wide = false }: {
+/**
+ * App-themed modal (the console Modal is white-on-light; the app is dark by default). `returnFocus` takes focus on
+ * close when the opener went with it (a deleted row's own Delete, L141), so focus never falls to <body>.
+ */
+export function SmDialog({ title, open, onClose, children, footer, wide = false, returnFocus }: {
   title: string; open: boolean; onClose(): void; children: ReactNode; footer?: ReactNode; wide?: boolean;
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   const layout = wide ? LAYOUT.wide : LAYOUT.normal;
   const titleId = useId();
@@ -67,8 +71,12 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false 
     const dialog = dialogRef.current;
     const first = dialog ? focusablesIn(dialog)[0] : undefined;
     (first ?? dialog)?.focus();
-    return () => previouslyFocused.current?.focus();
-  }, [open]);
+    return () => {
+      // Read at close, after the DOM has changed: an opener removed by the same update is no longer connected.
+      const opener = previouslyFocused.current;
+      (opener?.isConnected ? opener : returnFocus?.current)?.focus();
+    };
+  }, [open, returnFocus]);
 
   if (!open) return null;
   return (

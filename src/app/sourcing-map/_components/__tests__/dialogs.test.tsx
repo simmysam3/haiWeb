@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DispositionDialog } from '../disposition-dialog';
 import { SmDialog } from '../sm-dialog';
@@ -79,4 +79,30 @@ describe('SmDialog focus management (AC 2, WCAG 2.1 AA)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it('returns focus to `returnFocus` when the opener has gone with the close, never to <body> (L141)', () => {
+    function Vanishing() {
+      const [open, setOpen] = useState(false);
+      const [gone, setGone] = useState(false);
+      const fallback = useRef<HTMLButtonElement | null>(null);
+      return (
+        <div>
+          <button ref={fallback}>Fallback</button>
+          {!gone && <button onClick={() => setOpen(true)}>Open</button>}
+          <SmDialog title="Test dialog" open={open} onClose={() => { setOpen(false); setGone(true); }} returnFocus={fallback}>
+            <input aria-label="First field" />
+          </SmDialog>
+        </div>
+      );
+    }
+    render(<Vanishing />);
+    const trigger = screen.getByRole('button', { name: 'Open' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Fallback' }));
+  });
 });
+
