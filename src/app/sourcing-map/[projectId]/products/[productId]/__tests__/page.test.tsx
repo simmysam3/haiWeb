@@ -149,5 +149,13 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     rerender(await page(VOMERO_IDS.pegasus));
     expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
   });
+
+  it('is a 404, before any fetch, when the product segment is not an id (R6, A5-M2: Next hands the page "..%2F" decoded)', async () => {
+    // Without the guard every read answers, so the page would render.
+    fetchBffJson.mockImplementation(async (url: string) =>
+      url.includes('/products/') ? { kind: 'ok', data: vomeroWorkbenchDetail } : { kind: 'ok', data: vomeroProject });
+    await expect(ProductPage({ params: Promise.resolve({ projectId: VOMERO_IDS.project, productId: decodeURIComponent('..%2F..%2Fx') }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(fetchBffJson).not.toHaveBeenCalled();
+  });
 });
 

@@ -1,10 +1,14 @@
 import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
 import type { SmProductDetail, SmProject } from '@/lib/sourcing-map/contract';
+import { smPageId } from '@/lib/sourcing-map/page-id';
 import { ProductEditorBody } from './_components/product-editor-body';
 
 export default async function ProductPage({ params }: { params: Promise<{ projectId: string; productId: string }> }) {
-  const { projectId, productId } = await params;
+  const ids = await params;
+  const projectId = ids.projectId;
+  // A5-M2: each segment is bound into a BFF path, so anything but an id is a 404 before any fetch.
+  const productId = smPageId(ids.productId);
   const [project, product] = await Promise.all([
     fetchBffJson<SmProject>(`/api/account/sourcing-map/projects/${projectId}`),
     fetchBffJson<SmProductDetail>(`/api/account/sourcing-map/products/${productId}`),
