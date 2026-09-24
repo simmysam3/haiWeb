@@ -149,6 +149,18 @@ describe('MapCanvas', () => {
     expect(isUnclassifiedSlot(eyelets)).toBe(true);
     expect(slotTitle(vomeroResult.slots[0]!)).toBe('Full grain leather hides');
   });
+
+  it('draws no card for a cap_reached candidate: the lane counts it in "+N not probed" instead (contract §3.6)', () => {
+    const r = structuredCloneSafe(vomeroResult);
+    const leather = r.slots[0]!;
+    leather.candidates.push({ ...structuredCloneSafe(leather.candidates[1]!), supplier_name: 'Capped Tannery', supplier_country: 'PT', status: 'cap_reached' });
+    leather.not_probed_count = 1;
+    mount(r);
+    const lane = screen.getByRole('group', { name: 'Full grain leather hides' });
+    expect(within(lane).getAllByRole('button', { name: /,/ })).toHaveLength(3);
+    expect(within(lane).queryByRole('button', { name: /^Capped Tannery/ })).toBeNull();
+    expect(within(lane).getByText('+1 not probed')).toBeInTheDocument();
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {
