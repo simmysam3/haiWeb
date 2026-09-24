@@ -53,7 +53,7 @@ export function DropStrip({ drops, asOfDrop, onDrop }: { drops: SmPortfolioDrop[
           >
             {/* A month expands inline, so it carries the house drill-down chevron (haiWeb CLAUDE.md); it is aria-hidden and adds no text. */}
             {byMonth && <DetailChevron expanded={open === g.key} />}
-            {byMonth ? `${g.label} · ${g.drops.length} drops · lowest ${formatPct(g.coverage)}` : `${g.label} ${formatPct(g.coverage)}`}
+            {byMonth ? `${g.label} · ${g.drops.length} drop${g.drops.length === 1 ? '' : 's'} · lowest ${formatPct(g.coverage)}` : `${g.label} ${formatPct(g.coverage)}`}
           </button>
         ))}
       </div>

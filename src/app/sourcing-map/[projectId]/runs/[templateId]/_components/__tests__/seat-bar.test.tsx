@@ -57,4 +57,12 @@ describe('SeatBar', () => {
     fireEvent.click(within(feb).getByRole('button', { name: 'Feb 8 100%' }));
     expect(onDrop).toHaveBeenCalledWith('2027-02-08');
   });
+
+  it('counts a month that holds one drop as "1 drop" (controller ruling R2)', () => {
+    render(<SeatBar result={weeklyDropsResult(14)} unitLabel="pairs" asOfDrop={null} onDrop={vi.fn()} productFilter={null} onProduct={vi.fn()} />);
+    const strip = screen.getByRole('group', { name: 'Drops: choose the drop the map shows' });
+    expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Jan 2027 · 4 drops · lowest 81%', 'Feb 2027 · 4 drops · lowest 64%', 'Mar 2027 · 5 drops · lowest 81%', 'Apr 2027 · 1 drop · lowest 64%',
+    ]);
+  });
 });
