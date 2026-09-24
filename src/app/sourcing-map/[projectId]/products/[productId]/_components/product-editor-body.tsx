@@ -8,12 +8,15 @@ import { AgentBomView } from './agent-bom-view';
 import { ImportAgentDialog } from './import-agent-dialog';
 import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
 
-export function ProductEditorBody({ projectName, detail }: { projectName: string; detail: SmProductDetail }) {
+export function ProductEditorBody({ projectName, detail: initialDetail }: { projectName: string; detail: SmProductDetail }) {
   const router = useRouter();
+  // LW-b: the product as last saved. Every write reports its answer here, so the header's badge and crumb, the grid
+  // and the wizard all read one current product; the page keys this body by product alone and never remounts it.
+  const [detail, setDetail] = useState(initialDetail);
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
   return (
-    <ProductEditor projectName={projectName} detail={detail}>
+    <ProductEditor projectName={projectName} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
       {detail.bom_source === 'agent' ? (
         <AgentBomView detail={detail} />
       ) : (
@@ -22,7 +25,10 @@ export function ProductEditorBody({ projectName, detail }: { projectName: string
           axis={detail.variant_axis}
           initialLines={detail.lines}
           classes={detail.classes}
-          onSaved={() => router.refresh()}
+          onSaved={(d) => {
+            setDetail(d);
+            router.refresh();
+          }}
           toolbar={
             <>
               <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setUploading(true)}>Upload BOM</button>

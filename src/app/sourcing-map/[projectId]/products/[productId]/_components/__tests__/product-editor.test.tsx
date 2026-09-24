@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vomeroAgentDetail, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { vomeroAgentDetail, vomeroProducts, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ProductEditor } from '../product-editor';
 import { ProductEditorBody } from '../product-editor-body';
 
@@ -31,15 +31,16 @@ const NL = String.fromCharCode(10);
 describe('ProductEditor header', () => {
   it('saves the header through PATCH and shows the returned readiness', async () => {
     const notReady = { ready: false, first_failing_rule: 'line_missing_class', detail: 'Line 4 (Metal eyelet 5mm) has no class.' };
-    fetchMock.mockResolvedValue(reply(200, { ...vomeroWorkbenchDetail, assembly_days: 14, readiness: notReady }));
-    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    // The PATCH answers the product (SmProduct); the body holds it, so the badge follows (LW-b).
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) =>
+      init?.method === 'PATCH' ? reply(200, { ...vomeroProducts[0]!, assembly_days: 14, readiness: notReady }) : reply(404, {}));
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
     expect(screen.getByText('Ready')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Assembly days'), { target: { value: '14' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
     await waitFor(() => expect(screen.getByText('Not ready')).toBeInTheDocument());
-    const [path, init] = fetchMock.mock.calls[0]!;
+    const [path, init] = fetchMock.mock.calls.find(([, i]) => i?.method === 'PATCH')!;
     expect(path).toBe(`/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`);
-    expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body)).toEqual({
       name: 'Pegasus Trail', unit_label: 'pairs', assembly_days: 14, variant_axis: vomeroWorkbenchDetail.variant_axis,
     });
@@ -48,7 +49,7 @@ describe('ProductEditor header', () => {
   it('refreshes the page after a successful header save, so the page re-reads the product; a failed save does not', async () => {
     refresh.mockClear();
     fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Unit label is required.' } }));
-    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    render(<ProductEditor projectName="Spring 2027" detail={vomeroWorkbenchDetail} onSaved={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Unit label is required.');
     expect(refresh).not.toHaveBeenCalled();
@@ -192,4 +193,15 @@ describe('ProductEditorBody', () => {
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
   });
+
+  it('the Ready pill follows a BOM save, which answers the product with its new readiness (LW-b)', async () => {
+    const notReady = { ready: false, first_failing_rule: 'line_missing_class', detail: 'Line 4 (Metal eyelet 5mm) has no class.' };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) =>
+      String(path).endsWith('/bom-lines') && init?.method === 'PUT' ? reply(200, { ...vomeroWorkbenchDetail, readiness: notReady }) : reply(404, {}));
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(await screen.findByText('Not ready')).toBeInTheDocument();
+  });
 });
+
