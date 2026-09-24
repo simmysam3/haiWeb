@@ -1,7 +1,7 @@
 // src/lib/sourcing-map/upload/__tests__/resolve.test.ts
 import { describe, it, expect } from 'vitest';
 import { resolveLine, toUploadInput, uploadRowErrors } from '../resolve';
-import { SmBomLineInputSchema } from '../../contract';
+import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema } from '../../contract';
 import type { UploadedBomLine } from '../bom-rows';
 import { VOMERO_IDS } from '../../__fixtures__/vomero';
 
@@ -48,6 +48,13 @@ describe('uploadRowErrors (A5-I1: Review passes only lines the PUT takes, spec Â
     const max = FIELDS.component_label.maxLength!;
     const long = resolveLine({ ...LINE, rows: [4, 5, 6], component_label: 'c'.repeat(max + 1) }, PICK, null, null);
     expect(uploadRowErrors([long])).toEqual([{ row: 4, message: `Row 4: Component is longer than ${max} characters.` }]);
+  });
+
+  it('refuses more lines than the PUT takes, as a file-level error (row 0) with the schema\'s limit', () => {
+    const max = ReplaceBomLinesRequestSchema.shape.lines._def.maxLength!.value;
+    const lines = Array.from({ length: max + 1 }, (_, i) => resolveLine({ ...LINE, key: `row-${i + 2}`, rows: [i + 2] }, PICK, null, null));
+    expect(uploadRowErrors(lines)).toEqual([{ row: 0, message: `The file has ${max + 1} lines; a product holds at most ${max}.` }]);
+    expect(uploadRowErrors(lines.slice(0, max))).toEqual([]);
   });
 });
 

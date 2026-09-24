@@ -1,5 +1,5 @@
 // src/lib/sourcing-map/upload/resolve.ts
-import { SmBomLineInputSchema, type SmBomLineInput, type SupplierMatch } from '../contract';
+import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema, type SmBomLineInput, type SupplierMatch } from '../contract';
 import type { RowError, UploadedBomLine } from './bom-rows';
 import { TARGET_LABELS } from './header-map';
 
@@ -62,8 +62,15 @@ const FIELD_TARGET: Record<string, string> = {
  * by its first source row. The limits are the schema's (each issue's `maximum`), never retyped.
  */
 export function uploadRowErrors(lines: ResolvedLine[]): RowError[] {
-  return lines.flatMap((l) => {
-    const out = SmBomLineInputSchema.safeParse(toUploadInput(l));
+  const inputs = lines.map(toUploadInput);
+  // The request's own limit on the line count is a file-level error (row 0), in bom-rows.ts's sentence.
+  const request = ReplaceBomLinesRequestSchema.safeParse({ lines: inputs });
+  const count: RowError[] = request.success ? [] : request.error.issues.flatMap((issue) =>
+    issue.path.length === 1 && issue.code === 'too_big'
+      ? [{ row: 0, message: `The file has ${lines.length} lines; a product holds at most ${issue.maximum}.` }]
+      : []);
+  return [...count, ...lines.flatMap((l, i) => {
+    const out = SmBomLineInputSchema.safeParse(inputs[i]);
     if (out.success) return [];
     const row = l.rows[0] ?? 0;
     return out.error.issues.map((issue) => {
@@ -71,6 +78,6 @@ export function uploadRowErrors(lines: ResolvedLine[]): RowError[] {
       const what = issue.code === 'too_big' && issue.type === 'string' ? `is longer than ${issue.maximum} characters.` : issue.message;
       return { row, message: `Row ${row}: ${label} ${what}` };
     });
-  });
+  })];
 }
 
