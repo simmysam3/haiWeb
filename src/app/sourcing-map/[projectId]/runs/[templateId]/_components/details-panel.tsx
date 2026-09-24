@@ -45,7 +45,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
                 <td>{week ? formatDropDate(week) : '—'}</td>
                 <td>{formatQty(slotDemandAt(slot, week))}</td>
                 <td>{w ? formatQty(w.cum_achievable) : '—'}</td>
-                <td>{w ? formatPct(w.option_coverage) : noCoverageText(week)}</td>
+                <td>{w ? formatPct(w.option_coverage) : noCoverageText(c, week)}</td>
               </tr>
             );
           })}
@@ -62,7 +62,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
                   <td>{v}</td>
                   <td>{formatQty(need)}</td>
                   <td>{got !== undefined ? formatQty(got) : '—'}</td>
-                  <td>{got !== undefined ? formatPct(need === 0 ? 1 : got / need) : 'no answer'}</td>
+                  <td>{got !== undefined ? formatPct(need === 0 ? 1 : got / need) : noCoverageText(c, asOfWeek)}</td>
                 </tr>
               );
             })}

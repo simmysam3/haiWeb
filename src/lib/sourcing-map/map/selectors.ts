@@ -89,9 +89,13 @@ export function gapText(status: SmCandidateLiveStatus): string | null {
   return GAP_TEXT[status] ?? null;
 }
 
-/** What a details coverage cell says when it has no figure (AC 17): a drop with no need week yet has no demand. */
-export function noCoverageText(week: string | null): string {
-  return week === null ? NO_DEMAND_YET : 'no answer';
+/**
+ * What a details coverage cell says when it has no figure (AC 17): a drop with no need week yet has no demand;
+ * otherwise the candidate's own gap copy, as its card shows it.
+ */
+export function noCoverageText(c: SmCandidateResult, week: string | null): string {
+  if (week === null) return NO_DEMAND_YET;
+  return gapText(c.status) ?? 'no answer';
 }
 
 export function slotWeekFor(slot: SmSlotResult, drop: string | null): string | null {

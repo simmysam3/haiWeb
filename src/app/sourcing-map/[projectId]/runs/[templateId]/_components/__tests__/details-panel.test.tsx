@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { vomeroResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { vomeroResult, runningDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@/lib/sourcing-map/contract';
 import { DetailsPanel } from '../details-panel';
 
@@ -55,6 +55,16 @@ describe('DetailsPanel', () => {
     expect(within(perDrop).getByRole('row', { name: 'Jan 15' })).toHaveTextContent('Jan 15—0—No demand yet');
     // present control: an answered drop still shows its figure
     expect(within(perDrop).getByRole('row', { name: 'Mar 15' })).toHaveTextContent('Mar 15Feb 2212,0005,00041%');
+  });
+
+  it('a probing candidate reads "Probing" per drop and per size, as its card does, never "no answer" (fix round 1, I-1; AC 17)', () => {
+    const { result } = runningDetail();
+    const leather = result.slots[0]!;
+    const mekong = leather.candidates[1]!;
+    expect(mekong.status).toBe('probing');
+    render(<DetailsPanel slot={leather} candidate={mekong} drops={result.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(within(screen.getByRole('table', { name: 'Coverage by drop' })).getByRole('row', { name: 'Mar 15' })).toHaveTextContent('Mar 15Feb 2212,000—Probing');
+    expect(within(screen.getByRole('table', { name: 'Coverage by size at Feb 22' })).getByRole('row', { name: '9' })).toHaveTextContent('91,571—Probing');
   });
 });
 
