@@ -43,6 +43,18 @@ describe('OptionCard', () => {
     expect(screen.getByRole('button', { name: /León Cuero, MX/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('selects on a mouse click anywhere on the card surface, and exactly once per click on its button (ruling F-a)', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={onSelect} />);
+    await user.click(screen.getByText('Allocated 60%'));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    await user.click(screen.getAllByRole('img')[0]!);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole('button', { name: /León Cuero, MX/ }));
+    expect(onSelect).toHaveBeenCalledTimes(3);
+  });
+
   it('renders a gap as itself with a dashed border, and an allocation-only answer as such (AC 15, spec §8.4)', () => {
     const arno = leather.candidates[2]!;
     const { unmount } = render(<OptionCard slot={leather} candidate={arno} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);

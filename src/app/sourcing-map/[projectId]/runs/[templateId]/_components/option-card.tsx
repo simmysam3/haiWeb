@@ -28,7 +28,13 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
   return (
     <article
-      className={`sm-card group flex h-full w-full flex-col p-3 text-left text-xs ${gap ? 'border-dashed' : ''}`}
+      // A mouse click anywhere on the card also selects; the button handles its own clicks and keys.
+      onClick={(e) => {
+        const hit = e.target instanceof Element ? e.target.closest('button') : null;
+        if (hit && e.currentTarget.contains(hit)) return;
+        onSelect();
+      }}
+      className={`sm-card group flex h-full w-full cursor-pointer flex-col p-3 text-left text-xs ${gap ? 'border-dashed' : ''}`}
       style={gap ? { borderColor: 'var(--sm-gap-border)', borderStyle: 'dashed' } : selected ? { borderColor: 'var(--sm-teal)' } : undefined}
     >
       <button
