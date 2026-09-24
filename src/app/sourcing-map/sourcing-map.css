@@ -13,6 +13,8 @@
 .sm-success { color: var(--sm-success-text); }
 .sm-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .sm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* A pressed button busy with its own request stays focusable (LW-a, WCAG 2.4.3): aria-disabled, not disabled. */
+.sm-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .sm-btn-primary { background: var(--sm-teal); color: var(--sm-button-primary-fg); }
 .sm-btn-ghost { background: transparent; color: var(--sm-ink); border: 1px solid var(--sm-line-2); }
 /* A pressed toggle (drop, product, month, theme) is never shown by hue alone: a wider border and heavier text (WCAG 1.4.1). */

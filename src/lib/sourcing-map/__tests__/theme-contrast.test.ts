@@ -90,4 +90,13 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
     expect(pressed).toMatch(/border-width:\s*2px/);
     expect(pressed).toMatch(/font-weight:\s*600/);
   });
+
+  it('a busy button (aria-disabled, LW-a) looks exactly as unavailable as a disabled one', () => {
+    const disabled = /\.sm-btn:disabled\s*\{([^}]*)\}/.exec(SM_CSS)?.[1];
+    const busy = /\.sm-btn\[aria-disabled="true"\]\s*\{([^}]*)\}/.exec(SM_CSS)?.[1];
+    // Present control: the disabled rule exists and dims the button.
+    expect(disabled).toMatch(/opacity:\s*0?\.55/);
+    expect(busy?.trim()).toBe(disabled?.trim());
+  });
 });
+
