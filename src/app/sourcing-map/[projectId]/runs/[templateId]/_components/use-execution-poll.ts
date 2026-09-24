@@ -75,8 +75,10 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
           });
         }
       },
-      onError: (e: unknown) => {
-        if (detail !== null) forExecution(detail.execution.execution_id, (st) => ({ ...st, error: pollErrorText(e) }));
+      // I-1: SWR calls the LATEST onError, so the failed key (its 2nd argument), not this closure, says whose
+      // failure it is; a key no longer polled (another execution, or none) shows nothing.
+      onError: (e: unknown, failedKey: string) => {
+        setState((st) => (statusKeyOf(st.detail) === failedKey ? { ...st, error: pollErrorText(e) } : st));
       },
     },
   );
