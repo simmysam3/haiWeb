@@ -21,4 +21,8 @@ describe('runDetailHref', () => {
       '/account/sonar/grounded-forecasts',
     );
   });
+
+  it('routes a sourcing-map execution to the Sourcing Map app (R-10 census H4)', () => {
+    expect(runDetailHref('sourcing_map', 'exec-1')).toBe('/sourcing-map');
+  });
 });
