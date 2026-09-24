@@ -49,6 +49,7 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
             : {
                 ...st,
                 cursor: s.cursor,
+                error: null,
                 detail: {
                   execution: { ...st.detail.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done },
                   result: st.detail.result ? applyStatusDelta(st.detail.result, s) : st.detail.result,

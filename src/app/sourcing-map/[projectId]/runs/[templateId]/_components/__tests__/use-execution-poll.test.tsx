@@ -94,4 +94,17 @@ describe('useExecutionPoll', () => {
     });
     expect(screen.getByTestId('poll-error').textContent).toBe('Progress could not be refreshed (503). Retrying.');
   });
+
+  it('clears the retrying notice on the next successful poll (R2)', () => {
+    render(<Probe initial={runningDetail()} />);
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onError!(new FetchError(502, 'Request to /api/x failed: 502'));
+    });
+    expect(screen.getByTestId('poll-error')).toBeInTheDocument();
+    act(() => {
+      swrCalls[swrCalls.length - 1]!.opts.onSuccess!({ execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'running', failure_reason: null, probes_planned: 7, probes_done: 3, cursor: 3, changed: [] });
+    });
+    expect(screen.queryByTestId('poll-error')).toBeNull();
+    expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
+  });
 });
