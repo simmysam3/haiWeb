@@ -198,4 +198,12 @@ describe('Workspace', () => {
     await settle(() => slowFirst.resolve(reply(500, { error: { code: 'internal', message: 'The first pick failed.' } })));
     expect(screen.queryByText('The first pick failed.')).toBeNull();
   });
+
+  it('opens a card’s details panel and closes it (AC 18)', async () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
 });

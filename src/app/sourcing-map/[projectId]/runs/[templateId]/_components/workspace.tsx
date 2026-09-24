@@ -158,6 +158,16 @@ export function Workspace({
           onToggle={(i) => setCollapsed((c) => { const n = new Set(c); if (n.has(i)) n.delete(i); else n.add(i); return n; })}
         />
       )}
+      {result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+        <DetailsPanel
+          slot={result.slots[selected.slot]!}
+          candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
+          drops={result.portfolio.drops}
+          asOfDrop={asOfDrop}
+          productNames={productNames}
+          onClose={() => setSelected(null)}
+        />
+      )}
       {trayOpen && (
         <ConfigureTray
           template={template}
