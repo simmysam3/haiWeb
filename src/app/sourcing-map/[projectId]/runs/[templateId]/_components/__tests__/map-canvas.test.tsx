@@ -65,6 +65,17 @@ describe('MapCanvas', () => {
     expect(performance.getEntriesByName('sm-map-render:start', 'mark')).toHaveLength(1);
   });
 
+  it('keeps R-9 safe for two sibling canvases in one render: no throw and exactly one measure (ruling F03, amended)', () => {
+    performance.clearMarks('sm-map-render:start');
+    performance.clearMeasures('sm-map-render');
+    const canvas = () => (
+      <MapCanvas result={vomeroResult} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={null}
+        onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} />
+    );
+    expect(() => render(<>{canvas()}{canvas()}</>)).not.toThrow();
+    expect(performance.getEntriesByName('sm-map-render', 'measure')).toHaveLength(1);
+  });
+
   it('renders an honest empty state naming the reason when there are no slots (Review Focus 5)', () => {
     const { unmount } = mount(zeroSlotResult(), { asOfDrop: null });
     expect(screen.getByRole('status')).toHaveTextContent("Nothing to map: every product's BOM was unavailable from the agent.");
