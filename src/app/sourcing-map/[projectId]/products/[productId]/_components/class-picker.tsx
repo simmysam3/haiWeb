@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ClassSuggestion, SmClassSearchResponse } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { Pill } from '@/components/pill';
@@ -13,6 +13,8 @@ export function ClassPicker({ label, value, suggestion, onChange }: {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SmClassSearchResponse['classes']>([]);
   const [error, setError] = useState<string | null>(null);
+  // A pick unmounts the control that made it (the chip or the result), so focus goes to the search (WCAG 2.4.3).
+  const searchRef = useRef<HTMLInputElement>(null);
 
   async function search() {
     setError(null);
@@ -31,14 +33,17 @@ export function ClassPicker({ label, value, suggestion, onChange }: {
         <button
           type="button"
           className="mt-1 inline-flex items-center gap-2 text-xs"
-          onClick={() => onChange({ class_id: suggestion.class_id, label: suggestion.label })}
+          onClick={() => {
+            onChange({ class_id: suggestion.class_id, label: suggestion.label });
+            searchRef.current?.focus();
+          }}
         >
           <span>Use {suggestion.label}</span>
           <Pill themed category="sm_band" value={suggestion.band} />
         </button>
       )}
       <div className="mt-1 flex gap-1">
-        <input aria-label={`Class search for ${label}`} className="sm-input w-36 text-xs" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input ref={searchRef} aria-label={`Class search for ${label}`} className="sm-input w-36 text-xs" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="button" aria-label={`Find class for ${label}`} className="sm-btn sm-btn-ghost text-xs" disabled={q.trim().length < 2} onClick={search}>Find</button>
       </div>
       {error && <p role="alert" className="sm-error text-xs">{error}</p>}
@@ -46,7 +51,7 @@ export function ClassPicker({ label, value, suggestion, onChange }: {
         <ul className="mt-1 space-y-1">
           {results.map((c) => (
             <li key={c.class_id}>
-              <button type="button" className="sm-link text-left text-xs" onClick={() => { onChange({ class_id: c.class_id, label: c.label }); setResults([]); }}>
+              <button type="button" className="sm-link text-left text-xs" onClick={() => { onChange({ class_id: c.class_id, label: c.label }); setResults([]); searchRef.current?.focus(); }}>
                 {c.class_path.join(' › ')}
               </button>
             </li>

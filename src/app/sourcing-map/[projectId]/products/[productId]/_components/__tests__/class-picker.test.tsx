@@ -23,4 +23,30 @@ describe('ClassPicker', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('/api/account/sourcing-map/classes?q=leather');
     expect(onChange).toHaveBeenCalledWith({ class_id: 'cpt_full_grain_leather_hides', label: 'Full grain leather hides' });
   });
+
+  it('returns keyboard focus to the class search after a pick, from the suggestion chip or from the results (WCAG 2.4.3)', async () => {
+    /** A keyboard user's activation: focus the control, then press it. */
+    const press = (el: HTMLElement) => {
+      el.focus();
+      fireEvent.click(el);
+    };
+    fetchMock.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ classes: [{ class_id: 'cpt_full_grain_leather_hides', label: 'Full grain leather hides', class_path: ['Materials', 'Leather', 'Finished leather', 'Full grain leather hides'] }] }),
+    });
+    const onChange = vi.fn();
+    const suggestion = { class_id: 'cpt_flat_laces', label: 'Flat laces', class_path: ['Components', 'Trims', 'Laces', 'Flat laces'], band: 'high' as const };
+    const { rerender } = render(<ClassPicker label="Lace" value={null} suggestion={suggestion} onChange={onChange} />);
+    press(screen.getByRole('button', { name: /^Use Flat laces/ }));
+    expect(onChange).toHaveBeenLastCalledWith({ class_id: 'cpt_flat_laces', label: 'Flat laces' });
+    // The parent takes the pick, so the chip goes.
+    rerender(<ClassPicker label="Lace" value={{ class_id: 'cpt_flat_laces', label: 'Flat laces' }} suggestion={suggestion} onChange={onChange} />);
+    expect(screen.queryByRole('button', { name: /^Use Flat laces/ })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText('Class search for Lace'));
+    fireEvent.change(screen.getByLabelText('Class search for Lace'), { target: { value: 'leather' } });
+    press(screen.getByRole('button', { name: 'Find class for Lace' }));
+    press(await screen.findByRole('button', { name: /Full grain leather hides/ }));
+    expect(screen.queryByRole('button', { name: /Full grain leather hides/ })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText('Class search for Lace'));
+  });
 });
