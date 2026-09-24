@@ -44,4 +44,24 @@ describe('buildBomLines', () => {
       },
     ]);
   });
+
+  it('rejects make and sub-assembly rows by number and flattens nothing (spec §6.2, AC 5)', () => {
+    const out = buildBomLines({
+      headers: ['Level', 'Component', 'Qty', 'Make/Buy'],
+      mapping: ['level_make', 'component', 'qty_per_unit', 'ignore'],
+      rows: [
+        { row: 2, cells: ['1', 'Upper', '1', 'Buy'] },
+        { row: 3, cells: ['2', 'Upper lining', '1', 'Buy'] },
+        { row: 4, cells: ['..3', 'Foam', '1', 'Buy'] },
+        { row: 5, cells: ['Make', 'Sockliner', '1', 'Make'] },
+      ],
+      variantValues: [],
+      decimalComma: false,
+    });
+    expect(out).toEqual({
+      ok: false,
+      rows: [3, 4, 5],
+      rejection: 'Rows 3, 4, 5 are make or sub-assembly lines. Only single-level purchased lines can be uploaded; nothing was flattened.',
+    });
+  });
 });

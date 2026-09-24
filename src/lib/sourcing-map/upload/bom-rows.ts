@@ -40,6 +40,8 @@ function mean(values: number[]): number {
   return round6(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
+const MAKE_VALUES = new Set(['make', 'm', 'manufactured', 'in-house', 'in house', 'sub-assembly', 'subassembly', 'phantom']);
+
 /** Mapped rows → uploaded BOM lines (spec §7.3 step 2). */
 export function buildBomLines(input: BomBuildInput): BomBuild {
   const { rows, headers, mapping, variantValues, decimalComma } = input;
@@ -49,6 +51,22 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
     return i < 0 ? '' : (cells[i] ?? '').trim();
   };
   const errors: RowError[] = [];
+  if (col('level_make') >= 0) {
+    const rejected = rows
+      .filter((r) => {
+        const v = cell(r.cells, 'level_make').toLocaleLowerCase();
+        const level = /^\.*(\d+)$/.exec(v);
+        return (level !== null && Number(level[1]) > 1) || MAKE_VALUES.has(v);
+      })
+      .map((r) => r.row);
+    if (rejected.length > 0) {
+      return {
+        ok: false,
+        rows: rejected,
+        rejection: `Rows ${rejected.join(', ')} are make or sub-assembly lines. Only single-level purchased lines can be uploaded; nothing was flattened.`,
+      };
+    }
+  }
   const wide = mapping.flatMap((t, i) => (t === 'variant_qty' ? [{ i, variant: matchVariantHeader(headers[i] ?? '', variantValues) }] : []));
   const ignoredColumns = wide.filter((w) => w.variant === null).map((w) => (headers[w.i] ?? '').trim());
   const sized = wide.filter((w): w is { i: number; variant: string } => w.variant !== null);
