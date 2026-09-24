@@ -175,4 +175,20 @@ describe('useExecutionPoll', () => {
     expect(screen.queryByTestId('poll-error')).toBeNull();
     expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
   });
+
+  it('ignores a late status answer for an execution that is no longer loaded: its candidates and cursor stay out (R3)', () => {
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    const oldOnSuccess = swrCalls[swrCalls.length - 1]!.opts.onSuccess!;
+    const other = runningDetail();
+    rerender(<Probe initial={{ ...other, execution: { ...other.execution, execution_id: VOMERO_IDS.executionOld, probes_done: 1 } }} />);
+    act(() => {
+      oldOnSuccess({
+        execution_id: '5a1e0000-0000-4000-8000-000000000031', status: 'running', failure_reason: null,
+        probes_planned: 7, probes_done: 4, cursor: 4,
+        changed: [{ slot_index: 0, candidate_index: 1, candidate: vomeroResult.slots[0]!.candidates[1]! }],
+      });
+    });
+    expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
+    expect(swrCalls[swrCalls.length - 1]!.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
+  });
 });

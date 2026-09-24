@@ -41,8 +41,8 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
   if (state.from !== initial) setState(startFrom(initial));
   const { detail, cursor } = state;
   /** R3: an answer applies only while its execution is still the current one. */
-  const forExecution = (executionId: string, change: (st: PollState) => PollState) =>
-    setState((st) => (st.detail?.execution.execution_id === executionId ? change(st) : st));
+  const forExecution = (executionId: string, change: (st: PollState, d: SmExecutionDetail) => PollState) =>
+    setState((st) => (st.detail !== null && st.detail.execution.execution_id === executionId ? change(st, st.detail) : st));
   const live = detail !== null && LIVE.has(detail.execution.status);
   useSWR<SmExecutionStatusResponse>(
     live ? `/api/account/sourcing-map/executions/${detail!.execution.execution_id}/status?cursor=${cursor}` : null,
@@ -51,19 +51,15 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
       refreshInterval: SM_POLL_MS,
       dedupingInterval: 0,
       onSuccess: (s) => {
-        setState((st) =>
-          st.detail === null
-            ? st
-            : {
-                ...st,
-                cursor: s.cursor,
-                error: null,
-                detail: {
-                  execution: { ...st.detail.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done },
-                  result: st.detail.result ? applyStatusDelta(st.detail.result, s) : st.detail.result,
-                },
-              },
-        );
+        forExecution(s.execution_id, (st, d) => ({
+          ...st,
+          cursor: s.cursor,
+          error: null,
+          detail: {
+            execution: { ...d.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done },
+            result: d.result ? applyStatusDelta(d.result, s) : d.result,
+          },
+        }));
         if (!LIVE.has(s.status)) {
           void smFetch<SmExecutionDetail>(`/api/account/sourcing-map/executions/${s.execution_id}`).then((out) => {
             forExecution(s.execution_id, (st) => (out.ok ? { ...st, detail: out.data } : { ...st, error: out.message }));
