@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vomeroProducts, vomeroRunTemplate, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ConfigureTray } from '../configure-tray';
 
@@ -175,6 +176,20 @@ describe('ConfigureTray', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('That run no longer exists.');
     expect(close).toBeEnabled();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('uploads a demand schedule through the wizard and replaces the product’s drops (AC 9)', async () => {
+    const NL = String.fromCharCode(10);
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schedule' }));
+    const file = new File([['Style,Due,Size,Pairs', 'Pegasus Trail,46402,9,300', 'Pegasus Trail,46433,9,400'].join(NL)], 'demand.csv', { type: 'text/csv' });
+    await userEvent.upload(screen.getByLabelText('Spreadsheet file'), file);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply schedule' }));
+    const pegasus = screen.getByRole('heading', { level: 3, name: 'Pegasus Trail' }).closest('section')!;
+    expect(within(pegasus).getByLabelText('Due date of drop 1 for Pegasus Trail')).toHaveValue('2027-01-15');
+    expect(within(pegasus).getByLabelText('Quantity of drop 2 for Pegasus Trail')).toHaveValue(400);
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
   });
 });
 

@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation';
 import type { Cadence } from '@haiwave/protocol';
 import type { SmProduct, SmRunTemplate, SourcingMapScope } from '@/lib/sourcing-map/contract';
 import { SM_LIMITS } from '@/lib/sourcing-map/contract';
-import { addProduct, moveProduct, removeProduct, replaceDemand } from '@/lib/sourcing-map/scope-draft';
+import { addProduct, applyUploadedDemand, moveProduct, removeProduct, replaceDemand } from '@/lib/sourcing-map/scope-draft';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { smRunHref } from '@/lib/sourcing-map/routes';
+import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
 import { DemandEditor } from './demand-editor';
 
 /** Where focus goes once a press has re-rendered the list (R3): a product's control, or the product picker. */
@@ -28,6 +29,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   const [adding, setAdding] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const byId = new Map(library.map((p) => [p.product_id, p]));
   const dirty = JSON.stringify({ scope, cadence }) !== JSON.stringify({ scope: template.scope, cadence: template.cadence });
   const available = library.filter((p) => !scope.products.some((x) => x.product_id === p.product_id));
@@ -143,6 +145,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
             >
               Add
             </button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={scope.products.length === 0} onClick={() => setUploading(true)}>Upload schedule</button>
           </div>
           {scope.products.map((rp, i) => {
             const p = byId.get(rp.product_id);
@@ -207,6 +210,21 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
         <button type="button" className="sm-btn sm-btn-primary" disabled={!dirty || busy} onClick={apply}>Apply</button>
         {error && <p role="alert" className="sm-error text-sm">{error}</p>}
       </div>
+      {uploading && (
+        <UploadWizard
+          kind="demand"
+          products={scope.products.map((rp) => ({
+            product_id: rp.product_id,
+            name: byId.get(rp.product_id)?.name ?? rp.product_id,
+            variant_values: byId.get(rp.product_id)?.variant_axis?.values ?? [],
+          }))}
+          onApply={(build) => {
+            edit((s) => applyUploadedDemand(s, build, library));
+            setUploading(false);
+          }}
+          onClose={() => setUploading(false)}
+        />
+      )}
     </aside>
   );
 }
