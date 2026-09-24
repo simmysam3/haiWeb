@@ -251,21 +251,21 @@ export function Workspace({
             onClose={closeDetails}
           />
         )}
+        {trayOpen && (
+          <ConfigureTray
+            template={template}
+            library={library}
+            onApplied={(t) => {
+              // The readiness read so far was the old scope's; Run says it is checking until the new one answers.
+              setEstimate(null);
+              setEstimateError(null);
+              setTemplate(t);
+              closeTray();
+            }}
+            onClose={closeTray}
+          />
+        )}
       </div>
-      {trayOpen && (
-        <ConfigureTray
-          template={template}
-          library={library}
-          onApplied={(t) => {
-            // The readiness read so far was the old scope's; Run says it is checking until the new one answers.
-            setEstimate(null);
-            setEstimateError(null);
-            setTemplate(t);
-            closeTray();
-          }}
-          onClose={closeTray}
-        />
-      )}
     </>
   );
 }

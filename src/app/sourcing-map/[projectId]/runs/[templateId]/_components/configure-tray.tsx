@@ -18,7 +18,11 @@ function nextFirstDue(scope: SourcingMapScope): string {
   return latest ?? new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** The Configure tray (spec §7.4): "Products & demand" and "Run settings"; Apply saves through the template PATCH. */
+/**
+ * The Configure tray (spec §7.4): "Products & demand" and "Run settings"; Apply saves through the template PATCH.
+ * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's
+ * controls. z-40 stays: a sticky box is a stacking context, and the upload wizard's z-50 dialog inside ranks within it.
+ */
 export function ConfigureTray({ template, library, onApplied, onClose }: {
   template: SmRunTemplate; library: SmProduct[]; onApplied(t: SmRunTemplate): void; onClose(): void;
 }) {
@@ -123,7 +127,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   }
 
   return (
-    <aside ref={trayRef} aria-label="Configure run" className="sm-surface fixed right-0 top-0 z-40 h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--sm-line)] p-6">
+    <aside ref={trayRef} aria-label="Configure run" className="sm-surface sticky top-0 z-40 max-h-screen w-full max-w-3xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold outline-none">Configure</h2>
         {/* An Apply or Duplicate in flight answers in this tray: a close then would lose a failure's message (R2). */}

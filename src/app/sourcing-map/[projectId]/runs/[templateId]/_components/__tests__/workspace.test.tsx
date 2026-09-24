@@ -503,4 +503,10 @@ describe('Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
     expectBesideTheMapBelowTheHeader(screen.getByRole('complementary', { name: 'Details for León Cuero' }));
   });
+
+  it('the Configure tray sits in the page flow below the header, beside the map, never over the header’s controls (P2)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    expectBesideTheMapBelowTheHeader(screen.getByRole('complementary', { name: 'Configure run' }));
+  });
 });
