@@ -21,6 +21,23 @@ describe('DispositionDialog', () => {
     rerender(<DispositionDialog open title="Delete Line A base" onCancel={vi.fn()} onConfirm={onConfirm} error="Line A base is running." />);
     expect(screen.getByRole('alert')).toHaveTextContent('Line A base is running.');
   });
+
+  it('traps Tab on the real tab sequence, not every radio in a group (only the checked radio is a tab stop)', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    render(<DispositionDialog open title="Delete Line A base" onCancel={onCancel} onConfirm={onConfirm} />);
+    const dialog = screen.getByRole('dialog', { name: 'Delete Line A base' });
+    const deleteRadio = screen.getByRole('radio', { name: /Delete them/ });
+    const deleteButton = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(deleteRadio);
+    deleteRadio.focus();
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(deleteButton);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    deleteButton.focus();
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(deleteRadio);
+  });
 });
 
 describe('SmDialog focus management (AC 2, WCAG 2.1 AA)', () => {

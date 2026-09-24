@@ -4,8 +4,32 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * The real Tab sequence inside `root`: every focusable element, EXCEPT that a
+ * named radio group (`<input type="radio" name="…">`) contributes only one
+ * stop — its checked radio, or its first radio if none is checked — because
+ * that is the only member a real browser lets Tab land on. Without this, a
+ * mid-list checked radio (e.g. "Delete them" in `DispositionDialog`) is not
+ * `items[0]` or `items[items.length - 1]`, so Tab/Shift+Tab from it never
+ * gets intercepted and focus escapes the modal.
+ */
 function focusablesIn(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  const all = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  const seenRadioGroups = new Set<string>();
+  const items: HTMLElement[] = [];
+  for (const el of all) {
+    if (el instanceof HTMLInputElement && el.type === 'radio' && el.name) {
+      if (seenRadioGroups.has(el.name)) continue;
+      seenRadioGroups.add(el.name);
+      const group = all.filter(
+        (e): e is HTMLInputElement => e instanceof HTMLInputElement && e.type === 'radio' && e.name === el.name,
+      );
+      items.push(group.find((r) => r.checked) ?? group[0]!);
+      continue;
+    }
+    items.push(el);
+  }
+  return items;
 }
 
 /** App-themed modal (the console Modal is white-on-light; the app is dark by default). */
