@@ -328,5 +328,23 @@ describe('ProductEditorBody', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     expect(await screen.findByText('The product could not be read.')).toHaveAttribute('role', 'alert');
   });
+
+  it('a link import switches the body to the read-only agent view (LW-b)', async () => {
+    const linked = { ...vomeroAgentDetail, product_id: VOMERO_IDS.pegasus, name: 'Pegasus Trail' };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'link', lines_created: 0, lines_unclassified: 0 });
+      if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(200, linked);
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByText('Read fresh at each run')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save BOM' })).toBeNull();
+  });
 });
 
