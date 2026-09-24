@@ -355,4 +355,22 @@ describe('Workspace', () => {
     expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith(`/executions/${id}/cancel`) && (i as RequestInit | undefined)?.method === 'POST')).toBe(true);
     expect(screen.queryByRole('button', { name: 'Cancel execution' })).toBeNull();
   });
+
+  it('disables Cancel while its request is in flight (R4)', async () => {
+    const running = runningDetail();
+    const id = running.execution.execution_id;
+    const slowCancel = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${id}/cancel`) && init?.method === 'POST') return slowCancel.promise;
+      if (url.endsWith(`/executions/${id}`)) return reply(200, { ...running, execution: { ...running.execution, status: 'cancelled' } });
+      return reply(404, {});
+    });
+    mount(running);
+    const cancel = screen.getByRole('button', { name: 'Cancel execution' });
+    fireEvent.click(cancel);
+    expect(cancel).toBeDisabled();
+    await settle(() => slowCancel.resolve(reply(200, { ...running.execution, status: 'cancelled' })));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
+  });
 });

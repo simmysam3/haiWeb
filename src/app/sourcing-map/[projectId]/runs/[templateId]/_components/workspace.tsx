@@ -52,6 +52,7 @@ export function Workspace({
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(detailError);
   const [busy, setBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // The estimate is read on mount and again after each Apply (a new `template`). An answer applies only while
   // its template is still the current one, so a late answer for the scope before an Apply never overwrites.
@@ -101,14 +102,18 @@ export function Workspace({
   }
 
   async function cancel(id: string) {
+    setCancelling(true);
     setError(null);
     const out = await smFetch(`/api/account/sourcing-map/executions/${id}/cancel`, { method: 'POST' });
     if (!out.ok) {
+      setCancelling(false);
       setError(out.message);
       return;
     }
     // Spec §8.9: in-flight probes finish and are discarded; reload so the banner and cards say so.
+    // Cancel stays disabled through the reload, which removes it.
     await selectExecution(id);
+    setCancelling(false);
   }
 
   // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed
@@ -166,6 +171,7 @@ export function Workspace({
         <ExecutionBanner
           execution={detail?.execution ?? null}
           onCancel={detail && running ? () => void cancel(detail.execution.execution_id) : undefined}
+          cancelling={cancelling}
         />
       )}
       {result && (
