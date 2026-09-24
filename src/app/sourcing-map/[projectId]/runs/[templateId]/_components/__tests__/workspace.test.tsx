@@ -584,4 +584,22 @@ describe('Workspace', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
     expect(screen.getByLabelText('Result')).not.toHaveFocus();
   });
+
+  it('an Apply clears a card picked while Configure was open, and focus returns to Configure (M3: P2d is for Close only)', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    const tray = screen.getByRole('complementary', { name: 'Configure run' });
+    fireEvent.click(within(tray).getByRole('tab', { name: 'Run settings' }));
+    fireEvent.change(within(tray).getByLabelText('Depth cap'), { target: { value: '4' } });
+    fireEvent.click(within(tray).getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Configure' })).toHaveFocus();
+  });
 });

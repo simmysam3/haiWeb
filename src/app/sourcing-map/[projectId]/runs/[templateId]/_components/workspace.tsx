@@ -285,6 +285,8 @@ export function Workspace({
               setEstimate(null);
               setEstimateError(null);
               setTemplate(t);
+              // M3: P2d holds for Close only; after an Apply, focus returns to Configure and a pick made meanwhile is dropped.
+              setSelected(null);
               closeTray();
             }}
             onClose={closeTray}
