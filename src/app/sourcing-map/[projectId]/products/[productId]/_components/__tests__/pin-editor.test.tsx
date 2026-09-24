@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import type { BomLinePin } from '@/lib/sourcing-map/contract';
 import { PinEditor } from '../pin-editor';
 
 const fetchMock = vi.fn();
@@ -9,6 +11,32 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+/** class-suppliers for cpt_flat_laces: Bowline with one SKU, Aglet & Cord with two. */
+function lacesSuppliers() {
+  return {
+    ok: true, status: 200,
+    text: async () => JSON.stringify({
+      class_id: 'cpt_flat_laces',
+      suppliers: [
+        { participant_id: VOMERO_IDS.bowline, legal_name: 'Bowline Cordage', country: 'PT', skus: [{ supplier_sku: 'BW-LACE-137', class_id: 'cpt_flat_laces', class_depth: 0 }] },
+        { participant_id: VOMERO_IDS.aglet, legal_name: 'Aglet & Cord', country: 'IN', skus: [{ supplier_sku: 'AC-FLAT-137', class_id: 'cpt_flat_laces', class_depth: 0 }, { supplier_sku: 'AC-FLAT-120', class_id: 'cpt_flat_laces', class_depth: 0 }] },
+      ],
+    }),
+  };
+}
+
+/** The editor inside a parent that keeps the pins, as the grid does. */
+function Harness({ initial }: { initial: BomLinePin[] }) {
+  const [pins, setPins] = useState(initial);
+  return <PinEditor classId="cpt_flat_laces" pins={pins} onChange={setPins} />;
+}
+
+async function openAndChoose(supplierId: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+  await screen.findByRole('option', { name: 'Aglet & Cord' });
+  fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: supplierId } });
+}
 
 describe('PinEditor', () => {
   it("pins a supplier and SKU from the class's publishers with a share, showing the total", async () => {
@@ -54,5 +82,21 @@ describe('PinEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
     expect(await screen.findByRole('option', { name: 'Bowline Cordage' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('never offers a supplier SKU the line already pins, stored or just added, so no duplicate pin reaches the PUT', async () => {
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    render(<Harness initial={[{ supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-120', share_pct: 40 }]} />);
+    await openAndChoose(VOMERO_IDS.aglet);
+    expect(screen.queryByRole('option', { name: 'AC-FLAT-120' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-137' } });
+    fireEvent.change(screen.getByLabelText('Share %'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Pin' }));
+    expect(screen.getByText('Aglet & Cord · AC-FLAT-137 · 30%')).toBeInTheDocument();
+    await openAndChoose(VOMERO_IDS.aglet);
+    expect(screen.queryByRole('option', { name: 'AC-FLAT-120' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'AC-FLAT-137' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.bowline } });
+    expect(screen.getByRole('option', { name: 'BW-LACE-137' })).toBeInTheDocument();
   });
 });

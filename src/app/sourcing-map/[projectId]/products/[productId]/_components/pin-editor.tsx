@@ -19,7 +19,10 @@ export function PinEditor({ classId, pins, onChange, names = {} }: {
   const [share, setShare] = useState('100');
   const [error, setError] = useState<string | null>(null);
   const total = pinShareTotal(pins);
-  const skus = suppliers.find((s) => s.participant_id === supplier)?.skus ?? [];
+  // A (supplier, SKU) pair is pinned at most once (contract §3.3 `checkLine`: "duplicate pin"), so the line's
+  // pins, stored or just added, leave the chosen supplier's SKU options.
+  const pinned = new Set(pins.filter((p) => p.supplier_participant_id === supplier).map((p) => p.supplier_sku));
+  const skus = (suppliers.find((s) => s.participant_id === supplier)?.skus ?? []).filter((s) => !pinned.has(s.supplier_sku));
 
   async function start() {
     if (!classId) return;
