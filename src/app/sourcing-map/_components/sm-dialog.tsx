@@ -70,13 +70,15 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false,
   useEffect(() => {
     if (!open) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
+    // The fallback is taken as the dialog opens: callers pass a control that stays mounted ("+ New project").
+    const fallback = returnFocus?.current ?? null;
     const dialog = dialogRef.current;
     const first = dialog ? focusablesIn(dialog)[0] : undefined;
     (first ?? dialog)?.focus();
     return () => {
-      // Read at close, after the DOM has changed: an opener removed by the same update is no longer connected.
+      // Checked at close, after the DOM has changed: an opener removed by the same update is no longer connected.
       const opener = previouslyFocused.current;
-      (opener?.isConnected ? opener : returnFocus?.current)?.focus();
+      (opener?.isConnected ? opener : fallback)?.focus();
     };
   }, [open, returnFocus]);
 
