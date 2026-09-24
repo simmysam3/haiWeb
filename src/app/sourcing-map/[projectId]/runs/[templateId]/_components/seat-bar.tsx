@@ -77,7 +77,7 @@ export function DropStrip({ drops, asOfDrop, onDrop }: { drops: SmPortfolioDrop[
   );
 }
 
-/** The seat bar (spec §9.3). Cycles 37.2 and 37.3 add the product and drop strips, which take the other props. */
+/** The seat bar (spec §9.3): the portfolio KPIs, then the product strip and the drop strip. */
 export function SeatBar({ result, unitLabel, asOfDrop, onDrop, productFilter, onProduct }: SeatBarProps) {
   const drops = result.portfolio.drops;
   const last = drops[drops.length - 1];
