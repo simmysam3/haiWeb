@@ -207,6 +207,16 @@ describe('ConfigureTray', () => {
     expect(screen.getByLabelText('Drops for Pegasus Trail')).toHaveValue(2);
     expect(screen.getByLabelText('Total for Court Classic')).toHaveValue(12000);
   });
+
+  it('a per-drop override edited by pairs keeps the typed count too (Task 34 fix I-2: it is the same SizeMixEditor)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('Override the mix for drop 3 of Pegasus Trail'));
+    const override = screen.getByRole('group', { name: 'Size mix for Pegasus Trail drop 3' });
+    fireEvent.click(within(override).getByRole('radio', { name: 'Edit by pairs' }));
+    const ten = within(override).getByLabelText('10 pairs');
+    for (const typed of ['2', '20', '200', '2000']) fireEvent.change(ten, { target: { value: typed } }); // typed key by key
+    expect(ten).toHaveValue(2000);
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
