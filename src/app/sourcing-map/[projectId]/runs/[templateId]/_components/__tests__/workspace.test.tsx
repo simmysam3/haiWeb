@@ -618,4 +618,15 @@ describe('Workspace', () => {
     expect(await screen.findByText('The execution had already finished.')).toHaveAttribute('role', 'alert');
     expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeEnabled();
   });
+
+  it('shows haiCore’s message when Run is refused as not ready (422 run_not_ready, M4)', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith('/trigger')) return reply(422, { error: { code: 'run_not_ready', message: 'A BOM line of Court Classic has no class.' } });
+      return reply(404, {});
+    });
+    mount();
+    await pressRun();
+    expect(await screen.findByText('A BOM line of Court Classic has no class.')).toHaveAttribute('role', 'alert');
+  });
 });
