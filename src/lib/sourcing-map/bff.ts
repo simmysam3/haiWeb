@@ -29,3 +29,16 @@ export async function smForward(
   }
   return forwardHaiCoreResponse(await client.fetchRaw(`${path}${request.nextUrl.search}`, init));
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A route param bound into a haiCore path. Every Sourcing Map id is a uuid;
+ * anything else (notably `..`, which the URL parser would normalise into a
+ * different haiCore path) is a 404 before haiCore is called. withHaiCore
+ * relays the thrown `status` (src/lib/with-hai-core.ts:137-141).
+ */
+export function seg(v: string): string {
+  if (!UUID.test(v)) throw Object.assign(new Error('Not found'), { status: 404 });
+  return v;
+}

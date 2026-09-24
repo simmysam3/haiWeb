@@ -30,4 +30,18 @@ describe('smForward', () => {
     await smForward({ fetchRaw }, new NextRequest('http://localhost:3001/t', { method: 'POST' }), '/sonar/templates/t/trigger');
     expect(fetchRaw).toHaveBeenCalledWith('/sonar/templates/t/trigger', { method: 'POST' });
   });
+
+  it('seg passes a uuid through and refuses anything else with a 404-shaped error', async () => {
+    const { seg } = await import('../bff');
+    expect(seg('5a1e0000-0000-4000-8000-000000000001')).toBe('5a1e0000-0000-4000-8000-000000000001');
+    for (const bad of ['..', '%2e%2e', 'x/y', '']) {
+      let thrown: unknown = null;
+      try {
+        seg(bad);
+      } catch (e) {
+        thrown = e;
+      }
+      expect((thrown as { status?: number } | null)?.status).toBe(404);
+    }
+  });
 });
