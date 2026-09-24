@@ -67,7 +67,7 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
         }
       },
       onError: (e: unknown) => {
-        setState((st) => ({ ...st, error: pollErrorText(e) }));
+        if (detail !== null) forExecution(detail.execution.execution_id, (st) => ({ ...st, error: pollErrorText(e) }));
       },
     },
   );

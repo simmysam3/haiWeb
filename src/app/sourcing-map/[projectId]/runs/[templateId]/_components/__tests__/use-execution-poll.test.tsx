@@ -191,4 +191,14 @@ describe('useExecutionPoll', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('running:probing');
     expect(swrCalls[swrCalls.length - 1]!.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000032/status?cursor=1');
   });
+
+  it('never shows the old execution’s late poll failure on the one now loaded (R3)', () => {
+    const { rerender } = render(<Probe initial={runningDetail()} />);
+    const oldOnError = swrCalls[swrCalls.length - 1]!.opts.onError!;
+    rerender(<Probe initial={otherFailed} />);
+    act(() => {
+      oldOnError(new FetchError(503, 'Request to /api/x failed: 503'));
+    });
+    expect(screen.queryByTestId('poll-error')).toBeNull();
+  });
 });
