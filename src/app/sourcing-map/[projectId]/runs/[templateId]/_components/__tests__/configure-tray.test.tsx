@@ -88,6 +88,16 @@ describe('ConfigureTray', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled();
     expect(screen.getByRole('heading', { level: 3, name: 'Metcon Iron' })).toHaveFocus();
   });
+
+  it('editing a drop’s due date keeps the same input, and focus, so typing a date is not cut off (R3)', () => {
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    const due = screen.getByLabelText('Due date of drop 1 for Pegasus Trail');
+    due.focus();
+    fireEvent.change(due, { target: { value: '2027-01-10' } });
+    expect(screen.getByLabelText('Due date of drop 1 for Pegasus Trail')).toBe(due);
+    expect(due).toHaveFocus();
+    expect(due).toHaveValue('2027-01-10');
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */

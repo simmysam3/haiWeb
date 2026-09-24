@@ -55,8 +55,11 @@ export function DemandEditor({ product, demand, onChange }: { product: SmProduct
       <table className="sm-table mt-3">
         <thead><tr><th>Drop</th><th>Due date</th><th>Quantity</th><th>Mix</th></tr></thead>
         <tbody>
+          {/* Keyed by position: a key on the date would remount the row, and the input being typed in, on every date
+              edit. No drop state outlives its drop: an override's editor unmounts when Generate clears it, and an
+              uploaded schedule remounts this whole editor (R1). */}
           {demand.drops.map((d, i) => (
-            <tr key={`${i}-${d.due_date}`}>
+            <tr key={i}>
               <td>{i + 1}</td>
               <td><input aria-label={`Due date of drop ${i + 1} for ${name}`} type="date" className="sm-input" value={d.due_date} onChange={(e) => setDrop(i, { due_date: e.target.value })} /></td>
               <td><input aria-label={`Quantity of drop ${i + 1} for ${name}`} type="number" min={1} className="sm-input w-28" value={d.qty} onChange={(e) => { const n = Number.parseInt(e.target.value, 10); if (Number.isInteger(n) && n > 0) setDrop(i, { qty: n }); }} /></td>
