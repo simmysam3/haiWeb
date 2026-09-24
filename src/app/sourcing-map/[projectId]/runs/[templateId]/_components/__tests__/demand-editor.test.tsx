@@ -37,4 +37,13 @@ describe('DemandEditor', () => {
     rerender(<DemandEditor product={vomeroProducts[0]!} demand={{ ...demand, drops: [first!, { ...second!, due_date: first!.due_date }, ...rest] }} onChange={vi.fn()} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Drops must be in date order, with no date repeated.');
   });
+
+  it('Generate with the first due date cleared shows why, and changes nothing (Task 34 fix I-1)', () => {
+    const onChange = vi.fn();
+    render(<DemandEditor product={vomeroProducts[0]!} demand={vomeroRunTemplate.scope.products[0]!.demand} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('First due date for Pegasus Trail'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate drops for Pegasus Trail' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('The first due date must be a valid date.');
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
