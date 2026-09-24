@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { SmButton } from './sm-button';
 import { SmDialog } from './sm-dialog';
 
 export type Disposition = 'delete' | 'archive' | 'keep';
@@ -23,7 +24,7 @@ export function DispositionDialog({ open, title, onCancel, onConfirm, busy = fal
       footer={
         <>
           <button type="button" className="sm-btn sm-btn-ghost" onClick={onCancel}>Cancel</button>
-          <button type="button" className="sm-btn sm-btn-primary" disabled={busy} onClick={() => onConfirm(choice)}>Delete</button>
+          <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={() => onConfirm(choice)}>Delete</SmButton>
         </>
       }
     >

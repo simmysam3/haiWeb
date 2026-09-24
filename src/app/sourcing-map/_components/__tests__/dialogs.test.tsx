@@ -38,6 +38,21 @@ describe('DispositionDialog', () => {
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
     expect(document.activeElement).toBe(deleteRadio);
   });
+  it('keeps Delete focusable while its request is in flight: aria-busy, and a press sends nothing (LW-a)', () => {
+    const onConfirm = vi.fn();
+    const { rerender } = render(<DispositionDialog open title="Delete Line A base" onCancel={vi.fn()} onConfirm={onConfirm} />);
+    const del = screen.getByRole('button', { name: 'Delete' });
+    del.focus();
+    fireEvent.click(del);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    rerender(<DispositionDialog open title="Delete Line A base" onCancel={vi.fn()} onConfirm={onConfirm} busy />);
+    expect(del).toHaveAttribute('aria-busy', 'true');
+    expect(del).toHaveAttribute('aria-disabled', 'true');
+    expect(del).not.toBeDisabled();
+    expect(del).toHaveFocus();
+    fireEvent.click(del);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('SmDialog focus management (AC 2, WCAG 2.1 AA)', () => {
