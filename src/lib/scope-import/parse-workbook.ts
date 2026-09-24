@@ -102,6 +102,10 @@ export function unreadableDetail(fileName: string): string {
   return `Could not read ${fileName} as a spreadsheet.`;
 }
 
+export function tooManyRowsDetail(sheetName: string, rowCount: number, maxRows: number = MAX_IMPORT_ROWS): string {
+  return `${sheetName} has ${rowCount.toLocaleString()} rows; the limit is ${maxRows.toLocaleString()}.`;
+}
+
 export async function parseWorkbook(
   bytes: ArrayBuffer,
   opts: { fileName?: string; maxBytes?: number; maxRows?: number } = {},
@@ -148,7 +152,7 @@ export async function parseWorkbook(
       return {
         ok: false,
         reason: 'too_many_rows',
-        detail: `${sheetName} has ${dataRows.length.toLocaleString()} rows; the limit is ${maxRows.toLocaleString()}.`,
+        detail: tooManyRowsDetail(sheetName, dataRows.length, maxRows),
       };
     }
 
@@ -243,6 +247,11 @@ export async function readWorkbookSheets(
     const rows = grid
       .map((cells, i) => ({ row: start + i + 1, cells: cells.map(cellText) }))
       .filter((r) => r.cells.some((c) => c.trim() !== ''));
+    // spec §7.3: 5,000 data rows; the header, and any title row above it, do not count.
+    const dataRows = rows.length - detectHeaderRow({ name, rows }) - 1;
+    if (dataRows > maxRows) {
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, dataRows, maxRows) };
+    }
     sheets.push({ name, rows });
   }
   return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };

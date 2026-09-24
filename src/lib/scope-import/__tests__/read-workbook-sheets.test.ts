@@ -56,4 +56,16 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(comma.decimalComma).toBe(false);
   });
 
+  it('refuses an over-size file and an over-long sheet with parse-workbook’s own sentences, counting data rows under the header', async () => {
+    const big = xlsx({ BOM: [['Description', 'Usage'], ['a', 1]] });
+    const tooBig = await readWorkbookSheets(big, { fileName: 'big.xlsx', maxBytes: 10 });
+    expect(tooBig).toEqual({ ok: false, reason: 'too_large', detail: tooLargeDetail('big.xlsx', big.byteLength, 10) });
+    const long = await readWorkbookSheets(xlsx({ BOM: [['Description', 'Usage'], ['a', 1], ['b', 2], ['c', 3]] }), { fileName: 'long.xlsx', maxRows: 2 });
+    expect(long).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', 3, 2) });
+    expect(tooManyRowsDetail('BOM', 3, 2)).toBe('BOM has 3 rows; the limit is 2.');
+    // A title row above the header is not data (D15): two data rows fit a ceiling of 2.
+    const titled = await readWorkbookSheets(xlsx({ BOM: [['Acme BOM export'], ['Description', 'Usage'], ['a', 1], ['b', 2]] }), { fileName: 't.xlsx', maxRows: 2 });
+    expect(titled.ok).toBe(true);
+  });
+
 });
