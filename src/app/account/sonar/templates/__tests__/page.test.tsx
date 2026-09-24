@@ -42,4 +42,8 @@ describe('TemplatesRedirect — dispatch by observation_class', () => {
   it('unknown class → defaults to the watcher home (graceful)', async () => {
     expect(await runPage('not-a-real-class')).toBe('/account/sonar/watchers');
   });
+
+  it('?observation_class=sourcing_map → /sourcing-map (R-10 census H2)', async () => {
+    expect(await runPage('sourcing_map')).toBe('/sourcing-map');
+  });
 });

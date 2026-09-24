@@ -21,11 +21,13 @@ const TARGETS = {
   audit: '/account/sonar/audit',
   watcher: '/account/sonar/watchers',
   phantom_demand: '/account/sonar/observations',
+  // R-10 census H2 — Sourcing Map runs are managed in the launched app.
+  sourcing_map: '/sourcing-map',
 } as const;
 type Class = keyof typeof TARGETS;
 
 function isClass(v: string | undefined): v is Class {
-  return v === 'audit' || v === 'watcher' || v === 'phantom_demand';
+  return v === 'audit' || v === 'watcher' || v === 'phantom_demand' || v === 'sourcing_map';
 }
 
 interface PageProps {
