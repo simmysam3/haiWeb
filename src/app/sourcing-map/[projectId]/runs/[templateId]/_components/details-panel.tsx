@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import type { SmCandidateResult, SmSlotResult } from '@/lib/sourcing-map/contract';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
-import { candidateWeekAt, formatDropDate, formatPct, formatQty, slotDemandAt, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import { candidateWeekAt, formatDropDate, formatPct, formatQty, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 
 /**
@@ -26,7 +26,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
       </div>
-      <p className="sm-muted">{`${slot.class_label} · ${c.supplier_sku}`}</p>
+      <p className="sm-muted">{`${slotTitle(slot)} · ${c.supplier_sku}`}</p>
       <dl className="mt-4 grid grid-cols-2 gap-2">
         <dt className="sm-muted">Lead time</dt><dd>{c.own_lead_time_days !== null ? `${c.own_lead_time_days} d` : '—'}</dd>
         <dt className="sm-muted">Utilization</dt><dd>{c.utilization_band ? <Pill themed category="sm_utilization" value={c.utilization_band} /> : '—'}</dd>

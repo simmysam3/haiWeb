@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vomeroResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@/lib/sourcing-map/contract';
 import { DetailsPanel } from '../details-panel';
 
 const NAMES = { [VOMERO_IDS.pegasus]: 'Pegasus Trail', [VOMERO_IDS.court]: 'Court Classic', [VOMERO_IDS.metcon]: 'Metcon Iron' };
@@ -28,4 +29,25 @@ describe('DetailsPanel', () => {
     const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
     expect(document.activeElement).toBe(within(panel).getByRole('heading', { name: 'León Cuero · MX' }));
   });
+
+  it('titles an unclassified slot as its rail does, "Unclassified · <component>" (ruling R4, contract §10)', () => {
+    const drops = vomeroResult.portfolio.drops;
+    const leather = vomeroResult.slots[0]!;
+    // present control: a classified slot keeps its class label, with no prefix
+    const { unmount } = render(<DetailsPanel slot={leather} candidate={leather.candidates[0]!} drops={drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(screen.getByText('Full grain leather hides · LC-BOV-UP-01')).toBeInTheDocument();
+    unmount();
+    const laces = structuredCloneSafe(vomeroResult.slots[4]!);
+    laces.slot_key = { ...laces.slot_key, class_id: `${SM_UNCLASSIFIED_CLASS_PREFIX}${VOMERO_IDS.bowline}:BW-LACE-137` };
+    laces.class_label = 'Flat lace 137 cm';
+    laces.class_path = [];
+    laces.candidates = [{ ...laces.candidates[0]!, pinned: true }];
+    render(<DetailsPanel slot={laces} candidate={laces.candidates[0]!} drops={drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const panel = screen.getByRole('complementary', { name: 'Details for Bowline Cordage' });
+    expect(within(panel).getByText('Unclassified · Flat lace 137 cm · BW-LACE-137')).toBeInTheDocument();
+  });
 });
+
+function structuredCloneSafe<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
