@@ -164,5 +164,11 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     await expect(ProductPage({ params: Promise.resolve({ projectId: decodeURIComponent('..%2F..%2Fx'), productId: VOMERO_IDS.pegasus }) })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(fetchBffJson).not.toHaveBeenCalled();
   });
+
+  it('is a 404 when the product belongs to another project than the URL names, never shown under the wrong project (P1, F5)', async () => {
+    // Without the check both reads answer, so the page would show B's product under A's name.
+    serve({ ...vomeroWorkbenchDetail, project_id: '5a1e0000-0000-4000-8000-000000000002' });
+    await expect(page(VOMERO_IDS.pegasus)).rejects.toThrow('NEXT_NOT_FOUND');
+  });
 });
 

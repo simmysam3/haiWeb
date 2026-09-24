@@ -17,6 +17,8 @@ export default async function ProductPage({ params }: { params: Promise<{ projec
     if (product.status === 404) notFound();
     throw new Error(`product fetch failed: ${product.status}`);
   }
+  // P1 (the run page's rule, F5): a URL pairing one project with another project's product is a 404.
+  if (product.data.project_id !== projectId) notFound();
   // Keyed by the product alone (LW-b): the editor holds the product it last saved, so a re-read never remounts it
   // and never discards unsaved edits in the other pane; another product mounts a fresh editor.
   return (
