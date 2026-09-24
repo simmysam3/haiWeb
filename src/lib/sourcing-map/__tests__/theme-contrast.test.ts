@@ -67,6 +67,10 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
     expect(SM_THEME_TOKENS.light['teal-text']).toBe('#007585');
   });
 
+  it('the header background is exactly the dark surface token (Task 18 ruling): the dark text rows on surface above are the header contrast checks', () => {
+    expect(SM_HEADER.bg).toBe(SM_THEME_TOKENS.dark.surface);
+  });
+
   it('smThemeStyle emits every token, pill tone and header value as --sm-* custom properties', () => {
     const dark = smThemeStyle('dark');
     expect(dark['--sm-canvas']).toBe('#10132A');
