@@ -148,5 +148,24 @@ describe('ProjectsGrid', () => {
     settle(reply(201, { ...vomeroProject, name: 'Fall 2027' }));
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
+
+  it('keeps Save name focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rename Spring 2027' }));
+    fireEvent.change(screen.getByLabelText('New name'), { target: { value: 'Spring 2027 (v2)' } });
+    const save = screen.getByRole('button', { name: 'Save name' });
+    save.focus();
+    fireEvent.click(save);
+    expect(save).toHaveAttribute('aria-busy', 'true');
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveFocus();
+    fireEvent.click(save);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(200, { ...vomeroProject, name: 'Spring 2027 (v2)' }));
+    await waitFor(() => expect(screen.getByRole('listitem', { name: 'Spring 2027 (v2)' })).toBeInTheDocument());
+  });
 });
 

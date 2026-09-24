@@ -163,16 +163,16 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
         footer={
           <>
             <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setRenaming(null)}>Cancel</button>
-            <button
-              type="button"
+            <SmButton
               className="sm-btn sm-btn-primary"
-              disabled={busy || newName.trim() === ''}
+              busy={busy}
+              disabled={newName.trim() === ''}
               onClick={async () => {
                 if (renaming && (await patch(renaming, { name: newName.trim() }))) setRenaming(null);
               }}
             >
               Save name
-            </button>
+            </SmButton>
           </>
         }
       >
