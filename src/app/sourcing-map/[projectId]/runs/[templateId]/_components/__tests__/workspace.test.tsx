@@ -449,4 +449,20 @@ describe('Workspace', () => {
     await settle(() => slowCancel.resolve(reply(409, { error: { code: 'execution_not_running', message: 'The execution had already finished.' } })));
     expect(screen.queryByText('The execution had already finished.')).toBeNull();
   });
+
+  it('a switch of result expands the rails the previous result had collapsed, which are named by slot index (R3)', async () => {
+    const old = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, old);
+      return reply(404, {});
+    });
+    mount(vomeroDetail, [vomeroExecution, old.execution]);
+    const rail = () => within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    fireEvent.click(rail());
+    expect(rail()).toHaveAttribute('aria-expanded', 'false');
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    expect(rail()).toHaveAttribute('aria-expanded', 'true');
+  });
 });
