@@ -54,8 +54,34 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
   const sized = wide.filter((w): w is { i: number; variant: string } => w.variant !== null);
 
   const lines: UploadedBomLine[] = [];
+  const long = col('variant') >= 0;
+  const groups = new Map<string, UploadedBomLine>();
   for (const r of rows) {
     const component = cell(r.cells, 'component');
+    const base = {
+      component_label: component,
+      part_ref: cell(r.cells, 'part_ref') || null,
+      class_text: cell(r.cells, 'class') || null,
+      uom: cell(r.cells, 'uom') || 'ea',
+      supplier_name: cell(r.cells, 'supplier') || null,
+      supplier_sku: cell(r.cells, 'supplier_sku') || null,
+      share_pct: cell(r.cells, 'share') === '' ? null : parseShare(cell(r.cells, 'share')),
+    };
+    if (long) {
+      const variant = matchVariantHeader(cell(r.cells, 'variant'), variantValues);
+      const qty = parseQty(cell(r.cells, 'qty_per_unit'), decimalComma);
+      if (variant === null || qty === null) continue;
+      const groupKey = JSON.stringify([base.component_label, base.part_ref, base.uom, base.supplier_name, base.supplier_sku]);
+      let g = groups.get(groupKey);
+      if (!g) {
+        g = { key: `rows-${r.row}`, rows: [], ...base, qty_per_unit: 0, variant_bound: true, qty_by_variant: {} };
+        groups.set(groupKey, g);
+        lines.push(g);
+      }
+      g.rows.push(r.row);
+      g.qty_by_variant![variant] = qty;
+      continue;
+    }
     const byVariant: Record<string, number> = {};
     for (const w of sized) {
       const t = (r.cells[w.i] ?? '').trim();
@@ -67,14 +93,11 @@ export function buildBomLines(input: BomBuildInput): BomBuild {
     const uniformText = cell(r.cells, 'qty_per_unit');
     const uniform = uniformText === '' ? null : parseQty(uniformText, decimalComma);
     lines.push({
-      key: `row-${r.row}`, rows: [r.row], component_label: component,
-      part_ref: cell(r.cells, 'part_ref') || null, class_text: cell(r.cells, 'class') || null,
-      uom: cell(r.cells, 'uom') || 'ea',
+      key: `row-${r.row}`, rows: [r.row], ...base,
       qty_per_unit: uniform ?? (values.length > 0 ? mean(values) : 0),
       variant_bound: values.length > 0, qty_by_variant: values.length > 0 ? byVariant : null,
-      supplier_name: cell(r.cells, 'supplier') || null, supplier_sku: cell(r.cells, 'supplier_sku') || null,
-      share_pct: cell(r.cells, 'share') === '' ? null : parseShare(cell(r.cells, 'share')),
     });
   }
+  for (const g of groups.values()) g.qty_per_unit = mean(Object.values(g.qty_by_variant ?? {}));
   return { ok: true, lines, ignoredColumns, errors };
 }

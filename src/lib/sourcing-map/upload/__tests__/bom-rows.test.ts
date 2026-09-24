@@ -23,4 +23,25 @@ describe('buildBomLines', () => {
       },
     ]);
   });
+
+  it('long layout: groups one row per size into one size-bound line', () => {
+    const out = buildBomLines({
+      headers: ['Component', 'Size', 'Qty', 'UOM'],
+      mapping: ['component', 'variant', 'qty_per_unit', 'uom'],
+      rows: [
+        { row: 2, cells: ['Rubber outsole', '9', '1', 'pr'] },
+        { row: 3, cells: ['Rubber outsole', '9.5', '1', 'pr'] },
+        { row: 4, cells: ['Rubber outsole', '10.0', '1.1', 'pr'] },
+      ],
+      variantValues: MENS_US_7_13,
+      decimalComma: false,
+    });
+    expect(out.ok && out.lines).toEqual([
+      {
+        key: 'rows-2', rows: [2, 3, 4], component_label: 'Rubber outsole', part_ref: null, class_text: null, uom: 'pr',
+        qty_per_unit: 1.033333, variant_bound: true, qty_by_variant: { '9': 1, '9.5': 1, '10': 1.1 },
+        supplier_name: null, supplier_sku: null, share_pct: null,
+      },
+    ]);
+  });
 });
