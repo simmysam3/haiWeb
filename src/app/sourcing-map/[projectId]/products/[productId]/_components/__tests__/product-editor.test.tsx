@@ -150,4 +150,46 @@ describe('ProductEditorBody', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
   });
+
+  it('keeps the upload wizard open while its save is in flight: Escape, the backdrop and Close do nothing until it settles', async () => {
+    refresh.mockClear();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/class-suggestions')) return reply(200, { retrieval: 'hybrid', lines: [{ suggestions: [] }] });
+      if (p.endsWith('/bom-lines') && init?.method === 'PUT') {
+        await held;
+        return reply(409, { error: { code: 'product_not_workbench', message: 'This product reads its BOM from your agent.' } });
+      }
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    const dialog = screen.getByRole('dialog', { name: 'Upload BOM' });
+    await userEvent.upload(within(dialog).getByLabelText('Spreadsheet file'), new File([['Description,Usage', 'Upper leather tumbled,0.25'].join(NL)], 'bom.csv', { type: 'text/csv' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue to review' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Save 1 line' }));
+    // the PUT is in flight: a close now would replace the BOM unseen on success, or lose the message on failure
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+    const backdrop = dialog.previousElementSibling as HTMLElement;
+    expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(backdrop);
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+    const close = within(dialog).getByRole('button', { name: 'Close' });
+    expect(close).toBeDisabled();
+    fireEvent.click(close);
+    expect(screen.getByRole('dialog', { name: 'Upload BOM' })).toBeInTheDocument();
+    release();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This product reads its BOM from your agent.');
+    expect(refresh).not.toHaveBeenCalled();
+    // settled: closing works again
+    expect(close).toBeEnabled();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
+  });
 });

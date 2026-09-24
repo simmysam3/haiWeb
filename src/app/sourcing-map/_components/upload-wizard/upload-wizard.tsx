@@ -171,9 +171,14 @@ export function UploadWizard(props: UploadWizardProps) {
   }
 
   const title = kind === 'bom' ? 'Upload BOM' : 'Upload schedule';
+  // A save in flight answers in this dialog: a close then would replace the BOM unseen, or lose a failure's message.
+  // SmDialog's Escape and backdrop call this too, so all three ways out wait for the save to settle.
+  function close() {
+    if (!busy) props.onClose();
+  }
   // The modal shell (backdrop, labelled dialog, Escape, focus in / trap / return) is SmDialog's (controller ruling, I07).
   return (
-    <SmDialog open wide title={title} onClose={props.onClose}>
+    <SmDialog open wide title={title} onClose={close}>
       <div className="flex items-center justify-between gap-4">
         <ol aria-label="Upload steps" className="flex gap-4 text-xs">
           {steps.map((s, i) => (
@@ -182,7 +187,7 @@ export function UploadWizard(props: UploadWizardProps) {
             </li>
           ))}
         </ol>
-        <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={props.onClose}>Close</button>
+        <button type="button" className="sm-btn sm-btn-ghost text-xs" disabled={busy} onClick={close}>Close</button>
       </div>
       <div ref={stepRef} role="group" aria-label={STEP_LABELS[step]} tabIndex={-1} className="mt-4 outline-none">
         {step === 'file' && <FileStep onFile={(f) => void onFile(f)} error={error} />}
