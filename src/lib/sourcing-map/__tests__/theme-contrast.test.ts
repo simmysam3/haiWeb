@@ -83,4 +83,11 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
       expect(smThemeStyle('light')[`--sm-pill-${tone}-bg`]).toBeTruthy();
     }
   });
+
+  it('a pressed ghost button shows its state without hue, a 2px border and weight 600 (WCAG 1.4.1; fix round 1, I-2)', () => {
+    // Read from the unlayered stylesheet, where the rule outranks .sm-btn-ghost's own border; drop segments, product chips, month buttons and the theme toggle use it.
+    const pressed = /\.sm-btn-ghost\[aria-pressed="true"\]\s*\{([^}]*)\}/.exec(SM_CSS)?.[1] ?? '';
+    expect(pressed).toMatch(/border-width:\s*2px/);
+    expect(pressed).toMatch(/font-weight:\s*600/);
+  });
 });
