@@ -70,7 +70,8 @@ export function UploadWizard(props: UploadWizardProps) {
       setError(out.detail);
       return;
     }
-    if (out.sheets.length === 0) {
+    // The reader keeps a sheet with no non-blank rows (rows: []), so an empty file has sheets, all empty.
+    if (out.sheets.every((s) => s.rows.length === 0)) {
       setError(`${file.name} has no rows.`);
       return;
     }

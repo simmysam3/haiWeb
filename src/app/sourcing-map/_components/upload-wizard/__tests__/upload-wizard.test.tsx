@@ -185,6 +185,13 @@ describe('UploadWizard (BOM)', () => {
     expect(await screen.findByText('Upper leather tumbled')).toBeInTheDocument();
   });
 
+  it('says an empty file has no rows, and stays on the File step', async () => {
+    renderBom();
+    await userEvent.upload(fileInput(), new File([], 'empty.csv', { type: 'text/csv' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('empty.csv has no rows.');
+    expect(screen.queryByLabelText('Header row')).toBeNull();
+  });
+
 });
 
 // `describe('UploadWizard (demand)', …)` is created by Cycle 32.7 with its first `it` blocks:
