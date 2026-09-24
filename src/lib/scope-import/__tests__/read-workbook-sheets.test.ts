@@ -10,9 +10,13 @@ function xlsx(sheets: Record<string, unknown[][]>): ArrayBuffer {
   for (const [name, rows] of Object.entries(sheets)) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
 }
-/** A workbook whose sheet declares `ref` as its range (the file's <dimension>), whatever cells it really holds. */
-function declared(rows: unknown[][], ref: string): ArrayBuffer {
+/**
+ * A workbook whose sheet declares `ref` as its range (the file's <dimension>), whatever cells it really holds: `rows`
+ * from A1, plus `cells` placed by address.
+ */
+function declared(rows: unknown[][], ref: string, cells: Record<string, XLSX.CellObject> = {}): ArrayBuffer {
   const ws = XLSX.utils.aoa_to_sheet(rows);
+  Object.assign(ws, cells);
   ws['!ref'] = ref;
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'BOM');
@@ -92,14 +96,20 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', lines.length, 4) });
   });
 
-  it('reads at most the column ceiling of a sheet that declares a far wider range, keeping its data (security L1)', async () => {
-    // Within the row bound, but 16,384 columns wide as declared: expanded, every row would carry 16,384 cells.
-    const wide = declared([['Description', 'Usage'], ['Upper leather', 0.25]], 'A1:XFD30');
+  it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
+    // Real values in the ceiling's last column (IV, the 256th) and in the sheet's last (XFD, the 16,384th): read in
+    // full, every row would carry 16,384 cells.
+    const wide = declared([['Description', 'Usage'], ['Upper leather', 0.25]], 'A1:XFD2', {
+      IV1: { t: 's', v: 'Last read' },
+      XFD1: { t: 's', v: 'Past the ceiling' },
+    });
     const out = await readWorkbookSheets(wide, { fileName: 'wide.xlsx' });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
     const [header, data] = out.sheets[0]!.rows;
     expect(header!.cells).toHaveLength(MAX_IMPORT_COLUMNS);
+    expect(header!.cells[MAX_IMPORT_COLUMNS - 1]).toBe('Last read');
+    expect(out.sheets[0]!.rows.flatMap((r) => r.cells)).not.toContain('Past the ceiling');
     expect(header!.cells.slice(0, 2)).toEqual(['Description', 'Usage']);
     expect(data!.cells.slice(0, 2)).toEqual(['Upper leather', '0.25']);
   });
