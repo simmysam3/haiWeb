@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { SM_LIMITS } from '@/lib/sourcing-map/contract';
 import { vomeroProducts, vomeroRunTemplate, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ConfigureTray } from '../configure-tray';
 
@@ -127,7 +128,7 @@ describe('ConfigureTray', () => {
   });
 
   it('a run-settings edit also clears a refused Apply’s message', async () => {
-    const REFUSAL = 'depth_cap must be between 1 and 8.';
+    const REFUSAL = `depth_cap must be between ${SM_LIMITS.DEPTH_CAP_MIN} and ${SM_LIMITS.DEPTH_CAP_MAX}.`;
     fetchMock.mockResolvedValue(reply(400, { error: { code: 'VALIDATION_ERROR', message: REFUSAL } }));
     render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Run settings' }));
