@@ -20,7 +20,7 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   template: SmRunTemplate; library: SmProduct[]; onApplied(t: SmRunTemplate): void; onClose(): void;
 }) {
   const [scope, setScope] = useState<SourcingMapScope>(template.scope);
-  const [cadence] = useState<Cadence>(template.cadence);
+  const [cadence, setCadence] = useState<Cadence>(template.cadence);
   const [tab, setTab] = useState<'demand' | 'settings'>('demand');
   const [adding, setAdding] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +139,47 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
               </section>
             );
           })}
+        </div>
+      )}
+      {tab === 'settings' && (
+        <div role="tabpanel" className="mt-4 grid max-w-md gap-4 text-sm">
+          <label>Depth cap
+            <input
+              aria-label="Depth cap" type="number" min={SM_LIMITS.DEPTH_CAP_MIN} max={SM_LIMITS.DEPTH_CAP_MAX} className="sm-input ml-2 w-20"
+              value={scope.depth_cap}
+              onChange={(e) => {
+                const n = Number.parseInt(e.target.value, 10);
+                if (Number.isInteger(n) && n >= SM_LIMITS.DEPTH_CAP_MIN && n <= SM_LIMITS.DEPTH_CAP_MAX) setScope((s) => ({ ...s, depth_cap: n }));
+              }}
+            />
+          </label>
+          <label>Seat weekly capacity (units per week, optional)
+            <input
+              aria-label="Seat weekly capacity (units per week, optional)" type="number" min={1} className="sm-input ml-2 w-32"
+              value={scope.seat_weekly_capacity ?? ''}
+              onChange={(e) => {
+                const n = Number.parseInt(e.target.value, 10);
+                setScope((s) => ({ ...s, seat_weekly_capacity: Number.isInteger(n) && n > 0 ? n : null }));
+              }}
+            />
+          </label>
+          <label>Cadence
+            <select
+              aria-label="Cadence" className="sm-input ml-2"
+              value={cadence.kind === 'manual_only' || cadence.kind === 'weekly' || cadence.kind === 'monthly' ? cadence.kind : 'current'}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === 'manual_only') setCadence({ kind: 'manual_only' });
+                if (v === 'weekly') setCadence({ kind: 'weekly', day_of_week: 'mon', time_of_day: '06:00' });
+                if (v === 'monthly') setCadence({ kind: 'monthly', day_of_month: 1, time_of_day: '06:00' });
+              }}
+            >
+              <option value="manual_only">Manual only</option>
+              <option value="weekly">Weekly (Mondays, 06:00 UTC)</option>
+              <option value="monthly">Monthly (the 1st, 06:00 UTC)</option>
+              {!['manual_only', 'weekly', 'monthly'].includes(cadence.kind) && <option value="current">{`Current: ${cadence.kind}`}</option>}
+            </select>
+          </label>
         </div>
       )}
       <div className="mt-6 flex flex-wrap items-center gap-3">

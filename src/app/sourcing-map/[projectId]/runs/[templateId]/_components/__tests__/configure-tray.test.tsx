@@ -109,6 +109,21 @@ describe('ConfigureTray', () => {
     fireEvent.change(screen.getByLabelText('Quantity of drop 2 for Pegasus Trail'), { target: { value: '6500' } });
     expect(screen.queryByText('A size mix must total 100%.')).toBeNull();
   });
+
+  it('saves run settings: depth cap, seat weekly capacity and cadence', async () => {
+    fetchMock.mockResolvedValue(reply(200, { template: TWO }));
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Run settings' }));
+    fireEvent.change(screen.getByLabelText('Depth cap'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Seat weekly capacity (units per week, optional)'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Cadence'), { target: { value: 'weekly' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
+    expect(body.scope.depth_cap).toBe(3);
+    expect(body.scope.seat_weekly_capacity).toBeNull();
+    expect(body.cadence).toEqual({ kind: 'weekly', day_of_week: 'mon', time_of_day: '06:00' });
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
