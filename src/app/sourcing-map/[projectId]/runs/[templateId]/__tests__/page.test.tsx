@@ -1,0 +1,45 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { vomeroDetail, vomeroExecution, vomeroProducts, vomeroProject, vomeroRunTemplate, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+
+const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
+vi.mock('@/lib/server-fetch', () => ({ fetchBffJson }));
+vi.mock('next/navigation', () => ({
+  notFound: () => {
+    throw new Error('NEXT_NOT_FOUND');
+  },
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
+  usePathname: () => `/sourcing-map/${VOMERO_IDS.project}/runs/${VOMERO_IDS.template}`,
+  useSearchParams: () => new URLSearchParams(),
+}));
+vi.mock('next/image', () => ({ default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} /> }));
+vi.mock('swr', () => ({ default: () => ({ data: undefined, error: undefined }) }));
+vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ readiness: { ready: true, first_failing_rule: null, detail: null }, slot_count: 5, probe_count: 7, probe_count_worst_case: 10, responders_short: [] }) }));
+
+// A queued answer a test leaves unread must never reach the next test.
+beforeEach(() => fetchBffJson.mockReset());
+
+describe('run workspace page', () => {
+  it('loads the run, its project, the library, the executions and the latest result, and renders the map', async () => {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+    const { default: Page } = await import('../page');
+    render(await Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) }));
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Projects›Spring 2027›Line A base');
+    expect(screen.getByText('96,000 pairs · 6 drops')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Sourcing map' })).toBeInTheDocument();
+    expect(screen.getByText('CSG Footwear Vietnam')).toBeInTheDocument();
+    expect(fetchBffJson).toHaveBeenLastCalledWith(`/api/account/sourcing-map/executions/${VOMERO_IDS.execution}`);
+  });
+
+  it('is a 404 when the run is not the caller’s', async () => {
+    fetchBffJson.mockReset();
+    fetchBffJson.mockResolvedValueOnce({ kind: 'error', status: 404, message: '' });
+    const { default: Page } = await import('../page');
+    await expect(Page({ params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) })).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+});
