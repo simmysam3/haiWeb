@@ -1,0 +1,23 @@
+/* src/app/sourcing-map/sourcing-map.css — Sourcing Map app utilities (spec §9.1).
+   Every colour is a --sm-* token set on the theme root; never a console utility. */
+.sm-root { background: var(--sm-canvas); color: var(--sm-ink); min-height: 100vh; font-family: var(--font-body), sans-serif; }
+.sm-root :focus-visible { outline: 2px solid var(--sm-teal); outline-offset: 2px; }
+.sm-surface { background: var(--sm-surface); }
+.sm-card { background: var(--sm-card); border: 1px solid var(--sm-line); border-radius: 12px; }
+.sm-muted { color: var(--sm-ink-2); }
+.sm-heading { font-family: var(--font-display), sans-serif; color: var(--sm-ink); }
+.sm-link { color: var(--sm-teal-text); }
+.sm-link:hover { text-decoration: underline; }
+.sm-error { color: var(--sm-red-text); }
+.sm-warn { color: var(--sm-warn-text); }
+.sm-success { color: var(--sm-success-text); }
+.sm-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.sm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.sm-btn-primary { background: var(--sm-teal); color: var(--sm-button-primary-fg); }
+.sm-btn-ghost { background: transparent; color: var(--sm-ink); border: 1px solid var(--sm-line-2); }
+.sm-input { background: var(--sm-surface); color: var(--sm-ink); border: 1px solid var(--sm-line-2); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.sm-header { background: var(--sm-header-bg); color: var(--sm-header-ink); }
+.sm-header .sm-muted { color: var(--sm-header-ink-2); }
+.sm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sm-table th { color: var(--sm-ink-2); font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--sm-line); }
+.sm-table td { padding: 8px 10px; border-bottom: 1px solid var(--sm-line); }

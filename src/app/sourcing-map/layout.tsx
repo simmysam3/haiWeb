@@ -1,5 +1,7 @@
 import { forbidden } from 'next/navigation';
 import { getSession, hasRole } from '@/lib/auth';
+import { SmThemeRoot } from './_components/theme-root';
+import './sourcing-map.css';
 
 /**
  * The Sourcing Map is a launched app with its own shell (spec §9.1), the
@@ -11,5 +13,5 @@ import { getSession, hasRole } from '@/lib/auth';
 export default async function SourcingMapLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session || !hasRole(session.user.role, 'account_admin')) forbidden();
-  return <>{children}</>;
+  return <SmThemeRoot>{children}</SmThemeRoot>;
 }
