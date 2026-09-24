@@ -58,7 +58,8 @@ describe('DetailsPanel', () => {
   });
 
   it('a probing candidate reads "Probing" per drop and per size, as its card does, never "no answer" (fix round 1, I-1; AC 17)', () => {
-    const { result } = runningDetail();
+    // SmExecutionDetail.result is nullable; the running fixture always carries one.
+    const result = runningDetail().result!;
     const leather = result.slots[0]!;
     const mekong = leather.candidates[1]!;
     expect(mekong.status).toBe('probing');
