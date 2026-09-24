@@ -114,6 +114,12 @@ export function UploadWizard(props: UploadWizardProps) {
 
   function onContinueMap() {
     setError(null);
+    // Nothing under the header would reach Review as "Save 0 lines" (replacing the BOM with an empty one) or as an
+    // empty schedule that "Apply schedule" would apply.
+    if (dataRows.length === 0) {
+      setError(`There are no rows under the header row (Row ${rows[headerIndex]?.row ?? headerIndex + 1}).`);
+      return;
+    }
     if (props.kind === 'demand') {
       const out = buildDemand({ rows: dataRows, headers, mapping, products: props.products, decimalComma });
       if (out.perProduct.length === 0 && out.errors.some((e) => e.row === 0)) {
@@ -123,11 +129,6 @@ export function UploadWizard(props: UploadWizardProps) {
       rememberMapping('demand', headers, mapping);
       setDemand(out);
       setStep('review');
-      return;
-    }
-    // Nothing under the header would reach Review as "Save 0 lines" and replace the BOM with an empty one.
-    if (dataRows.length === 0) {
-      setError(`There are no rows under the header row (Row ${rows[headerIndex]?.row ?? headerIndex + 1}).`);
       return;
     }
     const out = buildBomLines({ rows: dataRows, headers, mapping, variantValues, decimalComma });

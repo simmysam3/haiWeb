@@ -407,4 +407,15 @@ describe('UploadWizard (demand)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Map a Product column; this run has 2 products.');
     expect(screen.getByLabelText('Map column Due')).toBeInTheDocument();
   });
+
+  it('refuses a schedule with no rows under the header, and stays on the mapping step', async () => {
+    const onApply = vi.fn();
+    render(<UploadWizard kind="demand" products={PRODUCTS.slice(0, 1)} onApply={onApply} onClose={vi.fn()} />);
+    await userEvent.upload(fileInput(), csvFile(['Due,Pairs'], 'demand.csv'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('There are no rows under the header row (Row 1).');
+    expect(screen.getByLabelText('Map column Due')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Apply schedule' })).toBeNull();
+    expect(onApply).not.toHaveBeenCalled();
+  });
 });
