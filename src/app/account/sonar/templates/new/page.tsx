@@ -18,6 +18,10 @@ export default async function NewTemplatePage({
   if (params.observation_class === 'watcher') {
     redirect('/account/sonar/watchers/new');
   }
+  // R-10 census H7 — Sourcing Map runs are created in the app, never in this PD wizard.
+  if (params.observation_class === 'sourcing_map') {
+    redirect('/sourcing-map');
+  }
   const noun = configNoun('phantom_demand');
   return (
     <div>

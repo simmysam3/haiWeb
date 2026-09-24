@@ -34,4 +34,10 @@ describe('NewTemplatePage', () => {
     ).rejects.toThrow(/__NEXT_REDIRECT__/);
     expect(redirectMock).toHaveBeenCalledWith('/account/sonar/watchers/new');
   });
+
+  it('redirects /templates/new?observation_class=sourcing_map → /sourcing-map (R-10 census H7)', async () => {
+    const Page = (await import('../page')).default;
+    await expect(Page({ searchParams: Promise.resolve({ observation_class: 'sourcing_map' }) })).rejects.toThrow(/__NEXT_REDIRECT__/);
+    expect(redirectMock).toHaveBeenCalledWith('/sourcing-map');
+  });
 });
