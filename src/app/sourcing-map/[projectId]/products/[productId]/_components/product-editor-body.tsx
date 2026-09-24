@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SmProductDetail } from '@/lib/sourcing-map/contract';
+import { smFetch } from '@/lib/sourcing-map/client';
 import { ProductEditor } from './product-editor';
 import { BomGrid } from './bom-grid';
 import { AgentBomView } from './agent-bom-view';
@@ -18,6 +19,16 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
   const [bomRevision, setBomRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // An import answers only counts (contract: ImportAgentBomResponse), so one read brings the product it made: its
+  // lines for a copy, or `bom_source: agent` for a link, which switches the body to the agent view.
+  async function rereadAfterImport() {
+    const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${detail.product_id}`);
+    if (!out.ok) return;
+    setDetail(out.data);
+    setBomRevision((r) => r + 1);
+  }
+
   return (
     <ProductEditor projectName={projectName} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
       {detail.bom_source === 'agent' ? (
@@ -66,7 +77,7 @@ export function ProductEditorBody({ projectName, detail: initialDetail }: { proj
           onClose={() => setImporting(false)}
           onImported={() => {
             setImporting(false);
-            router.refresh();
+            void rereadAfterImport();
           }}
         />
       )}

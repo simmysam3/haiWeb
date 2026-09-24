@@ -291,5 +291,27 @@ describe('ProductEditorBody', () => {
     // The very element that opened the wizard: a toolbar remounted with the grid would leave focus on <body>.
     expect(document.activeElement).toBe(openButton);
   });
+
+  it('a copy import, which answers only counts, re-reads the product and replaces the grid with its lines (LW-b)', async () => {
+    const imported = {
+      ...vomeroWorkbenchDetail,
+      line_count: 2,
+      lines: vomeroAgentDetail.lines.map((l, i) => ({ ...l, line_id: `5a1e0000-0000-4000-8000-00000000070${i}`, product_id: VOMERO_IDS.pegasus, position: i })),
+    };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
+      if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}` && (init?.method ?? 'GET') === 'GET') return reply(200, imported);
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(2));
+    expect(screen.getByLabelText('Component for line 2')).toHaveValue('Flat lace 137 cm');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });
 
