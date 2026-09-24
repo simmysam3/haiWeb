@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { vomeroResult, resultWithAgentFailure, weeklyDropsResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { vomeroResult, resultWithAgentFailure, weeklyDropsResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SeatBar } from '../seat-bar';
 
 describe('SeatBar', () => {
@@ -9,6 +9,17 @@ describe('SeatBar', () => {
     expect(screen.getByText('96,000 pairs · 6 drops')).toBeInTheDocument();
     expect(screen.getByText('90%')).toBeInTheDocument();
     expect(screen.getByText('Mar 15')).toBeInTheDocument();
+  });
+
+  it('reads honestly for a zero-slot execution: no NaN or Infinity, and each failed product says why (Review Focus 5)', () => {
+    const { container } = render(<SeatBar result={zeroSlotResult()} unitLabel="pairs" asOfDrop={null} onDrop={vi.fn()} productFilter={null} onProduct={vi.fn()} />);
+    expect(screen.getByText('No composed demand')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('None')).toBeInTheDocument();
+    const chips = within(screen.getByRole('group', { name: 'Filter by product' })).getAllByRole('button').slice(1);
+    expect(chips.map((b) => b.textContent)).toEqual(['Pegasus Trail', 'Court Classic', 'Metcon Iron'].map((n) => `${n} · BOM unavailable from agent`));
+    expect(within(screen.getByRole('group', { name: 'Drops: choose the drop the map shows' })).queryAllByRole('button')).toHaveLength(0);
+    expect(container.textContent).not.toMatch(/NaN|Infinity|undefined/);
   });
 
   it('offers All products plus a chip per product with its coverage; a failed product reads "BOM unavailable from agent"', () => {
