@@ -30,6 +30,7 @@ export default async function RunWorkspacePage({ params }: { params: Promise<{ p
       library={products.kind === 'ok' ? products.data.products : []}
       productsError={products.kind === 'error' ? `Products could not be loaded (${products.status}). Try again in a moment.` : null}
       executions={list}
+      executionsError={executions.kind === 'error' ? `Results could not be loaded (${executions.status}). Try again in a moment.` : null}
       initialDetail={detail && detail.kind === 'ok' ? detail.data : null}
     />
   );

@@ -25,11 +25,13 @@ export interface WorkspaceProps {
   projectError?: string | null;
   /** R1: also disables Configure, since a tray over an empty library could Apply a scope that drops products */
   productsError?: string | null;
+  /** R1: the result list failed, so an empty list is unknown, never "No execution yet" */
+  executionsError?: string | null;
 }
 
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
-  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null,
+  projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail, projectError = null, productsError = null, executionsError = null,
 }: WorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -78,8 +80,10 @@ export function Workspace({
       />
       {projectError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{projectError}</p>}
       {productsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{productsError}</p>}
+      {executionsError && <p role="alert" className="sm-error px-6 pt-3 text-sm">{executionsError}</p>}
       {error && <p role="alert" className="sm-error px-6 pt-3 text-sm">{error}</p>}
-      <ExecutionBanner execution={detail?.execution ?? null} />
+      {/* R1: with no result loaded after a failed read, what exists is unknown; the alert says so, not the banner. */}
+      {!(detail === null && executionsError !== null) && <ExecutionBanner execution={detail?.execution ?? null} />}
       {result && (
         <SeatBar
           result={result}
