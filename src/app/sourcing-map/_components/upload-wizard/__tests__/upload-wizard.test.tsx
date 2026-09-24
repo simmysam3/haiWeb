@@ -426,7 +426,7 @@ describe('UploadWizard (BOM)', () => {
     expect(document.activeElement).toBe(within(screen.getByRole('row', { name: /Lining mesh/ })).getByRole('textbox'));
   });
 
-  it("shows the message when the supplier's SKUs in the picked class cannot be read (a-G4)", async () => {
+  it("shows the message when the supplier's SKUs in the picked class cannot be read, and the failed lookup no longer holds Continue (a-G4, AC 7)", async () => {
     const answer = route();
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
       url.includes('/class-suppliers')
@@ -439,6 +439,8 @@ describe('UploadWizard (BOM)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Accept all confident' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('The class catalog did not answer.');
     expect(screen.getByText("Supplier 'Leon Cuero SA' has no SKU picked in this class; not pinned")).toBeInTheDocument();
+    // the lookup answered (with a failure), so the note is true and the line may be saved unpinned with it
+    expect(screen.getByRole('button', { name: 'Continue to review' })).toBeEnabled();
   });
 
   it('holds "Continue to review" until the supplier names are looked up, and after a failed lookup, so no line carries a false note (AC 7, a-G4)', async () => {

@@ -29,6 +29,8 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   const [matches, setMatches] = useState<Record<string, SupplierMatch>>({});
   const [catalog, setCatalog] = useState<Record<string, ClassSuppliersResponse['suppliers']>>({});
   const [chosenSku, setChosenSku] = useState<Record<string, string>>({});
+  // Classes whose SKU lookup failed: answered, so not in flight; the line's "no SKU picked" note is then true.
+  const [skuFailed, setSkuFailed] = useState<ReadonlySet<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   // resolveLine reads a missing match as "not on the network", so until the names are looked up (or after the
   // lookup fails) no supplier verdict is shown and nothing continues to be saved (AC 7).
@@ -77,7 +79,10 @@ export function ResolveStep({ lines, onBack, onContinue }: {
       requested.current.add(classId);
       void smFetch<ClassSuppliersResponse>(`/api/account/sourcing-map/class-suppliers?class_id=${encodeURIComponent(classId)}`).then((out) => {
         if (out.ok) setCatalog((c) => ({ ...c, [classId]: out.data.suppliers }));
-        else setError(out.message);
+        else {
+          setSkuFailed((f) => new Set(f).add(classId));
+          setError(out.message);
+        }
       });
     }
   }, [lines, picked, matches]);
@@ -109,7 +114,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   // answer, a usable match would be saved unpinned with a "no SKU picked" note (AC 7).
   const skuLookupPending = lines.some((l) => {
     const classId = skuClassFor(l, picked, matches);
-    return classId !== null && catalog[classId] === undefined;
+    return classId !== null && catalog[classId] === undefined && !skuFailed.has(classId);
   });
   const resolved = lines.map((l) => resolveLine(l, picked[l.key] ?? null, l.supplier_name ? matches[l.supplier_name] ?? null : null, skuFor(l)));
 
