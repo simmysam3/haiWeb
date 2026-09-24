@@ -121,7 +121,8 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
     <aside ref={trayRef} aria-label="Configure run" className="sm-surface fixed right-0 top-0 z-40 h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--sm-line)] p-6">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold outline-none">Configure</h2>
-        <button type="button" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
+        {/* An Apply or Duplicate in flight answers in this tray: a close then would lose a failure's message (R2). */}
+        <button type="button" className="sm-btn sm-btn-ghost text-xs" disabled={busy} onClick={onClose}>Close</button>
       </div>
       <div role="tablist" aria-label="Configure" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">
         <button role="tab" type="button" aria-selected={tab === 'demand'} onClick={() => setTab('demand')} className="px-3 py-2 text-sm">Products &amp; demand</button>

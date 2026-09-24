@@ -154,6 +154,28 @@ describe('ConfigureTray', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe(`/api/account/sourcing-map/runs/${VOMERO_IDS.template}/duplicate`);
     expect(fetchMock.mock.calls[0]![1].method).toBe('POST');
   });
+
+  it('Close waits while Apply or Duplicate is in flight, so a failure’s message is never lost to a close (R2, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    const onClose = vi.fn();
+    render(<ConfigureTray template={TWO} library={vomeroProducts} onApplied={vi.fn()} onClose={onClose} />);
+    press('Remove Court Classic');
+    const close = screen.getByRole('button', { name: 'Close' });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(close).toBeDisabled();
+    fireEvent.click(close);
+    expect(onClose).not.toHaveBeenCalled();
+    settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'A size mix must total 100%.' } }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('A size mix must total 100%.');
+    expect(close).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate run' }));
+    expect(close).toBeDisabled();
+    settle(reply(404, { error: { code: 'not_found', message: 'That run no longer exists.' } }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That run no longer exists.');
+    expect(close).toBeEnabled();
+    expect(push).not.toHaveBeenCalled();
+  });
 });
 
 /** A real press: focus the control first, as a keyboard or pointer user does (fireEvent.click alone never moves focus). */
