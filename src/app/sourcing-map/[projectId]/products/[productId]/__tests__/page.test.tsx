@@ -64,4 +64,33 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     expect(screen.getByRole('row', { name: /^Line 1:/ })).toHaveTextContent('Metal eyelets');
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Court Classic');
   });
+
+  it('remounts the editor when a refresh brings the same product back changed, and keeps it when the product comes back unchanged', async () => {
+    serve(vomeroWorkbenchDetail);
+    const { rerender } = render(await page(VOMERO_IDS.pegasus));
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Pegasus Trail (edited)' } });
+
+    // The same product, read again unchanged: the key is a stable digest, so an unsaved edit survives.
+    serve(JSON.parse(JSON.stringify(vomeroWorkbenchDetail)) as SmProductDetail);
+    rerender(await page(VOMERO_IDS.pegasus));
+    expect(screen.getByLabelText('Product name')).toHaveValue('Pegasus Trail (edited)');
+
+    // The same product after a save elsewhere (a BOM PUT, an import, an upload): new lines and new readiness.
+    const saved: SmProductDetail = {
+      ...vomeroWorkbenchDetail,
+      line_count: 6,
+      readiness: { ready: false, first_failing_rule: 'line_missing_class', detail: 'Line 6 (Heel counter TPU) has no class.' },
+      lines: [
+        ...vomeroWorkbenchDetail.lines,
+        { ...vomeroWorkbenchDetail.lines[4]!, line_id: '5a1e0000-0000-4000-8000-000000000205', position: 5, component_label: 'Heel counter TPU', class_id: null },
+      ],
+    };
+    serve(saved);
+    rerender(await page(VOMERO_IDS.pegasus));
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(6);
+    expect(screen.getByRole('row', { name: 'Line 6: Heel counter TPU' })).toBeInTheDocument();
+    expect(screen.getByText('Not ready')).toBeInTheDocument();
+    expect(screen.queryByText('Ready')).toBeNull();
+  });
 });
