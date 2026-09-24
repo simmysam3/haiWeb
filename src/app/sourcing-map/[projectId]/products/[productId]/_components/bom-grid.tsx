@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
-import { newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
+import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
 import { ClassPicker } from './class-picker';
 import { SizeTable } from './size-table';
 import { PinEditor } from './pin-editor';
@@ -15,6 +15,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
   const [lines, setLines] = useState<BomDraftLine[]>(() => toDraft(initialLines, classes));
   const [names, setNames] = useState<Record<string, string | null>>({});
   const [error, setError] = useState<string | null>(null);
+  const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   // d-G9: a stored pin carries only the supplier's id. Each distinct supplier's name is looked up once, when the
@@ -42,6 +43,9 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
   }
 
   async function save() {
+    const found = lines.flatMap((l, i) => lineProblems(l, axis).map((p) => `Line ${i + 1}: ${p}`));
+    setProblems(found);
+    if (found.length > 0) return;
     setBusy(true);
     setError(null);
     const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${productId}/bom-lines`, { method: 'PUT', body: { lines: toInput(lines) } });
@@ -104,6 +108,9 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, toolb
           </tbody>
         </table>
       </div>
+      {problems.length > 0 && (
+        <ul role="alert" className="sm-error mt-3 list-disc pl-5 text-sm">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+      )}
       {error && <p role="alert" className="sm-error mt-3 text-sm">{error}</p>}
     </div>
   );

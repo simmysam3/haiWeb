@@ -84,4 +84,12 @@ describe('BomGrid', () => {
     await waitFor(() => expect(putBody()).not.toBeNull());
     expect(putBody()!.lines[0]).toMatchObject({ component_label: 'Outsole', variant_bound: true, qty_by_variant: { '9': 1.2 } });
   });
+
+  it('refuses to save and names the line while shares total more than 100', async () => {
+    const over = { ...vomeroWorkbenchDetail.lines[0]!, pins: vomeroWorkbenchDetail.lines[0]!.pins.map((p) => ({ ...p, share_pct: 60 })) };
+    mount([over]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Line 1: Supplier shares total 120%; they may total at most 100%.');
+    expect(putBody()).toBeNull();
+  });
 });
