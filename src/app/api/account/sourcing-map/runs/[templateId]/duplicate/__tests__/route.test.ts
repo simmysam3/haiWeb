@@ -34,4 +34,16 @@ describe('/api/account/sourcing-map/runs/[templateId]/duplicate', () => {
     });
     expect(res.status).toBe(201);
   });
+
+  it('truncates a long name so the copy fits the 200-character limit', async () => {
+    const long = 'L'.repeat(200);
+    fetchRaw
+      .mockResolvedValueOnce(haiCoreOk({ template: { ...vomeroRunTemplate, template_name: long } }))
+      .mockResolvedValueOnce(haiCoreOk({}, 201));
+    const { POST } = await import('../route');
+    await POST(smReq('POST', '/x'), smCtx({ templateId: VOMERO_IDS.template }));
+    const name = JSON.parse(fetchRaw.mock.calls[1]![1].body).template_name as string;
+    expect(name.length).toBe(200);
+    expect(name.endsWith(' (copy)')).toBe(true);
+  });
 });

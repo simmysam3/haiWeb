@@ -14,7 +14,7 @@ export const POST = withHaiCore<P>(async ({ client, request, params }) => {
   const { template } = JSON.parse(await got.text()) as { template: SmRunTemplate };
   const body = {
     observation_class: 'sourcing_map',
-    template_name: template.template_name + SUFFIX,
+    template_name: template.template_name.slice(0, 200 - SUFFIX.length) + SUFFIX,
     scope: template.scope,
     cadence: template.cadence,
     enabled: template.enabled,
