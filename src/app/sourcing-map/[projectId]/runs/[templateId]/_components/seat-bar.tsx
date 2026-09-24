@@ -1,5 +1,5 @@
 'use client';
-import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import type { SmProductResult, SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
 import { formatDropDate, formatPct, formatQty } from '@/lib/sourcing-map/map/selectors';
 
 export interface SeatBarProps {
@@ -11,8 +11,26 @@ export interface SeatBarProps {
   onProduct(id: string | null): void;
 }
 
+/** "All products" plus one chip per product with its coverage (spec §9.3). */
+export function ProductStrip({ products, selected, onSelect }: { products: SmProductResult[]; selected: string | null; onSelect(id: string | null): void }) {
+  return (
+    <div role="group" aria-label="Filter by product" className="mt-3 flex flex-wrap gap-2">
+      <button type="button" aria-pressed={selected === null} onClick={() => onSelect(null)} className="sm-btn sm-btn-ghost text-xs">All products</button>
+      {products.map((p) => {
+        const last = p.drops[p.drops.length - 1];
+        const label = p.status === 'failed' ? `${p.name} · BOM unavailable from agent` : `${p.name}${last ? ` ${formatPct(last.coverage)}` : ''}`;
+        return (
+          <button key={p.product_id} type="button" aria-pressed={selected === p.product_id} onClick={() => onSelect(p.product_id)} className="sm-btn sm-btn-ghost text-xs">
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The seat bar (spec §9.3). Cycles 37.2 and 37.3 add the product and drop strips, which take the other props. */
-export function SeatBar({ result, unitLabel }: SeatBarProps) {
+export function SeatBar({ result, unitLabel, productFilter, onProduct }: SeatBarProps) {
   const drops = result.portfolio.drops;
   const last = drops[drops.length - 1];
   return (
@@ -31,6 +49,7 @@ export function SeatBar({ result, unitLabel }: SeatBarProps) {
           <dd className="sm-heading text-lg font-semibold">{result.portfolio.first_short_drop ? formatDropDate(result.portfolio.first_short_drop) : 'None'}</dd>
         </div>
       </dl>
+      <ProductStrip products={result.products} selected={productFilter} onSelect={onProduct} />
     </div>
   );
 }
