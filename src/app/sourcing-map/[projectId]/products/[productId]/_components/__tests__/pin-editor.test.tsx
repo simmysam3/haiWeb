@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { BomLinePin } from '@/lib/sourcing-map/contract';
 import { PinEditor } from '../pin-editor';
@@ -98,5 +98,29 @@ describe('PinEditor', () => {
     expect(screen.queryByRole('option', { name: 'AC-FLAT-137' })).toBeNull();
     fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.bowline } });
     expect(screen.getByRole('option', { name: 'BW-LACE-137' })).toBeInTheDocument();
+  });
+
+  it('drops a cancelled load’s late answer, and a reopened picker shows only its own load: no stale alert, no stale suppliers', async () => {
+    const failed = {
+      ok: false, status: 502,
+      text: async () => JSON.stringify({ error: { code: 'upstream_error', message: 'The supplier list could not be loaded.' } }),
+    };
+    let answerFirst: (r: unknown) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { answerFirst = resolve; }));
+    render(<PinEditor classId="cpt_flat_laces" pins={[]} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await act(async () => answerFirst(failed));
+    // Reopened: its own load answers 200, and the cancelled session's late 502 leaves no alert.
+    fetchMock.mockResolvedValueOnce(lacesSuppliers());
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    expect(await screen.findByRole('option', { name: 'Bowline Cordage' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    // Reopened again: this load fails, so it shows its own failure and none of the last session's suppliers.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fetchMock.mockResolvedValueOnce(failed);
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('The supplier list could not be loaded.');
+    expect(screen.queryByRole('option', { name: 'Bowline Cordage' })).toBeNull();
   });
 });

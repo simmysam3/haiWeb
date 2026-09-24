@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { BomLinePin, ClassSuppliersResponse } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
@@ -18,6 +18,8 @@ export function PinEditor({ classId, pins, onChange, names = {} }: {
   const [sku, setSku] = useState('');
   const [share, setShare] = useState('100');
   const [error, setError] = useState<string | null>(null);
+  // Each open is a session; Cancel ends it, so a late answer to an ended session's load is dropped.
+  const session = useRef(0);
   const total = pinShareTotal(pins);
   // A (supplier, SKU) pair is pinned at most once (contract §3.3 `checkLine`: "duplicate pin"), so the line's
   // pins, stored or just added, leave the chosen supplier's SKU options.
@@ -26,8 +28,12 @@ export function PinEditor({ classId, pins, onChange, names = {} }: {
 
   async function start() {
     if (!classId) return;
+    setError(null);
+    setSuppliers([]);
+    const mine = ++session.current;
     setOpen(true);
     const out = await smFetch<ClassSuppliersResponse>(`/api/account/sourcing-map/class-suppliers?class_id=${encodeURIComponent(classId)}`);
+    if (mine !== session.current) return;
     if (!out.ok) {
       setError(out.message);
       return;
@@ -91,6 +97,7 @@ export function PinEditor({ classId, pins, onChange, names = {} }: {
             type="button"
             className="sm-link text-xs"
             onClick={() => {
+              session.current += 1;
               setOpen(false);
               setError(null);
               setSupplier('');
