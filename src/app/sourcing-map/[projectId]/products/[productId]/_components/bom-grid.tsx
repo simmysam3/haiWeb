@@ -109,6 +109,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                         if (el) classSearchRefs.current.set(l.key, el);
                         else classSearchRefs.current.delete(l.key);
                       }}
+                      locked={locked}
                     />
                   </td>
                   <td><input type="number" step="any" min={0} aria-label={`Qty per unit for line ${n}`} className="sm-input w-20" readOnly={locked} value={l.qty_per_unit} onChange={(e) => update(l.key, { qty_per_unit: Number.parseFloat(e.target.value) })} /></td>

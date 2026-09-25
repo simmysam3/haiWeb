@@ -441,6 +441,13 @@ describe('ProductEditorBody', () => {
     }
   });
 
+  it('while the stale lock holds, typing into a line’s class search changes nothing: it is read-only (stale-lock)', async () => {
+    await importThenFailReread();
+    const search = screen.getByLabelText('Class search for Upper leather, tumbled');
+    await userEvent.type(search, 'leather');
+    expect(search).toHaveValue('');
+  });
+
   it('while the stale lock holds, Upload BOM and Import from agent do nothing: the body’s product is stale (stale-lock)', async () => {
     await importThenFailReread();
     fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));

@@ -7,10 +7,12 @@ import { Pill } from '@/components/pill';
 type Picked = { class_id: string; label: string };
 
 /** Taxonomy class picker with search (spec §7.2); shows the upload's suggestion chip when one exists. */
-export function ClassPicker({ label, value, suggestion, onChange, inputRef }: {
+export function ClassPicker({ label, value, suggestion, onChange, inputRef, locked = false }: {
   label: string; value: Picked | null; suggestion: ClassSuggestion | null; onChange(c: Picked): void;
   /** The search input, for a neighbour that must hand focus here (the pin editor's last-pin Remove, L176). */
   inputRef?(el: HTMLInputElement | null): void;
+  /** stale-lock: the grid is read-only. */
+  locked?: boolean;
 }) {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SmClassSearchResponse['classes']>([]);
@@ -50,7 +52,7 @@ export function ClassPicker({ label, value, suggestion, onChange, inputRef }: {
             searchRef.current = el;
             inputRef?.(el);
           }}
-          aria-label={`Class search for ${label}`} className="sm-input w-36 text-xs" value={q} onChange={(e) => setQ(e.target.value)} />
+          aria-label={`Class search for ${label}`} className="sm-input w-36 text-xs" readOnly={locked} value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="button" aria-label={`Find class for ${label}`} className="sm-btn sm-btn-ghost text-xs" disabled={q.trim().length < 2} onClick={search}>Find</button>
       </div>
       {error && <p role="alert" className="sm-error text-xs">{error}</p>}
