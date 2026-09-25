@@ -81,6 +81,16 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
     expect(failures).toEqual([]);
   });
 
+  it('the stylesheet draws the border of inputs and ghost buttons, and nothing else, in --sm-line-control (OWNER-4)', () => {
+    // `\{` right after the class: the pressed ghost rule (`.sm-btn-ghost[aria-pressed="true"]`) never matches.
+    const ghost = /\.sm-btn-ghost\s*\{[^}]*border:[^;}]*var\(--sm-([a-z0-9-]+)\)/.exec(SM_CSS)?.[1];
+    const input = /\.sm-input\s*\{[^}]*border:[^;}]*var\(--sm-([a-z0-9-]+)\)/.exec(SM_CSS)?.[1];
+    expect(ghost).toBe('line-control');
+    expect(input).toBe('line-control');
+    // Every other hairline keeps line-2 (the owner's ruling): these two rules are the token's only uses here.
+    expect(SM_CSS.match(/var\(--sm-line-control\)/g) ?? []).toHaveLength(2);
+  });
+
   it('the header background is exactly the dark surface token (Task 18 ruling): the dark text rows on surface above are the header contrast checks', () => {
     expect(SM_HEADER.bg).toBe(SM_THEME_TOKENS.dark.surface);
   });

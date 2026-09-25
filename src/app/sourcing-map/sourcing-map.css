@@ -16,10 +16,10 @@
 /* A pressed button busy with its own request stays focusable (LW-a, WCAG 2.4.3): aria-disabled, not disabled. */
 .sm-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .sm-btn-primary { background: var(--sm-teal); color: var(--sm-button-primary-fg); }
-.sm-btn-ghost { background: transparent; color: var(--sm-ink); border: 1px solid var(--sm-line-2); }
+.sm-btn-ghost { background: transparent; color: var(--sm-ink); border: 1px solid var(--sm-line-control); }
 /* A pressed toggle (drop, product, month, theme) is never shown by hue alone: a wider border and heavier text (WCAG 1.4.1). */
 .sm-btn-ghost[aria-pressed="true"] { border-width: 2px; font-weight: 600; }
-.sm-input { background: var(--sm-surface); color: var(--sm-ink); border: 1px solid var(--sm-line-2); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.sm-input { background: var(--sm-surface); color: var(--sm-ink); border: 1px solid var(--sm-line-control); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
 .sm-header { background: var(--sm-header-bg); color: var(--sm-header-ink); }
 .sm-header .sm-muted { color: var(--sm-header-ink-2); }
 .sm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
