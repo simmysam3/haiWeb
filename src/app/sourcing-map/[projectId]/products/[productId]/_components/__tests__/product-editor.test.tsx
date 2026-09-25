@@ -373,5 +373,26 @@ describe('ProductEditorBody', () => {
     expect(await screen.findByText('Read fresh at each run')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save BOM' })).toBeNull();
   });
+
+  it('after a link import, focus goes to the agent view’s heading, never to <body> with the toolbar the switch removed (F-a)', async () => {
+    const linked = { ...vomeroAgentDetail, product_id: VOMERO_IDS.pegasus, name: 'Pegasus Trail' };
+    fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
+      const p = String(path);
+      if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'link', lines_created: 0, lines_unclassified: 0 });
+      if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(200, linked);
+      return reply(404, {});
+    });
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
+    const opener = screen.getByRole('button', { name: 'Import from agent' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByText('Read fresh at each run')).toBeInTheDocument();
+    expect(opener).not.toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Bill of materials' })));
+  });
 });
 

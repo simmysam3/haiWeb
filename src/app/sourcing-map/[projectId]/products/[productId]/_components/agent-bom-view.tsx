@@ -1,3 +1,5 @@
+'use client';
+import { useEffect, useRef } from 'react';
 import type { SmProductDetail } from '@/lib/sourcing-map/contract';
 
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -28,9 +30,13 @@ function AgentLines({ detail }: { detail: SmProductDetail }) {
 
 /** Agent-source product (spec §7.2): the lines as this GET read them live (a-G9), read-only; the run reads them fresh (§8.1). */
 export function AgentBomView({ detail }: { detail: SmProductDetail }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
   return (
     <div className="sm-card p-5">
-      <h2 className="sm-heading text-lg font-semibold">Bill of materials</h2>
+      <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">Bill of materials</h2>
       <p className="mt-1 text-sm">Linked to your agent · {detail.agent_root_sku}</p>
       <p className="sm-muted text-sm">Read fresh at each run</p>
       {detail.lines.length === 0 && detail.lines_fetched_at === null ? (
