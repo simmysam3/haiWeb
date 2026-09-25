@@ -28,12 +28,15 @@ function AgentLines({ detail }: { detail: SmProductDetail }) {
   );
 }
 
-/** Agent-source product (spec §7.2): the lines as this GET read them live (a-G9), read-only; the run reads them fresh (§8.1). */
-export function AgentBomView({ detail }: { detail: SmProductDetail }) {
+/**
+ * Agent-source product (spec §7.2): the lines as this GET read them live (a-G9), read-only; the run reads them fresh
+ * (§8.1). `focusOnMount`: the body switched to this view in place, removing the control focus was on (F-a).
+ */
+export function AgentBomView({ detail, focusOnMount = false }: { detail: SmProductDetail; focusOnMount?: boolean }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
+    if (focusOnMount) headingRef.current?.focus();
+  }, [focusOnMount]);
   return (
     <div className="sm-card p-5">
       <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">Bill of materials</h2>

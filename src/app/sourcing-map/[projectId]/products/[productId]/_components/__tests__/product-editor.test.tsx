@@ -394,5 +394,11 @@ describe('ProductEditorBody', () => {
     expect(opener).not.toBeInTheDocument();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Bill of materials' })));
   });
+
+  it('an agent product that loads as one takes no focus: only the switch after a link import moves it (F-a)', () => {
+    render(<ProductEditorBody projectName="Spring 2027" detail={vomeroAgentDetail} />);
+    expect(screen.getByText('Read fresh at each run')).toBeInTheDocument();
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 

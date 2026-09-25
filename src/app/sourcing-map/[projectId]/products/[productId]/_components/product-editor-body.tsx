@@ -38,7 +38,9 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
     <ProductEditor projectName={projectName} projectError={projectError} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
       {readError && <p role="alert" className="sm-error mb-3 text-sm">{readError}</p>}
       {detail.bom_source === 'agent' ? (
-        <AgentBomView detail={detail} />
+        // F-a: only an upload or an import moves the revision, so here a Link import has just switched this body in
+        // place, removing the toolbar focus had returned to; the agent view's heading takes it.
+        <AgentBomView detail={detail} focusOnMount={bomRevision > 0} />
       ) : (
         <>
           {/* Outside the element the revision key remounts, so the dialogs' focus restore finds its live opener. */}
