@@ -341,7 +341,8 @@ describe('ProductEditorBody', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('shows the message when the re-read after an import fails, never a silent stale grid (a-G4, LW-b)', async () => {
+  // stale-lock: an import the server accepted, whose re-read then fails. It resolves once the alert shows.
+  async function importThenFailReread() {
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
       const p = String(path);
       if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
@@ -353,7 +354,12 @@ describe('ProductEditorBody', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
     fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    expect(await screen.findByText('The product could not be read.')).toHaveAttribute('role', 'alert');
+    return screen.findByRole('alert');
+  }
+
+  it('a failed re-read after an import says the import succeeded and asks for a reload, with the read’s message (stale-lock, a-G4)', async () => {
+    const alert = await importThenFailReread();
+    expect(alert.textContent).toBe('The import succeeded, but the product could not be re-read: The product could not be read. Reload the page to continue.');
   });
 
   it('a link import switches the body to the read-only agent view (LW-b)', async () => {

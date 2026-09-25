@@ -19,15 +19,16 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
   const [bomRevision, setBomRevision] = useState(0);
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [readError, setReadError] = useState<string | null>(null);
+  // stale-lock: the message of a failed re-read after a successful import. The body's product is then older than the
+  // server's, so this is set only there and nothing in the page clears it; only a reload does.
+  const [staleRead, setStaleRead] = useState<string | null>(null);
 
   // An import answers only counts (contract: ImportAgentBomResponse), so one read brings the product it made: its
   // lines for a copy, or `bom_source: agent` for a link, which switches the body to the agent view.
   async function rereadAfterImport() {
-    setReadError(null);
     const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${detail.product_id}`);
     if (!out.ok) {
-      setReadError(out.message);
+      setStaleRead(out.message);
       return;
     }
     setDetail(out.data);
@@ -36,7 +37,9 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
 
   return (
     <ProductEditor projectName={projectName} projectError={projectError} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
-      {readError && <p role="alert" className="sm-error mb-3 text-sm">{readError}</p>}
+      {staleRead !== null && (
+        <p role="alert" className="sm-error mb-3 text-sm">{`The import succeeded, but the product could not be re-read: ${staleRead} Reload the page to continue.`}</p>
+      )}
       {detail.bom_source === 'agent' ? (
         // F-a: only an upload or an import moves the revision, so here a Link import has just switched this body in
         // place, removing the toolbar focus had returned to; the agent view's heading takes it.
