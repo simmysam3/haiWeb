@@ -387,6 +387,21 @@ describe('ProductEditorBody', () => {
     expect(bomPuts()).toHaveLength(0);
   });
 
+  it('while the stale lock holds, typing into the grid’s line and size inputs changes nothing: they are read-only (stale-lock)', async () => {
+    await importThenFailReread();
+    // user-event types as a user does, so it respects readOnly (fireEvent.change would not).
+    const fields = [
+      screen.getByLabelText('Component for line 1'), screen.getByLabelText('Part ref for line 1'),
+      screen.getByLabelText('Qty per unit for line 1'), screen.getByLabelText('UoM for line 1'),
+      screen.getAllByLabelText(/^Qty for size /)[0]!,
+    ];
+    for (const field of fields) {
+      const before = (field as HTMLInputElement).value;
+      await userEvent.type(field, '7');
+      expect(field).toHaveValue(field.getAttribute('type') === 'number' ? Number(before) : before);
+    }
+  });
+
   it('while the stale lock holds, Upload BOM and Import from agent do nothing: the body’s product is stale (stale-lock)', async () => {
     await importThenFailReread();
     fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
