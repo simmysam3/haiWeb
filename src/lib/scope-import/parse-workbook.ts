@@ -233,12 +233,27 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
   return header.split(';').length > header.split(',').length;
 }
 
-/** A text file's rows are its lines: line feeds, plus a last line with no line feed after it. */
-function lineCount(bytes: ArrayBuffer): number {
-  const u = new Uint8Array(bytes);
-  let n = 0;
-  for (const b of u) if (b === 0x0a) n += 1;
-  return u.length > 0 && u[u.length - 1] !== 0x0a ? n + 1 : n;
+/**
+ * Security L1 (controller ruling): the range a sheet's cells really occupy, never its declared one. SheetJS takes a
+ * sheet's range from its <dimension>, which can run far past the data, and the grid fills every cell of the range it
+ * is given. Columns are clamped to MAX_IMPORT_COLUMNS. Null when the sheet holds no cell.
+ */
+function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): import('xlsx').Range | null {
+  let range: import('xlsx').Range | null = null;
+  for (const key of Object.keys(ws)) {
+    if (key.startsWith('!')) continue;
+    const { r, c } = XLSX.utils.decode_cell(key);
+    if (!range) {
+      range = { s: { r, c }, e: { r, c } };
+      continue;
+    }
+    range.s.r = Math.min(range.s.r, r);
+    range.s.c = Math.min(range.s.c, c);
+    range.e.r = Math.max(range.e.r, r);
+    range.e.c = Math.max(range.e.c, c);
+  }
+  if (range) range.e.c = Math.min(range.e.c, range.s.c + MAX_IMPORT_COLUMNS - 1);
+  return range;
 }
 
 export async function readWorkbookSheets(
@@ -250,15 +265,10 @@ export async function readWorkbookSheets(
   if (bytes.byteLength > maxBytes) {
     return { ok: false, reason: 'too_large', detail: tooLargeDetail(opts.fileName, bytes.byteLength, maxBytes) };
   }
-  // Security L1: SheetJS takes a sheet's range from its declared <dimension>, and the grid below fills every declared
-  // cell, so a small file declaring a huge range would be expanded in full before the row ceiling applies. The parse
-  // stops one row past the ceiling plus the header rows the Map step offers; a sheet declaring more is refused, from
-  // its declared size (`!fullref`, which SheetJS sets when it stops early), never silently truncated.
-  const bound = maxRows + HEADER_ROWS_OFFERED;
   const XLSX = await import('xlsx');
   let wb: import('xlsx').WorkBook;
   try {
-    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd', sheetRows: bound + 1 });
+    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
   } catch {
     return { ok: false, reason: 'unreadable', detail: unreadableDetail(opts.fileName) };
   }
@@ -266,15 +276,11 @@ export async function readWorkbookSheets(
   for (const name of wb.SheetNames) {
     const ws = wb.Sheets[name];
     if (!ws) continue;
-    const full = XLSX.utils.decode_range(ws['!fullref'] ?? ws['!ref'] ?? 'A1');
-    const declaredRows = full.e.r - full.s.r + 1;
-    if (declaredRows > bound) {
-      // A CSV declares no range: SheetJS stops it at `sheetRows` and sets no `!fullref`, so its length is its lines.
-      const rowCount = ws['!fullref'] ? declaredRows : lineCount(bytes);
-      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, rowCount, maxRows) };
+    const range = realExtent(XLSX, ws);
+    if (!range) {
+      sheets.push({ name, rows: [] });
+      continue;
     }
-    const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');
-    range.e.c = Math.min(range.e.c, range.s.c + MAX_IMPORT_COLUMNS - 1);
     const start = range.s.r;
     const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true, range });
     const rows = grid

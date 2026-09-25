@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as XLSX from 'xlsx';
 import { readWorkbookSheets, detectHeaderRow, MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
 
@@ -26,6 +26,8 @@ function csv(text: string): ArrayBuffer {
   const u = new TextEncoder().encode(text);
   return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
   it('returns every sheet as displayed text with 1-based sheet rows, blank rows dropped', async () => {
@@ -81,19 +83,28 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
   });
 
 
-  it('refuses a small workbook that declares a huge sheet from its declared size, never expanding it first (security L1)', async () => {
-    // Two real rows under a declared 200,000 x 26 range: expanded, it is 200,000 rows before the blank-row filter.
+  it('accepts a small workbook that declares a huge sheet, reading only its real cells, never the declared range (security L1)', async () => {
+    // Two real rows under a declared 200,000 x 26 range: expanded, it is 200,000 rows before the blank-row filter. A
+    // used range past the data is routine (parseWorkbook's rule), so the file is read, over its real extent only.
     const crafted = declared([['Description', 'Usage'], ['Upper leather', 0.25]], 'A1:Z200000');
     expect(crafted.byteLength).toBeLessThan(20_000);
+    const toJson = vi.spyOn(XLSX.utils, 'sheet_to_json');
     const out = await readWorkbookSheets(crafted, { fileName: 'crafted.xlsx' });
-    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', 200_000, MAX_IMPORT_ROWS) });
+    expect(out).toEqual({
+      ok: true,
+      sheets: [{ name: 'BOM', rows: [{ row: 1, cells: ['Description', 'Usage'] }, { row: 2, cells: ['Upper leather', '0.25'] }] }],
+      decimalComma: false,
+    });
+    expect(toJson).toHaveBeenCalledTimes(1);
+    expect(toJson.mock.calls[0]![1]).toMatchObject({ range: { s: { r: 0, c: 0 }, e: { r: 1, c: 1 } } });
   });
 
-  it('refuses a CSV longer than the rows it reads and names its real length, never keeping only its first rows (security L1)', async () => {
-    // Data rows sit past a run of blank lines: a reader that stopped early and kept going would drop them silently.
+  it('refuses a CSV with more data rows than the ceiling and names their true count: blank lines are not rows (security L1)', async () => {
+    // Five data rows, two of them past a run of blank lines that alone runs the file past the bound (4 + 10 rows): a
+    // reader that stopped early would drop them silently, and one that counted lines would name 20.
     const lines = ['Description,Usage', 'a,1', 'b,2', ...Array.from({ length: 14 }, () => ''), 'c,3', 'd,4', 'e,5'];
     const out = await readWorkbookSheets(csv(lines.join(NL)), { fileName: 'long.csv', maxRows: 4 });
-    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', lines.length, 4) });
+    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', 5, 4) });
   });
 
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
