@@ -49,4 +49,26 @@ describe('ClassPicker', () => {
     expect(screen.queryByRole('button', { name: /Full grain leather hides/ })).toBeNull();
     expect(document.activeElement).toBe(screen.getByLabelText('Class search for Lace'));
   });
+
+  it('once the stale lock lands on a search already typed and run, Find, its results and the chip pick nothing, and none is disabled (stale-lock, LW-a)', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({ classes: [{ class_id: 'cpt_full_grain_leather_hides', label: 'Full grain leather hides', class_path: ['Materials', 'Leather', 'Finished leather', 'Full grain leather hides'] }] }),
+    });
+    const onChange = vi.fn();
+    const suggestion = { class_id: 'cpt_flat_laces', label: 'Flat laces', class_path: ['Components', 'Trims', 'Laces', 'Flat laces'], band: 'high' as const };
+    const { rerender } = render(<ClassPicker label="Lace" value={null} suggestion={suggestion} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('Class search for Lace'), { target: { value: 'leather' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Find class for Lace' }));
+    const result = await screen.findByRole('button', { name: /Full grain leather hides/ });
+    // A slow re-read fails now: the lock lands on a typed search, its results and the chip.
+    rerender(<ClassPicker label="Lace" value={null} suggestion={suggestion} onChange={onChange} locked />);
+    for (const control of [screen.getByRole('button', { name: 'Find class for Lace' }), result, screen.getByRole('button', { name: /^Use Flat laces/ })]) {
+      fireEvent.click(control);
+      expect(control).not.toBeDisabled();
+      expect(control).toHaveAttribute('aria-disabled', 'true');
+    }
+    expect(onChange).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
