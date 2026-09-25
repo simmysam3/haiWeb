@@ -7,6 +7,7 @@ import { BomGrid } from './bom-grid';
 import { AgentBomView } from './agent-bom-view';
 import { ImportAgentDialog } from './import-agent-dialog';
 import { UploadWizard } from '@/app/sourcing-map/_components/upload-wizard/upload-wizard';
+import { SmButton } from '../../../../_components/sm-button';
 
 export function ProductEditorBody({ projectName, projectError = null, detail: initialDetail }: {
   projectName: string; projectError?: string | null; detail: SmProductDetail;
@@ -46,10 +47,12 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
         <AgentBomView detail={detail} focusOnMount={bomRevision > 0} />
       ) : (
         <>
-          {/* Outside the element the revision key remounts, so the dialogs' focus restore finds its live opener. */}
+          {/* Outside the element the revision key remounts, so the dialogs' focus restore finds its live opener. The
+              stale lock makes them aria-disabled, never disabled: the Import dialog hands focus back to its opener as
+              the lock lands, and a disabled one would drop it to <body> (LW-a). */}
           <div className="mb-3 flex justify-end gap-2">
-            <button type="button" className="sm-btn sm-btn-ghost" disabled={staleRead !== null} onClick={() => setUploading(true)}>Upload BOM</button>
-            <button type="button" className="sm-btn sm-btn-ghost" disabled={staleRead !== null} onClick={() => setImporting(true)}>Import from agent</button>
+            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={staleRead !== null} onClick={() => setUploading(true)}>Upload BOM</SmButton>
+            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={staleRead !== null} onClick={() => setImporting(true)}>Import from agent</SmButton>
           </div>
           <BomGrid
             key={bomRevision}

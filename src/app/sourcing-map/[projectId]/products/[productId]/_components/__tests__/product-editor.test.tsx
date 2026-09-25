@@ -342,7 +342,8 @@ describe('ProductEditorBody', () => {
   });
 
   const bomPuts = () => fetchMock.mock.calls.filter(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT');
-  // stale-lock: an import the server accepted, whose re-read then fails. It resolves once the alert shows.
+  // stale-lock: an import the server accepted, whose re-read then fails, opened from a focused "Import from agent". It
+  // resolves once the alert shows.
   async function importThenFailReread() {
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
       const p = String(path);
@@ -353,14 +354,16 @@ describe('ProductEditorBody', () => {
       return reply(404, {});
     });
     render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    const opener = screen.getByRole('button', { name: 'Import from agent' });
+    opener.focus();
+    fireEvent.click(opener);
     fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    return screen.findByRole('alert');
+    return { alert: await screen.findByRole('alert'), opener };
   }
 
   it('a failed re-read after an import says the import succeeded and asks for a reload, with the read’s message (stale-lock, a-G4)', async () => {
-    const alert = await importThenFailReread();
+    const { alert } = await importThenFailReread();
     expect(alert.textContent).toBe('The import succeeded, but the product could not be re-read: The product could not be read. Reload the page to continue.');
   });
 
@@ -378,6 +381,18 @@ describe('ProductEditorBody', () => {
     expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
     expect(screen.queryByRole('dialog', { name: 'Import from agent' })).toBeNull();
+  });
+
+  it('while the stale lock holds, focus stays on Import from agent, which the lock makes aria-disabled, never disabled (stale-lock, LW-a)', async () => {
+    const { opener } = await importThenFailReread();
+    // The closing dialog handed focus back to its opener. `disabled` would move it on to <body> in a browser (HTML's
+    // focus-fixup rule; jsdom does not apply it), so the pin is that neither toolbar button is disabled.
+    expect(document.activeElement).toBe(opener);
+    for (const name of ['Import from agent', 'Upload BOM']) {
+      const button = screen.getByRole('button', { name });
+      expect(button).not.toBeDisabled();
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+    }
   });
 
   it('a link import switches the body to the read-only agent view (LW-b)', async () => {
