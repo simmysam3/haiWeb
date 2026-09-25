@@ -1,5 +1,6 @@
 'use client';
 import type { VariantAxis } from '@/lib/sourcing-map/contract';
+import { SmButton } from '../../../../_components/sm-button';
 
 /** Per-variant quantity table for a size-bound line (spec §6.1 qty_by_variant; §7.2). */
 export function SizeTable({ axis, qtyPerUnit, value, onChange, locked = false }: {
@@ -30,7 +31,7 @@ export function SizeTable({ axis, qtyPerUnit, value, onChange, locked = false }:
           </label>
         ))}
       </div>
-      <button type="button" className="sm-link mt-2 text-xs" onClick={() => onChange(null)}>Use the uniform qty for every size</button>
+      <SmButton className="sm-link mt-2 text-xs" aria-disabled={locked} onClick={() => onChange(null)}>Use the uniform qty for every size</SmButton>
     </div>
   );
 }

@@ -76,7 +76,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
     <div className="sm-card p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
-        <button ref={addLineRef} type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
+        <SmButton ref={addLineRef} className="sm-btn sm-btn-ghost" aria-disabled={locked} onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</SmButton>
         <SmButton className="sm-btn sm-btn-primary" busy={busy} aria-disabled={locked} onClick={save}>Save BOM</SmButton>
       </div>
       <div className="overflow-x-auto">
@@ -115,7 +115,14 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                   <td><input aria-label={`UoM for line ${n}`} className="sm-input w-16" readOnly={locked} value={l.uom} maxLength={20} onChange={(e) => update(l.key, { uom: e.target.value })} /></td>
                   <td>
                     <label className="flex items-center gap-2 text-xs">
-                      <input type="checkbox" checked={l.variant_bound} disabled={!axis} onChange={(e) => update(l.key, { variant_bound: e.target.checked, qty_by_variant: e.target.checked ? l.qty_by_variant : null })} />
+                      <input
+                        type="checkbox" checked={l.variant_bound} disabled={!axis} aria-disabled={locked || undefined}
+                        onChange={(e) => {
+                          // readOnly does not hold a checkbox; the lock refuses the change, and React restores `checked`.
+                          if (locked) return;
+                          update(l.key, { variant_bound: e.target.checked, qty_by_variant: e.target.checked ? l.qty_by_variant : null });
+                        }}
+                      />
                       Size-bound
                     </label>
                     {l.variant_bound && axis && (
@@ -134,10 +141,10 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                     />
                   </td>
                   <td>
-                    <button
-                      type="button"
+                    <SmButton
                       className="sm-link text-xs"
                       aria-label={`Remove line ${n}`}
+                      aria-disabled={locked}
                       onClick={() => {
                         const next = lines[i + 1];
                         (next ? componentRefs.current.get(next.key) : addLineRef.current)?.focus();
@@ -145,7 +152,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       }}
                     >
                       Remove
-                    </button>
+                    </SmButton>
                   </td>
                 </tr>
               );

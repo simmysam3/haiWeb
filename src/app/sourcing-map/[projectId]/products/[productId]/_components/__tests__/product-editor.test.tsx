@@ -402,6 +402,29 @@ describe('ProductEditorBody', () => {
     }
   });
 
+  it('while the stale lock holds, Add line, Remove, Size-bound and the uniform-qty reset do nothing, and none is disabled (stale-lock, LW-a)', async () => {
+    await importThenFailReread();
+    const rows = () => screen.getAllByRole('row', { name: /^Line / });
+    const line1 = () => screen.getByRole('row', { name: /^Line 1:/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    expect(rows()).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
+    expect(rows()).toHaveLength(5);
+    expect(screen.getByLabelText('Component for line 1')).toHaveValue('Upper leather, tumbled');
+    const sizeBound = within(line1()).getByRole('checkbox', { name: 'Size-bound' });
+    fireEvent.click(sizeBound);
+    expect(sizeBound).toBeChecked();
+    expect(within(line1()).getAllByLabelText(/^Qty for size /).length).toBeGreaterThan(0);
+    // Inert, never disabled: a control that holds focus keeps it (LW-a).
+    for (const control of [
+      screen.getByRole('button', { name: 'Add line' }), screen.getByRole('button', { name: 'Remove line 1' }), sizeBound,
+      within(line1()).getByRole('button', { name: 'Use the uniform qty for every size' }),
+    ]) {
+      expect(control).not.toBeDisabled();
+      expect(control).toHaveAttribute('aria-disabled', 'true');
+    }
+  });
+
   it('while the stale lock holds, Upload BOM and Import from agent do nothing: the body’s product is stale (stale-lock)', async () => {
     await importThenFailReread();
     fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
