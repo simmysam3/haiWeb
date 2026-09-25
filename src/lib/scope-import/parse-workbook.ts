@@ -325,8 +325,7 @@ export async function readWorkbookSheets(
   return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };
 }
 
-/** Index into `sheet.rows` of the header: the first row with at least two filled cells (the rule at :130); 0 when none. */
+/** Index into `sheet.rows` of the header: the first row with at least two filled cells (parseWorkbook's rule); 0 when none. */
 export function detectHeaderRow(sheet: SheetGrid): number {
-  const i = sheet.rows.findIndex((r) => r.cells.filter((c) => c.trim() !== '').length >= 2);
-  return i < 0 ? 0 : i;
+  return headerIndex(sheet.rows.map((r) => r.cells.filter((c) => c.trim() !== '').length));
 }
