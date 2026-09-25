@@ -341,6 +341,7 @@ describe('ProductEditorBody', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  const bomPuts = () => fetchMock.mock.calls.filter(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT');
   // stale-lock: an import the server accepted, whose re-read then fails. It resolves once the alert shows.
   async function importThenFailReread() {
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
@@ -348,6 +349,7 @@ describe('ProductEditorBody', () => {
       if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
       if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
       if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(500, { error: { code: 'INTERNAL_ERROR', message: 'The product could not be read.' } });
+      if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, vomeroWorkbenchDetail);
       return reply(404, {});
     });
     render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
@@ -360,6 +362,14 @@ describe('ProductEditorBody', () => {
   it('a failed re-read after an import says the import succeeded and asks for a reload, with the read’s message (stale-lock, a-G4)', async () => {
     const alert = await importThenFailReread();
     expect(alert.textContent).toBe('The import succeeded, but the product could not be re-read: The product could not be read. Reload the page to continue.');
+  });
+
+  it('while the stale lock holds, an edit plus Save BOM sends no PUT: the pre-import lines never overwrite the imported ones (stale-lock)', async () => {
+    await importThenFailReread();
+    // A valid edit: a line problem would stop the save before any request, lock or no lock.
+    fireEvent.change(screen.getByLabelText('Component for line 1'), { target: { value: 'Upper leather (edited)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(bomPuts()).toHaveLength(0);
   });
 
   it('a link import switches the body to the read-only agent view (LW-b)', async () => {

@@ -58,6 +58,7 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
             initialLines={detail.lines}
             classes={detail.classes}
             onSaved={setDetail}
+            locked={staleRead !== null}
           />
         </>
       )}

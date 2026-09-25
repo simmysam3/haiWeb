@@ -13,9 +13,11 @@ import { PinEditor } from './pin-editor';
  * wholesale replacement (an upload commit, an import) bumps (LW-b), and renders Upload BOM and Import from agent
  * outside it, so those openers outlive the remount.
  */
-export function BomGrid({ productId, axis, initialLines, classes, onSaved, suggestions = {} }: {
+export function BomGrid({ productId, axis, initialLines, classes, onSaved, suggestions = {}, locked = false }: {
   productId: string; axis: VariantAxis | null; initialLines: SmBomLine[]; classes: SmProductDetail['classes'];
   onSaved(d: SmProductDetail): void; suggestions?: Record<string, ClassSuggestion>;
+  /** stale-lock: these lines are older than the server's, so Save BOM is inert (aria-disabled, keeping focus: LW-a). */
+  locked?: boolean;
 }) {
   const [lines, setLines] = useState<BomDraftLine[]>(() => toDraft(initialLines, classes));
   const [names, setNames] = useState<Record<string, string | null>>({});
@@ -74,7 +76,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
         <button ref={addLineRef} type="button" className="sm-btn sm-btn-ghost" onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</button>
-        <SmButton className="sm-btn sm-btn-primary" busy={busy} onClick={save}>Save BOM</SmButton>
+        <SmButton className="sm-btn sm-btn-primary" busy={busy} aria-disabled={locked} onClick={save}>Save BOM</SmButton>
       </div>
       <div className="overflow-x-auto">
         <table className="sm-table">
