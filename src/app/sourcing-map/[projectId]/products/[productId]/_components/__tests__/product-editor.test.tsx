@@ -319,7 +319,7 @@ describe('ProductEditorBody', () => {
     expect(document.activeElement).toBe(openButton);
   });
 
-  it('a copy import, which answers only counts, re-reads the product and replaces the grid with its lines (LW-b)', async () => {
+  it('a copy import, which answers only counts, re-reads the product and replaces the grid with its lines, and a successful re-read locks nothing (LW-b, stale-lock)', async () => {
     const imported = {
       ...vomeroWorkbenchDetail,
       line_count: 2,
@@ -330,6 +330,7 @@ describe('ProductEditorBody', () => {
       if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
       if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
       if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}` && (init?.method ?? 'GET') === 'GET') return reply(200, imported);
+      if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, imported);
       return reply(404, {});
     });
     render(<ProductEditorBody projectName="Spring 2027" detail={vomeroWorkbenchDetail} />);
@@ -339,6 +340,13 @@ describe('ProductEditorBody', () => {
     await waitFor(() => expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(2));
     expect(screen.getByLabelText('Component for line 2')).toHaveValue('Flat lace 137 cm');
     expect(screen.queryByRole('dialog')).toBeNull();
+    // stale-lock: no alert, the toolbar stays live, and Save BOM sends its PUT.
+    expect(screen.queryByRole('alert')).toBeNull();
+    for (const name of ['Upload BOM', 'Import from agent']) expect(screen.getByRole('button', { name })).not.toHaveAttribute('aria-disabled');
+    const saveBom = screen.getByRole('button', { name: 'Save BOM' });
+    fireEvent.click(saveBom);
+    expect(bomPuts()).toHaveLength(1);
+    await waitFor(() => expect(saveBom).not.toHaveAttribute('aria-busy'));
   });
 
   const bomPuts = () => fetchMock.mock.calls.filter(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT');
