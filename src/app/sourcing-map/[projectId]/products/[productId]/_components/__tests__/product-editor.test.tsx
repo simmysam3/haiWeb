@@ -425,6 +425,22 @@ describe('ProductEditorBody', () => {
     }
   });
 
+  it('while the stale lock holds, a pin’s Remove and Add supplier do nothing, and neither is disabled (stale-lock, LW-a)', async () => {
+    await importThenFailReread();
+    const line1 = within(screen.getByRole('row', { name: /^Line 1:/ }));
+    const removePin = line1.getByRole('button', { name: 'Remove LC-BOV-UP-01' });
+    fireEvent.click(removePin);
+    expect(line1.getByText(/LC-BOV-UP-01 · 60%/)).toBeInTheDocument();
+    const addSupplier = line1.getByRole('button', { name: 'Add supplier' });
+    fireEvent.click(addSupplier);
+    expect(line1.queryByLabelText('Supplier')).toBeNull();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/class-suppliers'))).toBe(false);
+    for (const control of [removePin, addSupplier]) {
+      expect(control).not.toBeDisabled();
+      expect(control).toHaveAttribute('aria-disabled', 'true');
+    }
+  });
+
   it('while the stale lock holds, Upload BOM and Import from agent do nothing: the body’s product is stale (stale-lock)', async () => {
     await importThenFailReread();
     fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));

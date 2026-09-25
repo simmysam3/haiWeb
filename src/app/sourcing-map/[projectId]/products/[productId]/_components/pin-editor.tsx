@@ -3,16 +3,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { BomLinePin, ClassSuppliersResponse } from '@/lib/sourcing-map/contract';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
+import { SmButton } from '../../../../_components/sm-button';
 
 /**
  * Supplier pins (spec §6.1, §7.2): a supplier from the seat's trading
  * partners publishing the line's class, a SKU from that supplier's catalog
  * in the class, and a share. Shares total at most 100; the rest is unallocated.
  */
-export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus }: {
+export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, locked = false }: {
   classId: string | null; pins: BomLinePin[]; onChange(p: BomLinePin[]): void; names?: Record<string, string | null>;
   /** Takes focus when a removed pin leaves nothing here to take it: Add supplier is disabled without a class (L176). */
   fallbackFocus?(): void;
+  /** stale-lock: the grid is read-only; its controls are inert through aria-disabled, which keeps focus (LW-a). */
+  locked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<ClassSuppliersResponse['suppliers']>([]);
@@ -66,13 +69,13 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus }
           {pins.map((p, i) => (
             <li key={`${p.supplier_participant_id}-${p.supplier_sku}`} className="flex items-center gap-2">
               <span>{nameOf(p.supplier_participant_id)} · {p.supplier_sku} · {p.share_pct}%</span>
-              <button
+              <SmButton
                 ref={(el) => {
                   removeRefs.current[i] = el;
                 }}
-                type="button"
                 className="sm-link"
                 aria-label={`Remove ${p.supplier_sku}`}
+                aria-disabled={locked}
                 onClick={() => {
                   // Focus moves before the pin goes, to controls that stay mounted: the next pin's Remove, else Add
                   // supplier, else (no class, so Add supplier is disabled) the line's class search.
@@ -83,14 +86,14 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus }
                 }}
               >
                 Remove
-              </button>
+              </SmButton>
             </li>
           ))}
         </ul>
       )}
       {pins.length > 0 && <p className={total > 100 ? 'sm-error' : 'sm-muted'}>Total {total}%{total < 100 ? ` · ${Math.round((100 - total) * 100) / 100}% unallocated` : ''}</p>}
       {!open ? (
-        <button ref={addRef} type="button" className="sm-link mt-1" disabled={!classId} title={classId ? undefined : 'Pick a class first'} onClick={start}>Add supplier</button>
+        <SmButton ref={addRef} className="sm-link mt-1" disabled={!classId} aria-disabled={locked} title={classId ? undefined : 'Pick a class first'} onClick={start}>Add supplier</SmButton>
       ) : (
         <div className="mt-1 flex flex-wrap items-end gap-1">
           <label>Supplier

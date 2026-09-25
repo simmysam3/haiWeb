@@ -138,6 +138,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       names={names}
                       onChange={(pins) => update(l.key, { pins })}
                       fallbackFocus={() => classSearchRefs.current.get(l.key)?.focus()}
+                      locked={locked}
                     />
                   </td>
                   <td>
