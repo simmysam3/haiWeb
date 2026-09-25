@@ -113,9 +113,11 @@ export function LibraryTab({ projectId, initialProducts }: { projectId: string; 
         title="New product"
         open={creating}
         onClose={closeCreate}
+        // F-b (A5-M1): a pending create answers in this dialog; Escape, the backdrop and Cancel wait for it.
+        busy={busy}
         footer={
           <>
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={closeCreate}>Cancel</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={closeCreate}>Cancel</button>
             <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={name.trim() === '' || unitLabel.trim() === ''} onClick={create}>Create product</SmButton>
           </>
         }

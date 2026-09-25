@@ -116,6 +116,27 @@ describe('LibraryTab', () => {
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
 
+  it('a pending create cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (F-b, A5-M1, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    const dialog = screen.getByRole('dialog', { name: 'New product' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'A product with that name already exists.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A product with that name already exists.');
+    expect(cancel).toBeEnabled();
+  });
+
   it('asks before deleting a product: nothing is sent until the confirm dialog’s Delete, and Cancel sends nothing (F3)', async () => {
     fetchMock.mockResolvedValue(reply(204));
     render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
