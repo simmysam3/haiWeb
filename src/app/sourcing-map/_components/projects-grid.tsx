@@ -92,6 +92,9 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: SmProject[]
       return;
     }
     setProjects((all) => all.map((x) => (x.project_id === p.project_id ? out.data : x)));
+    // F-c: an archived card shows no Archive, and with "Show archived" off the card leaves too, so the pressed button
+    // goes; focus goes to "+ New project", as after a delete (L141), never to <body>.
+    newProjectRef.current?.focus();
   }
 
   // The list endpoint hides archived projects unless ?include_archived=true is passed (a-G7), so "Show archived" reloads.
