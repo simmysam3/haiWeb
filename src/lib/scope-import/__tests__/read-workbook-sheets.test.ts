@@ -122,6 +122,23 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', bound + 100, MAX_IMPORT_ROWS) });
   });
 
+  it('never lets a blank-looking cell far below the data extend its range: a lone space, or a formula answering an empty string (security L1)', async () => {
+    // Both lie past the bound and to the right of the data: counted as real, they would refuse the file as sparse.
+    const bound = MAX_IMPORT_ROWS + HEADER_ROWS_OFFERED;
+    const file = declared([['Description', 'Usage'], ['Upper leather', 0.25]], `A1:C${bound + 200}`, {
+      [`A${bound + 100}`]: { t: 's', v: ' ' },
+      [`C${bound + 200}`]: { t: 's', v: '', f: '""' },
+    });
+    const toJson = vi.spyOn(XLSX.utils, 'sheet_to_json');
+    const out = await readWorkbookSheets(file, { fileName: 'blank-tail.xlsx' });
+    expect(out).toEqual({
+      ok: true,
+      sheets: [{ name: 'BOM', rows: [{ row: 1, cells: ['Description', 'Usage'] }, { row: 2, cells: ['Upper leather', '0.25'] }] }],
+      decimalComma: false,
+    });
+    expect(toJson.mock.calls[0]![1]).toMatchObject({ range: { s: { r: 0, c: 0 }, e: { r: 1, c: 1 } } });
+  });
+
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
     // Real values in the ceiling's last column (IV, the 256th) and in the sheet's last (XFD, the 16,384th): read in
     // full, every row would carry 16,384 cells.

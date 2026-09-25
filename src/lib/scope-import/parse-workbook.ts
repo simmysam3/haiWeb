@@ -234,22 +234,23 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
 }
 
 interface RealExtent {
-  /** The first row holding a cell through the last; the first column through the last, at most MAX_IMPORT_COLUMNS. */
+  /** The first row holding a real cell through the last; the first column through the last, at most MAX_IMPORT_COLUMNS. */
   range: import('xlsx').Range;
-  /** Each row holding a cell inside those columns, in sheet order: how many cells it holds. */
+  /** Each row holding a real cell inside those columns, in sheet order: how many it holds. */
   filled: number[];
 }
 
 /**
- * Security L1 (controller ruling): the extent a sheet's cells really occupy, never its declared range. SheetJS takes a
+ * Security L1 (controller ruling): the extent a sheet's REAL cells occupy, never its declared range. SheetJS takes a
  * sheet's range from its <dimension>, which can run far past the data, and the grid fills every cell of the range it
- * is given. Null when the sheet holds no cell.
+ * is given. A real cell is one whose displayed text is non-blank, the rule at :141-146: a formula answering an empty
+ * string, or a lone space, never counts. Null when the sheet holds no real cell.
  */
 function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): RealExtent | null {
   const cells: Array<{ r: number; c: number }> = [];
   let firstCol = Infinity;
   for (const key of Object.keys(ws)) {
-    if (key.startsWith('!')) continue;
+    if (key.startsWith('!') || XLSX.utils.format_cell(ws[key]).trim() === '') continue;
     const at = XLSX.utils.decode_cell(key);
     cells.push(at);
     firstCol = Math.min(firstCol, at.c);
