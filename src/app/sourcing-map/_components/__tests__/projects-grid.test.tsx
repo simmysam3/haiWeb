@@ -198,6 +198,23 @@ describe('ProjectsGrid', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New project' }));
   });
 
+  it('with "Show archived" on, an archived card stays but shows no Archive, so focus goes to "+ New project" there too (F-c)', async () => {
+    const archived = { ...vomeroProject, archived_at: '2026-09-23T12:00:00.000Z' };
+    const older = { ...vomeroProject, project_id: VOMERO_IDS.pegasus, name: 'Fall 2026', archived_at: '2026-06-01T00:00:00.000Z' };
+    fetchMock
+      .mockResolvedValueOnce(reply(200, { projects: [vomeroProject, older] }))
+      .mockResolvedValueOnce(reply(200, archived));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    fireEvent.click(screen.getByLabelText('Show archived'));
+    expect(await screen.findByRole('listitem', { name: 'Fall 2026' })).toBeInTheDocument();
+    const archive = screen.getByRole('button', { name: 'Archive Spring 2027' });
+    archive.focus();
+    fireEvent.click(archive);
+    await waitFor(() => expect(archive).not.toBeInTheDocument());
+    expect(screen.getByRole('listitem', { name: 'Spring 2027' })).toHaveTextContent('Archived Sep 23, 2026');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New project' }));
+  });
+
   it('after a successful delete, whose card took its Delete button, focus goes to "+ New project", never <body> (L141)', async () => {
     fetchMock.mockResolvedValue(reply(204));
     render(<ProjectsGrid initialProjects={[vomeroProject]} />);
