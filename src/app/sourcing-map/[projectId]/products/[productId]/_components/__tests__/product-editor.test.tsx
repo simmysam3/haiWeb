@@ -344,11 +344,13 @@ describe('ProductEditorBody', () => {
   const bomPuts = () => fetchMock.mock.calls.filter(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT');
   // stale-lock: an import the server accepted, whose re-read then fails, opened from a focused "Import from agent". It
   // resolves once the alert shows.
-  async function importThenFailReread() {
+  async function importThenFailReread(mode: 'copy' | 'link' = 'copy') {
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {
       const p = String(path);
       if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
-      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
+      if (p.endsWith('/import-agent-bom') && init?.method === 'POST') {
+        return reply(200, mode === 'copy' ? { mode, lines_created: 2, lines_unclassified: 1 } : { mode, lines_created: 0, lines_unclassified: 0 });
+      }
       if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}` && init?.method === 'PATCH') return reply(200, { ...vomeroProducts[0]!, name: 'Pegasus Trail (saved)' });
       if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(500, { error: { code: 'INTERNAL_ERROR', message: 'The product could not be read.' } });
       if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, vomeroWorkbenchDetail);
@@ -359,6 +361,7 @@ describe('ProductEditorBody', () => {
     opener.focus();
     fireEvent.click(opener);
     fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    if (mode === 'link') fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     return { alert: await screen.findByRole('alert'), opener };
   }
@@ -404,6 +407,17 @@ describe('ProductEditorBody', () => {
     expect(await within(screen.getByRole('navigation', { name: 'Breadcrumb' })).findByText('Pegasus Trail (saved)')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('The import succeeded, but the product could not be re-read');
     expect(screen.getByRole('button', { name: 'Import from agent' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(bomPuts()).toHaveLength(0);
+  });
+
+  it('a Link import whose re-read fails is locked the same way: the body still shows the workbench grid the import made stale (stale-lock)', async () => {
+    const { alert } = await importThenFailReread('link');
+    expect(alert.textContent).toBe('The import succeeded, but the product could not be re-read: The product could not be read. Reload the page to continue.');
+    // The product is an agent product now, but without the re-read the body never switched to the agent view.
+    expect(screen.queryByText('Read fresh at each run')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Import from agent' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.change(screen.getByLabelText('Component for line 1'), { target: { value: 'Upper leather (edited)' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
     expect(bomPuts()).toHaveLength(0);
   });
