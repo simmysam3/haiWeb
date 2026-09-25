@@ -233,27 +233,47 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
   return header.split(';').length > header.split(',').length;
 }
 
+interface RealExtent {
+  /** The first row holding a cell through the last; the first column through the last, at most MAX_IMPORT_COLUMNS. */
+  range: import('xlsx').Range;
+  /** Each row holding a cell inside those columns, in sheet order: how many cells it holds. */
+  filled: number[];
+}
+
 /**
- * Security L1 (controller ruling): the range a sheet's cells really occupy, never its declared one. SheetJS takes a
+ * Security L1 (controller ruling): the extent a sheet's cells really occupy, never its declared range. SheetJS takes a
  * sheet's range from its <dimension>, which can run far past the data, and the grid fills every cell of the range it
- * is given. Columns are clamped to MAX_IMPORT_COLUMNS. Null when the sheet holds no cell.
+ * is given. Null when the sheet holds no cell.
  */
-function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): import('xlsx').Range | null {
-  let range: import('xlsx').Range | null = null;
+function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): RealExtent | null {
+  const cells: Array<{ r: number; c: number }> = [];
+  let firstCol = Infinity;
   for (const key of Object.keys(ws)) {
     if (key.startsWith('!')) continue;
-    const { r, c } = XLSX.utils.decode_cell(key);
-    if (!range) {
-      range = { s: { r, c }, e: { r, c } };
-      continue;
-    }
-    range.s.r = Math.min(range.s.r, r);
-    range.s.c = Math.min(range.s.c, c);
-    range.e.r = Math.max(range.e.r, r);
-    range.e.c = Math.max(range.e.c, c);
+    const at = XLSX.utils.decode_cell(key);
+    cells.push(at);
+    firstCol = Math.min(firstCol, at.c);
   }
-  if (range) range.e.c = Math.min(range.e.c, range.s.c + MAX_IMPORT_COLUMNS - 1);
-  return range;
+  if (cells.length === 0) return null;
+  const ceilingCol = firstCol + MAX_IMPORT_COLUMNS - 1;
+  const perRow = new Map<number, number>();
+  let lastCol = firstCol;
+  for (const { r, c } of cells) {
+    if (c > ceilingCol) continue;
+    perRow.set(r, (perRow.get(r) ?? 0) + 1);
+    lastCol = Math.max(lastCol, c);
+  }
+  const rows = [...perRow.keys()].sort((a, b) => a - b);
+  return {
+    range: { s: { r: rows[0]!, c: firstCol }, e: { r: rows[rows.length - 1]!, c: lastCol } },
+    filled: rows.map((r) => perRow.get(r)!),
+  };
+}
+
+/** The header among a sheet's non-blank rows, from each one's count of filled cells: the first with two or more; 0 when none. */
+function headerIndex(filled: readonly number[]): number {
+  const i = filled.findIndex((n) => n >= 2);
+  return i < 0 ? 0 : i;
 }
 
 export async function readWorkbookSheets(
@@ -265,6 +285,9 @@ export async function readWorkbookSheets(
   if (bytes.byteLength > maxBytes) {
     return { ok: false, reason: 'too_large', detail: tooLargeDetail(opts.fileName, bytes.byteLength, maxBytes) };
   }
+  // Security L1: nothing is truncated, and no grid is built past the rows a sheet may keep: the data rows the ceiling
+  // allows plus the header rows the Map step offers.
+  const bound = maxRows + HEADER_ROWS_OFFERED;
   const XLSX = await import('xlsx');
   let wb: import('xlsx').WorkBook;
   try {
@@ -276,21 +299,27 @@ export async function readWorkbookSheets(
   for (const name of wb.SheetNames) {
     const ws = wb.Sheets[name];
     if (!ws) continue;
-    const range = realExtent(XLSX, ws);
-    if (!range) {
+    const extent = realExtent(XLSX, ws);
+    if (!extent) {
       sheets.push({ name, rows: [] });
       continue;
     }
-    const start = range.s.r;
-    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true, range });
-    const rows = grid
-      .map((cells, i) => ({ row: start + i + 1, cells: cells.map(cellText) }))
-      .filter((r) => r.cells.some((c) => c.trim() !== ''));
-    // spec §7.3: 5,000 data rows; the header, and any title row above it, do not count.
-    const dataRows = rows.length - detectHeaderRow({ name, rows }) - 1;
+    // spec §7.3: 5,000 data rows; the header, and any title row above it, do not count. Counted from the cells, so an
+    // over-long sheet is refused with its true count before any grid is built.
+    const dataRows = extent.filled.length - headerIndex(extent.filled) - 1;
     if (dataRows > maxRows) {
       return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, dataRows, maxRows) };
     }
+    // A sparse sheet: few enough data rows, but its last one lies past the bound, and so would its grid.
+    const { range } = extent;
+    const span = range.e.r - range.s.r + 1;
+    if (span > bound) {
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, span, maxRows) };
+    }
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true, range });
+    const rows = grid
+      .map((cells, i) => ({ row: range.s.r + i + 1, cells: cells.map(cellText) }))
+      .filter((r) => r.cells.some((c) => c.trim() !== ''));
     sheets.push({ name, rows });
   }
   return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };

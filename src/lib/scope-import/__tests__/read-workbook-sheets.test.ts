@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as XLSX from 'xlsx';
-import { readWorkbookSheets, detectHeaderRow, MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail } from '../parse-workbook';
+import {
+  readWorkbookSheets, detectHeaderRow, HEADER_ROWS_OFFERED, MAX_IMPORT_COLUMNS, MAX_IMPORT_ROWS, tooLargeDetail, tooManyRowsDetail,
+} from '../parse-workbook';
 
 const NL = String.fromCharCode(10);
 const BOM = String.fromCharCode(0xfeff);
@@ -105,6 +107,19 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     const lines = ['Description,Usage', 'a,1', 'b,2', ...Array.from({ length: 14 }, () => ''), 'c,3', 'd,4', 'e,5'];
     const out = await readWorkbookSheets(csv(lines.join(NL)), { fileName: 'long.csv', maxRows: 4 });
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', 5, 4) });
+  });
+
+  it('refuses a sparse sheet whose last value lies past the rows it may read, and builds no grid down to it (security L1)', async () => {
+    // Three data rows, the last 100 rows past the bound (5,000 data rows plus the 10 header rows the Map step offers):
+    // few enough rows, but a grid down to it would hold 5,110.
+    const bound = MAX_IMPORT_ROWS + HEADER_ROWS_OFFERED;
+    const sparse = declared([['Description', 'Usage'], ['Upper leather', 0.25], ['Flat lace', 1]], `A1:B${bound + 100}`, {
+      [`A${bound + 100}`]: { t: 's', v: 'Heel counter' },
+    });
+    const toJson = vi.spyOn(XLSX.utils, 'sheet_to_json');
+    const out = await readWorkbookSheets(sparse, { fileName: 'sparse.xlsx' });
+    expect(toJson).not.toHaveBeenCalled();
+    expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('BOM', bound + 100, MAX_IMPORT_ROWS) });
   });
 
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
