@@ -349,6 +349,7 @@ describe('ProductEditorBody', () => {
       const p = String(path);
       if (p.endsWith('/agent-parent-skus')) return reply(200, SKUS);
       if (p.endsWith('/import-agent-bom') && init?.method === 'POST') return reply(200, { mode: 'copy', lines_created: 2, lines_unclassified: 1 });
+      if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}` && init?.method === 'PATCH') return reply(200, { ...vomeroProducts[0]!, name: 'Pegasus Trail (saved)' });
       if (p === `/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`) return reply(500, { error: { code: 'INTERNAL_ERROR', message: 'The product could not be read.' } });
       if (p.endsWith('/bom-lines') && init?.method === 'PUT') return reply(200, vomeroWorkbenchDetail);
       return reply(404, {});
@@ -393,6 +394,18 @@ describe('ProductEditorBody', () => {
       expect(button).not.toBeDisabled();
       expect(button).toHaveAttribute('aria-disabled', 'true');
     }
+  });
+
+  it('the stale lock survives a later header save: only a reload clears it (stale-lock)', async () => {
+    await importThenFailReread();
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Pegasus Trail (saved)' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    // The crumb reads the saved product, so it says when the PATCH has answered.
+    expect(await within(screen.getByRole('navigation', { name: 'Breadcrumb' })).findByText('Pegasus Trail (saved)')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('The import succeeded, but the product could not be re-read');
+    expect(screen.getByRole('button', { name: 'Import from agent' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
+    expect(bomPuts()).toHaveLength(0);
   });
 
   it('a link import switches the body to the read-only agent view (LW-b)', async () => {
