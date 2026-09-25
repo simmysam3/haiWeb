@@ -139,6 +139,20 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(toJson.mock.calls[0]![1]).toMatchObject({ range: { s: { r: 0, c: 0 }, e: { r: 1, c: 1 } } });
   });
 
+  it('never lets an error cell far below the data extend its range: the grid shows it blank (security L1)', async () => {
+    // A lookup copied down past the data answers #N/A; the grid shows it as an empty cell, so it is not real either.
+    const bound = MAX_IMPORT_ROWS + HEADER_ROWS_OFFERED;
+    const file = declared([['Description', 'Usage'], ['Upper leather', 0.25]], `A1:B${bound + 100}`, {
+      [`B${bound + 100}`]: { t: 'e', v: 0x2a, w: '#N/A' },
+    });
+    const out = await readWorkbookSheets(file, { fileName: 'lookup-tail.xlsx' });
+    expect(out).toEqual({
+      ok: true,
+      sheets: [{ name: 'BOM', rows: [{ row: 1, cells: ['Description', 'Usage'] }, { row: 2, cells: ['Upper leather', '0.25'] }] }],
+      decimalComma: false,
+    });
+  });
+
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
     // Real values in the ceiling's last column (IV, the 256th) and in the sheet's last (XFD, the 16,384th): read in
     // full, every row would carry 16,384 cells.
