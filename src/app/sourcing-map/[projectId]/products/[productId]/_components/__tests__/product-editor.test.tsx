@@ -372,6 +372,14 @@ describe('ProductEditorBody', () => {
     expect(bomPuts()).toHaveLength(0);
   });
 
+  it('while the stale lock holds, Upload BOM and Import from agent do nothing: the body’s product is stale (stale-lock)', async () => {
+    await importThenFailReread();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload BOM' }));
+    expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Import from agent' }));
+    expect(screen.queryByRole('dialog', { name: 'Import from agent' })).toBeNull();
+  });
+
   it('a link import switches the body to the read-only agent view (LW-b)', async () => {
     const linked = { ...vomeroAgentDetail, product_id: VOMERO_IDS.pegasus, name: 'Pegasus Trail' };
     fetchMock.mockImplementation(async (path: unknown, init?: RequestInit) => {

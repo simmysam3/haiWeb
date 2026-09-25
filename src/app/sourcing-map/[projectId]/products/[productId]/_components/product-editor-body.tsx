@@ -48,8 +48,8 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
         <>
           {/* Outside the element the revision key remounts, so the dialogs' focus restore finds its live opener. */}
           <div className="mb-3 flex justify-end gap-2">
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setUploading(true)}>Upload BOM</button>
-            <button type="button" className="sm-btn sm-btn-ghost" onClick={() => setImporting(true)}>Import from agent</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={staleRead !== null} onClick={() => setUploading(true)}>Upload BOM</button>
+            <button type="button" className="sm-btn sm-btn-ghost" disabled={staleRead !== null} onClick={() => setImporting(true)}>Import from agent</button>
           </div>
           <BomGrid
             key={bomRevision}
