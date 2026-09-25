@@ -202,10 +202,10 @@ export async function parseWorkbook(
 export const HEADER_ROWS_OFFERED = 10;
 
 /**
- * Columns the upload reader reads from a sheet (security L1). A declared range can be far wider than its data, and
- * the grid holds every declared cell. 256 is the legacy .xls sheet's own width, well past what an upload maps (its
- * targets plus one column per size; an axis holds at most 40), and keeps a full sheet's grid to about 1.3 million
- * cells. Columns past it are not offered on the Map step.
+ * Columns the upload reader reads from a sheet, from its first column holding data (security L1). A sheet's data can
+ * run far wider than an upload maps, and the grid holds every cell of its range. 256 is the legacy .xls sheet's own
+ * width, well past what an upload maps (its targets plus one column per size; an axis holds at most 40), and keeps a
+ * full sheet's grid to about 1.3 million cells. Columns past it are not offered on the Map step.
  */
 export const MAX_IMPORT_COLUMNS = 256;
 
@@ -234,7 +234,7 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
 }
 
 interface RealExtent {
-  /** The first row holding a real cell through the last; the first column through the last, at most MAX_IMPORT_COLUMNS. */
+  /** The first row holding a real cell through the last; likewise its columns, at most MAX_IMPORT_COLUMNS of them. */
   range: import('xlsx').Range;
   /** Each row holding a real cell inside those columns, in sheet order: how many it holds. */
   filled: number[];
@@ -276,7 +276,7 @@ function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): 
   };
 }
 
-/** The header among a sheet's non-blank rows, from each one's count of filled cells: the first with two or more; 0 when none. */
+/** The header among a sheet's non-blank rows, from their counts of filled cells: the first with two or more, else 0. */
 function headerIndex(filled: readonly number[]): number {
   const i = filled.findIndex((n) => n >= 2);
   return i < 0 ? 0 : i;
@@ -331,7 +331,7 @@ export async function readWorkbookSheets(
   return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };
 }
 
-/** Index into `sheet.rows` of the header: the first row with at least two filled cells (parseWorkbook's rule); 0 when none. */
+/** Index into `sheet.rows` of the header: the first row with two or more filled cells (parseWorkbook rule), else 0. */
 export function detectHeaderRow(sheet: SheetGrid): number {
   return headerIndex(sheet.rows.map((r) => r.cells.filter((c) => c.trim() !== '').length));
 }
