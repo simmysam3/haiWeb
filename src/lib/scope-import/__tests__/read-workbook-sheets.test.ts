@@ -105,8 +105,11 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     // Five data rows, two of them past a run of blank lines that alone runs the file past the bound (4 + 10 rows): a
     // reader that stopped early would drop them silently, and one that counted lines would name 20.
     const lines = ['Description,Usage', 'a,1', 'b,2', ...Array.from({ length: 14 }, () => ''), 'c,3', 'd,4', 'e,5'];
+    const toJson = vi.spyOn(XLSX.utils, 'sheet_to_json');
     const out = await readWorkbookSheets(csv(lines.join(NL)), { fileName: 'long.csv', maxRows: 4 });
     expect(out).toEqual({ ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail('Sheet1', 5, 4) });
+    // Counted from its cells: no grid is built for a sheet that is refused, so none runs past the bound.
+    expect(toJson).not.toHaveBeenCalled();
   });
 
   it('refuses a sparse sheet whose last value lies past the rows it may read, and builds no grid down to it (security L1)', async () => {
