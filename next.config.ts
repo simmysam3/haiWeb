@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
     root: path.join(import.meta.dirname, ".."),
   },
   transpilePackages: ["@haiwave/protocol"],
+  // Sourcing Map (spec §10, AC 1): the app answers 403 outside the
+  // account_admin family through next/navigation forbidden(), which Next
+  // gates behind this flag (config-shared.d.ts:624). It only changes
+  // behaviour where forbidden()/unauthorized() is called.
+  experimental: {
+    authInterrupts: true,
+  },
   async headers() {
     // Baseline hardening for a FedRAMP-High BFF. TLS is terminated at the GCP
     // edge, so HSTS here is belt-and-suspenders. The ENFORCED CSP intentionally

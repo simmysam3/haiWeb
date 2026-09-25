@@ -1,0 +1,190 @@
+/** Pure selectors for the run workspace map (spec §9.3). */
+import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '../contract';
+import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '../contract';
+
+/** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
+export const HEAT_GOOD = 0.9;
+export const HEAT_MID = 0.7;
+
+export type Heat = 'good' | 'mid' | 'bad';
+
+export function heatOf(ratio: number): Heat {
+  return ratio >= HEAT_GOOD ? 'good' : ratio >= HEAT_MID ? 'mid' : 'bad';
+}
+
+/** The one heat colour for pips, links, the per-size strip and the drop strip: the theme's `--sm-heat-*` variable. */
+export function heatVar(ratio: number): string {
+  return `var(--sm-heat-${heatOf(ratio)})`;
+}
+
+/** Floored, so 99.6% never reads as a covered-in-full 100%. */
+export function formatPct(ratio: number): string {
+  return `${Math.floor(ratio * 100 + 1e-9)}%`;
+}
+
+export function formatQty(n: number): string {
+  return n.toLocaleString('en-US');
+}
+
+const SHORT_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+export function formatDropDate(iso: string): string {
+  return SHORT_DATE.format(new Date(`${iso}T00:00:00Z`));
+}
+
+const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+/** An instant as "Sep 23, 10:42 UTC": the one "as of" format that "Answers as of" and the execution picker share (ruling R3). */
+export function formatAsOfUtc(iso: string): string {
+  return `${AS_OF.format(new Date(iso))} UTC`;
+}
+
+/** Spec §9.3: the first short drop, or the last drop when none is short. */
+export function defaultAsOfDrop(p: SmPortfolioResult): string | null {
+  return p.first_short_drop ?? p.drops[p.drops.length - 1]?.due_date ?? null;
+}
+
+/** `?drop=` when it names a portfolio drop, else the default. */
+export function resolveAsOfDrop(param: string | null, p: SmPortfolioResult): string | null {
+  return param !== null && p.drops.some((d) => d.due_date === param) ? param : defaultAsOfDrop(p);
+}
+
+export function candidateWeekAt(c: SmCandidateResult, week: string | null): SmCandidateWeek | null {
+  return week === null ? null : c.weeks.find((w) => w.week === week) ?? null;
+}
+
+const NOT_PROBED_TRUST = 'Not probed at this trust level';
+const NO_DEMAND_YET = 'No demand yet';
+
+/** D-148 pill wording (spec §9.3): an explicit quantity up to the ask, a verdict, or not probed. */
+export function availabilityText(c: SmCandidateResult, week: string | null, demand: number, uom: string): string {
+  if (c.availability_form === 'not_probed_trust') return NOT_PROBED_TRUST;
+  if (demand === 0) return NO_DEMAND_YET;
+  const w = candidateWeekAt(c, week);
+  if (!w) return '—';
+  const full = w.cum_achievable >= demand;
+  if (c.availability_form === 'verdict') return full ? 'Yes, can cover in full' : 'No, cannot cover in full';
+  return full ? `Covers full ${formatQty(demand)} ${uom}` : `Can cover ${formatQty(w.cum_achievable)} of ${formatQty(demand)} ${uom}`;
+}
+
+const LIMIT_TEXT: Record<SmOptionLimit, string> = {
+  own: 'Limit: own capacity',
+  lead_time: 'Limit: lead time exceeds window',
+  unknown: 'Schedule not assessed',
+};
+export function limitText(limit: SmOptionLimit | null): string {
+  return limit === null ? 'No limit at the full requirement' : LIMIT_TEXT[limit];
+}
+
+const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
+  declined: 'No answer · declined',
+  timeout: 'No answer · timeout',
+  unreachable: 'No answer · unreachable',
+  not_connected: 'No answer · not connected',
+  rate_limited: 'No answer · rate limited',
+  cap_reached: 'Not probed · cap reached',
+  probing: 'Probing',
+};
+/** A card's status line when it has no answer to show; null when it answered. */
+export function gapText(status: SmCandidateLiveStatus): string | null {
+  return GAP_TEXT[status] ?? null;
+}
+
+/**
+ * What a details coverage cell says when it has no figure (AC 17): a drop with no need week yet has no demand;
+ * otherwise the candidate's own gap copy or the not-probed copy, as its card shows it; "no answer" only when neither applies.
+ */
+export function noCoverageText(c: SmCandidateResult, week: string | null): string {
+  if (week === null) return NO_DEMAND_YET;
+  return gapText(c.status) ?? (c.availability_form === 'not_probed_trust' ? NOT_PROBED_TRUST : 'no answer');
+}
+
+export function slotWeekFor(slot: SmSlotResult, drop: string | null): string | null {
+  if (drop === null) return null;
+  return slot.as_of_weeks.find((a) => a.drop === drop)?.week ?? null;
+}
+
+export function slotDemandAt(slot: SmSlotResult, week: string | null): number {
+  if (week === null) return 0;
+  return slot.demand.find((d) => d.week === week)?.cum_qty ?? 0;
+}
+
+export function slotCoverageAt(slot: SmSlotResult, week: string | null): SmCoverageWeek | null {
+  return week === null ? null : slot.coverage.find((c) => c.week === week) ?? null;
+}
+
+/**
+ * A variant record's entries in axis order. JS objects list integer-like keys
+ * ("7", "13") before the others ("7.5"), so numeric keys are sorted numerically.
+ */
+export function sortedVariantEntries<T>(record: Record<string, T>): Array<[string, T]> {
+  const entries = Object.entries(record);
+  return entries.every(([k]) => k.trim() !== '' && Number.isFinite(Number(k)))
+    ? entries.sort(([a], [b]) => Number(a) - Number(b))
+    : entries;
+}
+
+/** Contract §10: an agent line with no Network Index class is probed through its pin, in a slot of its own. */
+export function isUnclassifiedSlot(slot: SmSlotResult): boolean {
+  return slot.slot_key.class_id.startsWith(SM_UNCLASSIFIED_CLASS_PREFIX);
+}
+
+/** The rail's title: "Unclassified · <component>" for such a slot, otherwise the class label. */
+export function slotTitle(slot: SmSlotResult): string {
+  return isUnclassifiedSlot(slot) ? `Unclassified · ${slot.class_label}` : slot.class_label;
+}
+
+export interface DropGroup {
+  key: string;
+  label: string;
+  drops: SmPortfolioDrop[];
+  /** the group's lowest drop coverage (a month is as short as its shortest drop) */
+  coverage: number;
+}
+
+const MONTH = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Spec §9.3: the drop strip shows one segment per drop up to this many drops, and groups by month beyond it. */
+export const MAX_DROP_SEGMENTS = 12;
+
+/** Spec §9.3: one segment per drop, grouped by month beyond MAX_DROP_SEGMENTS drops. */
+export function groupDrops(drops: SmPortfolioDrop[]): DropGroup[] {
+  if (drops.length <= MAX_DROP_SEGMENTS) {
+    return drops.map((d) => ({ key: d.due_date, label: formatDropDate(d.due_date), drops: [d], coverage: d.coverage }));
+  }
+  const groups: DropGroup[] = [];
+  for (const d of drops) {
+    const key = d.due_date.slice(0, 7);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) {
+      g = { key, label: MONTH.format(new Date(`${key}-01T00:00:00Z`)), drops: [], coverage: 1 };
+      groups.push(g);
+    }
+    g.drops.push(d);
+    g.coverage = Math.min(g.coverage, d.coverage);
+  }
+  return groups;
+}
+
+/** Spec §9.3: "Answers as of" warns when answers are more than 7 days old. */
+export const STALE_AFTER_MS = 7 * 86_400_000;
+
+export function answersAreStale(asOf: string, now: Date): boolean {
+  return now.getTime() - Date.parse(asOf) > STALE_AFTER_MS;
+}
+
+/** Spec §8.9: the workspace polls every 1.5 s (run-detail-shell.tsx:27). */
+export const SM_POLL_MS = 1500;
+
+/** Progressive results (spec §8.9): replace each changed candidate; untouched slots keep their identity. */
+export function applyStatusDelta(result: SourcingMapExecutionResult, status: SmExecutionStatusResponse): SourcingMapExecutionResult {
+  if (status.changed.length === 0) return result;
+  const slots = [...result.slots];
+  for (const ch of status.changed) {
+    const slot = slots[ch.slot_index];
+    if (!slot || !slot.candidates[ch.candidate_index]) continue;
+    const candidates = [...slot.candidates];
+    candidates[ch.candidate_index] = ch.candidate;
+    slots[ch.slot_index] = { ...slot, candidates };
+  }
+  return { ...result, slots };
+}

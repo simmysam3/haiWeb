@@ -1,0 +1,126 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { ImportAgentDialog } from '../import-agent-dialog';
+
+const fetchMock = vi.fn();
+beforeEach(() => {
+  fetchMock.mockReset();
+  vi.stubGlobal('fetch', fetchMock);
+});
+afterEach(() => vi.unstubAllGlobals());
+function reply(status: number, body?: unknown) {
+  return { ok: status >= 200 && status < 300, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) };
+}
+const SKUS = { skus: [{ sku: 'METCON-CROSS-IRON', product_name: 'Metcon Cross Iron' }, { sku: 'VOMERO-SAILSTONE', product_name: null }] };
+
+describe('ImportAgentDialog', () => {
+  it("offers the seat's finished goods and copies the chosen BOM into the workbench", async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, SKUS)).mockResolvedValueOnce(reply(200, { mode: 'copy', lines_created: 12, lines_unclassified: 2 }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    await waitFor(() => expect(document.querySelector('datalist option[value="METCON-CROSS-IRON"]')).not.toBeNull());
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith({ mode: 'copy', lines_created: 12, lines_unclassified: 2 }));
+    const [path, init] = fetchMock.mock.calls[1]!;
+    expect(path).toBe(`/api/account/sourcing-map/products/${VOMERO_IDS.metcon}/import-agent-bom`);
+    expect(JSON.parse(init.body)).toEqual({ agent_root_sku: 'METCON-CROSS-IRON', mode: 'copy' });
+  });
+
+  it('says so when the agent is unreachable, and reports nothing created (spec §7.5, §10)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(200, SKUS)).mockResolvedValueOnce(reply(502, { error: { code: 'agent_unreachable', message: 'upstream' } }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'UNLISTED-SKU-9' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your agent did not answer. Nothing was created.');
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ agent_root_sku: 'UNLISTED-SKU-9', mode: 'link' });
+    expect(onImported).not.toHaveBeenCalled();
+  });
+
+  it('shows the server message and creates nothing for a 422 agent_bom_not_found (a-G4: error.message must render)', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(200, SKUS))
+      .mockResolvedValueOnce(reply(422, { error: { code: 'agent_bom_not_found', message: "METCON-CROSS-IRON has no BOM in the agent's manifest." } }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    await waitFor(() => expect(document.querySelector('datalist option[value="METCON-CROSS-IRON"]')).not.toBeNull());
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("METCON-CROSS-IRON has no BOM in the agent's manifest.");
+    expect(onImported).not.toHaveBeenCalled();
+  });
+
+  it('shows a non-blocking note when the parent-SKU listing fails, and typing a SKU and importing still works', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(502, { error: { code: 'agent_unreachable', message: 'upstream listing failure' } }))
+      .mockResolvedValueOnce(reply(200, { mode: 'copy', lines_created: 3, lines_unclassified: 0 }));
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Parent SKUs could not be listed: upstream listing failure. You can still type a SKU.',
+    );
+    expect(screen.getByLabelText('Parent SKU')).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'TYPED-SKU-1' } });
+    expect(screen.getByLabelText('Parent SKU')).toHaveValue('TYPED-SKU-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(onImported).toHaveBeenCalledWith({ mode: 'copy', lines_created: 3, lines_unclassified: 0 }));
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ agent_root_sku: 'TYPED-SKU-1', mode: 'copy' });
+  });
+
+  it('keeps Import focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      await held;
+      return reply(200, { mode: 'copy', lines_created: 12, lines_unclassified: 2 });
+    });
+    const onImported = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={vi.fn()} onImported={onImported} />);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    const importButton = screen.getByRole('button', { name: 'Import' });
+    importButton.focus();
+    fireEvent.click(importButton);
+    expect(importButton).toHaveAttribute('aria-busy', 'true');
+    expect(importButton).toHaveAttribute('aria-disabled', 'true');
+    expect(importButton).not.toBeDisabled();
+    expect(importButton).toHaveFocus();
+    fireEvent.click(importButton);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/import-agent-bom'))).toHaveLength(1);
+    release();
+    await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1));
+  });
+
+  it('a pending import cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (F-b, A5-M1, a-G4)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      await held;
+      return reply(422, { error: { code: 'agent_bom_not_found', message: "METCON-CROSS-IRON has no BOM in the agent's manifest." } });
+    });
+    const onClose = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={onClose} onImported={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    const dialog = screen.getByRole('dialog', { name: 'Import from agent' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(onClose).not.toHaveBeenCalled();
+    release();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("METCON-CROSS-IRON has no BOM in the agent's manifest.");
+    expect(cancel).toBeEnabled();
+  });
+});

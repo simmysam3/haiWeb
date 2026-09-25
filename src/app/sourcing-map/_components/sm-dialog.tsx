@@ -1,0 +1,125 @@
+'use client';
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The real Tab sequence inside `root`: every focusable element, EXCEPT that a
+ * named radio group (`<input type="radio" name="…">`) contributes only one
+ * stop — its checked radio, or its first radio if none is checked — because
+ * that is the only member a real browser lets Tab land on. Without this, a
+ * mid-list checked radio (e.g. "Delete them" in `DispositionDialog`) is not
+ * `items[0]` or `items[items.length - 1]`, so Tab/Shift+Tab from it never
+ * gets intercepted and focus escapes the modal.
+ */
+function focusablesIn(root: HTMLElement): HTMLElement[] {
+  const all = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+  const seenRadioGroups = new Set<string>();
+  const items: HTMLElement[] = [];
+  for (const el of all) {
+    if (el instanceof HTMLInputElement && el.type === 'radio' && el.name) {
+      if (seenRadioGroups.has(el.name)) continue;
+      seenRadioGroups.add(el.name);
+      const group = all.filter(
+        (e): e is HTMLInputElement => e instanceof HTMLInputElement && e.type === 'radio' && e.name === el.name,
+      );
+      items.push(group.find((r) => r.checked) ?? group[0]!);
+      continue;
+    }
+    items.push(el);
+  }
+  return items;
+}
+
+/**
+ * Complete literal class sets (Tailwind v4). `wide` is the upload wizard's: a
+ * wider panel whose overlay scrolls a tall column table instead of clipping it,
+ * under a dim fixed to the viewport.
+ */
+const LAYOUT = {
+  normal: {
+    overlay: 'fixed inset-0 z-50 flex items-center justify-center p-4',
+    backdrop: 'absolute inset-0 bg-black/60',
+    panel: 'sm-card relative w-full max-w-lg p-6',
+  },
+  wide: {
+    overlay: 'fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-6',
+    backdrop: 'fixed inset-0 bg-black/60',
+    panel: 'sm-card relative w-full max-w-5xl p-6',
+  },
+} as const;
+
+/**
+ * App-themed modal (the console Modal is white-on-light; the app is dark by default). `returnFocus` takes focus on
+ * close when the opener went with it (a deleted row's own Delete, L141), so focus never falls to <body>. While
+ * `busy` (its request in flight), Escape and the backdrop do nothing: the answer, a failure's message included, is
+ * shown in this dialog (A5-M1, a-G4); callers disable their own Cancel meanwhile.
+ */
+export function SmDialog({ title, open, onClose, children, footer, wide = false, returnFocus, busy = false }: {
+  title: string; open: boolean; onClose(): void; children: ReactNode; footer?: ReactNode; wide?: boolean;
+  returnFocus?: RefObject<HTMLElement | null>; busy?: boolean;
+}) {
+  const layout = wide ? LAYOUT.wide : LAYOUT.normal;
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // WCAG 2.1 AA (AC 2): move focus into the dialog on open, trap Tab/Shift+Tab
+  // while it's open, and return focus to whatever had it before opening.
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    // The fallback is taken as the dialog opens: callers pass a control that stays mounted ("+ New project").
+    const fallback = returnFocus?.current ?? null;
+    const dialog = dialogRef.current;
+    const first = dialog ? focusablesIn(dialog)[0] : undefined;
+    (first ?? dialog)?.focus();
+    return () => {
+      // Checked at close, after the DOM has changed: an opener removed by the same update is no longer connected.
+      const opener = previouslyFocused.current;
+      (opener?.isConnected ? opener : fallback)?.focus();
+    };
+  }, [open, returnFocus]);
+
+  if (!open) return null;
+  return (
+    <div className={layout.overlay}>
+      <div className={layout.backdrop} onClick={busy ? undefined : onClose} aria-hidden="true" />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            if (!busy) onClose();
+            return;
+          }
+          if (e.key !== 'Tab') return;
+          const dialog = dialogRef.current;
+          const items = dialog ? focusablesIn(dialog) : [];
+          if (items.length === 0) {
+            e.preventDefault();
+            return;
+          }
+          const first = items[0]!;
+          const last = items[items.length - 1]!;
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }}
+        className={layout.panel}
+      >
+        <h2 id={titleId} className="sm-heading text-lg font-semibold">{title}</h2>
+        <div className="mt-4">{children}</div>
+        {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  );
+}

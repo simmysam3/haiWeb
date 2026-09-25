@@ -1,0 +1,267 @@
+'use client';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
+import {
+  detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid, type SheetsOutcome,
+} from '@/lib/scope-import/parse-workbook';
+import { autoMap, recallMapping, rememberMapping } from '@/lib/sourcing-map/upload/header-map';
+import { buildBomLines, type BomBuild } from '@/lib/sourcing-map/upload/bom-rows';
+import { buildDemand, type DemandBuild, type DemandBuildProduct } from '@/lib/sourcing-map/upload/demand-rows';
+import { toUploadInput, uploadRowErrors, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
+import { smFetch } from '@/lib/sourcing-map/client';
+import { SmDialog } from '../sm-dialog';
+import { FileStep } from './file-step';
+import { MapStep } from './map-step';
+import { ResolveStep } from './resolve-step';
+import { ReviewStep } from './review-step';
+
+export type UploadWizardProps =
+  | { kind: 'bom'; productId: string; axis: VariantAxis | null; onCommitted(detail: SmProductDetail): void; onClose(): void }
+  | { kind: 'demand'; products: DemandBuildProduct[]; onApply(build: DemandBuild): void; onClose(): void };
+
+type Step = 'file' | 'map' | 'resolve' | 'review';
+const STEP_LABELS: Record<Step, string> = { file: 'File', map: 'Map columns', resolve: 'Resolve', review: 'Review' };
+
+function bomSummary(lines: ResolvedLine[]): string[] {
+  const classified = lines.filter((l) => l.class_id !== null).length;
+  const pinned = lines.filter((l) => l.pin !== null).length;
+  const unclassified = lines.length - classified;
+  const out = [`${lines.length} line${lines.length === 1 ? '' : 's'} · ${classified} classified · ${pinned} pinned`];
+  if (unclassified > 0) out.push(`${unclassified} line${unclassified === 1 ? ' has' : 's have'} no class yet; Run stays disabled until every line has one.`);
+  return out;
+}
+
+function demandSummary(build: DemandBuild, products: DemandBuildProduct[]): string[] {
+  if (build.perProduct.length === 0) return ['No drops were read from the file.'];
+  return build.perProduct.map((p) => {
+    const name = products.find((x) => x.product_id === p.product_id)?.name ?? p.product_id;
+    const total = p.drops.reduce((a, d) => a + d.qty, 0);
+    return `${name}: ${p.drops.length} drop${p.drops.length === 1 ? '' : 's'} · ${total.toLocaleString('en-US')} units`;
+  });
+}
+
+/** Spec §7.3: File → Map columns → Resolve (BOM only) → Review. Only mapped rows leave the browser. */
+export function UploadWizard(props: UploadWizardProps) {
+  const { kind } = props;
+  const steps: Step[] = kind === 'bom' ? ['file', 'map', 'resolve', 'review'] : ['file', 'map', 'review'];
+  const variantValues = useMemo(
+    () => (props.kind === 'bom' ? props.axis?.values ?? [] : [...new Set(props.products.flatMap((p) => p.variant_values))]),
+    [props],
+  );
+  const [step, setStep] = useState<Step>('file');
+  const [sheets, setSheets] = useState<SheetGrid[]>([]);
+  const [sheetIndex, setSheetIndex] = useState(0);
+  const [headerIndex, setHeaderIndex] = useState(0);
+  const [mapping, setMapping] = useState<string[]>([]);
+  const [decimalComma, setDecimalComma] = useState(false);
+  const [bom, setBom] = useState<Extract<BomBuild, { ok: true }> | null>(null);
+  const [demand, setDemand] = useState<DemandBuild | null>(null);
+  const [resolved, setResolved] = useState<ResolvedLine[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // A step change unmounts the control that had focus (the file input, Continue, Back), which drops
+  // focus to <body>, outside SmDialog's Tab trap. Move it to the new step's container instead. Keyed
+  // on `step` itself, so every transition gets it; the mount (SmDialog's own initial focus) does not.
+  const stepRef = useRef<HTMLDivElement | null>(null);
+  const shownStep = useRef<Step>(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    stepRef.current?.focus();
+  }, [step]);
+
+  function mapFor(all: SheetGrid[], s: number, h: number) {
+    const hs = all[s]?.rows[h]?.cells ?? [];
+    setMapping(recallMapping(kind, hs) ?? autoMap(kind, hs, variantValues));
+  }
+
+  async function onFile(file: File) {
+    setError(null);
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError(tooLargeDetail(file.name, file.size));
+      return;
+    }
+    let bytes: ArrayBuffer;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch {
+      setError(unreadableDetail(file.name));
+      return;
+    }
+    let out: SheetsOutcome;
+    try {
+      out = await readWorkbookSheets(bytes, { fileName: file.name });
+    } catch {
+      // The spreadsheet library's chunk failed to load, or decoding threw past the reader's own guard (Ruling M1).
+      setError(unreadableDetail(file.name));
+      return;
+    }
+    if (!out.ok) {
+      setError(out.detail);
+      return;
+    }
+    // The reader keeps a sheet with no non-blank rows (rows: []), so an empty file has sheets, all empty.
+    if (out.sheets.every((s) => s.rows.length === 0)) {
+      setError(`${file.name} has no rows.`);
+      return;
+    }
+    const h = detectHeaderRow(out.sheets[0]!);
+    setSheets(out.sheets);
+    setSheetIndex(0);
+    setHeaderIndex(h);
+    setDecimalComma(out.decimalComma);
+    mapFor(out.sheets, 0, h);
+    setStep('map');
+  }
+
+  const rows = sheets[sheetIndex]?.rows ?? [];
+  const headers = rows[headerIndex]?.cells ?? [];
+  const dataRows = rows.slice(headerIndex + 1);
+
+  function onContinueMap() {
+    setError(null);
+    // Nothing under the header would reach Review as "Save 0 lines" (replacing the BOM with an empty one) or as an
+    // empty schedule that "Apply schedule" would apply.
+    if (dataRows.length === 0) {
+      setError(`There are no rows under the header row (Row ${rows[headerIndex]?.row ?? headerIndex + 1}).`);
+      return;
+    }
+    if (props.kind === 'demand') {
+      const out = buildDemand({ rows: dataRows, headers, mapping, products: props.products, decimalComma });
+      if (out.perProduct.length === 0 && out.errors.some((e) => e.row === 0)) {
+        setError(out.errors.filter((e) => e.row === 0).map((e) => e.message).join(' '));
+        return;
+      }
+      rememberMapping('demand', headers, mapping);
+      setDemand(out);
+      setStep('review');
+      return;
+    }
+    const out = buildBomLines({ rows: dataRows, headers, mapping, variantValues, decimalComma });
+    if (!out.ok) {
+      setError(out.rejection);
+      return;
+    }
+    const mappingErrors = out.errors.filter((e) => e.row === 0);
+    if (mappingErrors.length > 0) {
+      setError(mappingErrors.map((e) => e.message).join(' '));
+      return;
+    }
+    rememberMapping('bom', headers, mapping);
+    setBom(out);
+    setStep('resolve');
+  }
+
+  async function commitBom() {
+    if (props.kind !== 'bom') return;
+    setBusy(true);
+    setError(null);
+    // The mapped rows as JSON — never the file (spec §5.2, §7.3).
+    const out = await smFetch<SmProductDetail>(`/api/account/sourcing-map/products/${props.productId}/bom-lines`, {
+      method: 'PUT',
+      body: { lines: resolved.map(toUploadInput) },
+    });
+    setBusy(false);
+    if (!out.ok) {
+      setError(out.message);
+      return;
+    }
+    props.onCommitted(out.data);
+  }
+
+  const title = kind === 'bom' ? 'Upload BOM' : 'Upload schedule';
+  // The modal shell (backdrop, labelled dialog, Escape, focus in / trap / return) is SmDialog's (controller ruling, I07).
+  // A save in flight answers in this dialog: a close then would replace the BOM unseen, or lose a failure's message.
+  // SmDialog's `busy` holds Escape and the backdrop (A5-M1, one mechanism), and Close is disabled meanwhile.
+  return (
+    <SmDialog open wide title={title} onClose={props.onClose} busy={busy}>
+      <div className="flex items-center justify-between gap-4">
+        <ol aria-label="Upload steps" className="flex gap-4 text-xs">
+          {steps.map((s, i) => (
+            <li key={s} aria-current={s === step ? 'step' : undefined} className={s === step ? 'font-semibold' : 'sm-muted'}>
+              {`${i + 1} ${STEP_LABELS[s]}`}
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="sm-btn sm-btn-ghost text-xs" disabled={busy} onClick={props.onClose}>Close</button>
+      </div>
+      <div ref={stepRef} role="group" aria-label={STEP_LABELS[step]} tabIndex={-1} className="mt-4 outline-none">
+        {step === 'file' && <FileStep onFile={(f) => void onFile(f)} error={error} />}
+        {step === 'map' && (
+          <MapStep
+            kind={kind}
+            sheets={sheets}
+            sheetIndex={sheetIndex}
+            headerIndex={headerIndex}
+            mapping={mapping}
+            onSheet={(i) => {
+              setError(null); // another sheet: the old error named the old sheet's columns and rows
+              const h = detectHeaderRow(sheets[i]!);
+              setSheetIndex(i);
+              setHeaderIndex(h);
+              mapFor(sheets, i, h);
+            }}
+            onHeader={(h) => {
+              setError(null); // a new header row means new columns and data rows; the old error named the old ones
+              setHeaderIndex(h);
+              mapFor(sheets, sheetIndex, h);
+            }}
+            onMapping={(m) => {
+              setError(null); // the edit is the user answering the refusal; the old error named the old mapping (Ruling M2)
+              setMapping(m);
+            }}
+            onBack={() => {
+              setError(null); // the error answered this step's Continue; the File step never shows it
+              setStep('file');
+            }}
+            onContinue={onContinueMap}
+            error={error}
+          />
+        )}
+        {step === 'resolve' && bom && (
+          <ResolveStep
+            lines={bom.lines}
+            onBack={() => {
+              setError(null); // like every Back: an error answers the step it was raised on, never the one returned to
+              setStep('map');
+            }}
+            onContinue={(r) => { setResolved(r); setStep('review'); }}
+          />
+        )}
+        {step === 'review' && props.kind === 'bom' && bom && (
+          <ReviewStep
+            summary={bomSummary(resolved)}
+            // A5-I1: the lines Continue to review resolved, checked against the PUT's schema, so Review never
+            // passes a line haiCore would refuse without a row number.
+            errors={[...bom.errors, ...uploadRowErrors(resolved)]}
+            ignoredColumns={bom.ignoredColumns}
+            commitLabel={`Save ${resolved.length} line${resolved.length === 1 ? '' : 's'}`}
+            busy={busy}
+            error={error}
+            onBack={() => {
+              setError(null); // a failed save's message answered that Save; it must not greet the next Review or Map
+              setStep('resolve');
+            }}
+            onCommit={() => void commitBom()}
+          />
+        )}
+        {step === 'review' && props.kind === 'demand' && demand && (
+          <ReviewStep
+            summary={demandSummary(demand, props.products)}
+            errors={demand.errors}
+            ignoredColumns={demand.ignoredColumns}
+            commitLabel="Apply schedule"
+            busy={false}
+            error={null}
+            onBack={() => {
+              setError(null);
+              setStep('map');
+            }}
+            onCommit={() => props.onApply(demand)}
+          />
+        )}
+      </div>
+    </SmDialog>
+  );
+}

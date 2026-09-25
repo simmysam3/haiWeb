@@ -333,6 +333,17 @@ describe('gated-route redirect → /api/auth/login (bypass /login card)', () => 
     expect(url.pathname).toBe('/api/auth/login');
     expect(url.searchParams.get('next')).toBe('/account');
   });
+
+  it('redirects unauthenticated /sourcing-map/* to /api/auth/login with next (Sourcing Map AC 1)', async () => {
+    const req = new NextRequest(
+      new URL('/sourcing-map/p1/runs/t1?drop=2027-03-15', 'https://console.haiwave.ai'),
+    );
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    const url = new URL(res.headers.get('location')!);
+    expect(url.pathname).toBe('/api/auth/login');
+    expect(url.searchParams.get('next')).toBe('/sourcing-map/p1/runs/t1?drop=2027-03-15');
+  });
 });
 
 describe('sliding-refresh matcher covers every mutating BFF surface', () => {
@@ -341,6 +352,11 @@ describe('sliding-refresh matcher covers every mutating BFF surface', () => {
   it('includes the sonar and search BFF paths, not just /api/account', () => {
     expect(config.matcher).toContain('/api/sonar/:path*');
     expect(config.matcher).toContain('/api/search');
+    expect(config.matcher).toContain('/api/account/:path*');
+  });
+
+  it('runs on /sourcing-map pages; /api/account/:path* already covers the sourcing-map BFF', () => {
+    expect(config.matcher).toContain('/sourcing-map/:path*');
     expect(config.matcher).toContain('/api/account/:path*');
   });
 });

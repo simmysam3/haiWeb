@@ -64,7 +64,7 @@ export function normalizeCompanyName(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-function normalizeHeader(s: string): string {
+export function normalizeHeader(s: string): string {
   return s
     .trim()
     .replace(/[*:]+$/, '')
@@ -100,6 +100,10 @@ export function tooLargeDetail(fileName: string, byteLength: number, maxBytes: n
 
 export function unreadableDetail(fileName: string): string {
   return `Could not read ${fileName} as a spreadsheet.`;
+}
+
+export function tooManyRowsDetail(sheetName: string, rowCount: number, maxRows: number = MAX_IMPORT_ROWS): string {
+  return `${sheetName} has ${rowCount.toLocaleString()} rows; the limit is ${maxRows.toLocaleString()}.`;
 }
 
 export async function parseWorkbook(
@@ -148,7 +152,7 @@ export async function parseWorkbook(
       return {
         ok: false,
         reason: 'too_many_rows',
-        detail: `${sheetName} has ${dataRows.length.toLocaleString()} rows; the limit is ${maxRows.toLocaleString()}.`,
+        detail: tooManyRowsDetail(sheetName, dataRows.length, maxRows),
       };
     }
 
@@ -186,4 +190,148 @@ export async function parseWorkbook(
     detail:
       'No sheet has both a company column and a SKU column. Looked for headers like Company Name / Supplier / Vendor and Product ID / SKU / Part Number.',
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sourcing Map upload wizard (spec §7.3). The wizard maps columns itself, so it
+// needs every sheet's rows as displayed text, not company/SKU pairs. The
+// ceilings, refusal sentences and SheetJS reading above are reused; parseWorkbook's
+// behaviour is unchanged.
+
+/** The rows the Map step offers as the header row (map-step.tsx); a title block above the header fits in them. */
+export const HEADER_ROWS_OFFERED = 10;
+
+/**
+ * Columns the upload reader reads from a sheet, from its first column holding data (security L1). A sheet's data can
+ * run far wider than an upload maps, and the grid holds every cell of its range. 256 is the legacy .xls sheet's own
+ * width, well past what an upload maps (its targets plus one column per size; an axis holds at most 40), and keeps a
+ * full sheet's grid to about 1.3 million cells. Columns past it are not offered on the Map step.
+ */
+export const MAX_IMPORT_COLUMNS = 256;
+
+export interface SheetGrid {
+  name: string;
+  /** Non-blank rows; `row` is the 1-based sheet row the user sees. */
+  rows: Array<{ row: number; cells: string[] }>;
+}
+
+export type SheetsOutcome =
+  | { ok: true; sheets: SheetGrid[]; decimalComma: boolean }
+  | { ok: false; reason: ParseRefusal; detail: string };
+
+const LF = String.fromCharCode(10);
+
+/**
+ * A semicolon CSV is European Excel's, whose numbers use decimal commas
+ * (Review Focus 1). SheetJS already picks the separator and drops a byte-order
+ * mark, so only the locale is read here, from the header line.
+ */
+function semicolonHeader(bytes: ArrayBuffer): boolean {
+  const text = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+  const end = text.indexOf(LF);
+  const header = end === -1 ? text : text.slice(0, end);
+  return header.split(';').length > header.split(',').length;
+}
+
+interface RealExtent {
+  /** The first row holding a real cell through the last; likewise its columns, at most MAX_IMPORT_COLUMNS of them. */
+  range: import('xlsx').Range;
+  /** Each row holding a real cell inside those columns, in sheet order: how many it holds. */
+  filled: number[];
+}
+
+/** A cell's text as the grid shows it: sheet_to_json (`raw: false`) shows an error value such as #N/A as blank. */
+function displayedText(XLSX: typeof import('xlsx'), cell: import('xlsx').CellObject): string {
+  return cell.t === 'e' ? '' : XLSX.utils.format_cell(cell);
+}
+
+/**
+ * Security L1 (controller ruling): the extent a sheet's REAL cells occupy, never its declared range. SheetJS takes a
+ * sheet's range from its <dimension>, which can run far past the data, and the grid fills every cell of the range it
+ * is given. A real cell is one whose displayed text is non-blank, the rule at :141-146: a formula answering an empty
+ * string, a lone space or an error value never counts. Null when the sheet holds no real cell.
+ */
+function realExtent(XLSX: typeof import('xlsx'), ws: import('xlsx').WorkSheet): RealExtent | null {
+  const cells: Array<{ r: number; c: number }> = [];
+  let firstCol = Infinity;
+  for (const key of Object.keys(ws)) {
+    if (key.startsWith('!') || displayedText(XLSX, ws[key]).trim() === '') continue;
+    const at = XLSX.utils.decode_cell(key);
+    cells.push(at);
+    firstCol = Math.min(firstCol, at.c);
+  }
+  if (cells.length === 0) return null;
+  const ceilingCol = firstCol + MAX_IMPORT_COLUMNS - 1;
+  const perRow = new Map<number, number>();
+  let lastCol = firstCol;
+  for (const { r, c } of cells) {
+    if (c > ceilingCol) continue;
+    perRow.set(r, (perRow.get(r) ?? 0) + 1);
+    lastCol = Math.max(lastCol, c);
+  }
+  const rows = [...perRow.keys()].sort((a, b) => a - b);
+  return {
+    range: { s: { r: rows[0]!, c: firstCol }, e: { r: rows[rows.length - 1]!, c: lastCol } },
+    filled: rows.map((r) => perRow.get(r)!),
+  };
+}
+
+/** The header among a sheet's non-blank rows, from their counts of filled cells: the first with two or more, else 0. */
+function headerIndex(filled: readonly number[]): number {
+  const i = filled.findIndex((n) => n >= 2);
+  return i < 0 ? 0 : i;
+}
+
+export async function readWorkbookSheets(
+  bytes: ArrayBuffer,
+  opts: { fileName: string; maxBytes?: number; maxRows?: number },
+): Promise<SheetsOutcome> {
+  const maxBytes = opts.maxBytes ?? MAX_IMPORT_BYTES;
+  const maxRows = opts.maxRows ?? MAX_IMPORT_ROWS;
+  if (bytes.byteLength > maxBytes) {
+    return { ok: false, reason: 'too_large', detail: tooLargeDetail(opts.fileName, bytes.byteLength, maxBytes) };
+  }
+  // Security L1: nothing is truncated, and no grid is built past the rows a sheet may keep: the data rows the ceiling
+  // allows plus the header rows the Map step offers.
+  const bound = maxRows + HEADER_ROWS_OFFERED;
+  const XLSX = await import('xlsx');
+  let wb: import('xlsx').WorkBook;
+  try {
+    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
+  } catch {
+    return { ok: false, reason: 'unreadable', detail: unreadableDetail(opts.fileName) };
+  }
+  const sheets: SheetGrid[] = [];
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const extent = realExtent(XLSX, ws);
+    if (!extent) {
+      sheets.push({ name, rows: [] });
+      continue;
+    }
+    // spec §7.3: 5,000 data rows; the header, and any title row above it, do not count. Counted from the cells, so an
+    // over-long sheet is refused with its true count before any grid is built.
+    const dataRows = extent.filled.length - headerIndex(extent.filled) - 1;
+    if (dataRows > maxRows) {
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, dataRows, maxRows) };
+    }
+    // A sparse sheet: few enough data rows, but its last one lies past the bound, and so would its grid.
+    const { range } = extent;
+    const span = range.e.r - range.s.r + 1;
+    if (span > bound) {
+      return { ok: false, reason: 'too_many_rows', detail: tooManyRowsDetail(name, span, maxRows) };
+    }
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '', blankrows: true, range });
+    const rows = grid
+      .map((cells, i) => ({ row: range.s.r + i + 1, cells: cells.map(cellText) }))
+      .filter((r) => r.cells.some((c) => c.trim() !== ''));
+    sheets.push({ name, rows });
+  }
+  return { ok: true, sheets, decimalComma: /\.csv$/i.test(opts.fileName) && semicolonHeader(bytes) };
+}
+
+/** Index into `sheet.rows` of the header: the first row with two or more filled cells (parseWorkbook rule), else 0. */
+export function detectHeaderRow(sheet: SheetGrid): number {
+  return headerIndex(sheet.rows.map((r) => r.cells.filter((c) => c.trim() !== '').length));
 }

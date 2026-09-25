@@ -1,0 +1,194 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { vomeroProducts, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { LibraryTab } from '../library-tab';
+
+const { push, refresh, replace } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, refresh, replace }),
+  usePathname: () => '/sourcing-map/x',
+  useSearchParams: () => new URLSearchParams(),
+}));
+// next/link renders an <a> in tests (the house idiom, src/components/__tests__/account-nav.test.tsx:16-20)
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode; [k: string]: unknown }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+
+const fetchMock = vi.fn();
+beforeEach(() => {
+  fetchMock.mockReset();
+  push.mockReset();
+  vi.stubGlobal('fetch', fetchMock);
+});
+afterEach(() => vi.unstubAllGlobals());
+function reply(status: number, body?: unknown) {
+  return { ok: status >= 200 && status < 300, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) };
+}
+
+describe('LibraryTab', () => {
+  it('lists each product with its source, variants, line count, readiness and a drill-down', () => {
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    const metcon = screen.getByRole('row', { name: /Metcon Iron/ });
+    expect(within(metcon).getByText('Agent')).toBeInTheDocument();
+    expect(within(metcon).getByText("13 · Men's US")).toBeInTheDocument();
+    expect(within(metcon).getByText('2')).toBeInTheDocument();
+    expect(within(metcon).getByText('Ready')).toBeInTheDocument();
+    expect(within(metcon).getByRole('link', { name: 'Open Metcon Iron' })).toHaveAttribute(
+      'href',
+      `/sourcing-map/${VOMERO_IDS.project}/products/${VOMERO_IDS.metcon}`,
+    );
+  });
+
+  it('creates a workbench product and opens its editor', async () => {
+    fetchMock.mockResolvedValue(reply(201, { ...vomeroProducts[0], product_id: VOMERO_IDS.court }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    fireEvent.change(screen.getByLabelText('Assembly days'), { target: { value: '21' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/sourcing-map/${VOMERO_IDS.project}/products/${VOMERO_IDS.court}`));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({
+      name: 'Court Classic', unit_label: 'pairs', bom_source: 'workbench', agent_root_sku: null, variant_axis: null, assembly_days: 21,
+    });
+  });
+
+  it('refuses to delete a product a run uses and names the runs (spec §10)', async () => {
+    fetchMock.mockResolvedValue(reply(409, {
+      error: {
+        code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.', timestamp: '2026-09-23T10:00:00.000Z', request_id: 'req-1',
+        details: { code: 'product_in_use', runs: [{ template_id: VOMERO_IDS.template, template_name: 'Line A base' }] },
+      },
+    }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    // F3: the refusal answers in the confirm dialog, where the Delete was pressed.
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Pegasus Trail is used by Line A base. Remove it from those runs first.');
+    expect(screen.getByRole('row', { name: /Pegasus Trail/ })).toBeInTheDocument();
+  });
+
+  it('clears a resolved create failure when the dialog is cancelled (controller ruling, Task 21 findings 2a/2b)', async () => {
+    fetchMock.mockResolvedValueOnce(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'Name already used.' } }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'X' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Name already used.');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('opens "+ New product" without a stale delete error (controller ruling, Task 21 finding 2a)', async () => {
+    fetchMock.mockResolvedValue(reply(409, {
+      error: {
+        code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.',
+        details: { code: 'product_in_use', runs: [{ template_id: VOMERO_IDS.template, template_name: 'Line A base' }] },
+      },
+    }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps Create product focusable while its request is in flight: aria-busy, and a second press sends nothing (LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    const create = screen.getByRole('button', { name: 'Create product' });
+    create.focus();
+    fireEvent.click(create);
+    expect(create).toHaveAttribute('aria-busy', 'true');
+    expect(create).toHaveAttribute('aria-disabled', 'true');
+    expect(create).not.toBeDisabled();
+    expect(create).toHaveFocus();
+    fireEvent.click(create);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    settle(reply(201, { ...vomeroProducts[0], product_id: VOMERO_IDS.court }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+  });
+
+  it('a pending create cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (F-b, A5-M1, a-G4)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ New product' }));
+    fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Court Classic' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create product' }));
+    const dialog = screen.getByRole('dialog', { name: 'New product' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'New product' })).toBeInTheDocument();
+    settle(reply(400, { error: { code: 'VALIDATION_ERROR', message: 'A product with that name already exists.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A product with that name already exists.');
+    expect(cancel).toBeEnabled();
+  });
+
+  it('asks before deleting a product: nothing is sent until the confirm dialog’s Delete, and Cancel sends nothing (F3)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    expect(dialog).toHaveTextContent('This removes the product and its BOM lines.');
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('row', { name: /Pegasus Trail/ })).toBeNull());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`/api/account/sourcing-map/products/${VOMERO_IDS.pegasus}`);
+    expect(fetchMock.mock.calls[0]![1].method).toBe('DELETE');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('a pending product delete cannot be dismissed, and its Delete keeps focus: aria-busy, a second press sends nothing (F3, A5-M1, LW-a)', async () => {
+    let settle: (r: unknown) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Pegasus Trail' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete Pegasus Trail' });
+    const del = within(dialog).getByRole('button', { name: 'Delete' });
+    del.focus();
+    fireEvent.click(del);
+    expect(del).toHaveAttribute('aria-busy', 'true');
+    expect(del).not.toBeDisabled();
+    expect(del).toHaveFocus();
+    fireEvent.click(del);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).toBeInTheDocument();
+    settle(reply(409, { error: { code: 'product_in_use', message: 'Pegasus Trail is used by 1 run.' } }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Pegasus Trail is used by 1 run.');
+  });
+
+  it('after a successful delete, whose row took its Delete button, focus goes to "+ New product", never <body> (F3, L141)', async () => {
+    fetchMock.mockResolvedValue(reply(204));
+    render(<LibraryTab projectId={VOMERO_IDS.project} initialProducts={vomeroProducts} />);
+    const opener = screen.getByRole('button', { name: 'Delete Pegasus Trail' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New product' }));
+  });
+});
+
