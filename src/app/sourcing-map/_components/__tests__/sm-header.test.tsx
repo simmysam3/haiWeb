@@ -57,4 +57,17 @@ describe('SmHeader', () => {
     expect(header).not.toBeNull();
     expect((header as HTMLElement).style.getPropertyValue('--sm-ink')).toBe(SM_THEME_TOKENS.dark.ink);
   });
+
+  it('carries the dark --sm-line-control under the light theme, so its ghost buttons keep a 3:1 border on the dark ground (OWNER-4)', () => {
+    window.localStorage.setItem('sm.theme', 'light');
+    const { container } = render(
+      <SmThemeRoot>
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </SmThemeRoot>,
+    );
+    // Present control: the light root carries the light value (literal hex values, so an unset token cannot pass).
+    expect(screen.getByTestId('sm-root').style.getPropertyValue('--sm-line-control')).toBe('#788BA6');
+    // The header's own style sets the dark value; without it, its ghost buttons would inherit the light one.
+    expect((container.querySelector('header') as HTMLElement).style.getPropertyValue('--sm-line-control')).toBe('#5D71A6');
+  });
 });
