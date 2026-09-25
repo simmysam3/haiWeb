@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ImportAgentDialog } from '../import-agent-dialog';
 
@@ -95,5 +95,32 @@ describe('ImportAgentDialog', () => {
     release();
     await waitFor(() => expect(onImported).toHaveBeenCalledTimes(1));
   });
-});
 
+  it('a pending import cannot be dismissed: Escape, the backdrop and Cancel wait, and its refusal then shows (F-b, A5-M1, a-G4)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/agent-parent-skus')) return reply(200, SKUS);
+      await held;
+      return reply(422, { error: { code: 'agent_bom_not_found', message: "METCON-CROSS-IRON has no BOM in the agent's manifest." } });
+    });
+    const onClose = vi.fn();
+    render(<ImportAgentDialog productId={VOMERO_IDS.metcon} open onClose={onClose} onImported={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    const dialog = screen.getByRole('dialog', { name: 'Import from agent' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog.previousElementSibling as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toBeDisabled();
+    fireEvent.click(cancel);
+    expect(onClose).not.toHaveBeenCalled();
+    release();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("METCON-CROSS-IRON has no BOM in the agent's manifest.");
+    expect(cancel).toBeEnabled();
+  });
+});

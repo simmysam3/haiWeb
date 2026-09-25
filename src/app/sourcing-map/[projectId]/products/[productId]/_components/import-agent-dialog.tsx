@@ -46,9 +46,11 @@ export function ImportAgentDialog({ productId, open, onClose, onImported }: {
       title="Import from agent"
       open={open}
       onClose={onClose}
+      // F-b (A5-M1): a pending import answers in this dialog; Escape, the backdrop and Cancel wait for it.
+      busy={busy}
       footer={
         <>
-          <button type="button" className="sm-btn sm-btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="sm-btn sm-btn-ghost" disabled={busy} onClick={onClose}>Cancel</button>
           <SmButton className="sm-btn sm-btn-primary" busy={busy} disabled={sku.trim() === ''} onClick={submit}>Import</SmButton>
         </>
       }
