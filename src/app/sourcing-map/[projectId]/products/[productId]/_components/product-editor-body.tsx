@@ -23,6 +23,7 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
   // stale-lock: the message of a failed re-read after a successful import. The body's product is then older than the
   // server's, so this is set only there and nothing in the page clears it; only a reload does.
   const [staleRead, setStaleRead] = useState<string | null>(null);
+  const locked = staleRead !== null;
 
   // An import answers only counts (contract: ImportAgentBomResponse), so one read brings the product it made: its
   // lines for a copy, or `bom_source: agent` for a link, which switches the body to the agent view.
@@ -38,7 +39,7 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
 
   return (
     <ProductEditor projectName={projectName} projectError={projectError} detail={detail} onSaved={(p) => setDetail((d) => ({ ...d, ...p }))}>
-      {staleRead !== null && (
+      {locked && (
         <p role="alert" className="sm-error mb-3 text-sm">{`The import succeeded, but the product could not be re-read: ${staleRead} Reload the page to continue.`}</p>
       )}
       {detail.bom_source === 'agent' ? (
@@ -51,8 +52,8 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
               stale lock makes them aria-disabled, never disabled: the Import dialog hands focus back to its opener as
               the lock lands, and a disabled one would drop it to <body> (LW-a). */}
           <div className="mb-3 flex justify-end gap-2">
-            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={staleRead !== null} onClick={() => setUploading(true)}>Upload BOM</SmButton>
-            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={staleRead !== null} onClick={() => setImporting(true)}>Import from agent</SmButton>
+            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={locked} onClick={() => setUploading(true)}>Upload BOM</SmButton>
+            <SmButton className="sm-btn sm-btn-ghost" aria-disabled={locked} onClick={() => setImporting(true)}>Import from agent</SmButton>
           </div>
           <BomGrid
             key={bomRevision}
@@ -61,7 +62,7 @@ export function ProductEditorBody({ projectName, projectError = null, detail: in
             initialLines={detail.lines}
             classes={detail.classes}
             onSaved={setDetail}
-            locked={staleRead !== null}
+            locked={locked}
           />
         </>
       )}
