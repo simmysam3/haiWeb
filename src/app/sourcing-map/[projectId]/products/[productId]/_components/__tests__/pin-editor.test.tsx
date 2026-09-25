@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useState } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { BomLinePin } from '@/lib/sourcing-map/contract';
 import { PinEditor } from '../pin-editor';
@@ -150,5 +151,23 @@ describe('PinEditor', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
     press(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
+  });
+
+  it('once the stale lock lands on an open pin form, Pin adds nothing and Share % is read-only; Pin is never disabled (stale-lock, LW-a)', async () => {
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    const onChange = vi.fn();
+    const { rerender } = render(<PinEditor classId="cpt_flat_laces" pins={[]} onChange={onChange} />);
+    await openAndChoose(VOMERO_IDS.aglet);
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-120' } });
+    // A slow re-read fails now: the lock lands on a form ready to pin.
+    rerender(<PinEditor classId="cpt_flat_laces" pins={[]} onChange={onChange} locked />);
+    const share = screen.getByLabelText('Share %');
+    await userEvent.type(share, '5');
+    expect(share).toHaveValue(100);
+    const pin = screen.getByRole('button', { name: 'Pin' });
+    fireEvent.click(pin);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(pin).not.toBeDisabled();
+    expect(pin).toHaveAttribute('aria-disabled', 'true');
   });
 });

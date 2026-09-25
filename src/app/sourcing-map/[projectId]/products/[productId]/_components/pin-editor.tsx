@@ -109,12 +109,12 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
             </select>
           </label>
           <label>Share %
-            <input aria-label="Share %" type="number" min={0.01} max={100} step="any" className="sm-input ml-1 w-16 text-xs" value={share} onChange={(e) => setShare(e.target.value)} />
+            <input aria-label="Share %" type="number" min={0.01} max={100} step="any" className="sm-input ml-1 w-16 text-xs" readOnly={locked} value={share} onChange={(e) => setShare(e.target.value)} />
           </label>
-          <button
-            type="button"
+          <SmButton
             className="sm-btn sm-btn-ghost text-xs"
             disabled={!supplier || !sku || !(Number.parseFloat(share) > 0)}
+            aria-disabled={locked}
             onClick={() => {
               onChange([...pins, { supplier_participant_id: supplier, supplier_sku: sku, share_pct: Number.parseFloat(share) }]);
               setOpen(false);
@@ -123,7 +123,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
             }}
           >
             Pin
-          </button>
+          </SmButton>
           {/* The way out, also after a failed supplier load; the error goes with the form, so a reopen starts clean. */}
           <button
             type="button"
