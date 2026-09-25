@@ -67,6 +67,20 @@ describe('Sourcing Map theme contrast (spec §9.1, WCAG 2.1 AA)', () => {
     expect(SM_THEME_TOKENS.light['teal-text']).toBe('#007585');
   });
 
+  it('the input and ghost-button border token, --sm-line-control, measures at least 3:1 on canvas, surface and card in both themes (WCAG 1.4.11; OWNER-4)', () => {
+    const failures: string[] = [];
+    for (const theme of ['dark', 'light'] as const) {
+      const t = SM_THEME_TOKENS[theme];
+      // Present control: the token exists in this theme's map.
+      expect(Object.keys(t)).toContain('line-control');
+      for (const bg of SURFACES) {
+        const r = contrastRatio(t['line-control'], t[bg]);
+        if (r < 3) failures.push(`${theme} line-control on ${bg} = ${r.toFixed(2)}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
   it('the header background is exactly the dark surface token (Task 18 ruling): the dark text rows on surface above are the header contrast checks', () => {
     expect(SM_HEADER.bg).toBe(SM_THEME_TOKENS.dark.surface);
   });
