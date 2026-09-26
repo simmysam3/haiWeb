@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { vomeroAgentDetail, vomeroProducts, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { presetAxis } from '@/lib/sourcing-map/variant-presets';
+import { recordFocusWhen } from '@/test/focus-recorder';
 import { ProductEditor } from '../product-editor';
 import { ProductEditorBody } from '../product-editor-body';
 
@@ -311,11 +312,15 @@ describe('ProductEditorBody', () => {
     await userEvent.upload(within(dialog).getByLabelText('Spreadsheet file'), new File([['Description,Usage', 'Upper leather tumbled,0.25'].join(NL)], 'bom.csv', { type: 'text/csv' }));
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue' }));
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Continue to review' }));
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Save 1 line' }));
+    const save = await within(dialog).findByRole('button', { name: 'Save 1 line' });
+    // F-FLAKE-1: focus as it stands when the wizard goes, not only once the waitFor below returns.
+    const atClose = recordFocusWhen(() => screen.queryByRole('dialog', { name: 'Upload BOM' }) === null);
+    fireEvent.click(save);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Upload BOM' })).toBeNull());
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(1);
     expect(screen.getByLabelText('Component for line 1')).toHaveValue('Upper leather tumbled');
     // The very element that opened the wizard: a toolbar remounted with the grid would leave focus on <body>.
+    expect(atClose.element).toBe(openButton);
     expect(document.activeElement).toBe(openButton);
   });
 
@@ -370,8 +375,10 @@ describe('ProductEditorBody', () => {
     fireEvent.click(opener);
     fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
     if (mode === 'link') fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
+    // F-FLAKE-1: focus as it stands when the dialog goes, not only once the alert below shows.
+    const atClose = recordFocusWhen(() => screen.queryByRole('dialog', { name: 'Import from agent' }) === null);
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
-    return { alert: await screen.findByRole('alert'), opener };
+    return { alert: await screen.findByRole('alert'), opener, atClose };
   }
 
   it('a failed re-read after an import says the import succeeded and asks for a reload, with the read’s message (stale-lock, a-G4)', async () => {
@@ -457,9 +464,10 @@ describe('ProductEditorBody', () => {
   });
 
   it('while the stale lock holds, focus stays on Import from agent, which the lock makes aria-disabled, never disabled (stale-lock, LW-a)', async () => {
-    const { opener } = await importThenFailReread();
+    const { opener, atClose } = await importThenFailReread();
     // The closing dialog handed focus back to its opener. `disabled` would move it on to <body> in a browser (HTML's
     // focus-fixup rule; jsdom does not apply it), so the pin is that neither toolbar button is disabled.
+    expect(atClose.element).toBe(opener);
     expect(document.activeElement).toBe(opener);
     for (const name of ['Import from agent', 'Upload BOM']) {
       const button = screen.getByRole('button', { name });

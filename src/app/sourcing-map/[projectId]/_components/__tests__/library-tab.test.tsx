@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vomeroProducts, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { recordFocusWhen } from '@/test/focus-recorder';
 import { LibraryTab } from '../library-tab';
 
 const { push, refresh, replace } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }));
@@ -186,8 +187,11 @@ describe('LibraryTab', () => {
     const opener = screen.getByRole('button', { name: 'Delete Pegasus Trail' });
     opener.focus();
     fireEvent.click(opener);
+    // F-FLAKE-1: focus as it stands when the dialog goes, not only once the waitFor below returns.
+    const atClose = recordFocusWhen(() => screen.queryByRole('dialog') === null);
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete Pegasus Trail' })).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(atClose.element).toBe(screen.getByRole('button', { name: '+ New product' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New product' }));
   });
 });
