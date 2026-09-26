@@ -231,6 +231,20 @@ describe('ProjectsGrid', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '+ New project' }));
   });
 
+  it('after a successful rename, which closes its dialog from the answer, focus goes back to its Rename, never <body> (F-FLAKE-1)', async () => {
+    fetchMock.mockResolvedValue(reply(200, { ...vomeroProject, name: 'Spring 2027 (v2)' }));
+    render(<ProjectsGrid initialProjects={[vomeroProject]} />);
+    const opener = screen.getByRole('button', { name: 'Rename Spring 2027' });
+    opener.focus();
+    fireEvent.click(opener);
+    fireEvent.change(screen.getByLabelText('New name'), { target: { value: 'Spring 2027 (v2)' } });
+    const atClose = recordFocusWhen(() => screen.queryByRole('dialog') === null);
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(atClose.element).toBe(opener);
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('a pending delete cannot be dismissed: Escape, the backdrop and Cancel wait, and its 409 then shows (A5-M1, a-G4)', async () => {
     let settle: (r: unknown) => void = () => {};
     fetchMock.mockImplementation(() => new Promise((resolve) => { settle = resolve; }));
