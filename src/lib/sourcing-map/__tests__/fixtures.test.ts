@@ -13,7 +13,7 @@ function issues(schema: { safeParse(v: unknown): { success: boolean; error?: { i
 }
 
 describe('Vomero fixtures', () => {
-  it('every fixture parses with its mirror schema', () => {
+  it('every fixture parses with its protocol schema', () => {
     expect(issues(SmProjectSchema, vomeroProject)).toBeUndefined();
     for (const p of vomeroProducts) expect(issues(SmProductSchema, p)).toBeUndefined();
     expect(issues(SmProductDetailSchema, vomeroWorkbenchDetail)).toBeUndefined();

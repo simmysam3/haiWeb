@@ -33,7 +33,7 @@ import type {
   ClassSupplierSku,
 } from '@haiwave/protocol';
 
-describe('sourcing-map contract mirror', () => {
+describe('sourcing-map protocol (@haiwave/protocol 3.93.0)', () => {
   it('parses a saved draft run with no products and applies the scope defaults', () => {
     const parsed = SourcingMapScopeSchema.parse({
       kind: 'sourcing_map',
@@ -57,7 +57,7 @@ describe('sourcing-map contract mirror', () => {
     expect(SmSlotKeySchema.safeParse({ class_id: 'cpt_flat_laces', uom: 'pr', variant_bound: false }).success).toBe(false);
   });
 
-  it('the mirror exports an inferred type for every §3 schema that lacked one (contract §10 b-G12 items 3–4)', () => {
+  it('the protocol exports an inferred type for every §3 schema that lacked one (contract §10 b-G12 items 3–4)', () => {
     const failureReasons: SmFailureReason[] = ['interrupted', 'internal_error'];
     const trigger: SmTrigger = 'manual';
     const limit: SmOptionLimit = 'lead_time';
