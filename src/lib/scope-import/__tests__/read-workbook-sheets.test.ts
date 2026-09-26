@@ -188,6 +188,16 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     expect(out.sheets[0]!.rows[1]!.cells[0]).toBe(`Le${oAcute}n Cuero`);
   });
 
+  it('reads a non-ASCII value from a BOM-less UTF-8 semicolon CSV and still detects decimalComma (F-G7-1)', async () => {
+    const oAcute = String.fromCharCode(0xf3);
+    const text = ['Supplier;Qty per unit', `Le${oAcute}n Cuero;0,25`].join(NL);
+    const out = await readWorkbookSheets(csv(text), { fileName: 'euro.csv' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.sheets[0]!.rows[1]!.cells).toEqual([`Le${oAcute}n Cuero`, '0,25']);
+    expect(out.decimalComma).toBe(true);
+  });
+
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
     // Real values in the ceiling's last column (IV, the 256th) and in the sheet's last (XFD, the 16,384th): read in
     // full, every row would carry 16,384 cells.
