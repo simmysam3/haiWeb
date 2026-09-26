@@ -532,10 +532,13 @@ describe('ProductEditorBody', () => {
     fireEvent.click(opener);
     fireEvent.change(screen.getByLabelText('Parent SKU'), { target: { value: 'METCON-CROSS-IRON' } });
     fireEvent.click(screen.getByRole('radio', { name: /Link/ }));
+    // F-FLAKE-1: focus as it stands when the switch removes the toolbar, not only once it has settled.
+    const atSwitch = recordFocusWhen(() => !opener.isConnected);
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     expect(await screen.findByText('Read fresh at each run')).toBeInTheDocument();
     expect(opener).not.toBeInTheDocument();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Bill of materials' })));
+    expect(atSwitch.element).toBe(screen.getByRole('heading', { name: 'Bill of materials' }));
   });
 
   it('an agent product that loads as one takes no focus: only the switch after a link import moves it (F-a)', () => {
