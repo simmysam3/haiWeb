@@ -220,6 +220,7 @@ export type SheetsOutcome =
   | { ok: false; reason: ParseRefusal; detail: string };
 
 const LF = String.fromCharCode(10);
+const UTF8_BOM = [0xef, 0xbb, 0xbf] as const;
 
 /**
  * A semicolon CSV is European Excel's, whose numbers use decimal commas
@@ -231,6 +232,20 @@ function semicolonHeader(bytes: ArrayBuffer): boolean {
   const end = text.indexOf(LF);
   const header = end === -1 ? text : text.slice(0, end);
   return header.split(';').length > header.split(',').length;
+}
+
+/** The bytes open with the UTF-8 byte-order mark. */
+function hasUtf8Bom(bytes: Uint8Array): boolean {
+  return bytes[0] === UTF8_BOM[0] && bytes[1] === UTF8_BOM[1] && bytes[2] === UTF8_BOM[2];
+}
+
+/** Strict UTF-8 decode, or null on a byte sequence that isn't valid UTF-8 (F-G7-1's Latin-1 fallback trigger). */
+function tryDecodeUtf8(bytes: Uint8Array): string | null {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 interface RealExtent {
@@ -295,9 +310,15 @@ export async function readWorkbookSheets(
   // allows plus the header rows the Map step offers.
   const bound = maxRows + HEADER_ROWS_OFFERED;
   const XLSX = await import('xlsx');
+  const u8 = new Uint8Array(bytes);
+  // F-G7-1: a BOM-less .csv is UTF-8 first (SheetJS's own byte-array read is Latin-1, which mojibakes a plain
+  // UTF-8 save with no mark); Latin-1 stays the fallback for a CSV whose bytes are not valid UTF-8.
+  const utf8Text = /\.csv$/i.test(opts.fileName) && !hasUtf8Bom(u8) ? tryDecodeUtf8(u8) : null;
   let wb: import('xlsx').WorkBook;
   try {
-    wb = XLSX.read(new Uint8Array(bytes), { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
+    wb = utf8Text != null
+      ? XLSX.read(utf8Text, { type: 'string', cellText: true, dateNF: 'yyyy-mm-dd' })
+      : XLSX.read(u8, { type: 'array', cellText: true, dateNF: 'yyyy-mm-dd' });
   } catch {
     return { ok: false, reason: 'unreadable', detail: unreadableDetail(opts.fileName) };
   }
