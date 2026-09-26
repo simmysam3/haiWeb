@@ -1,4 +1,4 @@
-import { SM_LIMITS, type DemandDrop, type SmMix } from './contract';
+import { SM_LIMITS, type DemandDrop, type SmMix } from '@haiwave/protocol';
 
 /**
  * Integer shares of `total` proportional to `weights`, summing exactly to

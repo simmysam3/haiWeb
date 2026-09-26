@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { SmProductDetail } from '@/lib/sourcing-map/contract';
+import type { SmProductDetail } from '@haiwave/protocol';
 
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 

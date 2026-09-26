@@ -1,6 +1,6 @@
 'use client';
 import { useState, type ReactNode } from 'react';
-import type { SmProduct, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
+import type { SmProduct, SmProductDetail, VariantAxis } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
 import { Pill } from '@/components/pill';

@@ -1,6 +1,6 @@
 import { withHaiCore } from '@/lib/with-hai-core';
 import { seg, smForward } from '@/lib/sourcing-map/bff';
-import type { SmRunTemplate } from '@/lib/sourcing-map/contract';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { forwardHaiCoreResponse } from '@/lib/forward-haicore-response';
 
 type P = { templateId: string };

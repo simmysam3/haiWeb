@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vomeroProducts, vomeroProject, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmProductDetail } from '@/lib/sourcing-map/contract';
+import type { SmProductDetail } from '@haiwave/protocol';
 import ProductPage from '../page';
 
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));

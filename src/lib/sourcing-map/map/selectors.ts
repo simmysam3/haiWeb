@@ -1,7 +1,7 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '../contract';
+import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '@haiwave/protocol';
 import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
-import { SM_UNCLASSIFIED_CLASS_PREFIX } from '../contract';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
 export const HEAT_GOOD = 0.9;

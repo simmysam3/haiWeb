@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import useSWR from 'swr';
-import type { SmExecutionDetail, SmExecutionStatusResponse } from '@/lib/sourcing-map/contract';
+import type { SmExecutionDetail, SmExecutionStatusResponse } from '@haiwave/protocol';
 import { FetchError, jsonFetcher } from '@/lib/swr-fetcher';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_POLL_MS, applyStatusDelta } from '@/lib/sourcing-map/map/selectors';

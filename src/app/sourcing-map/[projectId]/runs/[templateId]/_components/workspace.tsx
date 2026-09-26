@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct, SmRunTemplate } from '@/lib/sourcing-map/contract';
+import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct } from '@haiwave/protocol';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
 import { resolveAsOfDrop } from '@/lib/sourcing-map/map/selectors';

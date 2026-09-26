@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SM_LIMITS } from '@/lib/sourcing-map/contract';
+import { SM_LIMITS } from '@haiwave/protocol';
 import { vomeroProducts, vomeroRunTemplate, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { ConfigureTray } from '../configure-tray';
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  SmProjectSchema, SmProductSchema, SmProductDetailSchema, SmRunTemplateSchema, SmRunListResponseSchema,
+  SmProjectSchema, SmProductSchema, SmProductDetailSchema, RunTemplateSchema, SmRunListResponseSchema,
   SmExecutionDetailSchema, SmEstimateResponseSchema, SourcingMapExecutionResultSchema,
-} from '../contract';
+} from '@haiwave/protocol';
 import {
   vomeroProject, vomeroProducts, vomeroWorkbenchDetail, vomeroAgentDetail, vomeroRunTemplate, vomeroRunList,
   vomeroDetail, vomeroEstimate, vomeroResult, runningDetail, resultWithAgentFailure, zeroSlotResult, weeklyDropsResult,
@@ -13,12 +13,12 @@ function issues(schema: { safeParse(v: unknown): { success: boolean; error?: { i
 }
 
 describe('Vomero fixtures', () => {
-  it('every fixture parses with its mirror schema', () => {
+  it('every fixture parses with its protocol schema', () => {
     expect(issues(SmProjectSchema, vomeroProject)).toBeUndefined();
     for (const p of vomeroProducts) expect(issues(SmProductSchema, p)).toBeUndefined();
     expect(issues(SmProductDetailSchema, vomeroWorkbenchDetail)).toBeUndefined();
     expect(issues(SmProductDetailSchema, vomeroAgentDetail)).toBeUndefined();
-    expect(issues(SmRunTemplateSchema, vomeroRunTemplate)).toBeUndefined();
+    expect(issues(RunTemplateSchema, vomeroRunTemplate)).toBeUndefined();
     expect(issues(SmRunListResponseSchema, vomeroRunList)).toBeUndefined();
     expect(issues(SmExecutionDetailSchema, vomeroDetail)).toBeUndefined();
     expect(issues(SmExecutionDetailSchema, runningDetail())).toBeUndefined();

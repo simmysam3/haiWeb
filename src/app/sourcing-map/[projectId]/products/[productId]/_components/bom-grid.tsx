@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
+import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
 import { SmButton } from '../../../../_components/sm-button';

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withHaiCore } from '@/lib/with-hai-core';
 import { smForward } from '@/lib/sourcing-map/bff';
-import { CreateSmRunBodySchema } from '@/lib/sourcing-map/contract';
+import { parseCreateSmRunBody } from '@/lib/sourcing-map/local-shapes';
 
 /** The grounded-forecast wizard's retention default (forecast-wizard.tsx:37); a run keeps a year of executions. */
 const SM_RUN_RETENTION_DAYS = 365;
@@ -12,9 +12,9 @@ const SM_RUN_RETENTION_DAYS = 365;
  * way the grounded-forecast BFF forces its class (grounded-forecasts/route.ts:39-54).
  */
 export const POST = withHaiCore(async ({ client, request }) => {
-  const parsed = CreateSmRunBodySchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: { code: 'VALIDATION_ERROR', issues: parsed.error.issues } }, { status: 400 });
+  const parsed = parseCreateSmRunBody(await request.json().catch(() => null));
+  if (!parsed.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION_ERROR', issues: parsed.issues } }, { status: 400 });
   }
   const body = {
     observation_class: 'sourcing_map',

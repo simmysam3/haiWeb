@@ -1,4 +1,4 @@
-import type { SmSlotResult } from '../contract';
+import type { SmSlotResult } from '@haiwave/protocol';
 
 /** The prototype's canvas geometry (docs/haiwave-sourcing-map.html:1325 `L`, :1329-1340). */
 export const MAP_L = {

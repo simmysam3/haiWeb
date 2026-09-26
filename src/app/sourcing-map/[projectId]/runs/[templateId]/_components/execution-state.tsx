@@ -1,5 +1,5 @@
 'use client';
-import type { SmExecutionSummary } from '@/lib/sourcing-map/contract';
+import type { SmExecutionSummary } from '@haiwave/protocol';
 import { answersAreStale, formatAsOfUtc } from '@/lib/sourcing-map/map/selectors';
 import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 

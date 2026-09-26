@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { SmProject, SmProjectListResponse } from '@/lib/sourcing-map/contract';
+import type { SmProject, SmProjectListResponse } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { smProjectHref } from '@/lib/sourcing-map/routes';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';

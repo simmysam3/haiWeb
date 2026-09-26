@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { SmCandidateResult, SmSlotResult } from '@/lib/sourcing-map/contract';
+import type { SmCandidateResult, SmSlotResult } from '@haiwave/protocol';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
 import { candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';

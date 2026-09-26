@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vomeroResult, runningDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
-import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@/lib/sourcing-map/contract';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 import { DetailsPanel } from '../details-panel';
 
 const NAMES = { [VOMERO_IDS.pegasus]: 'Pegasus Trail', [VOMERO_IDS.court]: 'Court Classic', [VOMERO_IDS.metcon]: 'Metcon Iron' };

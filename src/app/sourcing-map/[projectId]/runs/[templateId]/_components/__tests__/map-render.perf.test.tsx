@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { vomeroResult, weeklyDropsResult } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import type { SourcingMapExecutionResult } from '@haiwave/protocol';
 import { MapCanvas } from '../map-canvas';
 
 /**

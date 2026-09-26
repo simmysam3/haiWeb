@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import { Pill, definitionFor } from '../pill';
 import {
   SmCandidateLiveStatusSchema, SmExecutionStatusSchema, ClassSuggestionBandSchema, SmBomSourceSchema, UtilizationBandSchema,
-} from '@/lib/sourcing-map/contract';
+} from '@haiwave/protocol';
 
 function tipText(): string {
   const pill = screen.getByTestId('pill');

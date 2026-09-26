@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
-import type { SmProductDetail, SmProject } from '@/lib/sourcing-map/contract';
+import type { SmProductDetail, SmProject } from '@haiwave/protocol';
 import { smPageId } from '@/lib/sourcing-map/page-id';
 import { ProductEditorBody } from './_components/product-editor-body';
 

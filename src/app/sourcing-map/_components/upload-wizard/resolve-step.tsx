@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
   ClassSuggestion, ClassSuggestionsResponse, ClassSuppliersResponse, SupplierMatch, SupplierMatchesResponse,
-} from '@/lib/sourcing-map/contract';
+} from '@haiwave/protocol';
 import type { UploadedBomLine } from '@/lib/sourcing-map/upload/bom-rows';
 import { resolveLine, type ResolvedLine } from '@/lib/sourcing-map/upload/resolve';
 import { smFetch } from '@/lib/sourcing-map/client';

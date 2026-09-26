@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { SmProductDetail, VariantAxis } from '@/lib/sourcing-map/contract';
+import type { SmProductDetail, VariantAxis } from '@haiwave/protocol';
 import {
   detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid, type SheetsOutcome,
 } from '@/lib/scope-import/parse-workbook';
