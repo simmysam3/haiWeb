@@ -157,7 +157,8 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
   });
 
   it('decodes a BOM-less UTF-8 CSV as UTF-8, not Latin-1 (F-G7-1)', async () => {
-    // 'ó' from a number, encoded to its UTF-8 bytes (C3 B3) by the file's csv() helper — never a typed non-ASCII char.
+    // o-with-acute (U+00F3) from a number, encoded to its UTF-8 bytes (C3 B3) by the file's csv() helper — never a
+    // typed non-ASCII char.
     const oAcute = String.fromCharCode(0xf3);
     const text = ['Supplier,Qty', `Le${oAcute}n Cuero,5`].join(NL);
     const out = await readWorkbookSheets(csv(text), { fileName: 'suppliers.csv' });
@@ -177,7 +178,7 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
   });
 
   it('falls back to Latin-1 when a BOM-less CSV is not valid UTF-8 (F-G7-1)', async () => {
-    // The same text, but 'ó' as the single Latin-1 byte 0xF3 (not the UTF-8 pair C3 B3): invalid as UTF-8, so the
+    // The same text, but o-with-acute as the single Latin-1 byte 0xF3 (not the UTF-8 pair C3 B3): invalid as UTF-8, so the
     // strict decode must throw and the existing byte-array (Latin-1) read must run.
     const oAcute = String.fromCharCode(0xf3);
     const ascii = (s: string) => Array.from(s, (c) => c.charCodeAt(0));
