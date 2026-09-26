@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useId, useState } from 'react';
-import type { AgentParentSkusResponse, ImportAgentBomResponse } from '@/lib/sourcing-map/contract';
+import type { AgentParentSkusResponse, ImportAgentBomResponse } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SmButton } from '../../../../_components/sm-button';
 import { SmDialog } from '../../../../_components/sm-dialog';

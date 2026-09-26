@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import type { VariantAxis } from '@/lib/sourcing-map/contract';
+import type { VariantAxis } from '@haiwave/protocol';
 import { presetAxis, VARIANT_PRESETS, type VariantPresetId } from '@/lib/sourcing-map/variant-presets';
 
 function presetOf(axis: VariantAxis | null): VariantPresetId | 'none' | 'custom' {

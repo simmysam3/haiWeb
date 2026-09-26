@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import type { BomLinePin, ClassSuppliersResponse } from '@/lib/sourcing-map/contract';
+import type { BomLinePin, ClassSuppliersResponse } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
 import { SmButton } from '../../../../_components/sm-button';

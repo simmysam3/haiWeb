@@ -1,4 +1,4 @@
-import type { VariantAxis } from './contract';
+import type { VariantAxis } from '@haiwave/protocol';
 
 /** Spec §7.2 presets. Values are display strings; half sizes are "9.5". */
 export const VARIANT_PRESETS = [

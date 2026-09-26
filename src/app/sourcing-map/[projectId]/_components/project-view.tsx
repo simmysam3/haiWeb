@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import type { SmProduct, SmProject, SmRunListResponse } from '@/lib/sourcing-map/contract';
+import type { SmProduct, SmProject, SmRunListResponse } from '@haiwave/protocol';
 import { SM_HOME } from '@/lib/sourcing-map/routes';
 import { SmHeader } from '../../_components/sm-header';
 import { RunsTab } from './runs-tab';

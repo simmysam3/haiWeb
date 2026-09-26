@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { addProduct, applyUploadedDemand, defaultDemand } from '../scope-draft';
-import { SM_LIMITS, type SourcingMapScope } from '../contract';
+import { SM_LIMITS, type SourcingMapScope } from '@haiwave/protocol';
 import { vomeroProducts, vomeroRunTemplate, VOMERO_IDS } from '../__fixtures__/vomero';
 
 const EMPTY: SourcingMapScope = { kind: 'sourcing_map', project_id: VOMERO_IDS.project, products: [], depth_cap: 5, seat_weekly_capacity: null };

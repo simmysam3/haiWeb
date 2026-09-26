@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { BomLinePin } from '@/lib/sourcing-map/contract';
+import type { BomLinePin } from '@haiwave/protocol';
 import { PinEditor } from '../pin-editor';
 
 const fetchMock = vi.fn();

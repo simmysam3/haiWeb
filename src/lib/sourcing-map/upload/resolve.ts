@@ -1,5 +1,5 @@
 // src/lib/sourcing-map/upload/resolve.ts
-import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema, type SmBomLineInput, type SupplierMatch } from '../contract';
+import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema, type SmBomLineInput, type SupplierMatch } from '@haiwave/protocol';
 import type { RowError, UploadedBomLine } from './bom-rows';
 import { TARGET_LABELS } from './header-map';
 

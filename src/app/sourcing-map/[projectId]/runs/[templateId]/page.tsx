@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { fetchBffJson } from '@/lib/server-fetch';
-import type { SmExecutionDetail, SmExecutionSummary, SmProductListResponse, SmProject, SmRunTemplate } from '@/lib/sourcing-map/contract';
+import type { SmExecutionDetail, SmExecutionSummary, SmProductListResponse, SmProject } from '@haiwave/protocol';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smPageId } from '@/lib/sourcing-map/page-id';
 import { Workspace } from './_components/workspace';
 

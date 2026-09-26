@@ -1,6 +1,6 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import type { DemandDrop } from '@/lib/sourcing-map/contract';
+import type { DemandDrop } from '@haiwave/protocol';
 
 /** Spec §7.4: a recharts bar chart of a product's drops. The figure carries the numbers as text. */
 export function DropsChart({ drops, unit }: { drops: DemandDrop[]; unit: string }) {

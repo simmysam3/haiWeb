@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SM_LIMITS, mixTotalsHundred } from '../contract';
+import { SM_LIMITS, mixTotalsHundred } from '@haiwave/protocol';
 import { largestRemainder, generateDrops, curveMix, normalizeMix, pairsFromMix, mixFromPairs, mixTotal } from '../demand-math';
 import { MENS_US_7_13, SPRING_MIX } from '../__fixtures__/vomero';
 

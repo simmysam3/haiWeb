@@ -1,5 +1,5 @@
 import { matchVariantHeader, parseQty, parseShare } from './cells';
-import { SM_LIMITS } from '../contract';
+import { SM_LIMITS } from '@haiwave/protocol';
 
 export interface RowError {
   /** 1-based source row; 0 = a mapping problem */

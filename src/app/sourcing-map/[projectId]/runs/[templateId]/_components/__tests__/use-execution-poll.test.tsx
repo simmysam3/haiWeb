@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { VOMERO_IDS, runningDetail, vomeroDetail, vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
+import type { SmExecutionDetail } from '@haiwave/protocol';
 import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
 import { FetchError } from '@/lib/swr-fetcher';
 

@@ -3,7 +3,7 @@
 import type { RunTemplateScope } from '@haiwave/protocol';
 import { Pill, IdChip } from '@/components';
 import { SIGNAL_TYPE_LABELS } from '@/lib/signal-type-labels';
-import type { SourcingMapScope } from '@/lib/sourcing-map/contract';
+import type { SourcingMapScope } from '@haiwave/protocol';
 import { smProjectHref } from '@/lib/sourcing-map/routes';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

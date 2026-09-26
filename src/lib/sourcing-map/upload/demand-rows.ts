@@ -1,6 +1,6 @@
 import { matchVariantHeader, parseQty, parseSheetDate } from './cells';
 import type { RowError } from './bom-rows';
-import { SM_LIMITS } from '../contract';
+import { SM_LIMITS } from '@haiwave/protocol';
 
 export interface DemandBuildProduct {
   product_id: string;

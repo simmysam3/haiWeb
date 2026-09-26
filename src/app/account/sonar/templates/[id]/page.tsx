@@ -8,7 +8,7 @@ import { configNoun } from '../_lib/config-noun';
 import { formatCadence } from '../_lib/format-cadence';
 import { PageHeader } from '@/components';
 import { fetchBffJson } from '@/lib/server-fetch';
-import type { SmRunTemplate } from '@/lib/sourcing-map/contract';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smRunHref } from '@/lib/sourcing-map/routes';
 
 interface DetailPageProps {

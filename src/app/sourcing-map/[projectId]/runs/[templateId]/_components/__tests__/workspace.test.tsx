@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail } from '@/lib/sourcing-map/contract';
+import type { SmExecutionDetail } from '@haiwave/protocol';
 import { Workspace } from '../workspace';
 
 const { push, refresh, replace, search } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), search: { value: '' } }));

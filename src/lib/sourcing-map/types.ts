@@ -16,7 +16,7 @@ export type {
   SmOptionLimit,
   SmAvailabilityForm,
   SmPortfolioResult,
-} from './contract';
-import type { SmPortfolioResult } from './contract';
+} from '@haiwave/protocol';
+import type { SmPortfolioResult } from '@haiwave/protocol';
 
 export type SmPortfolioDrop = SmPortfolioResult['drops'][number];

@@ -1,5 +1,5 @@
 'use client';
-import type { VariantAxis } from '@/lib/sourcing-map/contract';
+import type { VariantAxis } from '@haiwave/protocol';
 import { SmButton } from '../../../../_components/sm-button';
 
 /** Per-variant quantity table for a size-bound line (spec §6.1 qty_by_variant; §7.2). */

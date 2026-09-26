@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { mixTotalsHundred, type SmMix } from '@/lib/sourcing-map/contract';
+import { mixTotalsHundred, type SmMix } from '@haiwave/protocol';
 import { pairsFromMix } from '@/lib/sourcing-map/demand-math';
 import { vomeroWorkbenchDetail } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SizeMixEditor } from '../size-mix-editor';
