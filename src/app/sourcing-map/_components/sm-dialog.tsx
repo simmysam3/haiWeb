@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
+import { useId, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -67,7 +67,9 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false,
 
   // WCAG 2.1 AA (AC 2): move focus into the dialog on open, trap Tab/Shift+Tab
   // while it's open, and return focus to whatever had it before opening.
-  useEffect(() => {
+  // F-FLAKE-1: a layout effect, so focus returns in the commit that removes the dialog. A passive effect's cleanup runs
+  // a task later when that commit comes from an async continuation (a successful delete), with focus on <body> meanwhile.
+  useLayoutEffect(() => {
     if (!open) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
     // The fallback is taken as the dialog opens: callers pass a control that stays mounted ("+ New project").
@@ -76,9 +78,14 @@ export function SmDialog({ title, open, onClose, children, footer, wide = false,
     const first = dialog ? focusablesIn(dialog)[0] : undefined;
     (first ?? dialog)?.focus();
     return () => {
-      // Checked at close, after the DOM has changed: an opener removed by the same update is no longer connected.
       const opener = previouslyFocused.current;
-      (opener?.isConnected ? opener : fallback)?.focus();
+      const restore = () => (opener?.isConnected ? opener : fallback)?.focus();
+      restore();
+      // A removed dialog's cleanup runs before the rest of its commit, which can still remove the opener (a deleted
+      // row's Delete, L141). Once the commit is done, before anything can paint, a focus that fell to <body> is placed again.
+      queueMicrotask(() => {
+        if (document.activeElement === document.body) restore();
+      });
     };
   }, [open, returnFocus]);
 

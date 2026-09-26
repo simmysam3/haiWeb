@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { SmProductDetail } from '@haiwave/protocol';
 
 const DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -34,7 +34,9 @@ function AgentLines({ detail }: { detail: SmProductDetail }) {
  */
 export function AgentBomView({ detail, focusOnMount = false }: { detail: SmProductDetail; focusOnMount?: boolean }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
+  // A layout effect, so the heading takes focus in the commit that switches the view: a passive one ran a task after
+  // the re-read's answer, with focus on <body> meanwhile (F-FLAKE-1).
+  useLayoutEffect(() => {
     if (focusOnMount) headingRef.current?.focus();
   }, [focusOnMount]);
   return (

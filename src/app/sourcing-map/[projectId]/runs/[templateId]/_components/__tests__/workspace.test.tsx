@@ -4,6 +4,7 @@ import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmExecutionDetail } from '@haiwave/protocol';
+import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
 const { push, refresh, replace, search } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn(), search: { value: '' } }));
@@ -409,8 +410,11 @@ describe('Workspace', () => {
     mount(running);
     const cancel = screen.getByRole('button', { name: 'Cancel execution' });
     cancel.focus();
+    // F-FLAKE-1: focus as it stands when Cancel goes, not only once the waitFor below returns.
+    const atGone = recordFocusWhen(() => !cancel.isConnected);
     fireEvent.click(cancel);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Cancelled. Answers that arrived afterwards were discarded.'));
+    expect(atGone.element).toBe(screen.getByLabelText('Result'));
     expect(screen.getByLabelText('Result')).toHaveFocus();
   });
 

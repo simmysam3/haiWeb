@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct } from '@haiwave/protocol';
 import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
@@ -113,10 +113,11 @@ export function Workspace({
   // R2: a successful Cancel removes its own button. Once no execution runs any more (the reload, or a poll, says so),
   // a focus that fell to <body> goes to the result picker: it is always enabled then, as the cancelled execution is
   // listed. Run may be disabled (not ready, or the tray open), and a disabled control can't take focus. A focus the
-  // user has since moved elsewhere (the tray, say) is left where it is.
+  // user has since moved elsewhere (the tray, say) is left where it is. A layout effect, so this runs in the commit that
+  // removes Cancel: a passive one ran a task after the reload's answer, with focus on <body> meanwhile (F-FLAKE-1).
   const pickerRef = useRef<HTMLSpanElement | null>(null);
   const focusAfterCancel = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!focusAfterCancel.current || running) return;
     focusAfterCancel.current = false;
     if (document.activeElement !== null && document.activeElement !== document.body) return;
