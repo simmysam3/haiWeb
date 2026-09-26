@@ -157,7 +157,7 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
   });
 
   it('decodes a BOM-less UTF-8 CSV as UTF-8, not Latin-1 (F-G7-1)', async () => {
-    // o-with-acute (U+00F3) from a number, encoded to its UTF-8 bytes (C3 B3) by the file's csv() helper — never a
+    // o-with-acute (U+00F3) from a number, encoded to its UTF-8 bytes (C3 B3) by the file's csv() helper -- never a
     // typed non-ASCII char.
     const oAcute = String.fromCharCode(0xf3);
     const text = ['Supplier,Qty', `Le${oAcute}n Cuero,5`].join(NL);
