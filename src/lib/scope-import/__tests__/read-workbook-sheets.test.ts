@@ -156,6 +156,16 @@ describe('readWorkbookSheets (Sourcing Map upload, spec §7.3)', () => {
     });
   });
 
+  it('decodes a BOM-less UTF-8 CSV as UTF-8, not Latin-1 (F-G7-1)', async () => {
+    // 'ó' from a number, encoded to its UTF-8 bytes (C3 B3) by the file's csv() helper — never a typed non-ASCII char.
+    const oAcute = String.fromCharCode(0xf3);
+    const text = ['Supplier,Qty', `Le${oAcute}n Cuero,5`].join(NL);
+    const out = await readWorkbookSheets(csv(text), { fileName: 'suppliers.csv' });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.sheets[0]!.rows[1]!.cells[0]).toBe(`Le${oAcute}n Cuero`);
+  });
+
   it('reads at most the column ceiling of a sheet whose data runs far wider, keeping the data inside it (security L1)', async () => {
     // Real values in the ceiling's last column (IV, the 256th) and in the sheet's last (XFD, the 16,384th): read in
     // full, every row would carry 16,384 cells.
