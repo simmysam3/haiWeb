@@ -5,9 +5,10 @@
  */
 import type {
   DemandSchedule, SmBomLine, SmCandidateResult, SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmMix,
-  SmProduct, SmProductDetail, SmProductResult, SmProject, SmRunListResponse, SmRunTemplate, SmSlotResult,
+  SmProduct, SmProductDetail, SmProductResult, SmProject, SmRunListResponse, SmSlotResult,
   SourcingMapExecutionResult, UtilizationBand,
-} from '../contract';
+} from '@haiwave/protocol';
+import type { SmRunTemplate } from '../local-shapes';
 
 export const VOMERO_IDS = {
   seat: '6ab14288-fe43-490e-bc4e-4902ce857fba',

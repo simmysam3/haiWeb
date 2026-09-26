@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import type { SmProductDetail } from '@/lib/sourcing-map/contract';
+import type { SmProductDetail } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { ProductEditor } from './product-editor';
 import { BomGrid } from './bom-grid';

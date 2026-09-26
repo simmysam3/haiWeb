@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { mixTotalsHundred, type SmMix, type VariantAxis } from '@/lib/sourcing-map/contract';
+import { mixTotalsHundred, type SmMix, type VariantAxis } from '@haiwave/protocol';
 import { curveMix, mixFromPairs, mixTotal, normalizeMix, pairsFromMix } from '@/lib/sourcing-map/demand-math';
 
 type Curve = { center: string; spread: number; half_sizes: boolean };

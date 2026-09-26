@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { readWorkbookSheets } from '@/lib/scope-import/parse-workbook';
-import { SmBomLineInputSchema } from '@/lib/sourcing-map/contract';
+import { SmBomLineInputSchema } from '@haiwave/protocol';
 import { UploadWizard } from '../upload-wizard';
 
 // A pass-through: every test reads with the real reader. Only Ruling M1's test makes one read reject, as a failed

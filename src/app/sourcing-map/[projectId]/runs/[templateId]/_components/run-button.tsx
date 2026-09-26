@@ -1,6 +1,6 @@
 'use client';
 import { useId } from 'react';
-import type { SmEstimateResponse, SmReadinessRule } from '@/lib/sourcing-map/contract';
+import type { SmEstimateResponse, SmReadinessRule } from '@haiwave/protocol';
 import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 
 /** Wording for a readiness rule when haiCore sends no detail (a-G12: the window rule measures need-weeks). */

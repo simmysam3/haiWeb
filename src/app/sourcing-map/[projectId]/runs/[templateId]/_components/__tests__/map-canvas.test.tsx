@@ -3,7 +3,7 @@ import { StrictMode } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
-import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@haiwave/protocol';
 import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
 import { MapCanvas } from '../map-canvas';
 

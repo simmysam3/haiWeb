@@ -1,4 +1,4 @@
-import type { BomLinePin, SmBomLine, SmBomLineInput, SmProductDetail, VariantAxis } from './contract';
+import type { BomLinePin, SmBomLine, SmBomLineInput, SmProductDetail, VariantAxis } from '@haiwave/protocol';
 
 /** A grid row: the PUT shape plus a stable key and the class label shown in the picker. */
 export interface BomDraftLine extends SmBomLineInput {

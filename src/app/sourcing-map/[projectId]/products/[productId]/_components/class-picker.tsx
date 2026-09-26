@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import type { ClassSuggestion, SmClassSearchResponse } from '@/lib/sourcing-map/contract';
+import type { ClassSuggestion, SmClassSearchResponse } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { Pill } from '@/components/pill';
 import { SmButton } from '../../../../_components/sm-button';

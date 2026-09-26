@@ -1,5 +1,5 @@
 'use client';
-import type { SmSlotResult } from '@/lib/sourcing-map/contract';
+import type { SmSlotResult } from '@haiwave/protocol';
 import { formatDropDate, formatPct, formatQty, heatVar, isUnclassifiedSlot, slotCoverageAt, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 

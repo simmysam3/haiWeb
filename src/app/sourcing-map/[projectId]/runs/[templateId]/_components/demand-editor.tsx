@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { SM_LIMITS, type DemandDrop, type DemandSchedule, type SmProduct } from '@/lib/sourcing-map/contract';
+import { SM_LIMITS, type DemandDrop, type DemandSchedule, type SmProduct } from '@haiwave/protocol';
 import { generateDrops, type DropsGeneratorInput } from '@/lib/sourcing-map/demand-math';
 import { DropsChart } from './drops-chart';
 import { SizeMixEditor } from './size-mix-editor';

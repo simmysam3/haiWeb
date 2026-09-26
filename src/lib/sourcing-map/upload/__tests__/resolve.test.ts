@@ -1,7 +1,7 @@
 // src/lib/sourcing-map/upload/__tests__/resolve.test.ts
 import { describe, it, expect } from 'vitest';
 import { resolveLine, toUploadInput, uploadRowErrors } from '../resolve';
-import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema } from '../../contract';
+import { ReplaceBomLinesRequestSchema, SmBomLineInputSchema } from '@haiwave/protocol';
 import type { UploadedBomLine } from '../bom-rows';
 import { VOMERO_IDS } from '../../__fixtures__/vomero';
 

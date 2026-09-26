@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { SmProductInUseSchema, type SmProduct } from '@/lib/sourcing-map/contract';
+import { SmProductInUseSchema, type SmProduct } from '@haiwave/protocol';
 import { smProductHref } from '@/lib/sourcing-map/routes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { Pill } from '@/components/pill';

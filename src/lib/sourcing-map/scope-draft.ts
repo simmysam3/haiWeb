@@ -1,4 +1,4 @@
-import { SM_LIMITS, type DemandSchedule, type SmProduct, type SourcingMapScope, type VariantAxis } from './contract';
+import { SM_LIMITS, type DemandSchedule, type SmProduct, type SourcingMapScope, type VariantAxis } from '@haiwave/protocol';
 import { curveMix, generateDrops, mixFromPairs } from './demand-math';
 import type { DemandBuild } from './upload/demand-rows';
 

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import type { SmProductResult, SourcingMapExecutionResult } from '@/lib/sourcing-map/contract';
+import type { SmProductResult, SourcingMapExecutionResult } from '@haiwave/protocol';
 import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
 import { MAX_DROP_SEGMENTS, formatDropDate, formatPct, formatQty, groupDrops, heatVar } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';

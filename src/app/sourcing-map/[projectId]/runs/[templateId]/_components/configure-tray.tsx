@@ -1,9 +1,8 @@
 'use client';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Cadence } from '@haiwave/protocol';
-import type { SmProduct, SmRunTemplate, SourcingMapScope } from '@/lib/sourcing-map/contract';
-import { SM_LIMITS } from '@/lib/sourcing-map/contract';
+import { SM_LIMITS, type Cadence, type SmProduct, type SourcingMapScope } from '@haiwave/protocol';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { addProduct, applyUploadedDemand, moveProduct, removeProduct, replaceDemand } from '@/lib/sourcing-map/scope-draft';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { smRunHref } from '@/lib/sourcing-map/routes';

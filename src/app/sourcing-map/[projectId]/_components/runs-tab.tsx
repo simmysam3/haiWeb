@@ -2,7 +2,8 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { SM_LIMITS, type SmRunListResponse, type SmRunTemplate } from '@/lib/sourcing-map/contract';
+import { SM_LIMITS, type SmRunListResponse } from '@haiwave/protocol';
+import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smRunHref } from '@/lib/sourcing-map/routes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { formatPct } from '@/lib/sourcing-map/map/selectors';
