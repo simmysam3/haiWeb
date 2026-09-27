@@ -265,6 +265,49 @@ describe('UploadWizard (BOM)', () => {
     }
   });
 
+  it('disables "Accept all confident" while the class suggestions request is in flight (F-T17-2)', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/class-suggestions')) return route()(url, init);
+      await held;
+      return reply(200, { retrieval: 'hybrid', lines: [{ suggestions: [{ ...LEATHER, band: 'high' }] }] });
+    });
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('button', { name: 'Accept all confident' })).toBeDisabled();
+    release();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept all confident' })).toBeEnabled());
+  });
+
+  it('enables "Accept all confident" once the class suggestions answer, and clicking it takes the top high-band suggestion (F-T17-2)', async () => {
+    fetchMock.mockImplementation(route({
+      suggest: { retrieval: 'hybrid', lines: [{ suggestions: [{ ...LEATHER, band: 'high' }] }] },
+    }));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    const accept = await screen.findByRole('button', { name: 'Accept all confident' });
+    await waitFor(() => expect(accept).toBeEnabled());
+    fireEvent.click(accept);
+    expect(screen.getByRole('row', { name: /Upper leather tumbled/ })).toHaveTextContent('Full grain leather hides');
+  });
+
+  it('keeps "Accept all confident" disabled when the class suggestions request fails (F-T17-2)', async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/class-suggestions')
+        ? reply(503, { error: { code: 'unavailable', message: 'Class suggestions are unavailable.' } })
+        : route()(url, init));
+    renderBom();
+    await userEvent.upload(fileInput(), csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Class suggestions are unavailable.');
+    expect(screen.getByRole('button', { name: 'Accept all confident' })).toBeDisabled();
+  });
+
   it('lists row errors with their source rows in Review and keeps Save disabled; nothing is saved (AC 5)', async () => {
     fetchMock.mockImplementation(route());
     renderBom();
