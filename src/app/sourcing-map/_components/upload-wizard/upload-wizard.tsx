@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { SmProductDetail, VariantAxis } from '@haiwave/protocol';
 import {
   detectHeaderRow, MAX_IMPORT_BYTES, readWorkbookSheets, tooLargeDetail, unreadableDetail, type SheetGrid, type SheetsOutcome,
@@ -62,10 +62,12 @@ export function UploadWizard(props: UploadWizardProps) {
 
   // A step change unmounts the control that had focus (the file input, Continue, Back), which drops
   // focus to <body>, outside SmDialog's Tab trap. Move it to the new step's container instead. Keyed
-  // on `step` itself, so every transition gets it; the mount (SmDialog's own initial focus) does not.
+  // on `step` itself, so every transition gets it; the mount (SmDialog's own initial focus) does not. A layout effect, so
+  // focus moves in the commit that removes the control: the File to Map change commits from the file read's async
+  // continuation, and a passive effect ran a task after it, with focus on <body> meanwhile (F-FLAKE-1).
   const stepRef = useRef<HTMLDivElement | null>(null);
   const shownStep = useRef<Step>(step);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (shownStep.current === step) return;
     shownStep.current = step;
     stepRef.current?.focus();

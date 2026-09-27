@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { readWorkbookSheets } from '@/lib/scope-import/parse-workbook';
 import { SmBomLineInputSchema } from '@haiwave/protocol';
+import { recordFocusWhen } from '@/test/focus-recorder';
 import { UploadWizard } from '../upload-wizard';
 
 // A pass-through: every test reads with the real reader. Only Ruling M1's test makes one read reject, as a failed
@@ -148,6 +149,24 @@ describe('UploadWizard (BOM)', () => {
     await screen.findByRole('button', { name: 'Accept all confident' });
     expect(dialog.contains(document.activeElement)).toBe(true);
     expect(document.activeElement).toBe(within(dialog).getByRole('group', { name: 'Resolve' }));
+  });
+
+  it('moves focus to the Map step in the commit that removes the file input, never a task later on <body> (F-FLAKE-1)', async () => {
+    renderBom();
+    // The refused file is what makes this test able to fail; keep it. With no error showing, the good file's change
+    // event clears an error that is already null: React drops that update without rendering but keeps it queued at
+    // sync priority, the step change's render skips it, and the sync render React runs straight after that commit
+    // flushes the passive effects first. A real error to clear renders in the change event and leaves nothing queued.
+    const big = csvFile(['a,b']);
+    Object.defineProperty(big, 'size', { value: 11 * 1024 * 1024 });
+    await userEvent.upload(fileInput(), big);
+    expect(await screen.findByRole('alert')).toHaveTextContent('bom.csv is 11.0 MB; the limit is 10 MB.');
+    const input = fileInput();
+    // Focus as it stands when the file input goes, not only once the findBy below returns.
+    const atGone = recordFocusWhen(() => !input.isConnected);
+    await userEvent.upload(input, csvFile(['Description,Usage', 'Upper leather tumbled,0.25']));
+    await screen.findByLabelText('Map column Description');
+    expect(atGone.element).toBe(screen.getByRole('group', { name: 'Map columns' }));
   });
 
   it('goes Back from a refused mapping to a File step without the stale error', async () => {
