@@ -37,6 +37,11 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   const [supplierLookup, setSupplierLookup] = useState<'pending' | 'done' | 'failed'>(() =>
     lines.some((l) => l.supplier_name) ? 'pending' : 'done',
   );
+  // "Accept all confident" reads `suggestions`, filled by the same async lookup below: until it answers (or after
+  // it fails) there is nothing confident to accept, so the button stays disabled (F-T17-2).
+  const [suggestionsLookup, setSuggestionsLookup] = useState<'pending' | 'done' | 'failed'>(() =>
+    lines.length > 0 ? 'pending' : 'done',
+  );
   const requested = useRef(new Set<string>());
 
   useEffect(() => {
@@ -54,8 +59,10 @@ export function ResolveStep({ lines, onBack, onContinue }: {
       if (sug.ok) {
         setRetrieval(sug.data.retrieval);
         setSuggestions(Object.fromEntries(labels.map((label, i) => [label, sug.data.lines[i]?.suggestions ?? []])));
+        setSuggestionsLookup('done');
       } else {
         setError(sug.message);
+        setSuggestionsLookup('failed');
       }
       const names = [...new Set(lines.flatMap((l) => (l.supplier_name ? [l.supplier_name] : [])))];
       if (names.length === 0) return;
@@ -128,7 +135,7 @@ export function ResolveStep({ lines, onBack, onContinue }: {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className="sm-btn sm-btn-ghost" onClick={acceptConfident}>Accept all confident</button>
+        <button type="button" className="sm-btn sm-btn-ghost" disabled={suggestionsLookup !== 'done'} onClick={acceptConfident}>Accept all confident</button>
         {retrieval === 'text_only' && (
           <p className="sm-warn text-xs">Class suggestions used text search only; the embedding service did not answer.</p>
         )}
