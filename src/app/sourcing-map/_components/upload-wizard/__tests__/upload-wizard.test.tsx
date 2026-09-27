@@ -292,8 +292,11 @@ describe('UploadWizard (BOM)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     const accept = await screen.findByRole('button', { name: 'Accept all confident' });
     await waitFor(() => expect(accept).toBeEnabled());
+    const row = screen.getByRole('row', { name: /Upper leather tumbled/ });
+    expect(within(row).getByRole('button', { name: /Full grain leather hides/ })).toBeInTheDocument();
     fireEvent.click(accept);
-    expect(screen.getByRole('row', { name: /Upper leather tumbled/ })).toHaveTextContent('Full grain leather hides');
+    expect(within(row).queryByRole('button', { name: /Full grain leather hides/ })).toBeNull();
+    expect(row).toHaveTextContent('Full grain leather hides');
   });
 
   it('keeps "Accept all confident" disabled when the class suggestions request fails (F-T17-2)', async () => {
