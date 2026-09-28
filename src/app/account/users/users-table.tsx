@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DataTable, Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/button";
@@ -14,8 +14,10 @@ const FIELD_CLASS =
   "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
 
 export function UsersTable() {
-  const { data: apiUsers, loading, error, refetch } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
-  const [users, setUsers] = useState<MockUser[]>(apiUsers);
+  // The roster is the hook's own state and every local change is an updater on it, so a load's answer and an invite's
+  // append apply in the order they arrived. A copy refreshed in a passive effect ran a commit after the append and could
+  // put back a roster older than it, wiping the invited row until the re-read answered.
+  const { data: users, loading, error, refetch, mutate: setUsers } = useApi<MockUser[]>({ url: "/api/account/users", fallback: [] });
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<MockUser | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<MockUser | null>(null);
@@ -61,10 +63,6 @@ export function UsersTable() {
     setDeleteTarget(null);
     setActionError(null);
   }
-
-  useEffect(() => {
-    setUsers(apiUsers);
-  }, [apiUsers]);
 
   function closeInvite() {
     setInviteOpen(false);

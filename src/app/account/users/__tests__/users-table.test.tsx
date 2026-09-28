@@ -19,6 +19,10 @@ function callTo(fetchMock: ReturnType<typeof vi.spyOn>, url: string, method: str
   );
 }
 
+async function drain() {
+  for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+}
+
 const seedUser = {
   id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
   role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
@@ -461,7 +465,7 @@ describe('UsersTable — a load in flight never resurrects a deleted row (§L-29
     // settle is not merely still pending.
     await act(async () => {
       resolveInviteReread(jsonResponse([existing, invited]));
-      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+      await drain();
     });
 
     expect(screen.queryByText('Jo Lee')).not.toBeInTheDocument();
@@ -524,9 +528,85 @@ describe('UsersTable — a late initial load never wipes an invited row (§L-29)
     // invite. Flushed to exhaustion so the settle is not merely still pending.
     await act(async () => {
       resolveInitial(jsonResponse([]));
-      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+      await drain();
     });
 
+    expect(screen.getByText('Jo Lee')).toBeInTheDocument();
+  });
+});
+
+describe('UsersTable — a roster that reaches the same render as the invite never wipes the invited row', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  // The initial roster and the invite's answer can both settle before React renders either (the invite test above
+  // retried under load on exactly this). Both answers are held open and settled inside one act, so they reach one
+  // render; the re-read the invite starts is held open for good, so only the append can put the row on the page.
+  function stage() {
+    const invited = {
+      id: 'u9', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
+      role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
+    };
+    let resolveInitial!: (res: Response) => void;
+    let resolvePost!: (res: Response) => void;
+    const initialGet = new Promise<Response>((resolve) => { resolveInitial = resolve; });
+    const postAnswer = new Promise<Response>((resolve) => { resolvePost = resolve; });
+    const reread = new Promise<Response>(() => {});
+    const counts = { gets: 0 };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/account/users' && method === 'GET') {
+        counts.gets += 1;
+        return counts.gets === 1 ? initialGet : reread;
+      }
+      if (url === '/api/account/users' && method === 'POST') return postAnswer;
+      throw new Error(`unexpected ${method} ${url}`);
+    });
+
+    render(<UsersTable />);
+    fireEvent.click(screen.getByRole('button', { name: /invite user/i }));
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jo' } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Lee' } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'jo@acme.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send invitation/i }));
+
+    return {
+      counts,
+      settleInitial: () => resolveInitial(jsonResponse([])),
+      settlePost: () => resolvePost(jsonResponse(invited, 201)),
+    };
+  }
+
+  it('keeps the invited row when the initial roster settles just before the invite answer', async () => {
+    const { counts, settleInitial, settlePost } = stage();
+
+    await act(async () => {
+      settleInitial();
+      await drain();
+      settlePost();
+      await drain();
+    });
+
+    // The invite succeeded and its re-read is in flight: the row can only have come from the append.
+    expect(screen.getByText('Invitation sent to jo@acme.com')).toBeInTheDocument();
+    expect(counts.gets).toBe(2);
+    expect(screen.getByText('Jo Lee')).toBeInTheDocument();
+  });
+
+  it('keeps the invited row when the initial roster settles just after the invite answer, before the re-read starts', async () => {
+    const { counts, settleInitial, settlePost } = stage();
+
+    // The invite's refetch has been asked for but not yet rendered, so the load it supersedes is still live when its
+    // roster, which predates the invite, arrives.
+    await act(async () => {
+      settlePost();
+      await drain();
+      settleInitial();
+      await drain();
+    });
+
+    expect(screen.getByText('Invitation sent to jo@acme.com')).toBeInTheDocument();
+    expect(counts.gets).toBe(2);
     expect(screen.getByText('Jo Lee')).toBeInTheDocument();
   });
 });
