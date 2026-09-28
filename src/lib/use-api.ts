@@ -15,7 +15,8 @@ interface UseApiResult<T> {
   refetch: () => void;
   /**
    * Applies a local change to `data` through an updater. It queues on the same state as the loads' answers, so a local
-   * change and an answer apply in the order they arrived; a caller never needs its own copy of `data` to edit.
+   * change and an answer apply in the order they arrived; a caller never needs its own copy of `data` to edit. An answer
+   * already in flight still lands after it; follow a mutate that must survive with refetch().
    */
   mutate: (update: (prev: T) => T) => void;
 }

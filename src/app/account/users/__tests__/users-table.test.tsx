@@ -19,6 +19,10 @@ function callTo(fetchMock: ReturnType<typeof vi.spyOn>, url: string, method: str
   );
 }
 
+async function drain() {
+  for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+}
+
 const seedUser = {
   id: 'u1', email: 'jo@acme.com', first_name: 'Jo', last_name: 'Lee',
   role: 'buyer_view_only', job_title: '', phone: '', status: 'active', last_login: 'Never',
@@ -461,7 +465,7 @@ describe('UsersTable — a load in flight never resurrects a deleted row (§L-29
     // settle is not merely still pending.
     await act(async () => {
       resolveInviteReread(jsonResponse([existing, invited]));
-      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+      await drain();
     });
 
     expect(screen.queryByText('Jo Lee')).not.toBeInTheDocument();
@@ -524,7 +528,7 @@ describe('UsersTable — a late initial load never wipes an invited row (§L-29)
     // invite. Flushed to exhaustion so the settle is not merely still pending.
     await act(async () => {
       resolveInitial(jsonResponse([]));
-      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+      await drain();
     });
 
     expect(screen.getByText('Jo Lee')).toBeInTheDocument();
@@ -571,10 +575,6 @@ describe('UsersTable — a roster that reaches the same render as the invite nev
       settleInitial: () => resolveInitial(jsonResponse([])),
       settlePost: () => resolvePost(jsonResponse(invited, 201)),
     };
-  }
-
-  async function drain() {
-    for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
   }
 
   it('keeps the invited row when the initial roster settles just before the invite answer', async () => {
