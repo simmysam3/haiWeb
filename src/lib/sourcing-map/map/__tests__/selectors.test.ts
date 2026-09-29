@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
+import { capacityExists, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
 
 describe('map selectors', () => {
@@ -37,6 +37,57 @@ describe('map selectors', () => {
       'No answer · declined', 'No answer · timeout', 'No answer · unreachable', 'No answer · not connected',
       'No answer · rate limited', 'Not probed · cap reached', 'Probing', null, null,
     ]);
+  });
+
+  it("says capacity exists when the suppliers' stated quantities together meet the requirement, allocated or not (owner's walk ruling, 2026-09-29)", () => {
+    const leather = vomeroResult.slots[0]!;
+    const week = '2027-02-22';
+    // León states 5,000 of 12,000 and holds 60% of the allocation; Mekong states the full 12,000.
+    expect(capacityExists(leather, week)).toBe(true);
+    const totals = (a: number, b: number) => ({
+      ...leather,
+      candidates: leather.candidates.map((c, i) => ({
+        ...c,
+        weeks: c.weeks.map((w) => (w.week === week ? { ...w, cum_achievable: i === 0 ? a : b, cum_achievable_by_variant: null } : w)),
+      })),
+    });
+    // Two suppliers who each state 60% can cover it between them; at 40% each they cannot.
+    expect(capacityExists(totals(7200, 7200), week)).toBe(true);
+    expect(capacityExists(totals(4800, 4800), week)).toBe(false);
+    // A supplier with no answer states nothing.
+    expect(capacityExists({ ...leather, candidates: leather.candidates.map((c, i) => (i === 1 ? { ...c, status: 'timeout' as const, weeks: [] } : c)) }, week)).toBe(false);
+    // No drop shown, or a week the slot has no demand row for: nothing to judge.
+    expect(capacityExists(leather, null)).toBeNull();
+    expect(capacityExists(leather, '2031-01-06')).toBeNull();
+  });
+
+  it('judges a size-bound slot size by size: totals that add up do not make up for a size nobody can supply', () => {
+    const leather = vomeroResult.slots[0]!;
+    const week = '2027-02-22';
+    const without9 = {
+      ...leather,
+      candidates: leather.candidates.map((c) => ({
+        ...c,
+        weeks: c.weeks.map((w) => (w.week === week && w.cum_achievable_by_variant ? { ...w, cum_achievable: 12000, cum_achievable_by_variant: { ...w.cum_achievable_by_variant, '9': 0 } } : w)),
+      })),
+    };
+    // Both suppliers state the full 12,000 in total, and neither any size 9.
+    expect(capacityExists(without9, week)).toBe(false);
+    // One supplier stating its size 9 in full is enough.
+    const mekong9 = leather.candidates[1]!.weeks.find((w) => w.week === week)!.cum_achievable_by_variant!['9']!;
+    const restored = { ...without9, candidates: without9.candidates.map((c, i) => (i === 1 ? { ...c, weeks: c.weeks.map((w) => (w.week === week ? { ...w, cum_achievable_by_variant: { ...w.cum_achievable_by_variant!, '9': mekong9 } } : w)) } : c)) };
+    expect(capacityExists(restored, week)).toBe(true);
+  });
+
+  it('finds capacity for a week that asks for nothing, however the suppliers answered', () => {
+    const leather = vomeroResult.slots[0]!;
+    const week = '2027-02-22';
+    const nothingAsked = {
+      ...leather,
+      demand: leather.demand.map((d) => (d.week === week ? { ...d, cum_qty: 0, cum_qty_by_variant: Object.fromEntries(Object.keys(d.cum_qty_by_variant!).map((v) => [v, 0])) } : d)),
+      candidates: leather.candidates.map((c) => ({ ...c, weeks: c.weeks.map((w) => (w.week === week ? { ...w, cum_achievable: 0, cum_achievable_by_variant: null } : w)) })),
+    };
+    expect(capacityExists(nothingAsked, week)).toBe(true);
   });
 
   it('formats an "as of" instant in UTC on a 24-hour clock, the one format the workspace shares (controller ruling R3)', () => {

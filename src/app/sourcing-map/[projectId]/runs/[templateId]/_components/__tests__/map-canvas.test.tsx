@@ -44,10 +44,10 @@ describe('MapCanvas', () => {
     const svg = document.querySelector('svg[data-map-links]')!;
     expect(svg.getAttribute('aria-hidden')).toBe('true');
     // D9, AC 18: the cards' drops carry the 90 / 70 heat. Paths are drawn lane by lane: leather's main line (seat
-    // link, then bus), red because the slot is covered 81%, short of its requirement (owner's walk rulings,
-    // 2026-09-29), then its cards' drops, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
+    // link, then bus), cyan because capacity exists for its requirement (owner's walk rulings, 2026-09-29), then
+    // its cards' drops, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
     const strokes = Array.from(svg.querySelectorAll('path')).slice(0, 5).map((p) => p.style.stroke);
-    expect(strokes).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-bad)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
+    expect(strokes).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-good)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
     // R-9 (S8, ruling 10): each render records the measure that the SP1-e walk reads in a real browser (Task 41).
     const measures = performance.getEntriesByName('sm-map-render', 'measure');
     expect(measures).toHaveLength(1);
@@ -188,34 +188,28 @@ describe('MapCanvas', () => {
     }
   });
 
-  it("draws a lane's main line once: cyan while the slot's requirement is met in full, red once it is not; each card's drop keeps its own heat (owner's walk rulings, 2026-09-29)", () => {
+  it("draws a lane's main line once: cyan while capacity exists for the requirement, red once it does not; each card's drop keeps its own heat (owner's walk rulings, 2026-09-29)", () => {
     const links = (kind: string) => Array.from(document.querySelectorAll<SVGPathElement>(`svg[data-map-links] path[data-link="${kind}"][data-slot="0"]`));
     const strokes = (kind: string) => links(kind).map((p) => p.style.stroke);
-    // Leather at the March drop is covered 81%: short, so red. León 41% (bad), Mekong 100% (good), Arno timed out.
-    const short = mount(vomeroResult);
-    expect(strokes('trunk')).toEqual(['var(--sm-heat-bad)']);
-    expect(strokes('bus')).toEqual(['var(--sm-heat-bad)']);
+    // Leather at the March drop is covered 81% as allocated, yet Mekong states the full requirement: capacity exists.
+    const exists = mount(vomeroResult);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-good)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-good)']);
+    // León 41% (bad), Mekong 100% (good), Arno timed out (neutral).
     expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
     // A drop is the vertical piece alone, so no two links of different heat lie on the bus.
     for (const drop of links('drop')) {
       const [x1, , x2] = (drop.getAttribute('d')!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
       expect(x1).toBe(x2);
     }
-    short.unmount();
-    // Met in full: cyan, whatever a single supplier could do alone (León still answers 41%).
-    const met = structuredCloneSafe(vomeroResult);
-    for (const c of met.slots[0]!.coverage) c.coverage = 1;
-    const full = mount(met);
-    expect(strokes('trunk')).toEqual(['var(--sm-heat-good)']);
-    expect(strokes('bus')).toEqual(['var(--sm-heat-good)']);
-    expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
-    full.unmount();
-    // Two states only: 95% is not met, so it is red, not the cards' middle heat.
-    const nearly = structuredCloneSafe(vomeroResult);
-    for (const c of nearly.slots[0]!.coverage) c.coverage = 0.95;
-    mount(nearly);
+    exists.unmount();
+    // Without Mekong's answer León's 41% is all that is stated: the requested volume cannot be met, so red.
+    const short = structuredCloneSafe(vomeroResult);
+    short.slots[0]!.candidates[1] = { ...short.slots[0]!.candidates[1]!, status: 'timeout', weeks: [] };
+    mount(short);
     expect(strokes('trunk')).toEqual(['var(--sm-heat-bad)']);
     expect(strokes('bus')).toEqual(['var(--sm-heat-bad)']);
+    expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-line-2)', 'var(--sm-line-2)']);
   });
 
   it('places the "+N not probed" note beside the cards, 8 px below their top edge', () => {

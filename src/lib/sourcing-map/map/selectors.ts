@@ -113,6 +113,27 @@ export function slotCoverageAt(slot: SmSlotResult, week: string | null): SmCover
 }
 
 /**
+ * Owner's walk ruling (2026-09-29): capacity exists for a slot when the quantities its suppliers state, taken
+ * together, meet the requirement by this week (every size of it, on a size-bound slot), whether or not the
+ * allocation uses them. These are the suppliers' own statements at tier 1; nothing beneath them has been traced.
+ * Null when the slot has no demand row to judge.
+ */
+export function capacityExists(slot: SmSlotResult, week: string | null): boolean | null {
+  const demand = week === null ? undefined : slot.demand.find((d) => d.week === week);
+  if (!demand) return null;
+  const answers = slot.candidates.flatMap((c) => candidateWeekAt(c, week) ?? []);
+  const total = answers.reduce((sum, a) => sum + a.cum_achievable, 0);
+  const bySize = demand.cum_qty_by_variant;
+  if (!bySize) return total >= demand.cum_qty;
+  // Size by size. An answer given on the total is spread over the sizes in proportion to their demand (spec §8.6).
+  return Object.entries(bySize).every(([size, asked]) => {
+    if (asked === 0) return true;
+    const stated = answers.reduce((sum, a) => sum + (a.cum_achievable_by_variant ? a.cum_achievable_by_variant[size] ?? 0 : (a.cum_achievable * asked) / demand.cum_qty), 0);
+    return stated + 1e-9 >= asked;
+  });
+}
+
+/**
  * A variant record's entries in axis order. JS objects list integer-like keys
  * ("7", "13") before the others ("7.5"), so numeric keys are sorted numerically.
  */
