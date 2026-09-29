@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vomeroProducts, vomeroProject, vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmProductDetail } from '@haiwave/protocol';
 import ProductPage from '../page';
+import { addLineThroughDialog } from '../_components/__tests__/add-line-through-dialog';
 
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
 vi.mock('@/lib/server-fetch', () => ({ fetchBffJson }));
@@ -60,7 +61,7 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     serve(vomeroWorkbenchDetail);
     const { rerender } = render(await page(VOMERO_IDS.pegasus));
     fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Pegasus Trail (edited)' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    addLineThroughDialog('Heel counter TPU');
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(6);
 
     serve(courtDetail);
@@ -76,7 +77,7 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     const { rerender } = render(await page(VOMERO_IDS.pegasus));
     expect(screen.getByText('Ready')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Pegasus Trail (edited)' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    addLineThroughDialog('Tongue label');
 
     // The same product, read again unchanged.
     serve(JSON.parse(JSON.stringify(vomeroWorkbenchDetail)) as SmProductDetail);
@@ -99,6 +100,7 @@ describe('/sourcing-map/[projectId]/products/[productId] page', () => {
     expect(screen.getByLabelText('Product name')).toHaveValue('Pegasus Trail (edited)');
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(6);
     expect(screen.queryByRole('row', { name: 'Line 6: Heel counter TPU' })).toBeNull();
+    expect(screen.getByRole('row', { name: 'Line 6: Tongue label' })).toBeInTheDocument();
   });
 
   it('keeps unsaved grid edits across a header save and any re-read of the page after it (LW-b)', async () => {

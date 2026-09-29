@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClassSuggestion, SmBomLine, SmProductDetail, VariantAxis } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
-import { lineProblems, newDraftLine, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
+import { lineProblems, toDraft, toInput, type BomDraftLine } from '@/lib/sourcing-map/bom-draft';
 import { SmButton } from '../../../../_components/sm-button';
 import { ClassPicker } from './class-picker';
 import { SizeTable } from './size-table';
 import { PinEditor } from './pin-editor';
+import { AddLineDialog } from './add-line-dialog';
 
 /**
  * BOM grid (spec §7.2). It seeds its draft from `initialLines` once; the body keys it by a revision that only a
@@ -25,6 +26,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
   // Remove line moves keyboard focus before the row goes (WCAG 2.4.3): to the next row's Component, else Add line.
   const componentRefs = useRef(new Map<string, HTMLInputElement>());
   // A line's class search, where its pin editor hands focus when Add supplier is disabled (L176).
@@ -76,7 +78,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
     <div className="sm-card p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="sm-heading mr-auto text-lg font-semibold">Bill of materials</h2>
-        <SmButton ref={addLineRef} className="sm-btn sm-btn-ghost" aria-disabled={locked} onClick={() => setLines((all) => [...all, newDraftLine()])}>Add line</SmButton>
+        <SmButton ref={addLineRef} className="sm-btn sm-btn-ghost" aria-disabled={locked} onClick={() => setAdding(true)}>Add line</SmButton>
         <SmButton className="sm-btn sm-btn-primary" busy={busy} aria-disabled={locked} onClick={save}>Save BOM</SmButton>
       </div>
       <div className="overflow-x-auto">
@@ -164,6 +166,17 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
           </tbody>
         </table>
       </div>
+      {/* Mounted while open, so each Add line starts from an empty dialog. It gives focus back to Add line. */}
+      {adding && (
+        <AddLineDialog
+          open
+          onClose={() => setAdding(false)}
+          onAdd={(line) => {
+            setLines((all) => [...all, line]);
+            setAdding(false);
+          }}
+        />
+      )}
       {problems.length > 0 && (
         <ul role="alert" className="sm-error mt-3 list-disc pl-5 text-sm">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
       )}
