@@ -13,11 +13,11 @@ describe('OptionCard', () => {
     const onSelect = vi.fn();
     const { rerender } = render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={onSelect} />);
     const button = screen.getByRole('button', { name: /León Cuero, MX/ });
-    expect(button).toHaveAccessibleName('León Cuero, MX: Can cover 5,000 of 12,000 sq ft; Limit: own capacity');
+    expect(button).toHaveAccessibleName('León Cuero, MX: States 5,000 of 12,000 sq ft; Short · cause not traced');
     expect(button).toHaveAttribute('aria-pressed', 'false');
     const content = [
-      screen.getByText('Can cover 5,000 of 12,000 sq ft'),
-      screen.getByText('Limit: own capacity'),
+      screen.getByText('States 5,000 of 12,000 sq ft'),
+      screen.getByText('Short · cause not traced'),
       screen.getByText('38 d lead'),
       screen.getByText('At capacity'),
       screen.getByText('Allocated 60%'),
@@ -93,7 +93,7 @@ describe('OptionCard', () => {
     expect(card.className).toContain('border-dashed');
     // .sm-card (sourcing-map.css:6) is unlayered and its `border` shorthand beats the layered utility, so the dash is inline too.
     expect(card.style.borderStyle).toBe('dashed');
-    expect(within(card).queryByText(/Can cover|Covers full/)).toBeNull();
+    expect(within(card).queryByText(/^States /)).toBeNull();
     expect(within(card).getByText('Not allocated')).toBeInTheDocument();
     expect(within(card).getAllByRole('img').every((p) => p.getAttribute('aria-label')!.includes('no answer'))).toBe(true);
     unmount();

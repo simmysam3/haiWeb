@@ -20,18 +20,18 @@ describe('map selectors', () => {
     expect(resolveAsOfDrop('2031-01-01', p)).toBe('2027-03-15');
   });
 
-  it('words availability in the D-148 form, each limit, and every gap status as itself, never as zero or full coverage (AC 15)', () => {
+  it("words availability and each limit as what the supplier stated, claiming no cause that a tier-1 answer cannot show, and every gap status as itself (AC 15; owner's walk ruling, 2026-09-29)", () => {
     const leather = vomeroResult.slots[0]!;
     const week = '2027-02-22';
     const [leon, mekong] = leather.candidates;
-    expect(availabilityText(leon!, week, 12000, 'sq ft')).toBe('Can cover 5,000 of 12,000 sq ft');
-    expect(availabilityText(mekong!, week, 12000, 'sq ft')).toBe('Covers full 12,000 sq ft');
-    expect(availabilityText({ ...leon!, availability_form: 'verdict' }, week, 12000, 'sq ft')).toBe('No, cannot cover in full');
-    expect(availabilityText({ ...mekong!, availability_form: 'verdict' }, week, 12000, 'sq ft')).toBe('Yes, can cover in full');
+    expect(availabilityText(leon!, week, 12000, 'sq ft')).toBe('States 5,000 of 12,000 sq ft');
+    expect(availabilityText(mekong!, week, 12000, 'sq ft')).toBe('States the full 12,000 sq ft');
+    expect(availabilityText({ ...leon!, availability_form: 'verdict' }, week, 12000, 'sq ft')).toBe('States it cannot cover in full');
+    expect(availabilityText({ ...mekong!, availability_form: 'verdict' }, week, 12000, 'sq ft')).toBe('States it can cover in full');
     expect(availabilityText({ ...leon!, availability_form: 'not_probed_trust' }, week, 12000, 'sq ft')).toBe('Not probed at this trust level');
     expect(availabilityText(leon!, null, 0, 'sq ft')).toBe('No demand yet');
     expect([limitText('own'), limitText('lead_time'), limitText('unknown'), limitText(null)]).toEqual([
-      'Limit: own capacity', 'Limit: lead time exceeds window', 'Schedule not assessed', 'No limit at the full requirement',
+      'Short · cause not traced', 'Stated supply starts after the first need date', 'Schedule not assessed', 'No shortfall stated',
     ]);
     expect(['declined', 'timeout', 'unreachable', 'not_connected', 'rate_limited', 'cap_reached', 'probing', 'answered', 'unsupported'].map((s) => gapText(s as never))).toEqual([
       'No answer · declined', 'No answer · timeout', 'No answer · unreachable', 'No answer · not connected',

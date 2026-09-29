@@ -55,24 +55,33 @@ export function candidateWeekAt(c: SmCandidateResult, week: string | null): SmCa
 const NOT_PROBED_TRUST = 'Not probed at this trust level';
 const NO_DEMAND_YET = 'No demand yet';
 
-/** D-148 pill wording (spec §9.3): an explicit quantity up to the ask, a verdict, or not probed. */
+/**
+ * D-148 pill wording (spec §9.3): an explicit quantity up to the ask, a verdict, or not probed. The figure is what
+ * the supplier stated, and it is worded so (owner's walk ruling, 2026-09-29): nothing beneath tier 1 is traced.
+ */
 export function availabilityText(c: SmCandidateResult, week: string | null, demand: number, uom: string): string {
   if (c.availability_form === 'not_probed_trust') return NOT_PROBED_TRUST;
   if (demand === 0) return NO_DEMAND_YET;
   const w = candidateWeekAt(c, week);
   if (!w) return '—';
   const full = w.cum_achievable >= demand;
-  if (c.availability_form === 'verdict') return full ? 'Yes, can cover in full' : 'No, cannot cover in full';
-  return full ? `Covers full ${formatQty(demand)} ${uom}` : `Can cover ${formatQty(w.cum_achievable)} of ${formatQty(demand)} ${uom}`;
+  if (c.availability_form === 'verdict') return full ? 'States it can cover in full' : 'States it cannot cover in full';
+  return full ? `States the full ${formatQty(demand)} ${uom}` : `States ${formatQty(w.cum_achievable)} of ${formatQty(demand)} ${uom}`;
 }
 
+/**
+ * The limit line. Central derives `limit` from the shape of the answer (haiCore compose.ts limitOf): `own` means
+ * "short, and not the lead-time pattern", never that the supplier named its own capacity as the cause. A tier-1
+ * answer cannot show whether the supplier or its inputs bind, so the words claim only the shortfall (owner's walk
+ * ruling, 2026-09-29). "Limit: own capacity" is kept for the release that traces the inputs (SP2).
+ */
 const LIMIT_TEXT: Record<SmOptionLimit, string> = {
-  own: 'Limit: own capacity',
-  lead_time: 'Limit: lead time exceeds window',
+  own: 'Short · cause not traced',
+  lead_time: 'Stated supply starts after the first need date',
   unknown: 'Schedule not assessed',
 };
 export function limitText(limit: SmOptionLimit | null): string {
-  return limit === null ? 'No limit at the full requirement' : LIMIT_TEXT[limit];
+  return limit === null ? 'No shortfall stated' : LIMIT_TEXT[limit];
 }
 
 const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {

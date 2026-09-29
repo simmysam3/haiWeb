@@ -35,7 +35,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
         <dt className="sm-muted">Products using this slot</dt><dd>{slot.product_ids.map((id) => productNames[id] ?? id).join(', ')}</dd>
       </dl>
       <table aria-label="Coverage by drop" className="sm-table mt-6">
-        <thead><tr><th>Drop</th><th>Need week</th><th>Required</th><th>Can cover</th><th>Coverage</th></tr></thead>
+        <thead><tr><th>Drop</th><th>Need week</th><th>Required</th><th>Stated</th><th>Coverage</th></tr></thead>
         <tbody>
           {drops.map((d) => {
             const week = slotWeekFor(slot, d.due_date);
@@ -54,7 +54,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
       </table>
       {slot.slot_key.variant_bound && asOfWeek && demandWeek?.cum_qty_by_variant && (
         <table aria-label={`Coverage by size at ${formatDropDate(asOfWeek)}`} className="sm-table mt-6">
-          <thead><tr><th>Size</th><th>Required</th><th>Can cover</th><th>Coverage</th></tr></thead>
+          <thead><tr><th>Size</th><th>Required</th><th>Stated</th><th>Coverage</th></tr></thead>
           <tbody>
             {sortedVariantEntries(demandWeek.cum_qty_by_variant).map(([v, need]) => {
               const got = answerWeek?.cum_achievable_by_variant?.[v];
