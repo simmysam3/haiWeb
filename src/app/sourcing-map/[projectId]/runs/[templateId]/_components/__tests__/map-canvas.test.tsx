@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@haiwave/protocol';
 import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
+import { layoutMap } from '@/lib/sourcing-map/map/layout';
 import { MapCanvas } from '../map-canvas';
 
 const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athletic footwear', productCount: 3, slotCount: 5, assemblyDays: '21', capacity: 18000 };
@@ -42,10 +43,11 @@ describe('MapCanvas', () => {
     expect(screen.getByText('Direct suppliers only; nothing below tier 1 has been traced.')).toBeInTheDocument();
     const svg = document.querySelector('svg[data-map-links]')!;
     expect(svg.getAttribute('aria-hidden')).toBe('true');
-    // D9, AC 18: links carry the 90 / 70 heat. Paths are drawn lane by lane, the lane link first: leather's lane
-    // covers 81% (mid), then its cards' links, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
-    const strokes = Array.from(svg.querySelectorAll('path')).slice(0, 4).map((p) => p.style.stroke);
-    expect(strokes).toEqual(['var(--sm-heat-mid)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
+    // D9, AC 18: the cards' drops carry the 90 / 70 heat. Paths are drawn lane by lane: leather's main line (seat
+    // link, then bus), red because the slot is covered 81%, short of its requirement (owner's walk rulings,
+    // 2026-09-29), then its cards' drops, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
+    const strokes = Array.from(svg.querySelectorAll('path')).slice(0, 5).map((p) => p.style.stroke);
+    expect(strokes).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-bad)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
     // R-9 (S8, ruling 10): each render records the measure that the SP1-e walk reads in a real browser (Task 41).
     const measures = performance.getEntriesByName('sm-map-render', 'measure');
     expect(measures).toHaveLength(1);
@@ -167,6 +169,62 @@ describe('MapCanvas', () => {
     expect(within(rail).queryByText('No trading partner publishes this class')).toBeNull();
     expect(isUnclassifiedSlot(eyelets)).toBe(true);
     expect(slotTitle(vomeroResult.slots[0]!)).toBe('Full grain leather hides');
+  });
+
+  it("routes every link below its lane's rail text, so no link strikes through a header line (walk B1, 2026-09-29)", () => {
+    mount(vomeroResult);
+    const lay = layoutMap(vomeroResult.slots, new Set());
+    const points = Array.from(document.querySelectorAll('svg[data-map-links] path')).flatMap((p) => {
+      const n = (p.getAttribute('d')!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+      return n.flatMap((x, i) => (i % 2 === 0 ? [{ x, y: n[i + 1]! }] : []));
+    });
+    // The rails start at lanesX: a link point at or right of it lies in a lane's column, under or over its header.
+    const inLanes = points.filter((pt) => pt.x >= lay.lanesX);
+    expect(inLanes.length).toBeGreaterThan(0);
+    for (const pt of inLanes) {
+      const lane = lay.lanes.find((l) => pt.y >= l.y && pt.y <= l.y + l.h);
+      expect(lane, `a link point at y ${pt.y} lies in no lane`).toBeDefined();
+      expect(pt.y, `lane ${lane!.slotIndex}: a link at y ${pt.y} crosses rail text that ends at ${lane!.y + lane!.textH}`).toBeGreaterThanOrEqual(lane!.y + lane!.textH);
+    }
+  });
+
+  it("draws a lane's main line once: cyan while the slot's requirement is met in full, red once it is not; each card's drop keeps its own heat (owner's walk rulings, 2026-09-29)", () => {
+    const links = (kind: string) => Array.from(document.querySelectorAll<SVGPathElement>(`svg[data-map-links] path[data-link="${kind}"][data-slot="0"]`));
+    const strokes = (kind: string) => links(kind).map((p) => p.style.stroke);
+    // Leather at the March drop is covered 81%: short, so red. León 41% (bad), Mekong 100% (good), Arno timed out.
+    const short = mount(vomeroResult);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-bad)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-bad)']);
+    expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
+    // A drop is the vertical piece alone, so no two links of different heat lie on the bus.
+    for (const drop of links('drop')) {
+      const [x1, , x2] = (drop.getAttribute('d')!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+      expect(x1).toBe(x2);
+    }
+    short.unmount();
+    // Met in full: cyan, whatever a single supplier could do alone (León still answers 41%).
+    const met = structuredCloneSafe(vomeroResult);
+    for (const c of met.slots[0]!.coverage) c.coverage = 1;
+    const full = mount(met);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-good)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-good)']);
+    expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
+    full.unmount();
+    // Two states only: 95% is not met, so it is red, not the cards' middle heat.
+    const nearly = structuredCloneSafe(vomeroResult);
+    for (const c of nearly.slots[0]!.coverage) c.coverage = 0.95;
+    mount(nearly);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-bad)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-bad)']);
+  });
+
+  it('places the "+N not probed" note beside the cards, 8 px below their top edge', () => {
+    const r = structuredCloneSafe(vomeroResult);
+    r.slots[4]!.not_probed_count = 2;
+    mount(r);
+    const lane = layoutMap(r.slots, new Set()).lanes[4]!;
+    const note = within(screen.getByRole('group', { name: 'Flat laces' })).getByText('+2 not probed');
+    expect(note.style.top).toBe(`${lane.cards[0]!.y + 8}px`);
   });
 
   it('draws no card for a cap_reached candidate: the lane counts it in "+N not probed" instead (contract §3.6)', () => {

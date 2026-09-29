@@ -1,13 +1,15 @@
 'use client';
 import { useLayoutEffect } from 'react';
 import type { SourcingMapExecutionResult } from '@haiwave/protocol';
-import { layoutMap, MAP_L } from '@/lib/sourcing-map/map/layout';
+import { layoutMap, MAP_L, RAIL_L } from '@/lib/sourcing-map/map/layout';
 import { candidateWeekAt, heatVar, slotCoverageAt, slotTitle, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
 import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
 
 const NEUTRAL_STROKE = 'var(--sm-line-2)';
+const MET_STROKE = 'var(--sm-heat-good)';
+const SHORT_STROKE = 'var(--sm-heat-bad)';
 /** R-9's render-start mark: each render replaces it, and the layout effect measures from it to commit. */
 const RENDER_START = 'sm-map-render:start';
 
@@ -38,25 +40,36 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
   const lay = layoutMap(result.slots, collapsed);
   const seatOutX = lay.seat.x + lay.seat.w;
   const seatOutY = lay.seat.y + 44;
-  const paths: Array<{ d: string; stroke: string; key: string }> = [];
+  const paths: Array<{ d: string; stroke: string; key: string; kind: 'trunk' | 'bus' | 'drop'; slot: number }> = [];
   for (const lane of lay.lanes) {
     const slot = result.slots[lane.slotIndex]!;
     const week = slotWeekFor(slot, asOfDrop);
     const cov = slotCoverageAt(slot, week);
-    const busY = lane.y + 40;
+    // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, has two states. It is cyan
+    // while the slot's requirement is met in full by this drop and red once it is not. Only a card's drop shows
+    // that card's own 90 / 70 heat.
+    const main = cov ? (cov.coverage >= 1 ? MET_STROKE : SHORT_STROKE) : NEUTRAL_STROKE;
+    // The bus runs in the gutter between the rail's text and the cards, so no link crosses a header line.
+    const busY = lane.y + lane.textH + RAIL_L.linkGutter / 2;
     paths.push({
-      key: `s${lane.slotIndex}`,
-      stroke: cov ? heatVar(cov.coverage) : NEUTRAL_STROKE,
+      key: `s${lane.slotIndex}`, kind: 'trunk', slot: lane.slotIndex, stroke: main,
       d: `M${seatOutX} ${seatOutY} C ${seatOutX + 40} ${seatOutY}, ${lay.lanesX - 44} ${busY}, ${lay.lanesX - 8} ${busY}`,
     });
+    const last = lane.cards[lane.cards.length - 1];
+    if (last) {
+      paths.push({
+        key: `s${lane.slotIndex}bus`, kind: 'bus', slot: lane.slotIndex, stroke: main,
+        d: `M${lay.lanesX - 8} ${busY} L ${last.x + MAP_L.cardW / 2} ${busY}`,
+      });
+    }
     for (const card of lane.cards) {
       const c = slot.candidates[card.candidateIndex]!;
       const w = candidateWeekAt(c, week);
       const cx = card.x + MAP_L.cardW / 2;
       paths.push({
-        key: `s${lane.slotIndex}c${card.candidateIndex}`,
+        key: `s${lane.slotIndex}c${card.candidateIndex}`, kind: 'drop', slot: lane.slotIndex,
         stroke: w ? heatVar(w.option_coverage) : NEUTRAL_STROKE,
-        d: `M${lay.lanesX - 8} ${busY} L ${cx} ${busY} L ${cx} ${card.y}`,
+        d: `M${cx} ${busY} L ${cx} ${card.y}`,
       });
     }
   }
@@ -81,7 +94,7 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
       <p className="sm-muted px-6 pt-4 text-xs">Direct suppliers only; nothing below tier 1 has been traced.</p>
       <div className="relative" style={{ width: lay.width, height: lay.height }}>
         <svg data-map-links aria-hidden="true" width={lay.width} height={lay.height} className="pointer-events-none absolute inset-0">
-          {paths.map((p) => <path key={p.key} d={p.d} fill="none" strokeWidth={2} style={{ stroke: p.stroke }} />)}
+          {paths.map((p) => <path key={p.key} data-link={p.kind} data-slot={p.slot} d={p.d} fill="none" strokeWidth={2} style={{ stroke: p.stroke }} />)}
         </svg>
         <div className="absolute" style={{ left: lay.seat.x, top: lay.seat.y, width: lay.seat.w, height: lay.seat.h }}>
           <SeatCard seat={seat} />
@@ -92,7 +105,7 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
           return (
             <div key={lane.slotIndex} role="group" aria-label={slotTitle(slot)} className={dimmed ? 'opacity-40' : undefined}>
               <div className="absolute" style={{ left: lay.lanesX, top: lane.y, width: lay.width - lay.lanesX - 40 }}>
-                <SlotRail slot={slot} asOfDrop={asOfDrop} collapsed={lane.collapsed} onToggle={() => onToggle(lane.slotIndex)} productNames={productNames} productFilter={productFilter} />
+                <SlotRail slot={slot} asOfDrop={asOfDrop} collapsed={lane.collapsed} onToggle={() => onToggle(lane.slotIndex)} productNames={productNames} productFilter={productFilter} textH={lane.textH} />
               </div>
               {lane.cards.map((card) => (
                 <div key={card.candidateIndex} className="absolute" style={{ left: card.x, top: card.y, width: MAP_L.cardW, height: MAP_L.cardH }}>
@@ -107,7 +120,7 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
                 </div>
               ))}
               {!lane.collapsed && slot.not_probed_count > 0 && (
-                <p className="sm-muted absolute text-xs" style={{ left: lay.lanesX + lane.cards.length * (MAP_L.cardW + MAP_L.gap), top: lane.y + MAP_L.laneHeadH + 8 }}>
+                <p className="sm-muted absolute text-xs" style={{ left: lay.lanesX + lane.cards.length * (MAP_L.cardW + MAP_L.gap), top: lane.y + lane.textH + RAIL_L.linkGutter + 8 }}>
                   {`+${slot.not_probed_count} not probed`}
                 </p>
               )}
