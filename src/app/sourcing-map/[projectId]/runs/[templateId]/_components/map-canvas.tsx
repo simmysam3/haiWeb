@@ -8,6 +8,8 @@ import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
 
 const NEUTRAL_STROKE = 'var(--sm-line-2)';
+const MET_STROKE = 'var(--sm-heat-good)';
+const SHORT_STROKE = 'var(--sm-heat-bad)';
 /** R-9's render-start mark: each render replaces it, and the layout effect measures from it to commit. */
 const RENDER_START = 'sm-map-render:start';
 
@@ -43,10 +45,10 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
     const slot = result.slots[lane.slotIndex]!;
     const week = slotWeekFor(slot, asOfDrop);
     const cov = slotCoverageAt(slot, week);
-    // Owner's walk ruling (2026-09-29): a lane's main line, the seat link and the bus, is one heat, its worst
-    // answered supplier's; with no answer it is the slot's own coverage. Only a card's drop shows that card's heat.
-    const answered = slot.candidates.flatMap((c) => candidateWeekAt(c, week)?.option_coverage ?? []);
-    const main = answered.length > 0 ? heatVar(Math.min(...answered)) : cov ? heatVar(cov.coverage) : NEUTRAL_STROKE;
+    // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, has two states. It is cyan
+    // while the slot's requirement is met in full by this drop and red once it is not. Only a card's drop shows
+    // that card's own 90 / 70 heat.
+    const main = cov ? (cov.coverage >= 1 ? MET_STROKE : SHORT_STROKE) : NEUTRAL_STROKE;
     // The bus runs in the gutter between the rail's text and the cards, so no link crosses a header line.
     const busY = lane.y + lane.textH + RAIL_L.linkGutter / 2;
     paths.push({
