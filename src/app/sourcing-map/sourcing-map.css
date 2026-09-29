@@ -8,6 +8,8 @@
 .sm-heading { font-family: var(--font-display), sans-serif; color: var(--sm-ink); }
 .sm-link { color: var(--sm-teal-text); }
 .sm-link:hover { text-decoration: underline; }
+/* A link that cannot be pressed looks it: dimmed, no pointer, no underline on hover. */
+.sm-link:disabled, .sm-link[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; text-decoration: none; }
 .sm-error { color: var(--sm-red-text); }
 .sm-warn { color: var(--sm-warn-text); }
 .sm-success { color: var(--sm-success-text); }

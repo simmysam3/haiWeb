@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { BomLinePin } from '@haiwave/protocol';
 import { PinEditor } from '../pin-editor';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -222,6 +224,27 @@ describe('PinEditor', () => {
     expect(cancel.className).toBe(pin.className);
     expect(cancel.className).toContain('sm-btn-ghost');
     expect(pin.nextElementSibling).toBe(cancel);
+  });
+
+  it('says in words why Add supplier does nothing on a line with no class, and stops saying it once a class is picked (owner, walk 2026-09-29)', () => {
+    const { rerender } = render(<PinEditor classId={null} pins={[]} onChange={vi.fn()} />);
+    const add = screen.getByRole('button', { name: 'Add supplier' });
+    expect(add).toBeDisabled();
+    const why = screen.getByText('Pick a class for this line first.');
+    expect(why).toBeVisible();
+    expect(add).toHaveAccessibleDescription('Pick a class for this line first.');
+    rerender(<PinEditor classId="cpt_flat_laces" pins={[]} onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Add supplier' })).not.toBeDisabled();
+    expect(screen.queryByText('Pick a class for this line first.')).toBeNull();
+  });
+
+  it('puts "Any trading partner" and Add supplier on lines of their own, and a disabled link looks disabled (owner, walk 2026-09-29)', () => {
+    render(<PinEditor classId={null} pins={[]} onChange={vi.fn()} />);
+    expect(screen.getByText('Any trading partner').tagName).toBe('P');
+    expect(screen.getByRole('button', { name: 'Add supplier' }).className).toContain('block');
+    // The look of a disabled link is the stylesheet's: dimmed, no pointer, no underline on hover.
+    const css = readFileSync(join(__dirname, '..', '..', '..', '..', '..', 'sourcing-map.css'), 'utf8');
+    expect(css).toMatch(/\.sm-link:disabled,\s*\.sm-link\[aria-disabled="true"\]\s*\{[^}]*opacity:\s*0\.55;[^}]*cursor:\s*not-allowed;[^}]*text-decoration:\s*none;[^}]*\}/);
   });
 
   it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {
