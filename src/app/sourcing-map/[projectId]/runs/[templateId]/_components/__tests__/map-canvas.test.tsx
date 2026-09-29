@@ -34,7 +34,7 @@ describe('MapCanvas', () => {
     // Lane pre-empt: the rail's collapse toggle is a button that exposes its state.
     expect(within(leather).getByRole('button', { name: 'Full grain leather hides' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(leather).getByText('12,000 sq ft by Feb 22')).toBeInTheDocument();
-    expect(within(leather).getByText('Covered 81% by this drop · not fully observed')).toBeInTheDocument();
+    expect(within(leather).getByText('Covered 81% by this drop · not fully observed · stated capacity could cover it')).toBeInTheDocument();
     expect(within(leather).getByText("Size-bound · Men's US")).toBeInTheDocument();
     expect(within(leather).getAllByRole('button', { name: /,/ })).toHaveLength(3);
     const eyelets = screen.getByRole('group', { name: 'Metal eyelets' });
@@ -44,10 +44,10 @@ describe('MapCanvas', () => {
     const svg = document.querySelector('svg[data-map-links]')!;
     expect(svg.getAttribute('aria-hidden')).toBe('true');
     // D9, AC 18: the cards' drops carry the 90 / 70 heat. Paths are drawn lane by lane: leather's main line (seat
-    // link, then bus), cyan because capacity exists for its requirement (owner's walk rulings, 2026-09-29), then
-    // its cards' drops, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
+    // link, then bus), orange because the plan is short while stated capacity could cover it (owner's walk rulings,
+    // 2026-09-29), then its cards' drops, León 41% (bad), Mekong 100% (good) and Arno, who timed out (neutral).
     const strokes = Array.from(svg.querySelectorAll('path')).slice(0, 5).map((p) => p.style.stroke);
-    expect(strokes).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-good)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
+    expect(strokes).toEqual(['var(--sm-heat-mid)', 'var(--sm-heat-mid)', 'var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
     // R-9 (S8, ruling 10): each render records the measure that the SP1-e walk reads in a real browser (Task 41).
     const measures = performance.getEntriesByName('sm-map-render', 'measure');
     expect(measures).toHaveLength(1);
@@ -188,13 +188,13 @@ describe('MapCanvas', () => {
     }
   });
 
-  it("draws a lane's main line once: cyan while capacity exists for the requirement, red once it does not; each card's drop keeps its own heat (owner's walk rulings, 2026-09-29)", () => {
+  it("draws a lane's main line once, in one of three colours: cyan when the plan as allocated meets the requirement, orange when it is short while stated capacity could cover it, red when stated capacity cannot; each card's drop keeps its own heat (owner's walk rulings, 2026-09-29)", () => {
     const links = (kind: string) => Array.from(document.querySelectorAll<SVGPathElement>(`svg[data-map-links] path[data-link="${kind}"][data-slot="0"]`));
     const strokes = (kind: string) => links(kind).map((p) => p.style.stroke);
-    // Leather at the March drop is covered 81% as allocated, yet Mekong states the full requirement: capacity exists.
-    const exists = mount(vomeroResult);
-    expect(strokes('trunk')).toEqual(['var(--sm-heat-good)']);
-    expect(strokes('bus')).toEqual(['var(--sm-heat-good)']);
+    // Leather at the March drop is covered 81% as allocated, and Mekong states the full requirement: orange.
+    const reallocate = mount(vomeroResult);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-mid)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-mid)']);
     // León 41% (bad), Mekong 100% (good), Arno timed out (neutral).
     expect(strokes('drop')).toEqual(['var(--sm-heat-bad)', 'var(--sm-heat-good)', 'var(--sm-line-2)']);
     // A drop is the vertical piece alone, so no two links of different heat lie on the bus.
@@ -202,7 +202,14 @@ describe('MapCanvas', () => {
       const [x1, , x2] = (drop.getAttribute('d')!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
       expect(x1).toBe(x2);
     }
-    exists.unmount();
+    reallocate.unmount();
+    // The plan as allocated covers it in full: cyan.
+    const met = structuredCloneSafe(vomeroResult);
+    for (const c of met.slots[0]!.coverage) c.coverage = 1;
+    const full = mount(met);
+    expect(strokes('trunk')).toEqual(['var(--sm-heat-good)']);
+    expect(strokes('bus')).toEqual(['var(--sm-heat-good)']);
+    full.unmount();
     // Without Mekong's answer León's 41% is all that is stated: the requested volume cannot be met, so red.
     const short = structuredCloneSafe(vomeroResult);
     short.slots[0]!.candidates[1] = { ...short.slots[0]!.candidates[1]!, status: 'timeout', weeks: [] };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capacityExists, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
+import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
 
 describe('map selectors', () => {
@@ -88,6 +88,21 @@ describe('map selectors', () => {
       candidates: leather.candidates.map((c) => ({ ...c, weeks: c.weeks.map((w) => (w.week === week ? { ...w, cum_achievable: 0, cum_achievable_by_variant: null } : w)) })),
     };
     expect(capacityExists(nothingAsked, week)).toBe(true);
+  });
+
+  it("reads a lane in three states: the plan as allocated meets the requirement, it is short while stated capacity could cover it, or stated capacity cannot (owner's walk ruling, 2026-09-29)", () => {
+    const leather = vomeroResult.slots[0]!;
+    const week = '2027-02-22';
+    // As allocated (León 60%, Mekong 40%) leather is covered 81%, and Mekong states the full requirement.
+    expect(laneState(leather, week)).toBe('reallocate');
+    const covered = (ratio: number) => ({ ...leather, coverage: leather.coverage.map((c) => (c.week === week ? { ...c, coverage: ratio } : c)) });
+    expect(laneState(covered(1), week)).toBe('met');
+    // Without Mekong's answer León's 5,000 of 12,000 is all that is stated.
+    const noMekong = { ...leather, candidates: leather.candidates.map((c, i) => (i === 1 ? { ...c, status: 'timeout' as const, weeks: [] } : c)) };
+    expect(laneState(noMekong, week)).toBe('short');
+    // No drop shown, or no demand row for the week: nothing to judge.
+    expect(laneState(leather, null)).toBeNull();
+    expect(laneState(leather, '2031-01-06')).toBeNull();
   });
 
   it('formats an "as of" instant in UTC on a 24-hour clock, the one format the workspace shares (controller ruling R3)', () => {

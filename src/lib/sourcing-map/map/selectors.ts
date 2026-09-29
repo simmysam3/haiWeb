@@ -142,6 +142,23 @@ export function capacityExists(slot: SmSlotResult, week: string | null): boolean
   });
 }
 
+export type LaneState = 'met' | 'reallocate' | 'short';
+
+/**
+ * Owner's walk ruling (2026-09-29): a lane is in one of three states at the drop shown.
+ *  - `met`: the plan as allocated covers the requirement in full (the rail's "Covered 100%").
+ *  - `reallocate`: the plan is short, and the suppliers' stated capacity could cover it.
+ *  - `short`: the suppliers' stated capacity, taken together, cannot cover it.
+ * Null when the slot has no demand row to judge.
+ */
+export function laneState(slot: SmSlotResult, week: string | null): LaneState | null {
+  const exists = capacityExists(slot, week);
+  if (exists === null) return null;
+  const cov = slotCoverageAt(slot, week);
+  if (cov && cov.coverage >= 1) return 'met';
+  return exists ? 'reallocate' : 'short';
+}
+
 /**
  * A variant record's entries in axis order. JS objects list integer-like keys
  * ("7", "13") before the others ("7.5"), so numeric keys are sorted numerically.
