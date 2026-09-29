@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { vomeroWorkbenchDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { toDraft } from '@/lib/sourcing-map/bom-draft';
 import { BomGrid } from '../bom-grid';
+import { addLineThroughDialog } from './add-line-through-dialog';
 
 const fetchMock = vi.fn();
 function reply(status: number, body?: unknown) {
@@ -39,9 +40,7 @@ describe('BomGrid', () => {
     expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(5);
     expect(screen.getByRole('row', { name: /^Line 1:/ })).toHaveTextContent('Full grain leather hides');
     expect(screen.getByRole('row', { name: /^Line 2:/ })).toHaveTextContent('cpt_eva_foam_midsole');
-    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
-    fireEvent.change(screen.getByLabelText('Component for line 6'), { target: { value: 'Heel counter TPU' } });
-    fireEvent.change(screen.getByLabelText('UoM for line 6'), { target: { value: 'pr' } });
+    addLineThroughDialog('Heel counter TPU', 'pr');
     fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(vomeroWorkbenchDetail));
     const put = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/bom-lines'))!;
@@ -72,8 +71,7 @@ describe('BomGrid', () => {
 
   it('a size-bound line records per-size quantities and saves them as qty_by_variant (spec §7.2)', async () => {
     mount([]);
-    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
-    fireEvent.change(screen.getByLabelText('Component for line 1'), { target: { value: 'Outsole' } });
+    addLineThroughDialog('Outsole');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Size-bound' }));
     expect(screen.getAllByRole('spinbutton', { name: /^Qty for size / })).toHaveLength(13);
     fireEvent.change(screen.getByLabelText('Qty for size 10'), { target: { value: '9' } });
@@ -132,6 +130,26 @@ describe('BomGrid', () => {
     expect(within(laces).queryByLabelText('Supplier')).toBeNull();
     expect(within(laces).queryByRole('option', { name: 'Aglet & Cord' })).toBeNull();
     expect(within(laces).getByRole('button', { name: 'Add supplier' })).toBeEnabled();
+  });
+
+  it('Add line asks for the line in a dialog and adds the row it describes, editable in place; the grid has no row meanwhile (owner, walk 2026-09-29)', () => {
+    mount();
+    const addLine = screen.getByRole('button', { name: 'Add line' });
+    addLine.focus();
+    fireEvent.click(addLine);
+    const dialog = screen.getByRole('dialog', { name: 'Add a BOM line' });
+    expect(screen.getAllByRole('row', { name: /^Line / })).toHaveLength(5);
+    fireEvent.change(within(dialog).getByLabelText('Component'), { target: { value: 'Heel counter TPU' } });
+    fireEvent.change(within(dialog).getByLabelText('UoM'), { target: { value: 'pr' } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Decide the class later' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add line' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const row = screen.getByRole('row', { name: 'Line 6: Heel counter TPU' });
+    expect(within(row).getByLabelText('Component for line 6')).toHaveValue('Heel counter TPU');
+    expect(within(row).getByLabelText('UoM for line 6')).toHaveValue('pr');
+    expect(within(row).getByText('Unclassified')).toBeInTheDocument();
+    // The dialog gives focus back to the button that opened it.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add line' }));
   });
 
   it('says what each Remove acts on: the line\'s control reads "Remove line" as a button at the top of its row, where the row begins (owner, walk A3, 2026-09-29)', () => {

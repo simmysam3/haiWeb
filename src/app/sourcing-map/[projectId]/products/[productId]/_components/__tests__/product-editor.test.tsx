@@ -5,6 +5,7 @@ import { vomeroAgentDetail, vomeroProducts, vomeroWorkbenchDetail, VOMERO_IDS } 
 import { presetAxis } from '@/lib/sourcing-map/variant-presets';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { ProductEditor } from '../product-editor';
+import { addLineThroughDialog } from './add-line-through-dialog';
 import { ProductEditorBody } from '../product-editor-body';
 
 const { push, refresh, replace } = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }));
@@ -240,7 +241,7 @@ describe('ProductEditorBody', () => {
     fetchMock.mockImplementation(async (_path: unknown, init?: RequestInit) =>
       init?.method === 'PATCH' ? reply(200, { ...vomeroProducts[0]!, name: 'Walk trainer (saved)', variant_axis: axis }) : reply(404, {}));
     render(<ProductEditorBody projectName="Spring 2027" detail={fresh} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    addLineThroughDialog('Heel counter TPU');
     expect(screen.getByRole('checkbox', { name: 'Size-bound' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Product name'), { target: { value: 'Walk trainer (saved)' } });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Half sizes' }));
@@ -414,6 +415,8 @@ describe('ProductEditorBody', () => {
     const rows = () => screen.getAllByRole('row', { name: /^Line / });
     const line1 = () => screen.getByRole('row', { name: /^Line 1:/ });
     fireEvent.click(screen.getByRole('button', { name: 'Add line' }));
+    // The lock holds Add line: no dialog opens, and no row is added.
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(rows()).toHaveLength(5);
     fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
     expect(rows()).toHaveLength(5);

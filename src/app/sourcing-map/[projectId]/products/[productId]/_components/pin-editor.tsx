@@ -44,12 +44,18 @@ function ShareField({ sku, share, locked, onShare }: { sku: string; share: numbe
  * partners publishing the line's class, a SKU from that supplier's catalog
  * in the class, and a share. Shares total at most 100; the rest is unallocated.
  */
-export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, locked = false }: {
+export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, locked = false, startOpen = false, onPending, cancelLabel = 'Cancel' }: {
   classId: string | null; pins: BomLinePin[]; onChange(p: BomLinePin[]): void; names?: Record<string, string | null>;
   /** Takes focus when a removed pin leaves nothing here to take it: Add supplier is disabled without a class (L176). */
   fallbackFocus?(): void;
   /** stale-lock: the grid is read-only; its controls are inert through aria-disabled, which keeps focus (LW-a). */
   locked?: boolean;
+  /** The Add line dialog's supplier step: the form opens with the editor, on the class's suppliers. */
+  startOpen?: boolean;
+  /** Told whether the form holds a supplier that was chosen and not pinned, so an owner of the pins can wait for it. */
+  onPending?(pending: boolean): void;
+  /** What the form's way out is called. Inside a dialog that has its own Cancel, it says what it does instead. */
+  cancelLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const whyId = useId();
@@ -94,6 +100,21 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
     }
     setSuppliers(out.data.suppliers);
   }
+
+  const pending = open && supplier !== '';
+  useEffect(() => {
+    onPending?.(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reported when it changes, whatever the callback's identity
+  }, [pending]);
+
+  // The editor is keyed by class wherever it is used, so "as it mounts" is "as its class is picked".
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!startOpen || opened.current) return;
+    opened.current = true;
+    void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as the editor mounts
+  }, []);
 
   // d-G9: the grid resolves stored pins' names (Cycle 24.6); a new pin's name comes from this class's suppliers.
   // A supplier nobody can name reads "Unknown supplier", never an id slice.
@@ -194,7 +215,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
               setSku('');
             }}
           >
-            Cancel
+            {cancelLabel}
           </button>
           {error && <p role="alert" className="sm-error">{error}</p>}
         </div>
