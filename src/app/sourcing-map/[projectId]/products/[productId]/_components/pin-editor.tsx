@@ -6,6 +6,40 @@ import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
 import { SmButton } from '../../../../_components/sm-button';
 
 /**
+ * A pinned supplier's share, edited where it stands. The field keeps what is typed, so it can be cleared to type a
+ * new number; only a share (above 0, at most 100) reaches the pin, and leaving the field shows the stored share again.
+ */
+function ShareField({ sku, share, locked, onShare }: { sku: string; share: number; locked: boolean; onShare(n: number): void }) {
+  const [text, setText] = useState(String(share));
+  // The stored share changed from outside (a save's answer, another pin list): show it, unless it is what was typed.
+  const [shown, setShown] = useState(share);
+  if (shown !== share) {
+    setShown(share);
+    if (Number.parseFloat(text) !== share) setText(String(share));
+  }
+  return (
+    <label className="ml-1 whitespace-nowrap">
+      <input
+        type="number" min={0.01} max={100} step="any"
+        aria-label={`Share % for ${sku}`}
+        className="sm-input w-16 text-xs"
+        readOnly={locked}
+        value={text}
+        onChange={(e) => {
+          // readOnly holds a person's typing; the lock also refuses a change that arrives another way.
+          if (locked) return;
+          setText(e.target.value);
+          const n = Number.parseFloat(e.target.value);
+          if (Number.isFinite(n) && n > 0 && n <= 100) onShare(n);
+        }}
+        onBlur={() => setText(String(share))}
+      />
+      {' %'}
+    </label>
+  );
+}
+
+/**
  * Supplier pins (spec §6.1, §7.2): a supplier from the seat's trading
  * partners publishing the line's class, a SKU from that supplier's catalog
  * in the class, and a share. Shares total at most 100; the rest is unallocated.
@@ -68,7 +102,17 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
         <ul>
           {pins.map((p, i) => (
             <li key={`${p.supplier_participant_id}-${p.supplier_sku}`} className="flex items-start justify-between gap-2">
-              <span>{nameOf(p.supplier_participant_id)} · {p.supplier_sku} · {p.share_pct}%</span>
+              <span>
+                {nameOf(p.supplier_participant_id)} · {p.supplier_sku}
+                {/* The share is edited where it stands (owner's walk A5, 2026-09-29): a total over 100% is brought
+                    back by changing a share, with nobody removed. */}
+                <ShareField
+                  sku={p.supplier_sku}
+                  share={p.share_pct}
+                  locked={locked}
+                  onShare={(n) => onChange(pins.map((x, j) => (j === i ? { ...x, share_pct: n } : x)))}
+                />
+              </span>
               <SmButton
                 ref={(el) => {
                   removeRefs.current[i] = el;
@@ -91,7 +135,11 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
           ))}
         </ul>
       )}
-      {pins.length > 0 && <p className={total > 100 ? 'sm-error' : 'sm-muted'}>Total {total}%{total < 100 ? ` · ${Math.round((100 - total) * 100) / 100}% unallocated` : ''}</p>}
+      {pins.length > 0 && (
+        <p className={total > 100 ? 'sm-error' : 'sm-muted'}>
+          {`Total ${total}%${total < 100 ? ` · ${Math.round((100 - total) * 100) / 100}% unallocated` : total > 100 ? ` · ${Math.round((total - 100) * 100) / 100}% over 100%` : ''}`}
+        </p>
+      )}
       {!open ? (
         <SmButton ref={addRef} className="sm-link mt-1" disabled={!classId} aria-disabled={locked} title={classId ? undefined : 'Pick a class first'} onClick={start}>Add supplier</SmButton>
       ) : (

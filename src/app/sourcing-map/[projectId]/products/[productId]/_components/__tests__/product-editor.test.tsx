@@ -281,11 +281,11 @@ describe('ProductEditorBody', () => {
     fireEvent.change(within(laces()).getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
     fireEvent.change(within(laces()).getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-120' } });
     fireEvent.click(within(laces()).getByRole('button', { name: 'Pin' }));
-    expect(within(laces()).getByText('Aglet & Cord · AC-FLAT-120 · 100%')).toBeInTheDocument();
-    await within(screen.getByRole('row', { name: /^Line 1:/ })).findByText('León Cuero SA · LC-BOV-UP-01 · 60%');
+    expect(within(laces()).getByText('Aglet & Cord · AC-FLAT-120')).toBeInTheDocument();
+    await within(screen.getByRole('row', { name: /^Line 1:/ })).findByText('León Cuero SA · LC-BOV-UP-01');
     fireEvent.click(screen.getByRole('button', { name: 'Save BOM' }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([u, i]) => String(u).endsWith('/bom-lines') && i?.method === 'PUT')).toBe(true));
-    expect(await within(laces()).findByText('Aglet & Cord · AC-FLAT-120 · 100%')).toBeInTheDocument();
+    expect(await within(laces()).findByText('Aglet & Cord · AC-FLAT-120')).toBeInTheDocument();
     expect(within(laces()).queryByText(/Unknown supplier/)).toBeNull();
     const lookups = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith('/api/account/company/'));
     expect(lookups.sort()).toEqual([VOMERO_IDS.aglet, VOMERO_IDS.leon, VOMERO_IDS.mekong, VOMERO_IDS.zephyr].map((id) => `/api/account/company/${id}/profile`).sort());
@@ -437,7 +437,7 @@ describe('ProductEditorBody', () => {
     const line1 = within(screen.getByRole('row', { name: /^Line 1:/ }));
     const removePin = line1.getByRole('button', { name: 'Remove supplier LC-BOV-UP-01' });
     fireEvent.click(removePin);
-    expect(line1.getByText(/LC-BOV-UP-01 · 60%/)).toBeInTheDocument();
+    expect(line1.getByText(/LC-BOV-UP-01/)).toBeInTheDocument();
     const addSupplier = line1.getByRole('button', { name: 'Add supplier' });
     fireEvent.click(addSupplier);
     expect(line1.queryByLabelText('Supplier')).toBeNull();
