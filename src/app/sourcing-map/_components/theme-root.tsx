@@ -46,12 +46,15 @@ export function SmThemeRoot({ children }: { children: ReactNode }) {
   );
 }
 
-/** Header control. The label is fixed; aria-pressed carries the state. */
+/**
+ * Header control. The label names the theme a press switches to (owner's walk, 2026-09-29), so the label
+ * carries the state and the button has no aria-pressed: a toggle changes its label or its pressed state, never both.
+ */
 export function ThemeToggle() {
   const { theme, toggle } = useSmTheme();
   return (
-    <button type="button" onClick={toggle} aria-pressed={theme === 'light'} className="sm-btn sm-btn-ghost text-xs">
-      Light theme
+    <button type="button" onClick={toggle} className="sm-btn sm-btn-ghost text-xs">
+      {theme === 'dark' ? 'Light theme' : 'Dark theme'}
     </button>
   );
 }

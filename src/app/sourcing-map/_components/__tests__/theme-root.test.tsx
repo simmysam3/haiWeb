@@ -27,6 +27,19 @@ describe('SmThemeRoot', () => {
     expect(window.localStorage.getItem('sm.theme')).toBe('light');
   });
 
+  it('names the theme the button switches to, so the label changes with the theme (owner, walk 2026-09-29)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Light theme' }));
+    expect(screen.queryByRole('button', { name: 'Light theme' })).toBeNull();
+    const back = screen.getByRole('button', { name: 'Dark theme' });
+    // The label carries the state, so the button is not also a pressed toggle (one or the other, never both).
+    expect(back).not.toHaveAttribute('aria-pressed');
+    fireEvent.click(back);
+    expect(screen.getByTestId('sm-root')).toHaveAttribute('data-theme', 'dark');
+    expect(screen.getByRole('button', { name: 'Light theme' })).not.toHaveAttribute('aria-pressed');
+    expect(window.localStorage.getItem('sm.theme')).toBe('dark');
+  });
+
   it('applies a remembered light theme after mount and ignores a value it does not know (server renders dark; known one-frame limitation)', () => {
     window.localStorage.setItem('sm.theme', 'neon');
     const first = render(
