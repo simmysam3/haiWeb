@@ -185,6 +185,33 @@ describe('PinEditor', () => {
     expect(share).toHaveValue(60);
   });
 
+  it('offers a new supplier the share that is still unallocated, and none when the line is fully allocated (owner, walk A5, 2026-09-29)', async () => {
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    const open = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+      await screen.findByRole('option', { name: 'Aglet & Cord' });
+      return screen.getByRole('spinbutton', { name: 'Share %' });
+    };
+    // Nothing pinned: the whole line.
+    const none = render(<Harness initial={[]} />);
+    expect(await open()).toHaveValue(100);
+    none.unmount();
+    // 60% pinned: the 40% left.
+    const some = render(<Harness initial={[{ supplier_participant_id: VOMERO_IDS.bowline, supplier_sku: 'BW-LACE-137', share_pct: 60 }]} />);
+    expect(await open()).toHaveValue(40);
+    // Pin it, then open again: nothing is left to offer, and an empty share cannot be pinned.
+    fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-137' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Pin' }));
+    expect(screen.getByText('Total 100%')).toBeInTheDocument();
+    const full = await open();
+    expect(full).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-120' } });
+    expect(screen.getByRole('button', { name: 'Pin' })).toBeDisabled();
+    some.unmount();
+  });
+
   it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {
     /** A keyboard user's activation: focus the control, then press it. */
     const press = (el: HTMLElement) => {

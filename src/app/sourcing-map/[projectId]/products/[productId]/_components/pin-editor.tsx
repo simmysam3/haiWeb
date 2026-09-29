@@ -80,6 +80,10 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
     setError(null);
     setSuppliers([]);
     const mine = ++session.current;
+    // A new supplier is offered what is still unallocated (owner's walk A5, 2026-09-29), and nothing on a line
+    // that is fully allocated: a share must first be freed.
+    const left = Math.round((100 - total) * 100) / 100;
+    setShare(left > 0 ? String(left) : '');
     setOpen(true);
     const out = await smFetch<ClassSuppliersResponse>(`/api/account/sourcing-map/class-suppliers?class_id=${encodeURIComponent(classId)}`);
     if (mine !== session.current) return;
