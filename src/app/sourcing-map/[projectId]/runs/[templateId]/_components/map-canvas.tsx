@@ -2,14 +2,18 @@
 import { useLayoutEffect } from 'react';
 import type { SourcingMapExecutionResult } from '@haiwave/protocol';
 import { layoutMap, MAP_L, RAIL_L } from '@/lib/sourcing-map/map/layout';
-import { candidateWeekAt, capacityExists, heatVar, slotTitle, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
+import { candidateWeekAt, heatVar, laneState, slotTitle, slotWeekFor, type LaneState } from '@/lib/sourcing-map/map/selectors';
 import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
 
 const NEUTRAL_STROKE = 'var(--sm-line-2)';
-const MET_STROKE = 'var(--sm-heat-good)';
-const SHORT_STROKE = 'var(--sm-heat-bad)';
+/** A lane's main line by its state (laneState): cyan, orange, red. */
+const MAIN_STROKE: Record<LaneState, string> = {
+  met: 'var(--sm-heat-good)',
+  reallocate: 'var(--sm-heat-mid)',
+  short: 'var(--sm-heat-bad)',
+};
 /** R-9's render-start mark: each render replaces it, and the layout effect measures from it to commit. */
 const RENDER_START = 'sm-map-render:start';
 
@@ -44,11 +48,10 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
   for (const lane of lay.lanes) {
     const slot = result.slots[lane.slotIndex]!;
     const week = slotWeekFor(slot, asOfDrop);
-    // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, has two states. It is cyan
-    // while capacity exists for the requirement by this drop (capacityExists: what the suppliers state, allocated
-    // or not) and red once the requested volume cannot be met. Only a card's drop shows that card's own 90 / 70 heat.
-    const exists = capacityExists(slot, week);
-    const main = exists === null ? NEUTRAL_STROKE : exists ? MET_STROKE : SHORT_STROKE;
+    // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, is one colour, the lane's
+    // state at this drop (laneState). Only a card's drop shows that card's own 90 / 70 heat.
+    const state = laneState(slot, week);
+    const main = state === null ? NEUTRAL_STROKE : MAIN_STROKE[state];
     // The bus runs in the gutter between the rail's text and the cards, so no link crosses a header line.
     const busY = lane.y + lane.textH + RAIL_L.linkGutter / 2;
     paths.push({

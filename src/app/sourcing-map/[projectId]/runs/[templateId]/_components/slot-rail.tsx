@@ -1,7 +1,7 @@
 'use client';
 import type { CSSProperties } from 'react';
 import type { SmSlotResult } from '@haiwave/protocol';
-import { formatDropDate, formatPct, formatQty, heatVar, isUnclassifiedSlot, slotCoverageAt, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import { formatDropDate, formatPct, formatQty, heatVar, isUnclassifiedSlot, laneState, slotCoverageAt, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { RAIL_L } from '@/lib/sourcing-map/map/layout';
 
@@ -30,7 +30,10 @@ export function SlotRail({ slot, asOfDrop, collapsed, onToggle, productNames, pr
         return `${productNames[productFilter] ?? productFilter}: ${formatQty(mine)} of ${formatQty(demand)} ${slot.slot_key.uom} (${formatPct(demand === 0 ? 0 : mine / demand)})`;
       })()
     : `Used by ${used.length} product${used.length === 1 ? '' : 's'}: ${used.join(', ')}`;
-  const coverage = cov ? `Covered ${formatPct(cov.coverage)} by this drop${slot.observed ? '' : ' · not fully observed'}` : null;
+  // The lane's state in words: the map's main line shows it by colour, which may never be the only carrier.
+  const state = laneState(slot, week);
+  const stated = state === 'reallocate' ? ' · stated capacity could cover it' : state === 'short' ? ' · stated capacity cannot cover it' : '';
+  const coverage = cov ? `Covered ${formatPct(cov.coverage)} by this drop${slot.observed ? '' : ' · not fully observed'}${stated}` : null;
   const sizeBound = slot.slot_key.variant_system ? `Size-bound · ${slot.slot_key.variant_system}` : 'Size-bound';
   return (
     <div className="text-sm" style={{ height: textH, overflow: 'hidden' }}>

@@ -56,4 +56,23 @@ describe('SlotRail', () => {
     expect(lines.reduce((sum, el) => sum + taken(el), 0)).toBe(84 + RAIL_L.small);
     expect(lane.textH - (84 + RAIL_L.small)).toBe(RAIL_L.lineGap + 2 * RAIL_L.cellH + RAIL_L.cellGap);
   });
+
+  it("says the lane's state in words beside its coverage, since the line's colour alone may not carry it (owner's walk ruling, 2026-09-29)", () => {
+    const railOf = (slot: (typeof vomeroResult.slots)[number]) => {
+      const { container, unmount } = render(
+        <SlotRail slot={slot} asOfDrop="2027-03-15" collapsed={false} onToggle={vi.fn()} productNames={NAMES} productFilter={null} textH={200} />,
+      );
+      const text = Array.from(container.querySelectorAll('p')).map((p) => p.textContent).find((x) => x?.startsWith('Covered')) ?? null;
+      unmount();
+      return text;
+    };
+    const leather = vomeroResult.slots[0]!;
+    // Short as allocated, and Mekong states the full requirement.
+    expect(railOf(leather)).toBe('Covered 81% by this drop · not fully observed · stated capacity could cover it');
+    // Without Mekong's answer the stated capacity cannot cover it.
+    expect(railOf({ ...leather, candidates: leather.candidates.map((c, i) => (i === 1 ? { ...c, status: 'timeout' as const, weeks: [] } : c)) }))
+      .toBe('Covered 81% by this drop · not fully observed · stated capacity cannot cover it');
+    // Met as allocated: the percentage says it all.
+    expect(railOf({ ...leather, observed: true, coverage: leather.coverage.map((c) => ({ ...c, coverage: 1 })) })).toBe('Covered 100% by this drop');
+  });
 });
