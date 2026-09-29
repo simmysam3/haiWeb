@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { BomLinePin, ClassSuppliersResponse } from '@haiwave/protocol';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { pinShareTotal } from '@/lib/sourcing-map/bom-draft';
@@ -52,6 +52,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
   locked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const whyId = useId();
   const [suppliers, setSuppliers] = useState<ClassSuppliersResponse['suppliers']>([]);
   const [supplier, setSupplier] = useState('');
   const [sku, setSku] = useState('');
@@ -102,7 +103,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
 
   return (
     <div className="min-w-48 text-xs">
-      {pins.length === 0 ? <span className="sm-muted">Any trading partner</span> : (
+      {pins.length === 0 ? <p className="sm-muted">Any trading partner</p> : (
         <ul>
           {pins.map((p, i) => (
             <li key={`${p.supplier_participant_id}-${p.supplier_sku}`} className="flex items-start justify-between gap-2">
@@ -145,7 +146,12 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
         </p>
       )}
       {!open ? (
-        <SmButton ref={addRef} className="sm-link mt-1" disabled={!classId} aria-disabled={locked} title={classId ? undefined : 'Pick a class first'} onClick={start}>Add supplier</SmButton>
+        <>
+          <SmButton ref={addRef} className="sm-link mt-1 block" disabled={!classId} aria-disabled={locked} aria-describedby={classId ? undefined : whyId} onClick={start}>Add supplier</SmButton>
+          {/* Suppliers are offered by class, so a line with no class has none to offer. The reason is on the page,
+              in words (owner's walk, 2026-09-29): a tooltip on a disabled button is not shown by every browser. */}
+          {!classId && <p id={whyId} className="sm-muted">Pick a class for this line first.</p>}
+        </>
       ) : (
         <div className="mt-1 flex flex-wrap items-end gap-1">
           <label>Supplier
