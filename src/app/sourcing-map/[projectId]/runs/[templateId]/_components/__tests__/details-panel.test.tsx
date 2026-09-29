@@ -23,6 +23,16 @@ describe('DetailsPanel', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("heads the supplier's figures as stated, in both tables (owner's walk ruling, 2026-09-29)", () => {
+    const leather = vomeroResult.slots[0]!;
+    render(<DetailsPanel slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    for (const name of ['Coverage by drop', 'Coverage by size at Feb 22']) {
+      const headers = within(screen.getByRole('table', { name })).getAllByRole('columnheader').map((h) => h.textContent);
+      expect(headers).toContain('Stated');
+      expect(headers).not.toContain('Can cover');
+    }
+  });
+
   it('moves focus to its heading when it opens (controller ruling R1)', () => {
     const leather = vomeroResult.slots[0]!;
     render(<DetailsPanel slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
