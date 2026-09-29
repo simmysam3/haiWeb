@@ -14,12 +14,12 @@ function AgentLines({ detail }: { detail: SmProductDetail }) {
         <tbody>
           {detail.lines.map((l) => (
             <tr key={l.line_id} aria-label={l.component_label}>
-              <td>{l.component_label}</td>
-              <td>{l.part_ref ?? '—'}</td>
-              <td>{l.class_id ? detail.classes[l.class_id]?.label ?? l.class_id : <span className="sm-warn">Unclassified</span>}</td>
-              <td>{l.qty_per_unit}</td>
-              <td>{l.uom}</td>
-              <td>{l.pins.map((p) => p.supplier_sku).join(', ') || '—'}</td>
+              <td className="align-top">{l.component_label}</td>
+              <td className="align-top">{l.part_ref ?? '—'}</td>
+              <td className="align-top">{l.class_id ? detail.classes[l.class_id]?.label ?? l.class_id : <span className="sm-warn">Unclassified</span>}</td>
+              <td className="align-top">{l.qty_per_unit}</td>
+              <td className="align-top">{l.uom}</td>
+              <td className="align-top">{l.pins.map((p) => p.supplier_sku).join(', ') || '—'}</td>
             </tr>
           ))}
         </tbody>

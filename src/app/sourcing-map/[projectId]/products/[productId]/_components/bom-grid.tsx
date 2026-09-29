@@ -82,14 +82,14 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
       <div className="overflow-x-auto">
         <table className="sm-table">
           <thead>
-            <tr><th>Component</th><th>Part ref</th><th>Class</th><th>Qty per unit</th><th>UoM</th><th>Size-bound</th><th>Suppliers</th><th><span className="sr-only">Remove</span></th></tr>
+            <tr><th>Component</th><th>Part ref</th><th>Class</th><th>Qty per unit</th><th>UoM</th><th>Size-bound</th><th>Suppliers</th><th><span className="sr-only">Remove line</span></th></tr>
           </thead>
           <tbody>
             {lines.map((l, i) => {
               const n = i + 1;
               return (
                 <tr key={l.key} aria-label={`Line ${n}: ${l.component_label || 'new line'}`}>
-                  <td>
+                  <td className="align-top">
                     <input
                       ref={(el) => {
                         if (el) componentRefs.current.set(l.key, el);
@@ -98,8 +98,8 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       aria-label={`Component for line ${n}`} className="sm-input w-48" readOnly={locked} value={l.component_label} maxLength={200} onChange={(e) => update(l.key, { component_label: e.target.value })} />
                     {l.note && <p className="sm-warn mt-1 text-xs">{l.note}</p>}
                   </td>
-                  <td><input aria-label={`Part ref for line ${n}`} className="sm-input w-28" readOnly={locked} value={l.part_ref ?? ''} maxLength={200} onChange={(e) => update(l.key, { part_ref: e.target.value || null })} /></td>
-                  <td>
+                  <td className="align-top"><input aria-label={`Part ref for line ${n}`} className="sm-input w-28" readOnly={locked} value={l.part_ref ?? ''} maxLength={200} onChange={(e) => update(l.key, { part_ref: e.target.value || null })} /></td>
+                  <td className="align-top">
                     <ClassPicker
                       label={l.component_label || `line ${n}`}
                       value={l.class_id ? { class_id: l.class_id, label: l.class_label ?? l.class_id } : null}
@@ -112,9 +112,9 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       locked={locked}
                     />
                   </td>
-                  <td><input type="number" step="any" min={0} aria-label={`Qty per unit for line ${n}`} className="sm-input w-20" readOnly={locked} value={l.qty_per_unit} onChange={(e) => update(l.key, { qty_per_unit: Number.parseFloat(e.target.value) })} /></td>
-                  <td><input aria-label={`UoM for line ${n}`} className="sm-input w-16" readOnly={locked} value={l.uom} maxLength={20} onChange={(e) => update(l.key, { uom: e.target.value })} /></td>
-                  <td>
+                  <td className="align-top"><input type="number" step="any" min={0} aria-label={`Qty per unit for line ${n}`} className="sm-input w-20" readOnly={locked} value={l.qty_per_unit} onChange={(e) => update(l.key, { qty_per_unit: Number.parseFloat(e.target.value) })} /></td>
+                  <td className="align-top"><input aria-label={`UoM for line ${n}`} className="sm-input w-16" readOnly={locked} value={l.uom} maxLength={20} onChange={(e) => update(l.key, { uom: e.target.value })} /></td>
+                  <td className="align-top">
                     <label className="flex items-center gap-2 text-xs">
                       <input
                         type="checkbox" checked={l.variant_bound} disabled={!axis} aria-disabled={locked || undefined}
@@ -130,7 +130,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       <SizeTable axis={axis} qtyPerUnit={l.qty_per_unit} value={l.qty_by_variant} locked={locked} onChange={(v) => update(l.key, { qty_by_variant: v })} />
                     )}
                   </td>
-                  <td>
+                  <td className="align-top">
                     {/* Keyed by class: an editor opened for the old class must not offer that class's publishers. */}
                     <PinEditor
                       key={l.class_id ?? ''}
@@ -142,9 +142,11 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                       locked={locked}
                     />
                   </td>
-                  <td>
+                  <td className="align-top">
+                    {/* The line's own control: a bordered button that says what it removes. The links inside the
+                        Suppliers cell remove a supplier (owner's walk A3, 2026-09-29). */}
                     <SmButton
-                      className="sm-link text-xs"
+                      className="sm-btn sm-btn-ghost whitespace-nowrap text-xs"
                       aria-label={`Remove line ${n}`}
                       aria-disabled={locked}
                       onClick={() => {
@@ -153,7 +155,7 @@ export function BomGrid({ productId, axis, initialLines, classes, onSaved, sugge
                         setLines((all) => all.filter((x) => x.key !== l.key));
                       }}
                     >
-                      Remove
+                      Remove line
                     </SmButton>
                   </td>
                 </tr>

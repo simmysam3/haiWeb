@@ -125,6 +125,21 @@ describe('PinEditor', () => {
     expect(screen.queryByRole('option', { name: 'Bowline Cordage' })).toBeNull();
   });
 
+  it('says what its Remove acts on: each pinned supplier has a "Remove supplier" control on its own row, named for its SKU (owner, walk A3, 2026-09-29)', () => {
+    render(<Harness initial={[
+      { supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-137', share_pct: 60 },
+      { supplier_participant_id: VOMERO_IDS.bowline, supplier_sku: 'BW-LACE-137', share_pct: 40 },
+    ]} />);
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    const remove = screen.getByRole('button', { name: 'Remove supplier AC-FLAT-137' });
+    expect(remove).toHaveTextContent(/^Remove supplier$/);
+    expect(rows[0]!.contains(remove)).toBe(true);
+    // The supplier's text and its control share the row's first line, the control at the row's end.
+    expect(rows[0]!.className).toContain('items-start');
+    expect(rows[0]!.className).toContain('justify-between');
+  });
+
   it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {
     /** A keyboard user's activation: focus the control, then press it. */
     const press = (el: HTMLElement) => {
@@ -147,9 +162,9 @@ describe('PinEditor', () => {
       press(screen.getByRole('button', { name: 'Pin' }));
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
     }
-    press(screen.getByRole('button', { name: 'Remove AC-FLAT-137' }));
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
-    press(screen.getByRole('button', { name: 'Remove AC-FLAT-120' }));
+    press(screen.getByRole('button', { name: 'Remove supplier AC-FLAT-137' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Remove supplier AC-FLAT-120' }));
+    press(screen.getByRole('button', { name: 'Remove supplier AC-FLAT-120' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add supplier' }));
   });
 

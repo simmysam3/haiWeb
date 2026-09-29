@@ -67,14 +67,14 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
       {pins.length === 0 ? <span className="sm-muted">Any trading partner</span> : (
         <ul>
           {pins.map((p, i) => (
-            <li key={`${p.supplier_participant_id}-${p.supplier_sku}`} className="flex items-center gap-2">
+            <li key={`${p.supplier_participant_id}-${p.supplier_sku}`} className="flex items-start justify-between gap-2">
               <span>{nameOf(p.supplier_participant_id)} · {p.supplier_sku} · {p.share_pct}%</span>
               <SmButton
                 ref={(el) => {
                   removeRefs.current[i] = el;
                 }}
-                className="sm-link"
-                aria-label={`Remove ${p.supplier_sku}`}
+                className="sm-link whitespace-nowrap"
+                aria-label={`Remove supplier ${p.supplier_sku}`}
                 aria-disabled={locked}
                 onClick={() => {
                   // Focus moves before the pin goes, to controls that stay mounted: the next pin's Remove, else Add
@@ -85,7 +85,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
                   onChange(pins.filter((_, j) => j !== i));
                 }}
               >
-                Remove
+                Remove supplier
               </SmButton>
             </li>
           ))}

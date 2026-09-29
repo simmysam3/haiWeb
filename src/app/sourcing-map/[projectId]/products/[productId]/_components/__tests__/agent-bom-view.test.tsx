@@ -14,6 +14,13 @@ describe('AgentBomView', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
+  it('starts every cell of a line at the top of its row, as the workbench grid does (owner, walk A3, 2026-09-29)', () => {
+    render(<AgentBomView detail={vomeroAgentDetail} />);
+    const cells = screen.getAllByRole('cell');
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) expect(cell.className).toContain('align-top');
+  });
+
   it('shows the unreachable state when the live read returned nothing (a-G9), never an empty BOM', () => {
     render(<AgentBomView detail={{ ...vomeroAgentDetail, lines: [], lines_fetched_at: null }} />);
     expect(screen.getByRole('status')).toHaveTextContent(

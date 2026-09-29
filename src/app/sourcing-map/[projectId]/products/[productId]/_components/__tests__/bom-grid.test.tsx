@@ -134,6 +134,25 @@ describe('BomGrid', () => {
     expect(within(laces).getByRole('button', { name: 'Add supplier' })).toBeEnabled();
   });
 
+  it('says what each Remove acts on: the line\'s control reads "Remove line" as a button at the top of its row, where the row begins (owner, walk A3, 2026-09-29)', () => {
+    mount();
+    const row = screen.getByRole('row', { name: 'Line 1: Upper leather, tumbled' });
+    const removeLine = within(row).getByRole('button', { name: 'Remove line 1' });
+    expect(removeLine).toHaveTextContent(/^Remove line$/);
+    // A bordered button, unlike the text links inside the Suppliers cell.
+    expect(removeLine.className).toContain('sm-btn-ghost');
+    // A size-bound row is several hundred pixels tall: every cell starts at the top, so the row's controls line up.
+    for (const cell of within(row).getAllByRole('cell')) expect(cell.className).toContain('align-top');
+  });
+
+  it('keeps a size-bound line\'s size table wide enough for three sizes a row, whatever its neighbours need (walk A3, 2026-09-29)', () => {
+    mount();
+    const row = screen.getByRole('row', { name: 'Line 1: Upper leather, tumbled' });
+    const table = within(row).getByLabelText('Qty for size 7').closest('div')!.parentElement!;
+    // Three 4 rem inputs and two 0.5 rem gaps.
+    expect(table.className).toContain('min-w-[13rem]');
+  });
+
   it('after Remove line, keyboard focus moves to the next row’s Component, or to Add line when the last row goes (WCAG 2.4.3)', () => {
     /** A keyboard user's activation: focus the control, then press it. */
     const press = (el: HTMLElement) => {
@@ -180,10 +199,10 @@ describe('BomGrid', () => {
     const unclassed = { ...vomeroWorkbenchDetail.lines[2]!, class_id: null };
     mount([unclassed]);
     expect(screen.getByRole('button', { name: 'Add supplier' })).toBeDisabled();
-    const remove = screen.getByRole('button', { name: 'Remove ZC-OUT-R2' });
+    const remove = screen.getByRole('button', { name: 'Remove supplier ZC-OUT-R2' });
     remove.focus();
     fireEvent.click(remove);
-    expect(screen.queryByRole('button', { name: 'Remove ZC-OUT-R2' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove supplier ZC-OUT-R2' })).toBeNull();
     expect(document.activeElement).toBe(screen.getByLabelText('Class search for Rubber outsole'));
   });
 });

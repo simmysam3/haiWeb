@@ -9,7 +9,8 @@ export function SizeTable({ axis, qtyPerUnit, value, onChange, locked = false }:
   locked?: boolean;
 }) {
   return (
-    <div className="mt-2">
+    // At least three sizes a row: the grid's other columns may not squeeze a 13-size table into a taller one.
+    <div className="mt-2 min-w-[13rem]">
       <div className="flex flex-wrap gap-2">
         {axis.values.map((v) => (
           <label key={v} className="flex flex-col text-xs">
