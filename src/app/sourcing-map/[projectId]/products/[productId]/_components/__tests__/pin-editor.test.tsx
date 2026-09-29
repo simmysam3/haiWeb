@@ -212,6 +212,18 @@ describe('PinEditor', () => {
     some.unmount();
   });
 
+  it('shows Cancel as a button beside Pin, the same kind and size, so the way out of the form is as plain as the way on (owner, walk A5, 2026-09-29)', async () => {
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    render(<Harness initial={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+    await screen.findByRole('option', { name: 'Aglet & Cord' });
+    const pin = screen.getByRole('button', { name: 'Pin' });
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancel.className).toBe(pin.className);
+    expect(cancel.className).toContain('sm-btn-ghost');
+    expect(pin.nextElementSibling).toBe(cancel);
+  });
+
   it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {
     /** A keyboard user's activation: focus the control, then press it. */
     const press = (el: HTMLElement) => {

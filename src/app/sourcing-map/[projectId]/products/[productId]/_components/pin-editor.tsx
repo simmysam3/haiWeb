@@ -179,7 +179,7 @@ export function PinEditor({ classId, pins, onChange, names = {}, fallbackFocus, 
           {/* The way out, also after a failed supplier load; the error goes with the form, so a reopen starts clean. */}
           <button
             type="button"
-            className="sm-link text-xs"
+            className="sm-btn sm-btn-ghost text-xs"
             onClick={() => {
               session.current += 1;
               setOpen(false);
