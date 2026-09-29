@@ -93,7 +93,7 @@ describe('PinEditor', () => {
     fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-137' } });
     fireEvent.change(screen.getByLabelText('Share %'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Pin' }));
-    expect(screen.getByText('Aglet & Cord · AC-FLAT-137 · 30%')).toBeInTheDocument();
+    expect(screen.getByText('Aglet & Cord · AC-FLAT-137')).toBeInTheDocument();
     await openAndChoose(VOMERO_IDS.aglet);
     expect(screen.queryByRole('option', { name: 'AC-FLAT-120' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'AC-FLAT-137' })).toBeNull();
@@ -138,6 +138,78 @@ describe('PinEditor', () => {
     // The supplier's text and its control share the row's first line, the control at the row's end.
     expect(rows[0]!.className).toContain('items-start');
     expect(rows[0]!.className).toContain('justify-between');
+  });
+
+  it("lets a pinned supplier's share be edited where it stands, so a total over 100% can be brought back without removing anyone (owner, walk A5, 2026-09-29)", () => {
+    render(<Harness initial={[
+      { supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-137', share_pct: 100 },
+      { supplier_participant_id: VOMERO_IDS.bowline, supplier_sku: 'BW-LACE-137', share_pct: 50 },
+    ]} />);
+    expect(screen.getByText('Total 150% · 50% over 100%')).toBeInTheDocument();
+    const share = screen.getByRole('spinbutton', { name: 'Share % for AC-FLAT-137' });
+    expect(share).toHaveValue(100);
+    fireEvent.change(share, { target: { value: '50' } });
+    expect(screen.getByRole('spinbutton', { name: 'Share % for AC-FLAT-137' })).toHaveValue(50);
+    expect(screen.getByRole('spinbutton', { name: 'Share % for BW-LACE-137' })).toHaveValue(50);
+    expect(screen.getByText('Total 100%')).toBeInTheDocument();
+    // Both suppliers are still pinned.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('keeps the stored share while the field holds something that is no share (empty, 0, over 100), and shows it again when the field is left', () => {
+    render(<Harness initial={[{ supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-137', share_pct: 60 }]} />);
+    const share = () => screen.getByRole('spinbutton', { name: 'Share % for AC-FLAT-137' });
+    // Cleared, to type a new number: the field stays empty, the pin keeps its 60%.
+    fireEvent.change(share(), { target: { value: '' } });
+    expect(share()).toHaveValue(null);
+    expect(screen.getByText('Total 60% · 40% unallocated')).toBeInTheDocument();
+    for (const bad of ['0', '150', '-5']) {
+      fireEvent.change(share(), { target: { value: bad } });
+      expect(screen.getByText('Total 60% · 40% unallocated')).toBeInTheDocument();
+    }
+    fireEvent.blur(share());
+    expect(share()).toHaveValue(60);
+    // A share with a fraction is a share.
+    fireEvent.change(share(), { target: { value: '33.5' } });
+    expect(share()).toHaveValue(33.5);
+    expect(screen.getByText('Total 33.5% · 66.5% unallocated')).toBeInTheDocument();
+  });
+
+  it('while the stale lock holds, a share is read-only and a change to it goes nowhere (stale-lock)', () => {
+    const onChange = vi.fn();
+    render(<PinEditor classId="cpt_flat_laces" pins={[{ supplier_participant_id: VOMERO_IDS.aglet, supplier_sku: 'AC-FLAT-137', share_pct: 60 }]} onChange={onChange} locked />);
+    const share = screen.getByRole('spinbutton', { name: 'Share % for AC-FLAT-137' });
+    expect(share).toHaveAttribute('readonly');
+    fireEvent.change(share, { target: { value: '30' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(share).toHaveValue(60);
+  });
+
+  it('offers a new supplier the share that is still unallocated, and none when the line is fully allocated (owner, walk A5, 2026-09-29)', async () => {
+    fetchMock.mockResolvedValue(lacesSuppliers());
+    const open = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add supplier' }));
+      await screen.findByRole('option', { name: 'Aglet & Cord' });
+      return screen.getByRole('spinbutton', { name: 'Share %' });
+    };
+    // Nothing pinned: the whole line.
+    const none = render(<Harness initial={[]} />);
+    expect(await open()).toHaveValue(100);
+    none.unmount();
+    // 60% pinned: the 40% left.
+    const some = render(<Harness initial={[{ supplier_participant_id: VOMERO_IDS.bowline, supplier_sku: 'BW-LACE-137', share_pct: 60 }]} />);
+    expect(await open()).toHaveValue(40);
+    // Pin it, then open again: nothing is left to offer, and an empty share cannot be pinned.
+    fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-137' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Pin' }));
+    expect(screen.getByText('Total 100%')).toBeInTheDocument();
+    const full = await open();
+    expect(full).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText('Supplier'), { target: { value: VOMERO_IDS.aglet } });
+    fireEvent.change(screen.getByLabelText('Supplier SKU'), { target: { value: 'AC-FLAT-120' } });
+    expect(screen.getByRole('button', { name: 'Pin' })).toBeDisabled();
+    some.unmount();
   });
 
   it('moves keyboard focus with the form: into Supplier on open, back to Add supplier after Cancel or Pin, and to the next Remove, else Add supplier, as pins go (WCAG 2.4.3)', async () => {

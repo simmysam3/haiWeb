@@ -62,9 +62,9 @@ describe('BomGrid', () => {
     fetchMock.mockImplementation(route({ [VOMERO_IDS.leon]: 'León Cuero SA', [VOMERO_IDS.zephyr]: 'Zephyr Compounds' }));
     mount();
     const leather = screen.getByRole('row', { name: /^Line 1:/ });
-    expect(await within(leather).findByText('León Cuero SA · LC-BOV-UP-01 · 60%')).toBeInTheDocument();
-    expect(within(leather).getByText('Unknown supplier · MK-FG-HIDE-2 · 40%')).toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /^Line 3:/ })).getByText('Zephyr Compounds · ZC-OUT-R2 · 100%')).toBeInTheDocument();
+    expect(await within(leather).findByText('León Cuero SA · LC-BOV-UP-01')).toBeInTheDocument();
+    expect(within(leather).getByText('Unknown supplier · MK-FG-HIDE-2')).toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /^Line 3:/ })).getByText('Zephyr Compounds · ZC-OUT-R2')).toBeInTheDocument();
     const lookups = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith('/api/account/company/'));
     expect(lookups.sort()).toEqual([VOMERO_IDS.leon, VOMERO_IDS.mekong, VOMERO_IDS.zephyr].map((id) => `/api/account/company/${id}/profile`).sort());
     expect(screen.queryByText(/5a1e0000/)).toBeNull();
