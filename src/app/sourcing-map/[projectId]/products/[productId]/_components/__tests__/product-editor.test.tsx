@@ -435,7 +435,7 @@ describe('ProductEditorBody', () => {
   it('while the stale lock holds, a pin’s Remove and Add supplier do nothing, and neither is disabled (stale-lock, LW-a)', async () => {
     await importThenFailReread();
     const line1 = within(screen.getByRole('row', { name: /^Line 1:/ }));
-    const removePin = line1.getByRole('button', { name: 'Remove LC-BOV-UP-01' });
+    const removePin = line1.getByRole('button', { name: 'Remove supplier LC-BOV-UP-01' });
     fireEvent.click(removePin);
     expect(line1.getByText(/LC-BOV-UP-01 · 60%/)).toBeInTheDocument();
     const addSupplier = line1.getByRole('button', { name: 'Add supplier' });
