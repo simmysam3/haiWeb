@@ -2,7 +2,7 @@
 import { useLayoutEffect } from 'react';
 import type { SourcingMapExecutionResult } from '@haiwave/protocol';
 import { layoutMap, MAP_L, RAIL_L } from '@/lib/sourcing-map/map/layout';
-import { candidateWeekAt, heatVar, slotCoverageAt, slotTitle, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
+import { candidateWeekAt, capacityExists, heatVar, slotTitle, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
 import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
@@ -44,11 +44,11 @@ export function MapCanvas({ result, asOfDrop, productFilter, productNames, seat,
   for (const lane of lay.lanes) {
     const slot = result.slots[lane.slotIndex]!;
     const week = slotWeekFor(slot, asOfDrop);
-    const cov = slotCoverageAt(slot, week);
     // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, has two states. It is cyan
-    // while the slot's requirement is met in full by this drop and red once it is not. Only a card's drop shows
-    // that card's own 90 / 70 heat.
-    const main = cov ? (cov.coverage >= 1 ? MET_STROKE : SHORT_STROKE) : NEUTRAL_STROKE;
+    // while capacity exists for the requirement by this drop (capacityExists: what the suppliers state, allocated
+    // or not) and red once the requested volume cannot be met. Only a card's drop shows that card's own 90 / 70 heat.
+    const exists = capacityExists(slot, week);
+    const main = exists === null ? NEUTRAL_STROKE : exists ? MET_STROKE : SHORT_STROKE;
     // The bus runs in the gutter between the rail's text and the cards, so no link crosses a header line.
     const busY = lane.y + lane.textH + RAIL_L.linkGutter / 2;
     paths.push({
