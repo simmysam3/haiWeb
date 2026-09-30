@@ -38,10 +38,21 @@ describe('TierRows', () => {
     expect(t2.parentElement!.textContent).not.toMatch(/\d[\d,.]{2,}|[0-9a-f]{8}-|Vetta|Halcyon|Rio Bravo/);
   });
 
+  it('keeps each handle to one line: the full label is its title and stays in the DOM text, so a truncated handle still names itself (Task 13 fix round A)', () => {
+    mount(leon!);
+    const full = { A: 'A · IT · Dyes', B: 'B · US · Wet-blue', C: 'C · IN · Colorants' } as const;
+    for (const [alias, label] of Object.entries(full)) {
+      const handle = document.querySelector<HTMLElement>(`button[data-anchor="leon/${alias}"]`)!;
+      expect(handle).toHaveAttribute('title', label);
+      expect(handle.textContent!.startsWith(label)).toBe(true);
+      expect(screen.getByRole('button', { name: new RegExp(`^${label}`) })).toBe(handle);
+    }
+  });
+
   it('reads "—" for a missing country or class', () => {
     const bare: SmCandidateResult2 = { ...leon!, nodes: [{ alias: 'A', tier: 2, country: null, class: null, band: 'slight', observed_below: true }] };
     mount(bare);
-    expect(screen.getByRole('button', { name: /^A · — · —/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^A · — · —/ })).toHaveAttribute('title', 'A · — · —');
     expect(screen.getByRole('img', { name: 'slight' }).style.background).toBe('var(--sm-heat-good)');
   });
 

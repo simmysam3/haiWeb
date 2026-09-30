@@ -9,6 +9,9 @@ import { MAP_L, tiersOf } from '@/lib/sourcing-map/map/layout';
  * a band dot worded in title and aria-label — and never a quantity, an id or a name. Handles for one alias light
  * together on hover, across every card that carries it. Each handle is a <button>, so OptionCard's surface click
  * (ruling F-a) leaves it alone. `traced` marks the selected card: its trace's roles are drawn on its own handles.
+ * A handle is one line (Task 13 fix round A): in a row too narrow for its handles the label truncates with an ellipsis,
+ * the full label stays in the DOM (the accessible name) and in `title`, and the band dot and the role marker stay.
+ * The row keeps its overflow visible so a handle's focus outline and hover ring are never clipped.
  */
 export function TierRows({ candidate: c, traced, selectedAlias, onSelectAlias, hoveredAlias, onHoverAlias }: {
   candidate: SmCandidateResult2; traced: boolean;
@@ -24,13 +27,13 @@ export function TierRows({ candidate: c, traced, selectedAlias, onSelectAlias, h
     <div className="flex flex-col" style={{ marginTop: MAP_L.tierRowsTop }}>
       {tiersOf(nodes).map((tier) => (
         <div key={tier} role="group" aria-label={`Tier ${tier} under ${c.supplier_name}`} className="flex items-center gap-1" style={{ height: MAP_L.tierRowH }}>
-          <span aria-hidden="true" className="sm-muted w-5 text-[10px]">{`T${tier}`}</span>
+          <span aria-hidden="true" className="sm-muted w-5 shrink-0 text-[10px]">{`T${tier}`}</span>
           {nodes.filter((n) => n.tier === tier).map((n) => {
             const t = traceNodes.get(n.alias);
             const lit = hoveredAlias === n.alias;
             const country = n.country ?? EM_DASH;
             const klass = n.class?.label ?? EM_DASH;
-            const title = `Tier ${n.tier} · ${country} · ${klass}${n.class ? ` (shown at level ${n.class.level} of ${n.class.of_levels})` : ''}`;
+            const label = `${n.alias} · ${country} · ${klass}`;
             return (
               <button
                 key={n.alias}
@@ -39,24 +42,24 @@ export function TierRows({ candidate: c, traced, selectedAlias, onSelectAlias, h
                 data-alias={n.alias}
                 data-lit={lit ? 'true' : undefined}
                 aria-pressed={selectedAlias === n.alias}
-                title={title}
+                title={label}
                 onClick={() => onSelectAlias(selectedAlias === n.alias ? null : n.alias, key)}
                 onMouseEnter={() => onHoverAlias(n.alias)}
                 onMouseLeave={() => onHoverAlias(null)}
                 onFocus={() => onHoverAlias(n.alias)}
                 onBlur={() => onHoverAlias(null)}
                 // .sm-btn (sourcing-map.css:16) is unlayered, so its padding and font-size outrank utilities; the row's size is inline.
-                className="sm-btn sm-btn-ghost flex items-center gap-1"
+                className="sm-btn sm-btn-ghost flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap"
                 style={{ height: MAP_L.tierRowH - 4, padding: '0 6px', fontSize: 11, boxShadow: lit ? '0 0 0 2px var(--sm-teal)' : undefined }}
               >
-                <span>{`${n.alias} · ${country} · ${klass}`}</span>
+                <span className="min-w-0 truncate">{label}</span>
                 {n.band !== null && (
-                  <span role="img" aria-label={bandWord(n.band)} title={bandWord(n.band)} className="inline-block h-2 w-2 rounded-full" style={{ background: bandVar(n.band) }} />
+                  <span role="img" aria-label={bandWord(n.band)} title={bandWord(n.band)} className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: bandVar(n.band) }} />
                 )}
                 {t && (
-                  <span role="img" aria-label={t.role} title={t.role} className="font-semibold">{t.role === 'binding' ? String.fromCharCode(0x25cf) : String.fromCharCode(0x25cb)}</span>
+                  <span role="img" aria-label={t.role} title={t.role} className="shrink-0 font-semibold">{t.role === 'binding' ? String.fromCharCode(0x25cf) : String.fromCharCode(0x25cb)}</span>
                 )}
-                {t && t.binds_for > 1 && <span className="sm-warn">{`Binding for ${t.binds_for} options`}</span>}
+                {t && t.binds_for > 1 && <span className="sm-warn shrink-0">{`Binding for ${t.binds_for} options`}</span>}
               </button>
             );
           })}
