@@ -681,6 +681,11 @@ describe('Workspace', () => {
     expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
     expect(document.activeElement).toBe(a);
     expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // Review Focus 3: with León still selected, Mekong's copy of A has no trace role; the role is León's, for León's handle only
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    const mekongWhileLeon = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expect(within(mekongWhileLeon).queryByText('binding')).toBeNull();
+    fireEvent.click(within(mekongWhileLeon).getByRole('button', { name: 'Close handle details' }));
     // a handle under Mekong, with no card selected: the panel shows Mekong's copy of A (no band, no role) and names León as the other option (Review Focus 3)
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));

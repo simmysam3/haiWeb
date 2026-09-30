@@ -292,6 +292,8 @@ describe('MapCanvas', () => {
         onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
     );
     expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+    // León is not the selected card now: its handles carry no trace role (the marker is the selected card's alone)
+    expect(within(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT/ })).queryByRole('img', { name: 'binding' })).toBeNull();
     rerender(
       <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
         onSelect={vi.fn()} collapsed={new Set([0])} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
