@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { login } from './sourcing-map-login';
 
 /**
  * Sourcing Map SP2 (spec §12.6): the run workspace on the SP2-0 fixtures in a real browser, through the dev-only
@@ -245,5 +246,62 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
     await expect(page.getByRole('status')).toHaveText("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own.");
     await expect(page.getByRole('button', { name: 'Cancel execution' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Arno Pelli, IT: Waiting · hourly allowance' })).toBeVisible();
+  });
+});
+
+test.describe('Sourcing Map SP2 walk (CSG, live seed — SP2-e, on the owner’s word)', () => {
+  const HAIWEB = process.env.HAIWEB_BASE_URL ?? 'http://localhost:3001';
+  const EMAIL = process.env.SM_CSG_EMAIL;
+  const PASSWORD = process.env.SM_CSG_PASSWORD;
+  const RUN_PATH = process.env.SM_SP2_RUN_PATH;
+  test.skip(process.env.SM_SP2_LIVE !== '1' || !EMAIL || !PASSWORD || !RUN_PATH, 'Needs SM_SP2_LIVE=1, SM_CSG_EMAIL, SM_CSG_PASSWORD and SM_SP2_RUN_PATH; runs only in the SP2-e walk');
+
+  test('Line A base: León reads the tier-2 reason and traces to a binding alias shared with Mekong; Zephyr reads own capacity; a tier 3 sits under León; nothing below tier 1 is named or counted (spec §14.1–3, §14.7, §14.9)', async ({ page }) => {
+    test.setTimeout(5 * 60_000);
+    await login(page, EMAIL!, PASSWORD!);
+    await page.goto(`${HAIWEB}${RUN_PATH}`);
+    await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Identity, quantities and names below tier 1 are not disclosed.')).toBeVisible();
+    console.log(`SM_SP2_MAP_RENDER_MS live=${JSON.stringify(await durations(page, 'sm-map-render'))}`);
+
+    // §14.1: León short with the tier-2 reason; the limits list names one binding node for it
+    await expect(page.getByRole('button', { name: /^León Cuero, MX: .*Limit: constraint returned by current source, tier 2/ })).toBeVisible();
+    const limit = page.getByRole('region', { name: 'Supply-chain limits' }).getByRole('button', { name: /^[A-Z]{1,4} · tier 2 — binding for León Cuero$/ });
+    await expect(limit).toHaveCount(1);
+    await limit.click();
+    const overlay = page.getByRole('img', { name: /^Shortfall trace: León Cuero → [A-Z]{1,4} \((slight|moderate|severe)\); binding: [A-Z]{1,4} \(tier 2\)/ });
+    await expect(overlay).toBeVisible();
+    console.log(`SM_SP2_TRACE_DRAW_MS live=${JSON.stringify(await durations(page, 'sm-trace-draw'))}`);
+    const alias = (await overlay.getAttribute('aria-label'))!.match(/binding: ([A-Z]{1,4}) \(tier 2\)/)![1]!;
+    // the binding alias sits under Mekong too (shared exposure), marked binding only under León
+    const leonHandle = page.getByRole('group', { name: 'Tier 2 under León Cuero' }).getByRole('button', { name: new RegExp(`^${alias} · `) });
+    const mekongHandle = page.getByRole('group', { name: 'Tier 2 under Mekong Tannery' }).getByRole('button', { name: new RegExp(`^${alias} · `) });
+    await expect(leonHandle).toBeVisible();
+    await expect(mekongHandle).toBeVisible();
+    await expect(leonHandle.getByRole('img', { name: 'binding' })).toBeVisible();
+    await expect(mekongHandle.getByRole('img', { name: 'binding' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mekong Tannery, VN: .*No shortfall stated/ })).toBeVisible();
+    // §14.2: Zephyr's own limit, with a tier-2 handle beneath
+    await expect(page.getByRole('button', { name: /^Zephyr Compounds, DE: .*Limit: own capacity/ })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Tier 2 under Zephyr Compounds' }).getByRole('button')).toHaveCount(1);
+    // §14.3: a tier-3 handle under León
+    await expect(page.getByRole('group', { name: 'Tier 3 under León Cuero' }).getByRole('button')).toHaveCount(1);
+    // §14.7: the shared yarn node under FlowKnit and Bowline, no band
+    for (const name of ['FlowKnit Mills', 'Bowline Trim']) {
+      const handles = page.getByRole('group', { name: `Tier 2 under ${name}` }).getByRole('button');
+      await expect(handles).toHaveCount(1);
+      await expect(handles.first().getByRole('img')).toHaveCount(0);
+    }
+    // requirements §7.3 on the page: every handle is alias · country · class, no digits run and none of the reset script's names
+    const handleTexts = await page.locator('[data-anchor*="/"]').allTextContents();
+    expect(handleTexts.length).toBeGreaterThan(0);
+    for (const t of handleTexts) expect(t).toMatch(/^[A-Z]{1,4} · (—|[A-Z]{2}) · [^0-9]*$/);
+    const body = await page.locator('[data-testid="sm-root"]').innerText();
+    expect(body).not.toMatch(/Vetta|Halcyon|Rio Bravo|Delta Hides|Chroma|Songkhla|Pacific Yarn|Sierra Tanning/);
+    // the handle panel says so too
+    await leonHandle.click();
+    const panel = page.getByRole('complementary', { name: `Details for supplier ${alias}` });
+    await expect(panel.getByText('Identity, quantities and names below tier 1 are not disclosed.')).toBeVisible();
+    await expect(panel.getByText('Also supplies: Mekong Tannery')).toBeVisible();
   });
 });
