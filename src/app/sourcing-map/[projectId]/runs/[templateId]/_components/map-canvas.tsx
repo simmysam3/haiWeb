@@ -87,11 +87,13 @@ export function MapCanvas({
   // unmounted, so anchors left from an earlier trace are never drawn (ruling R4: no reset, only the ref-derived set).
   // The measurement is a function of the frame because react-hooks/set-state-in-effect allows a setState only when its
   // argument is computed from a ref; an object filled in by mutation never counts as ref-derived, so keep it a call.
+  // #38: a pressed handle's 2 px border and bold weight (sourcing-map.css) move the handles after it in its row, so
+  // the pressed handle is a dep too.
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (trace === null || tracedKey === null || frame === null) return;
     setAnchors(measureAnchors(frame, tracedKey));
-  }, [trace, tracedKey, result, collapsed, asOfDrop]);
+  }, [trace, tracedKey, result, collapsed, asOfDrop, selectedHandle]);
   const caption = result.projection_k !== undefined && result.projection_k !== null ? SP2_CAPTION : SP1_CAPTION;
   const names = candidateNamesOf(result);
   const lay = layoutMap(result.slots, collapsed);

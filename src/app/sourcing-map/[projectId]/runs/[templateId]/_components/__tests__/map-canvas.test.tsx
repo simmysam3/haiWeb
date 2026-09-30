@@ -304,6 +304,39 @@ describe('MapCanvas', () => {
     expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
   });
 
+  it('re-measures the trace’s anchors when a handle is pressed: its 2 px border and bold weight move the handles after it in the row (#38)', () => {
+    // León's trace edge runs to B here, so pressing A (before B in the row) moves the edge's end
+    const viaB = structuredCloneSafe(mt);
+    const leonTrace = viaB.slots[0]!.candidates[0]!.trace!;
+    leonTrace.edges[0]!.child = 'B';
+    leonTrace.nodes[0]!.alias = 'B';
+    let shift = 0;
+    const rect = (x: number, y: number, width: number, height: number) =>
+      ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) }) as DOMRect;
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.dataset.anchor === 'leon') return rect(40, 100, 200, 20);
+      if (this.dataset.anchor === 'leon/B') return rect(150 + shift, 300, 60, 22);
+      return rect(0, 0, 0, 0);
+    });
+    try {
+      // one collapsed set, result and drop for both renders: only the pressed handle changes
+      const collapsed = new Set<number>();
+      const selected = { slot: 0, candidate: 0 };
+      const at = (selectedHandle: { alias: string; origin: string } | null) => (
+        <MapCanvas result={viaB} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={selected}
+          onSelect={vi.fn()} collapsed={collapsed} onToggle={vi.fn()} selectedHandle={selectedHandle} onSelectAlias={vi.fn()} />
+      );
+      const { rerender } = render(at(null));
+      const edge = () => document.querySelector('path[data-trace-edge]')!.getAttribute('d');
+      expect(edge()).toMatch(/L 150 311$/);
+      shift = 7;
+      rerender(at({ alias: 'A', origin: 'leon' }));
+      expect(edge()).toMatch(/L 157 311$/);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('hovering a handle lights every handle of that alias across cards; a click reports the alias; the limits list selects the first option a node binds', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
