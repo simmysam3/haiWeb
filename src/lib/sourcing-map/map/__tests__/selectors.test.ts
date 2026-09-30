@@ -184,11 +184,17 @@ describe('SP2 selectors: bands, keys, tiers and the limit reason (spec §12.2, c
     expect(limitReason({ ...sp1Leon, limit: null })).toBe('No shortfall stated');
   });
 
-  it('switches on the limit first (controller ruling 2): a live SP2 candidate with limit inputs but no projection yet reads the tiered words, tier falling through to the unobserved tier; an SP1 own has no nodes and reads the walk’s words', () => {
+  it('switches on the limit first (controller ruling 2): a live SP2 candidate with limit inputs but no projection yet reads the tiered words, the tier falling through binding tier, then the served unobserved tier, then 2; an SP1 own has no nodes and reads the walk’s words', () => {
     const live: SmCandidateResult2 = { ...leon2!, nodes: undefined, trace: undefined };
     expect(live.limit).toBe('inputs');
     expect(limitReason(live)).toBe('Limit: constraint returned by current source, tier 2');
     expect(limitReason({ ...live, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
+    // middle term: the served unobserved tier is used when nothing binds
+    expect(limitReason({ ...live, unobserved_from_tier: 3 })).toBe('Limit: constraint returned by current source, tier 3');
+    // last term: a status-delta candidate before composition has no binding tier and no unobserved tier
+    const { unobserved_from_tier: _dropped, ...bare } = live;
+    void _dropped;
+    expect(limitReason({ ...bare, observed_below: true })).toBe('Limit: constraint returned by current source, tier 2');
     const sp1Own: SmCandidateResult2 = { ...live, limit: 'own' };
     expect(limitReason(sp1Own)).toBe('Short · cause not traced');
   });
