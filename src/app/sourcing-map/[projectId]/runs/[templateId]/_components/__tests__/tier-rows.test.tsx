@@ -80,4 +80,48 @@ describe('TierRows', () => {
     fireEvent.blur(handle);
     expect(onFocusHover).toHaveBeenLastCalledWith(null);
   });
+
+  it('lights every handle of the hovered alias across cards, and only those (Review Focus 3: Vetta is moderate under León, unbanded under Mekong)', () => {
+    render(
+      <>
+        <TierRows candidate={leon!} traced={false} selectedAlias={null} onSelectAlias={vi.fn()} hoveredAlias="A" onHoverAlias={vi.fn()} />
+        <TierRows candidate={mekong!} traced={false} selectedAlias={null} onSelectAlias={vi.fn()} hoveredAlias="A" onHoverAlias={vi.fn()} />
+      </>,
+    );
+    const aHandles = screen.getAllByRole('button', { name: /^A · IT · Dyes/ });
+    expect(aHandles).toHaveLength(2);
+    for (const h of aHandles) {
+      expect(h).toHaveAttribute('data-lit', 'true');
+      expect(h.style.boxShadow).toBe('0 0 0 2px var(--sm-teal)');
+    }
+    expect(aHandles[0]).toHaveAttribute('data-anchor', 'leon/A');
+    expect(aHandles[1]).toHaveAttribute('data-anchor', 'mekong/A');
+    // each card shows its own option's band for the shared node
+    expect(within(aHandles[0]!).getByRole('img', { name: 'moderate' })).toBeInTheDocument();
+    expect(within(aHandles[1]!).queryByRole('img')).toBeNull();
+    for (const other of screen.getAllByRole('button', { name: /^(B|C|F) ·/ })) {
+      expect(other).not.toHaveAttribute('data-lit');
+      expect(other.style.boxShadow).toBe('');
+    }
+  });
+
+  it('marks the traced card’s binding node with ● and says "Binding for N options" when it binds more than one; an untraced card shows no marker (spec §12.3)', () => {
+    const traced = mount(leon!, { traced: true });
+    const a = screen.getByRole('button', { name: /^A · IT · Dyes/ });
+    const marker = within(a).getByRole('img', { name: 'binding' });
+    expect(marker).toHaveTextContent(String.fromCharCode(0x25cf));
+    expect(screen.queryByText(/^Binding for/)).toBeNull();
+    traced.unmount();
+    const bindsTwo: SmCandidateResult2 = { ...leon!, trace: { ...leon!.trace!, nodes: [{ ...leon!.trace!.nodes[0]!, binds_for: 2 }] } };
+    const two = mount(bindsTwo, { traced: true });
+    expect(screen.getByText('Binding for 2 options')).toBeInTheDocument();
+    two.unmount();
+    const inherited: SmCandidateResult2 = { ...leon!, trace: { nodes: [{ alias: 'A', tier: 2, role: 'inherited', band: 'moderate', binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding', band: 'severe', binds_for: 1 }], edges: [{ parent: 'leon', child: 'A', band: 'moderate' }, { parent: 'A', child: 'C', band: 'severe' }], gaps: [] } };
+    const deep = mount(inherited, { traced: true });
+    expect(within(screen.getByRole('button', { name: /^A · IT/ })).getByRole('img', { name: 'inherited' })).toHaveTextContent(String.fromCharCode(0x25cb));
+    expect(within(screen.getByRole('button', { name: /^C · IN/ })).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    deep.unmount();
+    mount(leon!, { traced: false });
+    expect(screen.queryByRole('img', { name: 'binding' })).toBeNull();
+  });
 });
