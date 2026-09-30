@@ -1,0 +1,468 @@
+{
+  "execution": {
+    "execution_id": "5a1e0000-0000-4000-8000-000000000031",
+    "template_id": "5a1e0000-0000-4000-8000-000000000021",
+    "template_name": "Line A base",
+    "status": "completed",
+    "failure_reason": null,
+    "trigger": "manual",
+    "started_at": "2026-10-05T10:40:00.000Z",
+    "completed_at": "2026-10-05T10:43:10.000Z",
+    "probes_planned": 15,
+    "probes_done": 15,
+    "gap_counts": { "timeout": 1 },
+    "portfolio_coverage_last_drop": 0.95,
+    "first_short_drop": "2027-03-15",
+    "archived_at": null,
+    "created_at": "2026-10-05T10:40:00.000Z"
+  },
+  "result": {
+    "complete": true,
+    "seat": { "participant_id": "6ab14288-fe43-490e-bc4e-4902ce857fba", "legal_name": "CSG Footwear Vietnam", "country": "VN", "class_label": "Athletic footwear" },
+    "portfolio": {
+      "drops": [
+        { "due_date": "2027-01-15", "demand": 16000, "covered": 16000, "coverage": 1 },
+        { "due_date": "2027-02-15", "demand": 32000, "covered": 32000, "coverage": 1 },
+        { "due_date": "2027-03-15", "demand": 48000, "covered": 43200, "coverage": 0.9 },
+        { "due_date": "2027-04-15", "demand": 64000, "covered": 59603, "coverage": 0.9313 },
+        { "due_date": "2027-05-15", "demand": 80000, "covered": 76000, "coverage": 0.95 },
+        { "due_date": "2027-06-15", "demand": 96000, "covered": 91200, "coverage": 0.95 }
+      ],
+      "first_short_drop": "2027-03-15",
+      "seat_capacity_applied": true
+    },
+    "products": [
+      {
+        "product_id": "5a1e0000-0000-4000-8000-000000000011",
+        "name": "Pegasus Trail",
+        "status": "composed",
+        "failure": null,
+        "drops": [
+          { "due_date": "2027-01-15", "qty": 6000, "covered": 6000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-02-15", "qty": 12000, "covered": 12000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-03-15", "qty": 18000, "covered": 16200, "coverage": 0.9, "by_variant": null },
+          { "due_date": "2027-04-15", "qty": 24000, "covered": 22351, "coverage": 0.9313, "by_variant": null },
+          { "due_date": "2027-05-15", "qty": 30000, "covered": 28500, "coverage": 0.95, "by_variant": null },
+          { "due_date": "2027-06-15", "qty": 36000, "covered": 34200, "coverage": 0.95, "by_variant": null }
+        ]
+      },
+      {
+        "product_id": "5a1e0000-0000-4000-8000-000000000012",
+        "name": "Court Classic",
+        "status": "composed",
+        "failure": null,
+        "drops": [
+          { "due_date": "2027-01-15", "qty": 5000, "covered": 5000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-02-15", "qty": 10000, "covered": 10000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-03-15", "qty": 15000, "covered": 13500, "coverage": 0.9, "by_variant": null },
+          { "due_date": "2027-04-15", "qty": 20000, "covered": 18626, "coverage": 0.9313, "by_variant": null },
+          { "due_date": "2027-05-15", "qty": 25000, "covered": 23750, "coverage": 0.95, "by_variant": null },
+          { "due_date": "2027-06-15", "qty": 30000, "covered": 28500, "coverage": 0.95, "by_variant": null }
+        ]
+      },
+      {
+        "product_id": "5a1e0000-0000-4000-8000-000000000013",
+        "name": "Metcon Iron",
+        "status": "composed",
+        "failure": null,
+        "drops": [
+          { "due_date": "2027-01-15", "qty": 5000, "covered": 5000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-02-15", "qty": 10000, "covered": 10000, "coverage": 1, "by_variant": null },
+          { "due_date": "2027-03-15", "qty": 15000, "covered": 13500, "coverage": 0.9, "by_variant": null },
+          { "due_date": "2027-04-15", "qty": 20000, "covered": 18626, "coverage": 0.9313, "by_variant": null },
+          { "due_date": "2027-05-15", "qty": 25000, "covered": 23750, "coverage": 0.95, "by_variant": null },
+          { "due_date": "2027-06-15", "qty": 30000, "covered": 28500, "coverage": 0.95, "by_variant": null }
+        ]
+      }
+    ],
+    "slots": [
+      {
+        "slot_key": { "class_id": "cpt_full_grain_leather_hides", "uom": "sq ft", "variant_bound": false, "variant_system": null },
+        "class_label": "Full grain leather hides",
+        "class_path": ["Materials", "Leather", "Finished leather", "Full grain leather hides"],
+        "product_ids": ["5a1e0000-0000-4000-8000-000000000011", "5a1e0000-0000-4000-8000-000000000012", "5a1e0000-0000-4000-8000-000000000013"],
+        "demand": [
+          { "week": "2026-12-21", "cum_qty": 4000, "cum_qty_by_variant": null },
+          { "week": "2027-01-25", "cum_qty": 8000, "cum_qty_by_variant": null },
+          { "week": "2027-02-22", "cum_qty": 12000, "cum_qty_by_variant": null },
+          { "week": "2027-03-22", "cum_qty": 16000, "cum_qty_by_variant": null },
+          { "week": "2027-04-19", "cum_qty": 20000, "cum_qty_by_variant": null },
+          { "week": "2027-05-24", "cum_qty": 24000, "cum_qty_by_variant": null }
+        ],
+        "coverage": [
+          { "week": "2026-12-21", "covered": 4000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-01-25", "covered": 8000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-02-22", "covered": 10800, "coverage": 0.9, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-03-22", "covered": 14900, "coverage": 0.9313, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-04-19", "covered": 19000, "coverage": 0.95, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-05-24", "covered": 23100, "coverage": 0.9625, "covered_by_variant": null, "coverage_by_variant": null }
+        ],
+        "observed": false,
+        "no_publisher": false,
+        "candidates": [
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000101",
+            "supplier_name": "León Cuero",
+            "supplier_country": "MX",
+            "supplier_sku": "LC-BOV-UP-01",
+            "class_id": "cpt_full_grain_leather_hides",
+            "class_path": ["Materials", "Leather", "Finished leather", "Full grain leather hides"],
+            "pinned": true,
+            "allocation_share_pct": 60,
+            "status": "answered",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [
+              { "week": "2026-12-21", "cum_achievable": 3000, "cum_achievable_by_variant": null, "option_coverage": 0.75 },
+              { "week": "2027-01-25", "cum_achievable": 4800, "cum_achievable_by_variant": null, "option_coverage": 0.6 },
+              { "week": "2027-02-22", "cum_achievable": 6000, "cum_achievable_by_variant": null, "option_coverage": 0.5 },
+              { "week": "2027-03-22", "cum_achievable": 8500, "cum_achievable_by_variant": null, "option_coverage": 0.5313 },
+              { "week": "2027-04-19", "cum_achievable": 11000, "cum_achievable_by_variant": null, "option_coverage": 0.55 },
+              { "week": "2027-05-24", "cum_achievable": 13500, "cum_achievable_by_variant": null, "option_coverage": 0.5625 }
+            ],
+            "limit": "inputs",
+            "own_lead_time_days": 38,
+            "utilization_band": "moderate",
+            "answered_at": "2026-10-05T10:42:00.000Z",
+            "status_seq": 2,
+            "candidate_key": "leon",
+            "observed_below": false,
+            "aggregates": { "responders": 3, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 1, "high": 0, "at_capacity": 1 }, "countries": ["IN", "IT", "US"], "classes": ["Colorants", "Dyes", "Wet-blue"], "not_observed": 1 },
+            "nodes": [
+              { "alias": "A", "tier": 2, "country": "IT", "class": { "slug": "cpt_leather_finish_dyes", "label": "Dyes", "level": 4, "of_levels": 4 }, "band": "moderate", "observed_below": true },
+              { "alias": "B", "tier": 2, "country": "US", "class": { "slug": "cpt_bovine_wet_blue_hides", "label": "Wet-blue", "level": 4, "of_levels": 4 }, "band": null, "observed_below": true },
+              { "alias": "C", "tier": 3, "country": "IN", "class": { "slug": "cpt_colorants", "label": "Colorants", "level": 2, "of_levels": 4 }, "band": null, "observed_below": true }
+            ],
+            "trace": {
+              "nodes": [
+                { "alias": "A", "tier": 2, "role": "binding", "band": "moderate", "binds_for": 1 }
+              ],
+              "edges": [
+                { "parent": "leon", "child": "A", "band": "moderate" }
+              ],
+              "gaps": [
+                { "at": "leon", "status": "not_connected" }
+              ]
+            },
+            "unobserved_from_tier": 2
+          },
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000102",
+            "supplier_name": "Mekong Tannery",
+            "supplier_country": "VN",
+            "supplier_sku": "MK-FG-HIDE-2",
+            "class_id": "cpt_full_grain_leather_hides",
+            "class_path": ["Materials", "Leather", "Finished leather", "Full grain leather hides"],
+            "pinned": true,
+            "allocation_share_pct": 40,
+            "status": "answered",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [
+              { "week": "2026-12-21", "cum_achievable": 4000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-01-25", "cum_achievable": 8000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-02-22", "cum_achievable": 12000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-03-22", "cum_achievable": 16000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-04-19", "cum_achievable": 20000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-05-24", "cum_achievable": 24000, "cum_achievable_by_variant": null, "option_coverage": 1 }
+            ],
+            "limit": null,
+            "own_lead_time_days": 24,
+            "utilization_band": "moderate",
+            "answered_at": "2026-10-05T10:42:00.000Z",
+            "status_seq": 3,
+            "candidate_key": "mekong",
+            "observed_below": true,
+            "aggregates": { "responders": 3, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 1, "high": 0, "at_capacity": 1 }, "countries": ["IN", "IT", "VN"], "classes": ["Colorants", "Dyes", "Wet-blue"], "not_observed": 0 },
+            "nodes": [
+              { "alias": "A", "tier": 2, "country": "IT", "class": { "slug": "cpt_leather_finish_dyes", "label": "Dyes", "level": 4, "of_levels": 4 }, "band": null, "observed_below": true },
+              { "alias": "F", "tier": 2, "country": "VN", "class": { "slug": "cpt_bovine_wet_blue_hides", "label": "Wet-blue", "level": 4, "of_levels": 4 }, "band": null, "observed_below": true },
+              { "alias": "C", "tier": 3, "country": "IN", "class": { "slug": "cpt_colorants", "label": "Colorants", "level": 2, "of_levels": 4 }, "band": null, "observed_below": true }
+            ],
+            "trace": null,
+            "unobserved_from_tier": null
+          },
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000103",
+            "supplier_name": "Arno Pelli",
+            "supplier_country": "IT",
+            "supplier_sku": "AP-VITELLO-9",
+            "class_id": "cpt_full_grain_leather_hides",
+            "class_path": ["Materials", "Leather", "Finished leather", "Full grain leather hides"],
+            "pinned": false,
+            "allocation_share_pct": 0,
+            "status": "timeout",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [],
+            "limit": null,
+            "own_lead_time_days": null,
+            "utilization_band": null,
+            "answered_at": null,
+            "status_seq": 7,
+            "candidate_key": "arno",
+            "observed_below": true,
+            "aggregates": null,
+            "nodes": [],
+            "trace": null,
+            "unobserved_from_tier": null
+          }
+        ],
+        "not_probed_count": 0,
+        "product_demand": [
+          { "product_id": "5a1e0000-0000-4000-8000-000000000011", "cum_qty": [1500, 3000, 4500, 6000, 7500, 9000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000012", "cum_qty": [1250, 2500, 3750, 5000, 6250, 7500] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000013", "cum_qty": [1250, 2500, 3750, 5000, 6250, 7500] }
+        ],
+        "as_of_weeks": [
+          { "drop": "2027-01-15", "week": "2026-12-21" },
+          { "drop": "2027-02-15", "week": "2027-01-25" },
+          { "drop": "2027-03-15", "week": "2027-02-22" },
+          { "drop": "2027-04-15", "week": "2027-03-22" },
+          { "drop": "2027-05-15", "week": "2027-04-19" },
+          { "drop": "2027-06-15", "week": "2027-05-24" }
+        ]
+      },
+      {
+        "slot_key": { "class_id": "cpt_polyester_knit_uppers", "uom": "pr", "variant_bound": false, "variant_system": null },
+        "class_label": "Polyester knit uppers",
+        "class_path": ["Components", "Uppers", "Knit uppers", "Polyester knit uppers"],
+        "product_ids": ["5a1e0000-0000-4000-8000-000000000011", "5a1e0000-0000-4000-8000-000000000012"],
+        "demand": [
+          { "week": "2026-12-21", "cum_qty": 11000, "cum_qty_by_variant": null },
+          { "week": "2027-01-25", "cum_qty": 22000, "cum_qty_by_variant": null },
+          { "week": "2027-02-22", "cum_qty": 33000, "cum_qty_by_variant": null },
+          { "week": "2027-03-22", "cum_qty": 44000, "cum_qty_by_variant": null },
+          { "week": "2027-04-19", "cum_qty": 55000, "cum_qty_by_variant": null },
+          { "week": "2027-05-24", "cum_qty": 66000, "cum_qty_by_variant": null }
+        ],
+        "coverage": [
+          { "week": "2026-12-21", "covered": 11000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-01-25", "covered": 22000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-02-22", "covered": 33000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-03-22", "covered": 44000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-04-19", "covered": 55000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-05-24", "covered": 66000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null }
+        ],
+        "observed": true,
+        "no_publisher": false,
+        "candidates": [
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000107",
+            "supplier_name": "FlowKnit Mills",
+            "supplier_country": "TW",
+            "supplier_sku": "FK-KNIT-UP-3",
+            "class_id": "cpt_polyester_knit_uppers",
+            "class_path": ["Components", "Uppers", "Knit uppers", "Polyester knit uppers"],
+            "pinned": true,
+            "allocation_share_pct": 100,
+            "status": "answered",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [
+              { "week": "2026-12-21", "cum_achievable": 11000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-01-25", "cum_achievable": 22000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-02-22", "cum_achievable": 33000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-03-22", "cum_achievable": 44000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-04-19", "cum_achievable": 55000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-05-24", "cum_achievable": 66000, "cum_achievable_by_variant": null, "option_coverage": 1 }
+            ],
+            "limit": null,
+            "own_lead_time_days": 18,
+            "utilization_band": "low",
+            "answered_at": "2026-10-05T10:42:00.000Z",
+            "status_seq": 5,
+            "candidate_key": "flowknit",
+            "observed_below": true,
+            "aggregates": { "responders": 1, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
+            "nodes": [
+              { "alias": "D", "tier": 2, "country": "TW", "class": { "slug": "cpt_polyester_yarn", "label": "Polyester", "level": 3, "of_levels": 4 }, "band": null, "observed_below": true }
+            ],
+            "trace": null,
+            "unobserved_from_tier": null
+          }
+        ],
+        "not_probed_count": 0,
+        "product_demand": [
+          { "product_id": "5a1e0000-0000-4000-8000-000000000011", "cum_qty": [6000, 12000, 18000, 24000, 30000, 36000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000012", "cum_qty": [5000, 10000, 15000, 20000, 25000, 30000] }
+        ],
+        "as_of_weeks": [
+          { "drop": "2027-01-15", "week": "2026-12-21" },
+          { "drop": "2027-02-15", "week": "2027-01-25" },
+          { "drop": "2027-03-15", "week": "2027-02-22" },
+          { "drop": "2027-04-15", "week": "2027-03-22" },
+          { "drop": "2027-05-15", "week": "2027-04-19" },
+          { "drop": "2027-06-15", "week": "2027-05-24" }
+        ]
+      },
+      {
+        "slot_key": { "class_id": "cpt_flat_laces", "uom": "pr", "variant_bound": false, "variant_system": null },
+        "class_label": "Flat laces",
+        "class_path": ["Components", "Trims", "Laces", "Flat laces"],
+        "product_ids": ["5a1e0000-0000-4000-8000-000000000011", "5a1e0000-0000-4000-8000-000000000012", "5a1e0000-0000-4000-8000-000000000013"],
+        "demand": [
+          { "week": "2026-12-21", "cum_qty": 16000, "cum_qty_by_variant": null },
+          { "week": "2027-01-25", "cum_qty": 32000, "cum_qty_by_variant": null },
+          { "week": "2027-02-22", "cum_qty": 48000, "cum_qty_by_variant": null },
+          { "week": "2027-03-22", "cum_qty": 64000, "cum_qty_by_variant": null },
+          { "week": "2027-04-19", "cum_qty": 80000, "cum_qty_by_variant": null },
+          { "week": "2027-05-24", "cum_qty": 96000, "cum_qty_by_variant": null }
+        ],
+        "coverage": [
+          { "week": "2026-12-21", "covered": 16000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-01-25", "covered": 32000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-02-22", "covered": 48000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-03-22", "covered": 64000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-04-19", "covered": 80000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-05-24", "covered": 96000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null }
+        ],
+        "observed": true,
+        "no_publisher": false,
+        "candidates": [
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000105",
+            "supplier_name": "Bowline Trim",
+            "supplier_country": "PT",
+            "supplier_sku": "BW-LACE-137",
+            "class_id": "cpt_flat_laces",
+            "class_path": ["Components", "Trims", "Laces", "Flat laces"],
+            "pinned": true,
+            "allocation_share_pct": 100,
+            "status": "answered",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [
+              { "week": "2026-12-21", "cum_achievable": 16000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-01-25", "cum_achievable": 32000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-02-22", "cum_achievable": 48000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-03-22", "cum_achievable": 64000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-04-19", "cum_achievable": 80000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-05-24", "cum_achievable": 96000, "cum_achievable_by_variant": null, "option_coverage": 1 }
+            ],
+            "limit": null,
+            "own_lead_time_days": 12,
+            "utilization_band": "low",
+            "answered_at": "2026-10-05T10:42:00.000Z",
+            "status_seq": 1,
+            "candidate_key": "bowline",
+            "observed_below": true,
+            "aggregates": { "responders": 1, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
+            "nodes": [
+              { "alias": "D", "tier": 2, "country": "TW", "class": { "slug": "cpt_polyester_yarn", "label": "Polyester", "level": 3, "of_levels": 4 }, "band": null, "observed_below": true }
+            ],
+            "trace": null,
+            "unobserved_from_tier": null
+          }
+        ],
+        "not_probed_count": 0,
+        "product_demand": [
+          { "product_id": "5a1e0000-0000-4000-8000-000000000011", "cum_qty": [6000, 12000, 18000, 24000, 30000, 36000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000012", "cum_qty": [5000, 10000, 15000, 20000, 25000, 30000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000013", "cum_qty": [5000, 10000, 15000, 20000, 25000, 30000] }
+        ],
+        "as_of_weeks": [
+          { "drop": "2027-01-15", "week": "2026-12-21" },
+          { "drop": "2027-02-15", "week": "2027-01-25" },
+          { "drop": "2027-03-15", "week": "2027-02-22" },
+          { "drop": "2027-04-15", "week": "2027-03-22" },
+          { "drop": "2027-05-15", "week": "2027-04-19" },
+          { "drop": "2027-06-15", "week": "2027-05-24" }
+        ]
+      },
+      {
+        "slot_key": { "class_id": "cpt_rubber_outsoles", "uom": "pr", "variant_bound": false, "variant_system": null },
+        "class_label": "Rubber outsoles",
+        "class_path": ["Components", "Outsoles", "Rubber outsoles"],
+        "product_ids": ["5a1e0000-0000-4000-8000-000000000011", "5a1e0000-0000-4000-8000-000000000012", "5a1e0000-0000-4000-8000-000000000013"],
+        "demand": [
+          { "week": "2026-12-21", "cum_qty": 16000, "cum_qty_by_variant": null },
+          { "week": "2027-01-25", "cum_qty": 32000, "cum_qty_by_variant": null },
+          { "week": "2027-02-22", "cum_qty": 48000, "cum_qty_by_variant": null },
+          { "week": "2027-03-22", "cum_qty": 64000, "cum_qty_by_variant": null },
+          { "week": "2027-04-19", "cum_qty": 80000, "cum_qty_by_variant": null },
+          { "week": "2027-05-24", "cum_qty": 96000, "cum_qty_by_variant": null }
+        ],
+        "coverage": [
+          { "week": "2026-12-21", "covered": 16000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-01-25", "covered": 32000, "coverage": 1, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-02-22", "covered": 45600, "coverage": 0.95, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-03-22", "covered": 60800, "coverage": 0.95, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-04-19", "covered": 76000, "coverage": 0.95, "covered_by_variant": null, "coverage_by_variant": null },
+          { "week": "2027-05-24", "covered": 91200, "coverage": 0.95, "covered_by_variant": null, "coverage_by_variant": null }
+        ],
+        "observed": true,
+        "no_publisher": false,
+        "candidates": [
+          {
+            "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000104",
+            "supplier_name": "Zephyr Compounds",
+            "supplier_country": "DE",
+            "supplier_sku": "ZC-OUT-R2",
+            "class_id": "cpt_rubber_outsoles",
+            "class_path": ["Components", "Outsoles", "Rubber outsoles"],
+            "pinned": true,
+            "allocation_share_pct": 100,
+            "status": "answered",
+            "availability_form": "quantity",
+            "answered_at_allocation": false,
+            "spare_unknown": false,
+            "shared_candidate": false,
+            "weeks": [
+              { "week": "2026-12-21", "cum_achievable": 16000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-01-25", "cum_achievable": 32000, "cum_achievable_by_variant": null, "option_coverage": 1 },
+              { "week": "2027-02-22", "cum_achievable": 45600, "cum_achievable_by_variant": null, "option_coverage": 0.95 },
+              { "week": "2027-03-22", "cum_achievable": 60800, "cum_achievable_by_variant": null, "option_coverage": 0.95 },
+              { "week": "2027-04-19", "cum_achievable": 76000, "cum_achievable_by_variant": null, "option_coverage": 0.95 },
+              { "week": "2027-05-24", "cum_achievable": 91200, "cum_achievable_by_variant": null, "option_coverage": 0.95 }
+            ],
+            "limit": "own",
+            "own_lead_time_days": 20,
+            "utilization_band": "high",
+            "answered_at": "2026-10-05T10:42:00.000Z",
+            "status_seq": 4,
+            "candidate_key": "zephyr",
+            "observed_below": true,
+            "aggregates": { "responders": 1, "median_lead_time_days": 10, "utilization": { "low": 0, "moderate": 1, "high": 0, "at_capacity": 0 }, "countries": ["TH"], "classes": ["Compounds"], "not_observed": 0 },
+            "nodes": [
+              { "alias": "E", "tier": 2, "country": "TH", "class": { "slug": "cpt_rubber_compounds", "label": "Compounds", "level": 2, "of_levels": 4 }, "band": null, "observed_below": true }
+            ],
+            "trace": null,
+            "unobserved_from_tier": null
+          }
+        ],
+        "not_probed_count": 0,
+        "product_demand": [
+          { "product_id": "5a1e0000-0000-4000-8000-000000000011", "cum_qty": [6000, 12000, 18000, 24000, 30000, 36000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000012", "cum_qty": [5000, 10000, 15000, 20000, 25000, 30000] },
+          { "product_id": "5a1e0000-0000-4000-8000-000000000013", "cum_qty": [5000, 10000, 15000, 20000, 25000, 30000] }
+        ],
+        "as_of_weeks": [
+          { "drop": "2027-01-15", "week": "2026-12-21" },
+          { "drop": "2027-02-15", "week": "2027-01-25" },
+          { "drop": "2027-03-15", "week": "2027-02-22" },
+          { "drop": "2027-04-15", "week": "2027-03-22" },
+          { "drop": "2027-05-15", "week": "2027-04-19" },
+          { "drop": "2027-06-15", "week": "2027-05-24" }
+        ]
+      }
+    ],
+    "answers_as_of": "2026-10-05T10:42:00.000Z",
+    "shared_exposure": [
+      { "alias": "A", "tier": 2, "under": ["leon", "mekong"] },
+      { "alias": "C", "tier": 3, "under": ["leon", "mekong"] },
+      { "alias": "D", "tier": 2, "under": ["flowknit", "bowline"] }
+    ],
+    "projection_k": 3
+  }
+}
