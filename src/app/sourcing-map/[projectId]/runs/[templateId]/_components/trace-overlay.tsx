@@ -12,6 +12,15 @@ const TRACE_START = 'sm-trace-draw:start';
 /** How far left of the parent the line runs, in the 16 px gap between cards (MAP_L.gap) or the lane gutter. */
 const GUTTER = 10;
 const STUB = 14;
+/** A gap label: 11 px text on one 16 px line, 4 px below its anchor, the baseline 12 px into the line. */
+const LABEL = { font: 11, line: 16, below: 4, baseline: 12, pad: 2 } as const;
+/**
+ * The label copy's advance per character at 11 px in the map's font: chromium measured the seven copies at 5.27–5.70
+ * px a character, the longest ("not observed below: not connected", 33 characters) at 185.5 px (Task 13 harness).
+ * The label is drawn at exactly this width (SVG textLength), so the back that keeps it legible over the card's own
+ * lines needs no measuring, whatever font the browser ends up with.
+ */
+const LABEL_CHAR_W = 5.6;
 
 /** From the parent's left-mid, out into the gutter, down to the child's mid-line, into the child's left edge. */
 export function tracePath(a: AnchorRect, b: AnchorRect): string {
@@ -21,6 +30,39 @@ export function tracePath(a: AnchorRect, b: AnchorRect): string {
   const ey = b.y + b.height / 2;
   const gx = Math.min(sx, ex) - GUTTER;
   return `M${sx} ${sy} L ${gx} ${sy} L ${gx} ${ey} L ${ex} ${ey}`;
+}
+
+/** A gap's stub, its label (text-anchor end at x) and the label's back, in the frame's coordinates. */
+export interface GapPlacement {
+  stub: string;
+  text: { x: number; y: number; width: number };
+  back: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * A gap's stub and label (spec §12.3, Task 13 R3). The stub leaves the anchor's right-mid into the gap beside the card;
+ * the label sits inside the traced card, on the line below the anchor, right-aligned to the card's content edge, over
+ * a card-coloured back. Beside the stub it painted over the next card (the gap is 16 px), and near the canvas's right
+ * edge the svg clipped it. Right-aligned to the card, never to a handle, a label cannot spill left out of the card
+ * either (the longest copy is 185 px; a card's content is 210 px). With no card measured, the anchor's own edge.
+ */
+export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, label: string): GapPlacement {
+  const sx = anchor.x + anchor.width;
+  const sy = anchor.y + anchor.height / 2;
+  const right = card ? card.x + card.width : sx;
+  const top = anchor.y + anchor.height + LABEL.below;
+  const width = Math.round(label.length * LABEL_CHAR_W);
+  return {
+    stub: `M${sx} ${sy} L ${sx + STUB} ${sy}`,
+    text: { x: right, y: top + LABEL.baseline, width },
+    back: { x: right - width - LABEL.pad, y: top, width: width + LABEL.pad, height: LABEL.line },
+  };
+}
+
+/** The traced card's own key: the edge parent or gap anchor that is no sub-tier node (the anchors hold the card under it). */
+function cardKeyOf(trace: SmTrace): string | undefined {
+  const aliases = new Set(trace.nodes.map((n) => n.alias));
+  return [...trace.edges.map((e) => e.parent), ...trace.gaps.map((g) => g.at)].find((k) => !aliases.has(k));
 }
 
 /**
@@ -40,6 +82,8 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
   });
   const id = useId();
   const nameOf = (k: string) => names[k] ?? k;
+  const cardKey = cardKeyOf(trace);
+  const card = cardKey === undefined ? undefined : anchors[cardKey];
   return (
     <svg data-trace role="img" aria-label={`Shortfall trace: ${traceSentence(trace, names)}`} width={width} height={height} className="pointer-events-none absolute inset-0">
       {trace.edges.map((e, i) => {
@@ -56,12 +100,13 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
       {trace.gaps.map((g, i) => {
         const a = anchors[g.at];
         if (!a) return null;
-        const x = a.x + a.width;
-        const y = a.y + a.height / 2;
+        const label = gapStubText(g.status);
+        const p = gapPlacement(a, card, label);
         return (
           <g key={`g${i}`} data-trace-gap data-status={g.status}>
-            <path d={`M${x} ${y} L ${x + STUB} ${y}`} fill="none" strokeWidth={2} strokeDasharray="4 4" style={{ stroke: 'var(--sm-line-control)' }} />
-            <text x={x + STUB + 4} y={y + 4} fontSize={11} style={{ fill: 'var(--sm-ink-2)' }}>{gapStubText(g.status)}</text>
+            <path d={p.stub} fill="none" strokeWidth={2} strokeDasharray="4 4" style={{ stroke: 'var(--sm-line-control)' }} />
+            <rect x={p.back.x} y={p.back.y} width={p.back.width} height={p.back.height} style={{ fill: 'var(--sm-card)' }} />
+            <text x={p.text.x} y={p.text.y} textAnchor="end" textLength={p.text.width} fontSize={LABEL.font} style={{ fill: 'var(--sm-ink-2)' }}>{label}</text>
           </g>
         );
       })}

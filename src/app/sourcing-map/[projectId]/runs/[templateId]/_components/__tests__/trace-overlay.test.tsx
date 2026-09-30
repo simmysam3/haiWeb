@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CANDIDATE_NAMES, multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import type { SmTrace } from '@/lib/sourcing-map/types';
-import { TraceOverlay, TRACE_MEASURE, tracePath, type AnchorRect } from '../trace-overlay';
+import { gapPlacement, TraceOverlay, TRACE_MEASURE, tracePath, type AnchorRect } from '../trace-overlay';
 
 const leon = multitierDetail.result!.slots[0]!.candidates[0]!;
 /** The León card's header button, its A and C handles, as MapCanvas measures them (canvas frame). */
@@ -46,6 +46,37 @@ describe('TraceOverlay', () => {
     expect(gap.querySelector('path')!.getAttribute('stroke-dasharray')).toBe('4 4');
     expect(gap.querySelector('path')!.style.stroke).toBe('var(--sm-line-control)');
     expect(gap.querySelector('text')!.textContent).toBe('not observed below: not connected');
+    // Task 13 R3: the label is on the line below the anchor, right-aligned to the card, over a card-coloured back
+    const text = gap.querySelector('text')!;
+    expect(text.getAttribute('text-anchor')).toBe('end');
+    expect([text.getAttribute('x'), text.getAttribute('y'), text.getAttribute('textLength')]).toEqual(['560', '148', '185']);
+    const back = gap.querySelector('rect')!;
+    expect([back.getAttribute('x'), back.getAttribute('y'), back.getAttribute('width'), back.getAttribute('height')]).toEqual(['373', '136', '187', '16']);
+    expect(back.style.fill).toBe('var(--sm-card)');
+    expect(back.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('places a gap label inside the traced card: one line below its anchor, right-aligned to the card, so it never paints into the next card or past the svg (Task 13 R3, measured in chromium)', () => {
+    const label = 'not observed below: not connected';
+    // the card's own gap: the stub still leaves the header's right-mid into the card gap; the label ends at the card's content edge
+    const own = gapPlacement(ANCHORS.leon!, ANCHORS.leon!, label);
+    expect(own.stub).toBe('M560 122 L 574 122');
+    // 33 characters at 11 px (chromium measured 185.5 px); fixed through textLength, so the back needs no measuring
+    expect(own.text).toEqual({ x: 560, y: 112 + 20 + 4 + 12, width: 185 });
+    expect(own.back).toEqual({ x: 560 - 185 - 2, y: 112 + 20 + 4, width: 187, height: 16 });
+    expect(own.back.x).toBeGreaterThanOrEqual(ANCHORS.leon!.x);
+    // a handle's gap: right-aligned to the card as well, never to the handle, so a wide label cannot spill left into a neighbour
+    const deep = gapPlacement(ANCHORS.C!, ANCHORS.leon!, label);
+    expect(deep.stub).toBe('M462 367 L 476 367');
+    expect(deep.text).toEqual({ x: 560, y: 356 + 22 + 4 + 12, width: 185 });
+    expect(deep.back.x).toBeGreaterThanOrEqual(ANCHORS.leon!.x);
+    // no card measured: the anchor's own right edge
+    expect(gapPlacement(ANCHORS.C!, undefined, label).text.x).toBe(462);
+    // the overlay finds the card from the trace (the edge parent that is no sub-tier node) for a handle's gap
+    render(<TraceOverlay trace={{ ...DEEP, gaps: [{ at: 'C', status: 'declined' }] }} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
+    const text = document.querySelector('g[data-trace-gap][data-status="declined"] text')!;
+    expect(text.textContent).toBe('not observed below: declined');
+    expect([text.getAttribute('x'), text.getAttribute('y')]).toEqual(['560', '394']);
   });
 
   it('follows a two-edge trace handle to handle, each edge in its own band colour', () => {
