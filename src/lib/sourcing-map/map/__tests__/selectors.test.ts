@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { bandVar, bandWord, bindingTier, candidateKeyOf, limitReason, unobservedTier } from '../selectors';
+import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
@@ -125,5 +128,68 @@ describe('map selectors', () => {
     expect(out.slots[0]!.candidates[1]).toBe(answered);
     expect(out.slots[0]!.candidates).toHaveLength(count);
     expect(out.slots).toHaveLength(running.slots.length);
+  });
+});
+
+const mt = multitierDetail.result!;
+const [leon2, mekong2, arno2] = mt.slots[0]!.candidates;
+const zephyr2 = mt.slots[3]!.candidates[0]!;
+
+describe('SP2 selectors: bands, keys, tiers and the limit reason (spec §12.2, contract §10)', () => {
+  it('maps bands to the heat tokens and their words; keys a card by candidate_key, falling back to the participant id', () => {
+    expect([bandVar('slight'), bandVar('moderate'), bandVar('severe')]).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-mid)', 'var(--sm-heat-bad)']);
+    expect([bandWord('slight'), bandWord('moderate'), bandWord('severe')]).toEqual(['slight', 'moderate', 'severe']);
+    expect(candidateKeyOf(leon2!)).toBe('leon');
+    expect(candidateKeyOf(vomeroResult.slots[0]!.candidates[0]!)).toBe('5a1e0000-0000-4000-8000-000000000101');
+  });
+
+  it('finds the binding tier from the trace, else from the shallowest banded node, else null', () => {
+    expect(bindingTier(leon2!)).toBe(2);
+    expect(bindingTier(mekong2!)).toBeNull();
+    expect(bindingTier(zephyr2)).toBeNull();
+    const bandedOnly: SmCandidateResult2 = { ...mekong2!, trace: null, nodes: [{ ...mekong2!.nodes![2]!, band: 'moderate' }] };
+    expect(bindingTier(bandedOnly)).toBe(3);
+  });
+
+  it('reads the served unobserved_from_tier first (G-46), and derives it only when the field is absent: 2 when the gap is directly under the candidate, a flagged node’s tier + 1 otherwise, null when fully observed (Review Focus 5)', () => {
+    expect(leon2!.unobserved_from_tier).toBe(2);
+    expect(unobservedTier(leon2!)).toBe(2);
+    expect(unobservedTier(mekong2!)).toBeNull();
+    // the server's word wins over any derivation
+    expect(unobservedTier({ ...leon2!, unobserved_from_tier: 3 })).toBe(3);
+    expect(unobservedTier({ ...leon2!, unobserved_from_tier: null })).toBeNull();
+    // no field (a result before SP2-a's composition filled it): the derivation
+    const { unobserved_from_tier: _dropped, ...leonNoField } = leon2!;
+    void _dropped;
+    expect(unobservedTier(leonNoField)).toBe(2);
+    const flaggedAt2: SmCandidateResult2 = { ...leonNoField, nodes: leon2!.nodes!.map((n) => (n.alias === 'A' ? { ...n, observed_below: false } : n)) };
+    expect(unobservedTier(flaggedAt2)).toBe(3);
+    const flaggedAt2And3: SmCandidateResult2 = { ...leonNoField, nodes: leon2!.nodes!.map((n) => ({ ...n, observed_below: false })) };
+    expect(unobservedTier(flaggedAt2And3)).toBe(3);
+    expect(unobservedTier(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+
+  it('words the limit: SP2 candidates get the tiered reasons and "Limit: own capacity"; an SP1 candidate keeps the walk’s words (Review Focus 1)', () => {
+    expect(limitReason(leon2!)).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason({ ...leon2!, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
+    expect(limitReason({ ...leon2!, limit: 'inputs', trace: null, nodes: [{ ...leon2!.nodes![2]!, band: 'slight' }] })).toBe('Limit: constraint returned by current source, tier 3');
+    expect(limitReason({ ...leon2!, limit: 'inputs', trace: null, nodes: [] })).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason(zephyr2)).toBe('Limit: own capacity');
+    expect(limitReason(mekong2!)).toBe('No shortfall stated');
+    expect(limitReason({ ...mekong2!, limit: 'lead_time' })).toBe('Stated supply starts after the first need date');
+    expect(limitReason({ ...mekong2!, limit: 'unknown' })).toBe('Schedule not assessed');
+    const sp1Leon = vomeroResult.slots[0]!.candidates[0]!;
+    expect(sp1Leon.limit).toBe('own');
+    expect(limitReason(sp1Leon)).toBe('Short · cause not traced');
+    expect(limitReason({ ...sp1Leon, limit: null })).toBe('No shortfall stated');
+  });
+
+  it('switches on the limit first (controller ruling 2): a live SP2 candidate with limit inputs but no projection yet reads the tiered words, tier falling through to the unobserved tier; an SP1 own has no nodes and reads the walk’s words', () => {
+    const live: SmCandidateResult2 = { ...leon2!, nodes: undefined, trace: undefined };
+    expect(live.limit).toBe('inputs');
+    expect(limitReason(live)).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason({ ...live, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
+    const sp1Own: SmCandidateResult2 = { ...live, limit: 'own' };
+    expect(limitReason(sp1Own)).toBe('Short · cause not traced');
   });
 });

@@ -1,6 +1,6 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
 import type {
-  SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
+  SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
   SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
@@ -238,4 +238,58 @@ export function applyStatusDelta(result: SourcingMapExecutionResult, status: SmE
     slots[ch.slot_index] = { ...slot, candidates };
   }
   return { ...result, slots };
+}
+
+// ---- SP2 (spec §12, contract §3, §10) -------------------------------------------------------------------------
+
+/** G-4: the planner's key names a card for anchors and shared_exposure; an SP1 execution has none, so the id stands in. */
+export function candidateKeyOf(c: SmCandidateResult): string {
+  return c.candidate_key ?? c.supplier_participant_id;
+}
+
+const BAND_HEAT: Record<SmBand, Heat> = { slight: 'good', moderate: 'mid', severe: 'bad' };
+/** Contract §10: bands reuse the SP1 heat tokens, both themes. */
+export function bandVar(band: SmBand): string {
+  return `var(--sm-heat-${BAND_HEAT[band]})`;
+}
+export function bandWord(band: SmBand): string {
+  return band;
+}
+
+/** The tier the option's shortfall binds at: the trace's binding node, else the shallowest banded node, else none. */
+export function bindingTier(c: SmCandidateResult): number | null {
+  const binding = (c.trace?.nodes ?? []).filter((n) => n.role === 'binding').map((n) => n.tier);
+  if (binding.length > 0) return Math.min(...binding);
+  const banded = (c.nodes ?? []).filter((n) => n.band !== null).map((n) => n.tier);
+  return banded.length > 0 ? Math.min(...banded) : null;
+}
+
+/**
+ * Spec §8.2: "not fully observed below tier N", N the shallowest tier with a gap. SP2-a's composition serves it as
+ * `unobserved_from_tier` (G-46), which wins. Without the field: a node flagged observed_below: false has its gap
+ * beneath it (tier + 1); a candidate flagged with no node flagged has a gap directly under it (tier 2). Review Focus 5.
+ */
+export function unobservedTier(c: SmCandidateResult): number | null {
+  if (c.unobserved_from_tier !== undefined) return c.unobserved_from_tier;
+  if (c.observed_below !== false) return null;
+  const flagged = (c.nodes ?? []).filter((n) => !n.observed_below).map((n) => n.tier);
+  return flagged.length === 0 ? 2 : Math.min(...flagged) + 1;
+}
+
+/**
+ * The card's limit line (spec §12.2). `inputs` and `both` only exist on SP2 candidates, so they read the tiered words
+ * whether or not the projection (`nodes`) has arrived yet. `own` reads "Limit: own capacity" only for an SP2-shaped
+ * candidate (contract G-48); an SP1 execution keeps the walk's words: its tier-1 answer cannot say whether the
+ * supplier or its inputs bind (Review Focus 1).
+ */
+export function limitReason(c: SmCandidateResult): string {
+  const tier = bindingTier(c) ?? unobservedTier(c) ?? 2;
+  switch (c.limit) {
+    case 'inputs': return `Limit: constraint returned by current source, tier ${tier}`;
+    case 'both': return `Limit: own capacity and tier ${tier} source`;
+    case 'own': return c.nodes !== undefined ? 'Limit: own capacity' : limitText(c.limit);
+    case 'lead_time': return LIMIT_TEXT.lead_time;
+    case 'unknown': return LIMIT_TEXT.unknown;
+    case null: return 'No shortfall stated';
+  }
 }
