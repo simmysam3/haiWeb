@@ -728,4 +728,30 @@ describe('Workspace', () => {
     expect(document.activeElement).toBe(a);
     expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
   });
+
+  it('SP2: collapsing the lane of the card a handle was pressed on closes the handle panel with it; focus stays on the lane’s toggle, and a card selected in another lane shows its details again (M1 for handles)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const mekongA = async () => within(await screen.findByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    // nothing selected: Mekong's A, then the leather lane collapses (a press focuses the toggle; fireEvent does not)
+    fireEvent.click(await mekongA());
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    rail.focus();
+    fireEvent.click(rail);
+    expect(rail).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(rail);
+    // a card selected in ANOTHER lane stays selected: its details come back, and focus stays on the toggle
+    fireEvent.click(rail);
+    fireEvent.click(screen.getByRole('button', { name: /^FlowKnit Mills/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
+    fireEvent.click(await mekongA());
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeNull();
+    rail.focus();
+    fireEvent.click(rail);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
+    expect(document.activeElement).toBe(rail);
+  });
 });

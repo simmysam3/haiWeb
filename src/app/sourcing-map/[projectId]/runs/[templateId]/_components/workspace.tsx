@@ -181,11 +181,16 @@ export function Workspace({
   }
 
   // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
-  // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle.
+  // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle. So does a handle
+  // pressed on a card in it that is not the selected card (fix round 1): its panel would describe a card no longer shown.
   function toggleLane(i: number) {
-    if (!collapsed.has(i) && selected?.slot === i) {
-      setSelected(null);
-      setHandle(null);
+    if (!collapsed.has(i)) {
+      if (selected?.slot === i) {
+        setSelected(null);
+        setHandle(null);
+      } else if (handle && detail?.result?.slots[i]?.candidates.some((c) => candidateKeyOf(c) === handle.origin)) {
+        setHandle(null);
+      }
     }
     setCollapsed((c) => {
       const n = new Set(c);
