@@ -1,0 +1,9 @@
+{
+  "readiness": { "ready": true, "first_failing_rule": null, "detail": null },
+  "slot_count": 4,
+  "probe_count": 6,
+  "probe_count_worst_case": 9,
+  "responders_short": [
+    { "participant_id": "5a1e0000-0000-4000-8000-000000000103", "legal_name": "Arno Pelli", "probes_planned": 2, "remaining_allowance": 1 }
+  ]
+}
