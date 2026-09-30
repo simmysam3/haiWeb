@@ -55,4 +55,17 @@ describe('TraceOverlay', () => {
     expect(edges.map((p) => p.style.stroke)).toEqual(['var(--sm-heat-mid)', 'var(--sm-heat-bad)']);
     expect(screen.getByRole('img', { name: 'Shortfall trace: León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options' })).toBeInTheDocument();
   });
+
+  it('skips an edge or gap whose anchor is not measured yet, draws the rest, and never throws or draws to (0, 0) (Review Focus 2)', () => {
+    const { rerender } = render(<TraceOverlay trace={DEEP} anchors={{ leon: ANCHORS.leon!, A: ANCHORS.A! }} names={CANDIDATE_NAMES} width={800} height={600} />);
+    let edges = Array.from(document.querySelectorAll<SVGPathElement>('path[data-trace-edge]'));
+    expect(edges.map((p) => p.getAttribute('d'))).toEqual(['M348 122 L 338 122 L 338 341 L 372 341']);
+    expect(() => rerender(<TraceOverlay trace={leon.trace!} anchors={{}} names={CANDIDATE_NAMES} width={800} height={600} />)).not.toThrow();
+    edges = Array.from(document.querySelectorAll<SVGPathElement>('path[data-trace-edge]'));
+    expect(edges).toHaveLength(0);
+    expect(document.querySelectorAll('g[data-trace-gap]')).toHaveLength(0);
+    expect(document.body.innerHTML).not.toMatch(/M0 0|L 0 0/);
+    // the sentence still names the whole trace: what could not be drawn is still told
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+  });
 });
