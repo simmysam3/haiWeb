@@ -176,9 +176,17 @@ export function Workspace({
     setHandle(null);
   }
   // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
+  // I-1: a pick whose lane is collapsed (the limits list stays shown) expands that lane, so the card and its trace
+  // are drawn and Close has a card to return focus to. The set is kept as it is when the lane is already open.
   function selectCard(sel: { slot: number; candidate: number }) {
     setHandle(null);
     setSelected(sel);
+    setCollapsed((c) => {
+      if (!c.has(sel.slot)) return c;
+      const n = new Set(c);
+      n.delete(sel.slot);
+      return n;
+    });
   }
   function selectHandle(alias: string | null, origin: string) {
     if (alias === null) closeHandle();

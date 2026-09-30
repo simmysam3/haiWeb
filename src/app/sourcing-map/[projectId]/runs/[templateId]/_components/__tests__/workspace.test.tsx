@@ -751,6 +751,18 @@ describe('Workspace', () => {
     expect(document.activeElement).toBe(a);
   });
 
+  it('SP2: a limits entry for a card in a collapsed lane expands the lane and draws the trace; Close details returns focus to the card (I-1)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const rail = within(await screen.findByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    fireEvent.click(rail);
+    expect(rail).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(rail).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+  });
+
   it('SP2: collapsing the lane of the card a handle was pressed on closes the handle panel with it; focus stays on the lane’s toggle, and a card selected in another lane shows its details again (M1 for handles)', async () => {
     mount(multitierDetail, [multitierDetail.execution]);
     const mekongA = async () => within(await screen.findByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ });
