@@ -10,9 +10,11 @@ import { Pill } from '@/components/pill';
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates; scorecard and delivery history are SP3.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose }: {
+export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
   slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
   productNames: Record<string, string>; onClose(): void;
+  /** SP2 (spec §12.4, P2): hidden, not unmounted, while a handle panel holds the column, so it never remounts and refocuses */
+  hidden?: boolean;
 }) {
   const asOfWeek = slotWeekFor(slot, asOfDrop);
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
@@ -23,7 +25,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
     headingRef.current?.focus();
   }, []);
   return (
-    <aside aria-label={`Details for ${c.supplier_name}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
+    <aside hidden={hidden} aria-label={`Details for ${c.supplier_name}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>

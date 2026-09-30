@@ -715,4 +715,17 @@ describe('Workspace', () => {
     // the settled cards stay drawn; the waiting one says so
     expect(screen.getByRole('button', { name: 'Arno Pelli, IT: Waiting · hourly allowance' })).toBeInTheDocument();
   });
+
+  it('SP2: pressing a pressed handle again closes its panel; focus stays on that handle and the card’s details come back without taking it (R7, WCAG 2.4.3)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // fireEvent moves no focus, so where focus lands is the workspace's doing alone
+    fireEvent.click(a);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
 });

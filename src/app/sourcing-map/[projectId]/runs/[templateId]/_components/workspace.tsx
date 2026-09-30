@@ -163,18 +163,11 @@ export function Workspace({
     setSelected(null);
   }
 
-  // R2 for handles (ruling R7): closing the handle panel returns focus to the pressed handle, found by its origin
-  // and alias. Not here: the close brings the card's details back, whose mount effect focuses their heading. This
-  // passive effect runs after that one (children's effects run first), so the handle's focus wins.
-  const pendingFocus = useRef<string | null>(null);
-  useEffect(() => {
-    const t = pendingFocus.current;
-    if (t === null) return;
-    pendingFocus.current = null;
-    mapRef.current?.querySelector<HTMLElement>(`[data-anchor="${t}"]`)?.focus();
-  }, [handle]);
+  // R2 for handles (fix round 1): closing the handle panel, by Close or by pressing the handle again, returns focus to
+  // the pressed handle, found by its origin and alias. The card's details stay mounted (hidden) under the handle panel,
+  // so nothing remounts and takes focus to its heading afterwards, StrictMode's re-run effects included.
   function closeHandle() {
-    if (handle) pendingFocus.current = `${handle.origin}/${handle.alias}`;
+    if (handle) mapRef.current?.querySelector<HTMLElement>(`[data-anchor="${handle.origin}/${handle.alias}"]`)?.focus();
     setHandle(null);
   }
   // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
@@ -183,7 +176,8 @@ export function Workspace({
     setSelected(sel);
   }
   function selectHandle(alias: string | null, origin: string) {
-    setHandle(alias === null ? null : { alias, origin });
+    if (alias === null) closeHandle();
+    else setHandle({ alias, origin });
   }
 
   // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
@@ -322,10 +316,12 @@ export function Workspace({
             onClose={closeHandle}
           />
         )}
-        {!trayOpen && result && handle === null && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+        {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
             // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
             key={`${selected.slot}:${selected.candidate}`}
+            // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
+            hidden={handle !== null}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}
