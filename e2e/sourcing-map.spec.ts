@@ -8,6 +8,7 @@ import { test, expect, type Page } from '@playwright/test';
  * Env: SM_CSG_EMAIL / SM_CSG_PASSWORD (csg.demo@haiwave.test, spec §4 fact 3),
  * SM_BOM_FILE (SP1-e's seed-data/sourcing-map BOM, .xlsx or .csv),
  * optional SM_VIEWER_EMAIL / SM_VIEWER_PASSWORD (a buyer_view_only user, AC 1).
+ * The wizard-entry case (regression 47.4) needs only SM_CSG_EMAIL / SM_CSG_PASSWORD and writes nothing.
  */
 const HAIWEB = process.env.HAIWEB_BASE_URL ?? 'http://localhost:3001';
 const EMAIL = process.env.SM_CSG_EMAIL;
@@ -91,6 +92,34 @@ test.describe('Sourcing Map walk (CSG)', () => {
     const products = page.getByRole('group', { name: 'Filter by product' });
     await products.getByRole('button', { name: /^Walk trainer/ }).click();
     await expect(products.getByRole('button', { name: /^Walk trainer/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+async function sourcingMapTemplateNames(page: Page): Promise<string[]> {
+  const res = await page.request.get(`${HAIWEB}/api/account/sonar/templates`);
+  expect(res.status()).toBe(200);
+  const body = (await res.json()) as { templates: { template_name: string; observation_class: string }[] };
+  return body.templates.filter((t) => t.observation_class === 'sourcing_map').map((t) => t.template_name).sort();
+}
+
+test.describe('Sourcing Map wizard entry (47.4)', () => {
+  test.skip(!EMAIL || !PASSWORD, 'Needs SM_CSG_EMAIL and SM_CSG_PASSWORD');
+
+  test('the Sonar wizard URL lands on the app, which lists Spring 2027, and creates nothing (R-10 H7)', async ({ page }) => {
+    await login(page, EMAIL!, PASSWORD!);
+    // Present control: the demo seat's Line A base is in the list, so an unchanged recount cannot pass on an empty list.
+    const before = await sourcingMapTemplateNames(page);
+    expect(before).toContain('Line A base');
+
+    await page.goto(`${HAIWEB}/account/sonar/templates/new?observation_class=sourcing_map`);
+    await expect(page).toHaveURL(`${HAIWEB}/sourcing-map`);
+    await expect(page.getByRole('button', { name: 'Create configuration' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'New Demand Request' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Open Spring 2027' })).toBeVisible();
+
+    // A server redirect leaves no history entry for templates/new, so leave by navigating; the recount is the assertion.
+    await page.goto(`${HAIWEB}/account/sonar/templates`);
+    expect(await sourcingMapTemplateNames(page)).toEqual(before);
   });
 });
 
