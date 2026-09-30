@@ -59,18 +59,29 @@ function observed(page: Page, name: string): Promise<number[]> {
   return page.evaluate((n) => (window as unknown as { __smMeasures: Array<{ name: string; duration: number }> }).__smMeasures.filter((e) => e.name === n).map((e) => Number(e.duration.toFixed(1))), name);
 }
 
-interface CardBox { name: string; scrollHeight: number; clientHeight: number }
-/** R2: every option card in the map, with its content height against its box (a card overflows when content > box). */
+interface CardBox {
+  name: string; scrollHeight: number; clientHeight: number;
+  /** lines the card's flex column squeezed below their content (only a child whose overflow is not visible can shrink so) */
+  squeezed: Array<{ text: string; scrollHeight: number; clientHeight: number }>;
+}
+/**
+ * R2: every option card in the map, with its content height against its box (a card overflows when content > box).
+ * The card is a flex column, so a short box first shrinks a `truncate` line (overflow hidden, so no content minimum),
+ * down to nothing, before anything spills: a squeezed line is overflow too, which scrollHeight alone does not show.
+ */
 function cardBoxes(page: Page): Promise<CardBox[]> {
   return page.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('section[aria-label="Sourcing map"] article')).map((a) => ({
       name: a.querySelector('button[data-anchor]')?.getAttribute('data-anchor') ?? '?',
       scrollHeight: a.scrollHeight,
       clientHeight: a.clientHeight,
+      squeezed: Array.from(a.children as HTMLCollectionOf<HTMLElement>)
+        .filter((c) => getComputedStyle(c).overflowY !== 'visible' && c.clientHeight < c.scrollHeight - 1)
+        .map((c) => ({ text: (c.textContent ?? '').slice(0, 60), scrollHeight: c.scrollHeight, clientHeight: c.clientHeight })),
     })),
   );
 }
-const overflowing = (cards: CardBox[]) => cards.filter((c) => c.scrollHeight > c.clientHeight + 1);
+const overflowing = (cards: CardBox[]) => cards.filter((c) => c.scrollHeight > c.clientHeight + 1 || c.squeezed.length > 0);
 
 interface GapLabel {
   status: string | null; text: string | null;
