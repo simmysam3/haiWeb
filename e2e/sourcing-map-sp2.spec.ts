@@ -7,7 +7,8 @@ import path from 'node:path';
  * harness route /sm-harness/<fixture> (served only by a server started with SM_HARNESS=1; plan Task 13). Measures
  * the map render (R-9, < 200 ms) and the trace draw (< 100 ms), checks the trace's real geometry, and runs axe with
  * a trace selected in both themes. Also measures what jsdom cannot lay out (Task 13 rulings R2, R3): no option card
- * overflows its box in either theme, and a gap stub's label neither paints over another card nor is clipped.
+ * overflows its box in either theme, and a gap stub's label neither paints over another card nor is clipped; and
+ * (fix round) every tier-row handle is one line inside its card, and gap labels never overlap one another.
  * Skips — never throws — without SM_HARNESS_URL (e.g. http://localhost:3111).
  * The live-seed walk (Task 14) is the second describe below.
  */
@@ -19,6 +20,10 @@ const throttled = JSON.parse(readFileSync(path.join(FIXTURES, 'execution-throttl
 const AXE = path.join(process.cwd(), 'node_modules/axe-core/axe.min.js');
 /** The multitier fixture's option cards: leather (León, Mekong, Arno's timeout), knit uppers, laces, outsoles. */
 const MULTITIER_CARDS = 6;
+/** Its tier-row handles: León A B C, Mekong A F C, FlowKnit D, Bowline D, Zephyr E. */
+const MULTITIER_HANDLES = 9;
+/** A tier row's height (MAP_L.tierRowH); a handle is one line inside it. */
+const TIER_ROW_H = 26;
 
 async function routeBff(page: Page): Promise<void> {
   await page.route('**/api/account/sourcing-map/runs/*/estimate', (route) => route.fulfill({ json: estimate }));
@@ -83,6 +88,29 @@ function cardBoxes(page: Page): Promise<CardBox[]> {
 }
 const overflowing = (cards: CardBox[]) => cards.filter((c) => c.scrollHeight > c.clientHeight + 1 || c.squeezed.length > 0);
 
+interface HandleBox { anchor: string; height: number; scrollHeight: number; clientHeight: number; inCard: boolean }
+/**
+ * Task 13 fix round A: every tier-row handle, its height, whether it lies inside its option card (±1 px), and whether
+ * its content fits its box. The handle's box has a fixed height, so a label wrapped onto two lines shows as content
+ * taller than the box (scrollHeight), not as a taller box.
+ */
+function handleBoxes(page: Page): Promise<HandleBox[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('section[aria-label="Sourcing map"] article button[data-alias]')).map((h) => {
+      const r = h.getBoundingClientRect();
+      const c = h.closest('article')!.getBoundingClientRect();
+      return {
+        anchor: h.dataset.anchor ?? '?',
+        height: r.height,
+        scrollHeight: h.scrollHeight,
+        clientHeight: h.clientHeight,
+        inCard: r.left >= c.left - 1 && r.top >= c.top - 1 && r.right <= c.right + 1 && r.bottom <= c.bottom + 1,
+      };
+    }),
+  );
+}
+const badHandles = (hs: HandleBox[]) => hs.filter((h) => h.height > TIER_ROW_H || !h.inCard || h.scrollHeight > h.clientHeight + 1);
+
 interface GapLabel {
   status: string | null; text: string | null;
   /** the label's box in the trace svg's coordinates, and the svg's size */
@@ -90,6 +118,8 @@ interface GapLabel {
   clipped: boolean;
   /** the option cards (by anchor) other than the traced card that the label's box intersects */
   overpaints: string[];
+  /** the other gap labels (by index) whose box this label's box intersects (fix round B: several on one anchor stack) */
+  overlapsLabels: number[];
 }
 /** R3: each gap stub's label, whether the svg clips it, and which other cards it paints over (a strict intersection). */
 function gapLabels(page: Page, tracedKey: string): Promise<GapLabel[]> {
@@ -99,6 +129,7 @@ function gapLabels(page: Page, tracedKey: string): Promise<GapLabel[]> {
     const own = document.querySelector(`[data-anchor="${traced}"]`)!.closest('article');
     const cards = Array.from(document.querySelectorAll<HTMLElement>('section[aria-label="Sourcing map"] article')).filter((a) => a !== own);
     const hits = (a: DOMRect, b: DOMRect) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0;
+    const texts = Array.from(svg.querySelectorAll<SVGTextElement>('g[data-trace-gap] text'));
     return Array.from(svg.querySelectorAll<SVGGElement>('g[data-trace-gap]')).flatMap((g) => {
       const t = g.querySelector('text');
       if (!t) return [];
@@ -110,6 +141,7 @@ function gapLabels(page: Page, tracedKey: string): Promise<GapLabel[]> {
         svg: { w: s.width, h: s.height },
         clipped: r.left < s.left || r.top < s.top || r.right > s.right || r.bottom > s.bottom,
         overpaints: cards.filter((a) => hits(r, a.getBoundingClientRect())).map((a) => a.querySelector('button[data-anchor]')?.getAttribute('data-anchor') ?? '?'),
+        overlapsLabels: texts.flatMap((o, i) => (o !== t && hits(r, o.getBoundingClientRect()) ? [i] : [])),
       }];
     });
   }, tracedKey);
@@ -156,14 +188,17 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
 
     // R2 and axe, dark (the default), then light; León stays selected (its 2 px border is the tightest box)
     const cardsDark = await cardBoxes(page);
+    const handlesDark = await handleBoxes(page);
     const dark = await axe(page);
     console.log(`SM_SP2_AXE dark=${axeLine(dark)}`);
     await page.getByRole('button', { name: 'Light theme' }).click();
     await expect(page.getByTestId('sm-root')).toHaveAttribute('data-theme', 'light');
     const cardsLight = await cardBoxes(page);
+    const handlesLight = await handleBoxes(page);
     const light = await axe(page);
     console.log(`SM_SP2_AXE light=${axeLine(light)}`);
     console.log(`SM_SP2_CARD_OVERFLOW dark=${JSON.stringify(overflowing(cardsDark))} light=${JSON.stringify(overflowing(cardsLight))}`);
+    console.log(`SM_SP2_HANDLES dark=${JSON.stringify(badHandles(handlesDark))} light=${JSON.stringify(badHandles(handlesLight))}`);
     console.log(`SM_SP2_MEASURES_ALL (information) map=${JSON.stringify(await observed(page, 'sm-map-render'))} trace=${JSON.stringify(await observed(page, 'sm-trace-draw'))}`);
 
     // Every measurement is logged above before any of these fails, so one defect never hides another.
@@ -180,13 +215,17 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
     expect(g.handle.y).toBeGreaterThan(g.header.y + g.header.h);
     expect(g.gap).toBe('not observed below: not connected');
     expect(labels).toHaveLength(1);
-    expect(labels.map((l) => ({ text: l.text, clipped: l.clipped, overpaints: l.overpaints }))).toEqual([
-      { text: 'not observed below: not connected', clipped: false, overpaints: [] },
+    expect(labels.map((l) => ({ text: l.text, clipped: l.clipped, overpaints: l.overpaints, overlapsLabels: l.overlapsLabels }))).toEqual([
+      { text: 'not observed below: not connected', clipped: false, overpaints: [], overlapsLabels: [] },
     ]);
     expect(cardsDark).toHaveLength(MULTITIER_CARDS);
     expect(cardsLight).toHaveLength(MULTITIER_CARDS);
     expect(overflowing(cardsDark)).toEqual([]);
     expect(overflowing(cardsLight)).toEqual([]);
+    expect(handlesDark).toHaveLength(MULTITIER_HANDLES);
+    expect(handlesLight).toHaveLength(MULTITIER_HANDLES);
+    expect(badHandles(handlesDark)).toEqual([]);
+    expect(badHandles(handlesLight)).toEqual([]);
     expect(dark).toEqual([]);
     expect(light).toEqual([]);
 
