@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingTier, candidateKeyOf, limitReason, unobservedTier } from '../selectors';
+import { bandVar, bandWord, bindingTier, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
@@ -191,5 +191,15 @@ describe('SP2 selectors: bands, keys, tiers and the limit reason (spec §12.2, c
     expect(limitReason({ ...live, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
     const sp1Own: SmCandidateResult2 = { ...live, limit: 'own' };
     expect(limitReason(sp1Own)).toBe('Short · cause not traced');
+  });
+});
+
+describe('SP2 selectors: waiting and the gap stubs (contract §10)', () => {
+  it('words a waiting card as itself, never as answered, and every gap stub with its status word', () => {
+    expect(gapText('waiting')).toBe('Waiting · hourly allowance');
+    expect(['declined', 'rate_limited', 'not_connected', 'cap_reached', 'timeout', 'unreachable', 'unsupported'].map((s) => gapStubText(s as never))).toEqual([
+      'not observed below: declined', 'not observed below: rate limited', 'not observed below: not connected', 'not observed below: cap reached',
+      'not observed below: timeout', 'not observed below: unreachable', 'not observed below: unsupported',
+    ]);
   });
 });

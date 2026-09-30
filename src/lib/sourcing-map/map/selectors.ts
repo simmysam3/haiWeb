@@ -1,4 +1,5 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
+import type { SmCandidateStatus } from '@haiwave/protocol';
 import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
   SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
@@ -96,6 +97,7 @@ const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
   rate_limited: 'No answer · rate limited',
   cap_reached: 'Not probed · cap reached',
   probing: 'Probing',
+  waiting: 'Waiting · hourly allowance',
 };
 /** A card's status line when it has no answer to show; null when it answered. */
 export function gapText(status: SmCandidateLiveStatus): string | null {
@@ -292,4 +294,13 @@ export function limitReason(c: SmCandidateResult): string {
     case 'unknown': return LIMIT_TEXT.unknown;
     case null: return 'No shortfall stated';
   }
+}
+
+export const GAP_STUB_WORD: Record<SmCandidateStatus, string> = {
+  answered: 'answered', unsupported: 'unsupported', declined: 'declined', timeout: 'timeout', unreachable: 'unreachable',
+  not_connected: 'not connected', rate_limited: 'rate limited', cap_reached: 'cap reached',
+};
+/** Contract §10: the stub at a trace gap, "not observed below: <status word>". */
+export function gapStubText(status: SmCandidateStatus): string {
+  return `not observed below: ${GAP_STUB_WORD[status]}`;
 }
