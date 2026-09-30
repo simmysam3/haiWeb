@@ -52,4 +52,16 @@ describe('<Pill themed> (Sourcing Map)', () => {
       unmount();
     }
   });
+
+  it('SP2 (contract §3): waiting (candidate, live) and throttled (execution) resolve a definition and the warn tone, before 3.96.0 is on the symlink', () => {
+    // Listed by hand: the protocol enums on the symlink are 3.95.0 until SP2-a merges; the loop above picks these up then.
+    for (const [category, value] of [['sm_candidate_status', 'waiting'], ['sm_execution_status', 'throttled']] as const) {
+      expect(definitionFor(category, value), `${category}:${value}`).toBeTruthy();
+      const { unmount } = render(<Pill themed category={category} value={value} />);
+      expect(screen.getByTestId('pill').className).toContain('bg-[var(--sm-pill-warn-bg)]');
+      unmount();
+    }
+    render(<Pill themed category="sm_candidate_status" value="waiting" />);
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
+  });
 });

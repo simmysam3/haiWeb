@@ -384,10 +384,12 @@ const PILL_DEFINITIONS: Record<string, Record<string, string>> = {
     rate_limited: "The supplier's hourly probe allowance was used up; it was not probed this run.",
     cap_reached: 'Beyond the six candidates probed per slot; not probed this run.',
     probing: 'The probe is in flight; the answer will appear here.',
+    waiting: "The supplier's hourly probe allowance is used up; the probe waits for the next hour and the run continues on its own.",
   },
   sm_execution_status: {
     queued: 'Waiting to start.',
     running: 'Probing your direct suppliers; answers appear as they arrive.',
+    throttled: "Waiting for a supplier's hourly probe allowance; the run resumes on its own at the hour.",
     completed: 'Every probe finished; the map shows the composed result.',
     failed: 'The execution stopped before it finished. See the reason.',
     cancelled: 'Cancelled; answers that arrived afterwards were discarded.',
@@ -482,9 +484,9 @@ const THEMED_TONE_CLASS: Record<PillTone, string> = {
 const SM_TONES: Record<string, Record<string, PillTone>> = {
   sm_candidate_status: {
     answered: 'success', unsupported: 'info', probing: 'neutral', cap_reached: 'neutral',
-    declined: 'warn', timeout: 'warn', unreachable: 'warn', not_connected: 'warn', rate_limited: 'warn',
+    declined: 'warn', timeout: 'warn', unreachable: 'warn', not_connected: 'warn', rate_limited: 'warn', waiting: 'warn',
   },
-  sm_execution_status: { queued: 'info', running: 'info', completed: 'success', failed: 'problem', cancelled: 'neutral' },
+  sm_execution_status: { queued: 'info', running: 'info', throttled: 'warn', completed: 'success', failed: 'problem', cancelled: 'neutral' },
   sm_readiness: { ready: 'success', not_ready: 'warn' },
   sm_bom_source: { workbench: 'info', agent: 'neutral' },
   sm_band: { high: 'success', medium: 'info', low: 'warn' },
