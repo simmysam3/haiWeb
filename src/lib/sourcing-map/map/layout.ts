@@ -1,4 +1,5 @@
 import type { SmSlotResult2 as SmSlotResult, SmSubtierNode } from '../types';
+import { gapText, unobservedTier } from './selectors';
 
 /** The prototype's canvas geometry (docs/haiwave-sourcing-map.html:1325 `L`, :1329-1340). */
 export const MAP_L = {
@@ -7,6 +8,13 @@ export const MAP_L = {
   cardW: 236, cardH: 212, gap: 16, minLaneW: 480,
   /** SP2 tier rows under a card (spec §12.1): one row per tier present, below the card's own 212 px. */
   tierRowH: 26, tierRowsTop: 8,
+  /**
+   * SP2 lines on an answered card beyond the SP1 card's (spec §12.2), measured in chromium (Task 13 R2, text-xs 12/16):
+   * a tiered limit takes a second 16 px line — "Limit: constraint returned by current source, tier N" is 283 px in a
+   * 208–210 px card, and "Limit: own capacity and tier N source" is 208 px, so it wraps on any sans wider than the
+   * harness's — and "not fully observed below tier N" is a line of its own (4 px margin + 16).
+   */
+  limitWrapH: 16, noteLineH: 20,
 } as const;
 
 /**
@@ -24,7 +32,7 @@ export interface MapLayout {
     slotIndex: number; y: number; h: number; collapsed: boolean;
     /** the height of the rail's text; the links and the cards stay below it */
     textH: number;
-    /** the card box for this lane: MAP_L.cardH plus its tier rows */
+    /** the card box for this lane: MAP_L.cardH plus its tier rows and its SP2 card lines */
     cardH: number;
     cards: Array<{ candidateIndex: number; x: number; y: number }>;
   }>;
@@ -68,6 +76,19 @@ export function tierRowsHeight(slot: SmSlotResult): number {
   return rows === 0 ? 0 : MAP_L.tierRowsTop + rows * MAP_L.tierRowH;
 }
 
+/**
+ * SP2: the card lines a lane reserves beyond the SP1 card — a tiered limit's second line, the unobserved note — when
+ * an answered card in it shows them (a gap card shows neither); 0 for an SP1 slot, whose limits never read tiered and
+ * whose candidates carry no observation fields. Without them the card's flex column squeezed its class line to
+ * nothing and the rest spilled past the border (Task 13 R2: León's lane was 36 px short).
+ */
+export function sp2LinesHeight(slot: SmSlotResult): number {
+  const answered = shownOf(slot).map(({ c }) => c).filter((c) => gapText(c.status) === null);
+  const wraps = answered.some((c) => c.limit === 'inputs' || c.limit === 'both');
+  const note = answered.some((c) => unobservedTier(c) !== null);
+  return (wraps ? MAP_L.limitWrapH : 0) + (note ? MAP_L.noteLineH : 0);
+}
+
 /** Lane and card positions. Cards are the probed candidates; cap_reached rows are "+N not probed". */
 export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>): MapLayout {
   const lanesX = MAP_L.seatX + MAP_L.seatW + MAP_L.lanesGapX;
@@ -79,7 +100,7 @@ export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>)
     const shown = shownOf(slot);
     const textH = railTextHeight(slot, laneW);
     const headH = textH + RAIL_L.linkGutter;
-    const cardH = MAP_L.cardH + tierRowsHeight(slot);
+    const cardH = MAP_L.cardH + tierRowsHeight(slot) + sp2LinesHeight(slot);
     const h = isCollapsed || shown.length === 0 ? headH : headH + cardH;
     const cards = isCollapsed ? [] : shown.map(({ i }, k) => ({ candidateIndex: i, x: lanesX + k * (MAP_L.cardW + MAP_L.gap), y: y + headH }));
     const lane = { slotIndex, y, h, collapsed: isCollapsed, textH, cardH, cards };
