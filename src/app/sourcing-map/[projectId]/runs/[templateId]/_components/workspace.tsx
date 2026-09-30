@@ -154,9 +154,11 @@ export function Workspace({
     }
   }
 
-  // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed
-  // inside the map (SeatBar's pressed chips sit outside this wrapper); the card outlives the close, so it is
-  // focused before the panel unmounts.
+  // R2: closing the details returns focus to the card that opened them, found as the map's pressed button (SeatBar's
+  // pressed chips sit outside this wrapper). Tier-row handles carry aria-pressed too; the lookup still lands on the
+  // card because no handle reads pressed while Close details can be reached: DetailsPanel is hidden whenever the
+  // handle panel renders, and when that panel does not render no handle button is pressed (no handle, or its alias
+  // is on no card, M-4). The card outlives the close, so it is focused before the panel unmounts.
   const mapRef = useRef<HTMLDivElement | null>(null);
   function closeDetails() {
     mapRef.current?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
@@ -336,7 +338,9 @@ export function Workspace({
         )}
         {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
-            // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
+            // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
+            // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
+            // panel without moving focus.
             key={`${selected.slot}:${selected.candidate}`}
             // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
             // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.

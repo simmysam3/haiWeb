@@ -5,7 +5,7 @@ import { EM_DASH, candidateWeekAt, formatDropDate, formatPct, formatQty, noCover
 import { Pill } from '@/components/pill';
 
 /**
- * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP2 and SP4.
+ * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP3 and SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates; scorecard and delivery history are SP3.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
