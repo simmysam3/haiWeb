@@ -21,6 +21,13 @@ describe('/sm-harness/[fixture] (plan Task 13)', () => {
     expect(notFound).toHaveBeenCalledTimes(2);
   });
 
+  it('is a 404 under a production server even with SM_HARNESS=1 (M-5)', async () => {
+    vi.stubEnv('SM_HARNESS', '1');
+    vi.stubEnv('NODE_ENV', 'production');
+    await expect(HarnessPage({ params: Promise.resolve({ fixture: 'multitier' }) })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(notFound).toHaveBeenCalledTimes(1);
+  });
+
   it('renders the harness for the two fixtures with SM_HARNESS=1', async () => {
     vi.stubEnv('SM_HARNESS', '1');
     render(await HarnessPage({ params: Promise.resolve({ fixture: 'multitier' }) }));
