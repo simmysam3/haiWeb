@@ -275,6 +275,52 @@ describe('MapCanvas', () => {
     expect(screen.queryByRole('region', { name: 'Shared exposure' })).toBeNull();
     expect(screen.queryByRole('group', { name: /^Tier \d/ })).toBeNull();
   });
+
+  it('selecting a traced card mounts the overlay above the cards with its edge and gap and marks that card’s binding handle; an untraced card, no card, or a collapsed traced lane mounts nothing (spec §12.3, Review Focus 2)', () => {
+    const { rerender, unmount } = mount2({ selected: { slot: 0, candidate: 0 } });
+    const overlay = screen.getByRole('img', { name: /^Shortfall trace: León Cuero → A \(moderate\)/ });
+    expect(overlay.querySelectorAll('path[data-trace-edge]')).toHaveLength(1);
+    expect(overlay.querySelectorAll('g[data-trace-gap][data-status="not_connected"]')).toHaveLength(1);
+    const leonButton = screen.getByRole('button', { name: /^León Cuero, MX/ });
+    expect(leonButton.compareDocumentPosition(overlay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const leonT2 = screen.getByRole('group', { name: 'Tier 2 under León Cuero' });
+    const mekongT2 = screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' });
+    expect(within(within(leonT2).getByRole('button', { name: /^A · IT/ })).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    expect(within(within(mekongT2).getByRole('button', { name: /^A · IT/ })).queryByRole('img', { name: 'binding' })).toBeNull();
+    rerender(
+      <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 1 }}
+        onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
+    );
+    expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+    rerender(
+      <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
+        onSelect={vi.fn()} collapsed={new Set([0])} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
+    );
+    expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+    unmount();
+    mount2({ selected: null });
+    expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+  });
+
+  it('hovering a handle lights every handle of that alias across cards; a click reports the alias; the limits list selects the first option a node binds', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onSelectAlias = vi.fn();
+    mount2({ onSelect, onSelectAlias });
+    const leonA = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT/ });
+    const mekongA = within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT/ });
+    await user.hover(leonA);
+    expect(leonA).toHaveAttribute('data-lit', 'true');
+    expect(mekongA).toHaveAttribute('data-lit', 'true');
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^B · US/ })).not.toHaveAttribute('data-lit');
+    await user.unhover(leonA);
+    expect(mekongA).not.toHaveAttribute('data-lit');
+    await user.click(leonA);
+    expect(onSelectAlias).toHaveBeenCalledWith('A', 'leon');
+    expect(onSelect).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(onSelect).toHaveBeenCalledWith({ slot: 0, candidate: 0 });
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {
