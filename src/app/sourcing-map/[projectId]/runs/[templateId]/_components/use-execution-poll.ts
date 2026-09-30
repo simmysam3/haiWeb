@@ -6,7 +6,8 @@ import { FetchError, jsonFetcher } from '@/lib/swr-fetcher';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_POLL_MS, applyStatusDelta } from '@/lib/sourcing-map/map/selectors';
 
-const LIVE = new Set(['queued', 'running']);
+// SP2 (spec §8.3): a throttled execution is live — the tick resumes it — so the poll keeps going and its frames carry waiting_on.
+const LIVE = new Set(['queued', 'running', 'throttled']);
 
 interface PollState {
   /** the `initial` this state started from; a different one restarts it (R1) */
@@ -23,7 +24,7 @@ function pollErrorText(e: unknown): string {
 }
 
 /**
- * The status endpoint polled for a live execution, null (no poll) once it is terminal. One stable key per
+ * The status endpoint polled for a live execution, null (no poll) once it is terminal (throttled counts as live, SP2). One stable key per
  * execution (I-2): the cursor rides in the fetched URL, so an answer that moves it never refetches at once
  * nor restarts SWR's 1.5 s timer.
  */
@@ -68,7 +69,7 @@ export function useExecutionPoll(initial: SmExecutionDetail | null): { detail: S
           cursor: s.cursor,
           error: null,
           detail: {
-            execution: { ...d.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done },
+            execution: { ...d.execution, status: s.status, failure_reason: s.failure_reason, probes_planned: s.probes_planned, probes_done: s.probes_done, waiting_on: s.waiting_on ?? null },
             result: d.result ? applyStatusDelta(d.result, s) : d.result,
           },
         }));

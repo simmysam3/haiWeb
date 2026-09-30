@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { VOMERO_IDS, runningDetail, vomeroDetail, vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail } from '@haiwave/protocol';
+import type { SmExecutionDetail2 as SmExecutionDetail } from '@/lib/sourcing-map/types';
+import { throttledDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
 import { SM_POLL_MS } from '@/lib/sourcing-map/map/selectors';
 import { FetchError } from '@/lib/swr-fetcher';
 
@@ -23,6 +24,7 @@ function Probe({ initial }: { initial: SmExecutionDetail | null }) {
         {d ? `${d.execution.status}:${d.result?.slots[0]?.candidates[1]?.status ?? '-'}` : 'none'}
       </p>
       {error ? <p data-testid="poll-error">{error}</p> : null}
+      <p data-testid="summary-waiting">{d?.execution.waiting_on?.responder_name ?? '-'}</p>
     </>
   );
 }
@@ -231,5 +233,28 @@ describe('useExecutionPoll', () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('probe')).toHaveTextContent('failed:answered');
+  });
+  it('keeps polling while throttled, takes waiting_on from each frame into the summary, and clears it when a frame says running (spec §8.3, Review Focus 4)', async () => {
+    const EXEC = '/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000033';
+    render(<Probe initial={throttledDetail} />);
+    expect(latest().key).toBe(`${EXEC}/status`);
+    expect(await fetchedStatusUrl()).toBe(`${EXEC}/status?cursor=3`);
+    expect(screen.getByTestId('probe')).toHaveTextContent('throttled:answered');
+    // the detail GET named the responder (G-41)
+    expect(screen.getByTestId('summary-waiting')).toHaveTextContent('Arno Pelli');
+    act(() => {
+      latest().opts.onSuccess!({ ...throttledStatus, waiting_on: { responder_name: 'Delta Hides', refill_at: '2027-03-01T11:00:00.000Z' } }, latest().key!);
+    });
+    // the frame's waiting_on replaces the summary's
+    await waitFor(() => expect(screen.getByTestId('summary-waiting')).toHaveTextContent('Delta Hides'));
+    expect(latest().key).toBe(`${EXEC}/status`);
+    expect(fetchMock.mock.calls.map((c) => c[0])).not.toContain(EXEC);
+    act(() => {
+      latest().opts.onSuccess!({ ...throttledStatus, status: 'running', probes_done: 4, cursor: 4, waiting_on: null }, latest().key!);
+    });
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('running:answered'));
+    expect(screen.getByTestId('summary-waiting')).toHaveTextContent('-');
+    expect(screen.getByTestId('summary-waiting')).not.toHaveTextContent('Delta Hides');
+    expect(await fetchedStatusUrl()).toBe(`${EXEC}/status?cursor=4`);
   });
 });
