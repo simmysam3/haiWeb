@@ -8,11 +8,11 @@ const FAILURE: Record<string, string> = {
   internal_error: 'an internal error stopped it',
 };
 
-/** G-23: after a resume each re-dispatched settlement counts, so done may exceed planned; never "8 of 6". */
+/** G-23: done may exceed planned after a resume or a recomposition, so the count never reads "8 of 6". */
 function probingText(done: number, planned: number): string {
   return done <= planned
     ? `Probing: ${done} of ${planned} probes answered`
-    : `Probing: ${done} probes answered (${planned} planned; some re-dispatched after a wait)`;
+    : `Probing: ${done} probes answered (${planned} planned)`;
 }
 
 /** Honest execution state (spec §9.3, AC 17; SP2 §12.5): probing, throttled, failed, cancelled, or nothing yet. */
