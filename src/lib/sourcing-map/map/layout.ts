@@ -1,10 +1,12 @@
-import type { SmSlotResult2 as SmSlotResult } from '../types';
+import type { SmSlotResult2 as SmSlotResult, SmSubtierNode } from '../types';
 
 /** The prototype's canvas geometry (docs/haiwave-sourcing-map.html:1325 `L`, :1329-1340). */
 export const MAP_L = {
   seatX: 24, seatW: 236, seatH: 168, top: 24,
   lanesGapX: 76, laneGap: 28,
   cardW: 236, cardH: 212, gap: 16, minLaneW: 480,
+  /** SP2 tier rows under a card (spec §12.1): one row per tier present, below the card's own 212 px. */
+  tierRowH: 26, tierRowsTop: 8,
 } as const;
 
 /**
@@ -22,6 +24,8 @@ export interface MapLayout {
     slotIndex: number; y: number; h: number; collapsed: boolean;
     /** the height of the rail's text; the links and the cards stay below it */
     textH: number;
+    /** the card box for this lane: MAP_L.cardH plus its tier rows */
+    cardH: number;
     cards: Array<{ candidateIndex: number; x: number; y: number }>;
   }>;
   width: number;
@@ -48,10 +52,25 @@ export function railTextHeight(slot: SmSlotResult, laneW: number): number {
   return lines + RAIL_L.small + RAIL_L.lineGap + rows * RAIL_L.cellH + (rows - 1) * RAIL_L.cellGap;
 }
 
+/** The distinct tiers under a candidate, ascending. */
+export function tiersOf(nodes: SmSubtierNode[]): number[] {
+  return [...new Set(nodes.map((n) => n.tier))].sort((a, b) => a - b);
+}
+
+/** The probed candidates of a slot, with their index; cap_reached rows are "+N not probed", never cards. */
+function shownOf(slot: SmSlotResult) {
+  return slot.candidates.map((c, i) => ({ c, i })).filter(({ c }) => c.status !== 'cap_reached');
+}
+
+/** SP2: the rows a lane's cards need for their tiers — the most tiers under any shown card; 0 for an SP1 slot (no nodes). */
+export function tierRowsHeight(slot: SmSlotResult): number {
+  const rows = Math.max(0, ...shownOf(slot).map(({ c }) => tiersOf(c.nodes ?? []).length));
+  return rows === 0 ? 0 : MAP_L.tierRowsTop + rows * MAP_L.tierRowH;
+}
+
 /** Lane and card positions. Cards are the probed candidates; cap_reached rows are "+N not probed". */
 export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>): MapLayout {
   const lanesX = MAP_L.seatX + MAP_L.seatW + MAP_L.lanesGapX;
-  const shownOf = (slot: SmSlotResult) => slot.candidates.map((c, i) => ({ c, i })).filter(({ c }) => c.status !== 'cap_reached');
   const maxCards = Math.max(0, ...slots.map((slot) => shownOf(slot).length));
   const laneW = Math.max(MAP_L.minLaneW, maxCards * (MAP_L.cardW + MAP_L.gap) - MAP_L.gap);
   let y = MAP_L.top;
@@ -60,9 +79,10 @@ export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>)
     const shown = shownOf(slot);
     const textH = railTextHeight(slot, laneW);
     const headH = textH + RAIL_L.linkGutter;
-    const h = isCollapsed || shown.length === 0 ? headH : headH + MAP_L.cardH;
+    const cardH = MAP_L.cardH + tierRowsHeight(slot);
+    const h = isCollapsed || shown.length === 0 ? headH : headH + cardH;
     const cards = isCollapsed ? [] : shown.map(({ i }, k) => ({ candidateIndex: i, x: lanesX + k * (MAP_L.cardW + MAP_L.gap), y: y + headH }));
-    const lane = { slotIndex, y, h, collapsed: isCollapsed, textH, cards };
+    const lane = { slotIndex, y, h, collapsed: isCollapsed, textH, cardH, cards };
     y += h + MAP_L.laneGap;
     return lane;
   });

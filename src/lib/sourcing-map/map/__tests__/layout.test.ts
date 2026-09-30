@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { layoutMap, MAP_L, RAIL_L } from '../layout';
+import { layoutMap, MAP_L, RAIL_L, tierRowsHeight, tiersOf } from '../layout';
 import { vomeroResult } from '../../__fixtures__/vomero';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 
 describe('layoutMap', () => {
   it('places lanes and cards like the prototype, collapses a lane, and survives zero slots (Review Focus 5)', () => {
@@ -30,5 +31,20 @@ describe('layoutMap', () => {
       for (const card of lane.cards) expect(card.y).toBe(lane.y + lane.textH + RAIL_L.linkGutter);
     }
     l.lanes.slice(1).forEach((lane, i) => expect(lane.y).toBe(l.lanes[i]!.y + l.lanes[i]!.h + MAP_L.laneGap));
+  });
+  it("grows a lane's cards by one row per tier present under any of its cards (SP2 tier rows), and not at all for an SP1 slot", () => {
+    const slots = multitierDetail.result!.slots;
+    expect(tiersOf(slots[0]!.candidates[0]!.nodes!)).toEqual([2, 3]);
+    expect(tiersOf([])).toEqual([]);
+    expect(tierRowsHeight(slots[0]!)).toBe(MAP_L.tierRowsTop + 2 * MAP_L.tierRowH); // León: tiers 2 and 3
+    expect(tierRowsHeight(slots[3]!)).toBe(MAP_L.tierRowsTop + MAP_L.tierRowH);     // Zephyr: tier 2 only
+    expect(tierRowsHeight(vomeroResult.slots[0]!)).toBe(0);
+    const l = layoutMap(slots, new Set());
+    expect(l.lanes[0]!.cardH).toBe(MAP_L.cardH + MAP_L.tierRowsTop + 2 * MAP_L.tierRowH);
+    expect(l.lanes[0]!.h).toBe(l.lanes[0]!.textH + RAIL_L.linkGutter + l.lanes[0]!.cardH);
+    expect(l.lanes[1]!.y).toBe(l.lanes[0]!.y + l.lanes[0]!.h + MAP_L.laneGap);
+    const collapsed = layoutMap(slots, new Set([0]));
+    expect(collapsed.lanes[0]!.h).toBe(collapsed.lanes[0]!.textH + RAIL_L.linkGutter);
+    expect(layoutMap(vomeroResult.slots, new Set()).lanes.every((ln) => ln.cardH === MAP_L.cardH)).toBe(true);
   });
 });
