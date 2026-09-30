@@ -282,7 +282,7 @@
             "status_seq": 5,
             "candidate_key": "flowknit",
             "observed_below": true,
-            "aggregates": { "responders": 1, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
+            "aggregates": { "responders": 1, "median_lead_time_days": null, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
             "nodes": [
               { "alias": "D", "tier": 2, "country": "TW", "class": { "slug": "cpt_polyester_yarn", "label": "Polyester", "level": 3, "of_levels": 4 }, "band": null, "observed_below": true }
             ],
@@ -357,7 +357,7 @@
             "status_seq": 1,
             "candidate_key": "bowline",
             "observed_below": true,
-            "aggregates": { "responders": 1, "median_lead_time_days": 14, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
+            "aggregates": { "responders": 1, "median_lead_time_days": null, "utilization": { "low": 1, "moderate": 0, "high": 0, "at_capacity": 0 }, "countries": ["TW"], "classes": ["Polyester"], "not_observed": 0 },
             "nodes": [
               { "alias": "D", "tier": 2, "country": "TW", "class": { "slug": "cpt_polyester_yarn", "label": "Polyester", "level": 3, "of_levels": 4 }, "band": null, "observed_below": true }
             ],
@@ -433,7 +433,7 @@
             "status_seq": 4,
             "candidate_key": "zephyr",
             "observed_below": true,
-            "aggregates": { "responders": 1, "median_lead_time_days": 10, "utilization": { "low": 0, "moderate": 1, "high": 0, "at_capacity": 0 }, "countries": ["TH"], "classes": ["Compounds"], "not_observed": 0 },
+            "aggregates": { "responders": 1, "median_lead_time_days": null, "utilization": { "low": 0, "moderate": 1, "high": 0, "at_capacity": 0 }, "countries": ["TH"], "classes": ["Compounds"], "not_observed": 0 },
             "nodes": [
               { "alias": "E", "tier": 2, "country": "TH", "class": { "slug": "cpt_rubber_compounds", "label": "Compounds", "level": 2, "of_levels": 4 }, "band": null, "observed_below": true }
             ],
