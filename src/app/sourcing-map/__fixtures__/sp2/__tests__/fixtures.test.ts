@@ -6,6 +6,7 @@ import { SmExecutionDetailSchema2, SmExecutionStatusResponseSchema2 } from '../s
 import multitierJson from '../execution-multitier.json';
 import throttledJson from '../execution-throttled.json';
 import estimateJson from '../estimate-may-wait.json';
+import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledDetail, throttledStatus } from '..';
 
 describe('SP2 types (contract §3, typed locally until 3.96.0 is on the symlink)', () => {
   it('accepts every 3.95.0 value: an SP1 detail is an SmExecutionDetail2, and its limits are SmOptionLimit2', () => {
@@ -86,5 +87,15 @@ describe('execution-throttled.json and estimate-may-wait.json (contract §10)', 
     const e = SmEstimateResponseSchema.parse(estimateJson);
     expect(e.responders_short).toEqual([{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 2, remaining_allowance: 1 }]);
     expect(e.responders_short.some((r) => r.probes_planned > r.remaining_allowance)).toBe(true);
+  });
+});
+
+describe('fixture index', () => {
+  it('exports the three fixtures typed, and the candidate names by key', () => {
+    expect(multitierDetail.result!.slots[0]!.candidates[0]!.candidate_key).toBe('leon');
+    expect(throttledDetail.execution.status).toBe('throttled');
+    expect(throttledStatus.waiting_on!.responder_name).toBe('Arno Pelli');
+    expect(mayWaitEstimate.responders_short).toHaveLength(1);
+    expect(CANDIDATE_NAMES).toEqual({ leon: 'León Cuero', mekong: 'Mekong Tannery', arno: 'Arno Pelli', flowknit: 'FlowKnit Mills', bowline: 'Bowline Trim', zephyr: 'Zephyr Compounds' });
   });
 });
