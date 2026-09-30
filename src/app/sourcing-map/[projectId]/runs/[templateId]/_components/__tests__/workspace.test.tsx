@@ -3,7 +3,8 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail } from '@haiwave/protocol';
+import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
+import { multitierDetail, throttledDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
@@ -47,7 +48,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mount(detail = vomeroDetail, executions = [vomeroExecution]) {
+function mount(detail: SmExecutionDetail = vomeroDetail, executions: SmExecutionSummary2[] = [vomeroExecution]) {
   return render(
     <Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={executions} initialDetail={detail} />,
   );
@@ -657,5 +658,56 @@ describe('Workspace', () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
     expect(replaceState).toHaveBeenCalledWith(null, '', '/sourcing-map/p/runs/t?x=1&drop=2027-01-15');
+  });
+
+  it('SP2: picking a node from the limits list draws its trace and the card’s details; a handle click swaps the side column to the handle panel (P2, one panel at a time); Close returns focus to the handle and brings the card’s details back (spec §12.3, §12.4)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expectBesideTheMapBelowTheHeader(panel);
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+    expect(within(panel).getByText('binding')).toBeInTheDocument();
+    expect(within(panel).getByText('Also supplies: Mekong Tannery')).toBeInTheDocument();
+    expect(a).toHaveAttribute('aria-pressed', 'true');
+    // R6: the same alias under another card is not the pressed handle
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ })).toHaveAttribute('aria-pressed', 'false');
+    // the trace stays drawn while the handle panel is open
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // a handle under Mekong, with no card selected: the panel shows Mekong's copy of A (no band, no role) and names León as the other option (Review Focus 3)
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    const fromMekong = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expect(within(fromMekong).queryByText('binding')).toBeNull();
+    expect(within(fromMekong).queryByText('Band')).toBeNull();
+    expect(within(fromMekong).getByText('Also supplies: León Cuero')).toBeInTheDocument();
+    // Close returns focus to Mekong's handle, the one pressed, not León's copy of the same alias
+    fireEvent.click(within(fromMekong).getByRole('button', { name: 'Close handle details' }));
+    expect(document.activeElement).toBe(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+  });
+
+  it('SP2: a throttled execution keeps polling, names the responder from the summary and then from each frame (or falls back when the name is null), keeps Cancel live, and Run says an execution is running (spec §12.5, G-41, G-52, Review Focus 4)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    expect(swr.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000033/status');
+    // G-41: the detail's summary already names the responder
+    expect(screen.getByRole('status')).toHaveTextContent("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own.");
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument();
+    // G-52: a frame whose waiting responder is below tier 1 carries no name; the fallback sentence, Cancel still live
+    act(() => swr.options.onSuccess?.({ ...throttledStatus, waiting_on: { responder_name: null, refill_at: '2027-03-01T11:00:00.000Z' } }, swr.key!));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Waiting for an hourly allowance — the run continues on its own.'));
+    act(() => swr.options.onSuccess?.(throttledStatus, swr.key!));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own."));
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Run' })).toHaveAccessibleDescription('An execution is running.');
+    expect((screen.getByLabelText('Result') as HTMLSelectElement).selectedOptions[0]!.textContent).toMatch(/· throttled$/);
+    // the settled cards stay drawn; the waiting one says so
+    expect(screen.getByRole('button', { name: 'Arno Pelli, IT: Waiting · hourly allowance' })).toBeInTheDocument();
   });
 });
