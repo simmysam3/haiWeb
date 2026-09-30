@@ -2,7 +2,7 @@
 import type { SmCandidateStatus } from '@haiwave/protocol';
 import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
-  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
@@ -303,4 +303,59 @@ export const GAP_STUB_WORD: Record<SmCandidateStatus, string> = {
 /** Contract §10: the stub at a trace gap, "not observed below: <status word>". */
 export function gapStubText(status: SmCandidateStatus): string {
   return `not observed below: ${GAP_STUB_WORD[status]}`;
+}
+
+/** The candidate keys whose sub-tier nodes carry this alias, in display order (shared exposure as the map shows it). */
+export function underOf(result: SourcingMapExecutionResult, alias: string): string[] {
+  const keys: string[] = [];
+  for (const slot of result.slots) for (const c of slot.candidates) {
+    if ((c.nodes ?? []).some((n) => n.alias === alias)) keys.push(candidateKeyOf(c));
+  }
+  return keys;
+}
+
+/** The alias's node as one option sees it: the preferred option's copy when it has one, else the first on the map. */
+export function nodeOf(result: SourcingMapExecutionResult, alias: string, preferKey?: string): SmSubtierNode | null {
+  let first: SmSubtierNode | null = null;
+  for (const slot of result.slots) for (const c of slot.candidates) {
+    const n = (c.nodes ?? []).find((x) => x.alias === alias);
+    if (!n) continue;
+    if (preferKey !== undefined && candidateKeyOf(c) === preferKey) return n;
+    first ??= n;
+  }
+  return first;
+}
+
+export interface BindingNode {
+  alias: string;
+  tier: number;
+  options: Array<{ slot: number; candidate: number; key: string; name: string; binds_for: number }>;
+}
+
+/** Spec §12.3: every binding node on the map, once, with the options it binds in display order. */
+export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] {
+  const out: BindingNode[] = [];
+  result.slots.forEach((slot, si) => {
+    slot.candidates.forEach((c, ci) => {
+      for (const n of c.trace?.nodes ?? []) {
+        if (n.role !== 'binding') continue;
+        const option = { slot: si, candidate: ci, key: candidateKeyOf(c), name: c.supplier_name, binds_for: n.binds_for };
+        const seen = out.find((b) => b.alias === n.alias);
+        if (seen) seen.options.push(option);
+        else out.push({ alias: n.alias, tier: n.tier, options: [option] });
+      }
+    });
+  });
+  return out;
+}
+
+/** The trace as one sentence, for the overlay's accessible name: edges with bands, the binding node, the gaps. */
+export function traceSentence(trace: SmTrace, names: Record<string, string>): string {
+  const nameOf = (k: string) => names[k] ?? k;
+  const parts = trace.edges.map((e) => `${nameOf(e.parent)} ${String.fromCharCode(0x2192)} ${e.child} (${bandWord(e.band)})`);
+  for (const n of trace.nodes) {
+    if (n.role === 'binding') parts.push(`binding: ${n.alias} (tier ${n.tier})${n.binds_for > 1 ? `, for ${n.binds_for} options` : ''}`);
+  }
+  for (const g of trace.gaps) parts.push(`not observed below ${nameOf(g.at)}: ${GAP_STUB_WORD[g.status]}`);
+  return parts.join('; ');
 }

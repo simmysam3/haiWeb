@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
-import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingTier, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
+import { CANDIDATE_NAMES, multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { bandVar, bandWord, bindingNodes, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
@@ -201,5 +201,33 @@ describe('SP2 selectors: waiting and the gap stubs (contract §10)', () => {
       'not observed below: declined', 'not observed below: rate limited', 'not observed below: not connected', 'not observed below: cap reached',
       'not observed below: timeout', 'not observed below: unreachable', 'not observed below: unsupported',
     ]);
+  });
+});
+
+describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', () => {
+  it('lists the options an alias sits under, in display order, and finds its node (the preferred option’s first)', () => {
+    expect(underOf(mt, 'A')).toEqual(['leon', 'mekong']);
+    expect(underOf(mt, 'D')).toEqual(['flowknit', 'bowline']);
+    expect(underOf(mt, 'E')).toEqual(['zephyr']);
+    expect(underOf(mt, 'Z')).toEqual([]);
+    expect(nodeOf(mt, 'A')!.band).toBe('moderate');
+    expect(nodeOf(mt, 'A', 'mekong')!.band).toBeNull();
+    expect(nodeOf(mt, 'Z')).toBeNull();
+  });
+
+  it('collects every binding node once with the options it binds, in display order', () => {
+    expect(bindingNodes(mt)).toEqual([{ alias: 'A', tier: 2, options: [{ slot: 0, candidate: 0, key: 'leon', name: 'León Cuero', binds_for: 1 }] }]);
+    const twice = structuredClone(mt);
+    twice.slots[0]!.candidates[1]!.limit = 'inputs';
+    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    expect(bindingNodes(twice)[0]!.options.map((o) => o.key)).toEqual(['leon', 'mekong']);
+    expect(bindingNodes(vomeroResult)).toEqual([]);
+  });
+
+  it('says the trace in one sentence: each edge with its band, the binding node and tier, each gap with its status word', () => {
+    expect(traceSentence(leon2!.trace!, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); binding: A (tier 2); not observed below León Cuero: not connected');
+    const deep = { nodes: [{ alias: 'A', tier: 2, role: 'inherited' as const, band: 'moderate' as const, binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding' as const, band: 'severe' as const, binds_for: 2 }],
+      edges: [{ parent: 'leon', child: 'A', band: 'moderate' as const }, { parent: 'A', child: 'C', band: 'severe' as const }], gaps: [] };
+    expect(traceSentence(deep, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options');
   });
 });
