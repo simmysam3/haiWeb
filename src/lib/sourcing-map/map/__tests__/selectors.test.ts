@@ -254,11 +254,12 @@ describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec 
     expect(mayWaitNames({ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] })).toEqual([]);
   });
 
-  it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate', () => {
+  it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate, nor for one that never answered (M-3)', () => {
     expect(pathSummary(leon2!)).toBe('Inputs: 3 observed, 1 not observed · binding at tier 2');
     expect(pathSummary(mekong2!)).toBe('Inputs: 3 observed, 0 not observed');
     expect(pathSummary(zephyr2)).toBe('Inputs: 1 observed, 0 not observed');
-    expect(pathSummary(arno2!)).toBe('Inputs: 0 observed, 0 not observed');
+    // M-3: Arno timed out, so it has no observed inputs to count; "Inputs: 0 observed, 0 not observed" would misstate it
+    expect(pathSummary(arno2!)).toBeNull();
     expect(pathSummary(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
   });
 });

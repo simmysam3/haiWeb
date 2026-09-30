@@ -383,9 +383,12 @@ export function mayWaitNames(e: SmEstimateResponse): string[] {
   return e.responders_short.filter((r) => r.probes_planned > r.remaining_allowance).map((r) => r.legal_name);
 }
 
-/** Spec §12.4: "Inputs: 3 observed, 1 not observed · binding at tier 2"; null for an SP1 candidate (no projection). */
+/**
+ * Spec §12.4: "Inputs: 3 observed, 1 not observed · binding at tier 2"; null for an SP1 candidate (no projection), and
+ * null for a candidate with a gap status (M-3): one that never answered has no observed inputs, so counting zero misstates it.
+ */
 export function pathSummary(c: SmCandidateResult): string | null {
-  if (c.nodes === undefined) return null;
+  if (c.nodes === undefined || gapText(c.status) !== null) return null;
   const tier = bindingTier(c);
   const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
   return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;

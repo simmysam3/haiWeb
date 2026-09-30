@@ -110,9 +110,11 @@ describe('DetailsPanel', () => {
     const agg = within(below).getByLabelText('Sub-tier aggregates');
     expect(agg).toHaveTextContent('Responders3Median lead time14 dUtilization1 low · 1 moderate · 0 high · 1 at capacityCountriesIN, IT, USClassesColorants, Dyes, Wet-blueNot observed1');
     expect(below.textContent).not.toMatch(/Vetta|Halcyon|Rio Bravo|[0-9a-f]{8}-/);
-    // a gap candidate: the summary, no aggregates
+    // a gap candidate (Arno's timeout) never answered, so it has no inputs to count: no Below tier 1 section at all (M-3)
     rerender(<DetailsPanel slot={leather2} candidate={leather2.candidates[2]!} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
-    expect(within(screen.getByRole('region', { name: 'Below tier 1' })).getByText('Inputs: 0 observed, 0 not observed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Arno Pelli · IT' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Below tier 1' })).toBeNull();
+    expect(screen.queryByText(/^Inputs:/)).toBeNull();
     expect(screen.queryByLabelText('Sub-tier aggregates')).toBeNull();
     // a null median reads the em dash
     const noMedian = { ...leather2.candidates[1]!, aggregates: { ...leather2.candidates[1]!.aggregates!, median_lead_time_days: null, countries: [], classes: [] } };
