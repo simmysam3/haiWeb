@@ -256,7 +256,7 @@ test.describe('Sourcing Map SP2 walk (CSG, live seed — SP2-e, on the owner’s
   const RUN_PATH = process.env.SM_SP2_RUN_PATH;
   test.skip(process.env.SM_SP2_LIVE !== '1' || !EMAIL || !PASSWORD || !RUN_PATH, 'Needs SM_SP2_LIVE=1, SM_CSG_EMAIL, SM_CSG_PASSWORD and SM_SP2_RUN_PATH; runs only in the SP2-e walk');
 
-  test('Line A base: León reads the tier-2 reason and traces to a binding alias shared with Mekong; Zephyr reads own capacity; a tier 3 sits under León; nothing below tier 1 is named or counted (spec §14.1–3, §14.7, §14.9)', async ({ page }) => {
+  test('Line A base: León reads the tier-2 reason and traces to a binding alias shared with Mekong; Zephyr reads own capacity; a tier 3 sits under León; nothing below tier 1 is named or counted; the handle panel closes back to its handle (spec §14.1–3, §14.7, §14.9)', async ({ page }) => {
     test.setTimeout(5 * 60_000);
     await login(page, EMAIL!, PASSWORD!);
     await page.goto(`${HAIWEB}${RUN_PATH}`);
@@ -273,6 +273,9 @@ test.describe('Sourcing Map SP2 walk (CSG, live seed — SP2-e, on the owner’s
     await expect(overlay).toBeVisible();
     console.log(`SM_SP2_TRACE_DRAW_MS live=${JSON.stringify(await durations(page, 'sm-trace-draw'))}`);
     const alias = (await overlay.getAttribute('aria-label'))!.match(/binding: ([A-Z]{1,4}) \(tier 2\)/)![1]!;
+    // §14.1: Shared exposure lists one tier-2 alias under León and Mekong
+    const shared = page.getByRole('region', { name: 'Shared exposure' }).getByRole('listitem').filter({ hasText: /^[A-Z]{1,4} · tier 2 — León Cuero, Mekong Tannery$/ });
+    await expect(shared).toHaveCount(1);
     // the binding alias sits under Mekong too (shared exposure), marked binding only under León
     const leonHandle = page.getByRole('group', { name: 'Tier 2 under León Cuero' }).getByRole('button', { name: new RegExp(`^${alias} · `) });
     const mekongHandle = page.getByRole('group', { name: 'Tier 2 under Mekong Tannery' }).getByRole('button', { name: new RegExp(`^${alias} · `) });
@@ -292,8 +295,9 @@ test.describe('Sourcing Map SP2 walk (CSG, live seed — SP2-e, on the owner’s
       await expect(handles).toHaveCount(1);
       await expect(handles.first().getByRole('img')).toHaveCount(0);
     }
-    // requirements §7.3 on the page: every handle is alias · country · class, no digits run and none of the reset script's names
-    const handleTexts = await page.locator('[data-anchor*="/"]').allTextContents();
+    // requirements §7.3 on the page: every handle is alias · country · class, no digits run and none of the reset script's names.
+    // The handles are found inside the tier-row groups: a card header's anchor is its candidate_key, whose SKU may hold a "/".
+    const handleTexts = await page.getByRole('group', { name: /^Tier \d+ under / }).locator('button[data-alias]').allTextContents();
     expect(handleTexts.length).toBeGreaterThan(0);
     for (const t of handleTexts) expect(t).toMatch(/^[A-Z]{1,4} · (—|[A-Z]{2}) · [^0-9]*$/);
     const body = await page.locator('[data-testid="sm-root"]').innerText();
@@ -303,5 +307,9 @@ test.describe('Sourcing Map SP2 walk (CSG, live seed — SP2-e, on the owner’s
     const panel = page.getByRole('complementary', { name: `Details for supplier ${alias}` });
     await expect(panel.getByText('Identity, quantities and names below tier 1 are not disclosed.')).toBeVisible();
     await expect(panel.getByText('Also supplies: Mekong Tannery')).toBeVisible();
+    // Close returns focus to the handle (on the real candidate_key, whose quotes a CSS selector could not carry: C-1)
+    await panel.getByRole('button', { name: 'Close handle details' }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(leonHandle).toBeFocused();
   });
 });
