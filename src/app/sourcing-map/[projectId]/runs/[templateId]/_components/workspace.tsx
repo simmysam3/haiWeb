@@ -339,7 +339,8 @@ export function Workspace({
             // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
             key={`${selected.slot}:${selected.candidate}`}
             // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
-            hidden={handle !== null}
+            // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
+            hidden={handle !== null && handleNode !== null}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}

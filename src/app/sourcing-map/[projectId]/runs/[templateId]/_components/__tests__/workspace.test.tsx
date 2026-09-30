@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
+import type { SmCandidateResult2, SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
 import { multitierDetail, throttledDetail, throttledStatus, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
@@ -761,6 +761,28 @@ describe('Workspace', () => {
     expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+  });
+
+  it('SP2: a pressed handle whose node a poll frame takes off the map shows no handle panel, so the card’s details are not hidden under it: never an empty side column (M-4)', async () => {
+    const live: SmExecutionDetail = { ...multitierDetail, execution: { ...multitierDetail.execution, status: 'running' } };
+    mount(live, [live.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+    // the frame re-serves León and Mekong, the two options that carried A, without it
+    const withoutA = (c: SmCandidateResult2): SmCandidateResult2 => ({ ...c, nodes: (c.nodes ?? []).filter((n) => n.alias !== 'A'), trace: null });
+    const [leon, mekong] = live.result!.slots[0]!.candidates;
+    const key = `/api/account/sourcing-map/executions/${live.execution.execution_id}/status`;
+    expect(swr.key).toBe(key);
+    act(() => swr.options.onSuccess?.({
+      execution_id: live.execution.execution_id, status: 'running', failure_reason: null, probes_planned: 15, probes_done: 15, cursor: 15,
+      changed: [{ slot_index: 0, candidate_index: 0, candidate: withoutA(leon!) }, { slot_index: 0, candidate_index: 1, candidate: withoutA(mekong!) }],
+    }, key));
+    expect(screen.queryByRole('group', { name: 'Tier 2 under León Cuero' })).not.toBeNull();
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).queryByRole('button', { name: /^A · / })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
   });
 
   it('SP2: collapsing the lane of the card a handle was pressed on closes the handle panel with it; focus stays on the lane’s toggle, and a card selected in another lane shows its details again (M1 for handles)', async () => {
