@@ -4,7 +4,7 @@ import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
-import { multitierDetail, throttledDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
+import { multitierDetail, throttledDetail, throttledStatus, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
@@ -727,6 +727,28 @@ describe('Workspace', () => {
     expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
     expect(document.activeElement).toBe(a);
     expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('SP2 on real wire keys (JSON.stringify([participant, sku]), with quotes): the handle panel closes by Close and by a second press, and focus returns to the handle (C-1)', async () => {
+    const real = withRealKeys(multitierDetail);
+    const leon = real.result!.slots[0]!.candidates[0]!;
+    mount(real, [real.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    // control: the card really carries the wire key, quotes and all, so the rest runs on it
+    expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveAttribute('data-anchor', JSON.stringify([leon.supplier_participant_id, leon.supplier_sku]));
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    // a press opens it, a second press closes it; focus stays on the handle
+    fireEvent.click(a);
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    fireEvent.click(a);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
   });
 
   it('SP2: collapsing the lane of the card a handle was pressed on closes the handle panel with it; focus stays on the lane’s toggle, and a card selected in another lane shows its details again (M1 for handles)', async () => {

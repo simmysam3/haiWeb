@@ -166,8 +166,13 @@ export function Workspace({
   // R2 for handles (fix round 1): closing the handle panel, by Close or by pressing the handle again, returns focus to
   // the pressed handle, found by its origin and alias. The card's details stay mounted (hidden) under the handle panel,
   // so nothing remounts and takes focus to its heading afterwards, StrictMode's re-run effects included.
+  // C-1: the handle is found by comparing each anchor's value, as measureAnchors does, never by a CSS selector built
+  // from it: a real candidate_key is JSON.stringify([participant, sku]), whose quotes make such a selector throw.
   function closeHandle() {
-    if (handle) mapRef.current?.querySelector<HTMLElement>(`[data-anchor="${handle.origin}/${handle.alias}"]`)?.focus();
+    if (handle) {
+      const anchor = `${handle.origin}/${handle.alias}`;
+      Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor]') ?? []).find((el) => el.dataset.anchor === anchor)?.focus();
+    }
     setHandle(null);
   }
   // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
