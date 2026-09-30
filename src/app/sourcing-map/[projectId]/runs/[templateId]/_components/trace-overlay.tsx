@@ -45,8 +45,7 @@ export interface GapPlacement {
  * a card-coloured back. Beside the stub it painted over the next card (the gap is 16 px), and near the canvas's right
  * edge the svg clipped it. Right-aligned to the card, never to a handle, a label cannot spill left out of the card
  * either (the longest copy is 185 px; a card's content is 210 px). With no card measured, the anchor's own edge.
- * Several gaps on one anchor stack (Task 13 fix round B): the `stack`-th label sits that many label lines lower,
- * so their backs abut and no label hides another.
+ * `stack` moves the label that many label lines lower; gapLabels decides it, so that no two labels share a box.
  */
 export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, label: string, stack = 0): GapPlacement {
   const sx = anchor.x + anchor.width;
@@ -59,6 +58,26 @@ export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, l
     text: { x: right, y: top + LABEL.baseline, width },
     back: { x: right - width - LABEL.pad, y: top, width: width + LABEL.pad, height: LABEL.line },
   };
+}
+
+/**
+ * Every gap's placement, in trace order, with no two labels sharing a box (Task 13 fix rounds B and 1). Labels are
+ * right-aligned to the card and sit below their anchor, so gaps on one anchor, and gaps on sibling handles of one tier
+ * row, would all land on the same line; a label whose back would intersect an earlier label's moves down, a label line
+ * at a time, until it intersects none. A gap whose anchor is not measured has no placement (null).
+ */
+export function gapLabels(gaps: Array<{ anchor: AnchorRect | undefined; label: string }>, card: AnchorRect | undefined): Array<GapPlacement | null> {
+  const placed: GapPlacement['back'][] = [];
+  const hits = (a: GapPlacement['back'], b: GapPlacement['back']) =>
+    Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 0 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 0;
+  return gaps.map(({ anchor, label }) => {
+    if (!anchor) return null;
+    let stack = 0;
+    let p = gapPlacement(anchor, card, label, stack);
+    while (placed.some((b) => hits(p.back, b))) p = gapPlacement(anchor, card, label, ++stack);
+    placed.push(p.back);
+    return p;
+  });
 }
 
 /** The traced card's own key: the edge parent or gap anchor that is no sub-tier node (the anchors hold the card under it). */
@@ -86,6 +105,7 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
   const nameOf = (k: string) => names[k] ?? k;
   const cardKey = cardKeyOf(trace);
   const card = cardKey === undefined ? undefined : anchors[cardKey];
+  const labels = gapLabels(trace.gaps.map((g) => ({ anchor: anchors[g.at], label: gapStubText(g.status) })), card);
   return (
     <svg data-trace role="img" aria-label={`Shortfall trace: ${traceSentence(trace, names)}`} width={width} height={height} className="pointer-events-none absolute inset-0">
       {trace.edges.map((e, i) => {
@@ -100,12 +120,9 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
         );
       })}
       {trace.gaps.map((g, i) => {
-        const a = anchors[g.at];
-        if (!a) return null;
+        const p = labels[i];
+        if (!p) return null;
         const label = gapStubText(g.status);
-        // the gaps before this one on the same anchor: this label goes one line below each of them
-        const stack = trace.gaps.slice(0, i).filter((o) => o.at === g.at).length;
-        const p = gapPlacement(a, card, label, stack);
         return (
           <g key={`g${i}`} data-trace-gap data-status={g.status}>
             <path d={p.stub} fill="none" strokeWidth={2} strokeDasharray="4 4" style={{ stroke: 'var(--sm-line-control)' }} />

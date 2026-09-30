@@ -100,6 +100,31 @@ describe('TraceOverlay', () => {
     expect(gapPlacement(ANCHORS.leon!, ANCHORS.leon!, 'not observed below: declined', 1).back.y).toBe(136 + 16);
   });
 
+  it('stacks gap labels by the row they land on, not by their anchor: sibling handles in one tier row never share a label box (Task 13 fix round 1)', () => {
+    // A and B side by side in León's tier-2 row (same y and height), C in the tier-3 row below
+    const row: Record<string, AnchorRect> = { ...ANCHORS, A: { x: 372, y: 330, width: 90, height: 22 }, B: { x: 468, y: 330, width: 90, height: 22 } };
+    const trace: SmTrace = { ...leon.trace!, gaps: [{ at: 'A', status: 'not_connected' }, { at: 'B', status: 'declined' }, { at: 'C', status: 'timeout' }] };
+    render(<TraceOverlay trace={trace} anchors={row} names={CANDIDATE_NAMES} width={800} height={600} />);
+    const boxes = Array.from(document.querySelectorAll<SVGGElement>('g[data-trace-gap]')).map((g) => {
+      const back = g.querySelector('rect')!;
+      return {
+        status: g.getAttribute('data-status'),
+        textY: Number(g.querySelector('text')!.getAttribute('y')),
+        x: Number(back.getAttribute('x')), y: Number(back.getAttribute('y')), w: Number(back.getAttribute('width')), h: Number(back.getAttribute('height')),
+      };
+    });
+    // A's label on the line below the row; B's, which would land on the same line, one line lower; C's would begin
+    // inside B's back (tier 3 is 26 px below tier 2: 382 < 388), so it moves down a label line, clear of B's
+    expect(boxes.map(({ status, textY, y }) => ({ status, textY, y }))).toEqual([
+      { status: 'not_connected', textY: 368, y: 356 },
+      { status: 'declined', textY: 384, y: 372 },
+      { status: 'timeout', textY: 410, y: 398 },
+    ]);
+    // no two labels share any part of a box
+    const overlaps = (a: typeof boxes[number], b: typeof boxes[number]) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlaps(boxes[i]!, boxes[j]!)).toBe(false);
+  });
+
   it('follows a two-edge trace handle to handle, each edge in its own band colour', () => {
     render(<TraceOverlay trace={DEEP} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
     const edges = Array.from(document.querySelectorAll<SVGPathElement>('path[data-trace-edge]'));
