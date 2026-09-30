@@ -79,6 +79,27 @@ describe('TraceOverlay', () => {
     expect([text.getAttribute('x'), text.getAttribute('y')]).toEqual(['560', '394']);
   });
 
+  it('stacks several gap labels on one anchor one line apart, so none overlaps or hides another; another anchor starts its own stack (Task 13 fix round B)', () => {
+    const trace: SmTrace = { ...leon.trace!, gaps: [{ at: 'leon', status: 'not_connected' }, { at: 'leon', status: 'declined' }, { at: 'C', status: 'timeout' }] };
+    render(<TraceOverlay trace={trace} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
+    const gaps = Array.from(document.querySelectorAll<SVGGElement>('g[data-trace-gap]')).map((g) => ({
+      status: g.getAttribute('data-status'),
+      stub: g.querySelector('path')!.getAttribute('d'),
+      textY: Number(g.querySelector('text')!.getAttribute('y')),
+      backY: Number(g.querySelector('rect')!.getAttribute('y')),
+      backH: Number(g.querySelector('rect')!.getAttribute('height')),
+    }));
+    expect(gaps.map(({ status, stub, textY, backY }) => ({ status, stub, textY, backY }))).toEqual([
+      { status: 'not_connected', stub: 'M560 122 L 574 122', textY: 148, backY: 136 },
+      { status: 'declined', stub: 'M560 122 L 574 122', textY: 164, backY: 152 },
+      { status: 'timeout', stub: 'M462 367 L 476 367', textY: 394, backY: 382 },
+    ]);
+    // the backs on one anchor abut and never overlap, so the second label hides nothing of the first
+    expect(gaps[0]!.backY + gaps[0]!.backH).toBeLessThanOrEqual(gaps[1]!.backY);
+    expect(gapPlacement(ANCHORS.leon!, ANCHORS.leon!, 'not observed below: declined', 1).text.y).toBe(148 + 16);
+    expect(gapPlacement(ANCHORS.leon!, ANCHORS.leon!, 'not observed below: declined', 1).back.y).toBe(136 + 16);
+  });
+
   it('follows a two-edge trace handle to handle, each edge in its own band colour', () => {
     render(<TraceOverlay trace={DEEP} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
     const edges = Array.from(document.querySelectorAll<SVGPathElement>('path[data-trace-edge]'));

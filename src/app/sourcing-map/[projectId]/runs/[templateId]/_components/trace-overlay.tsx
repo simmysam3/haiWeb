@@ -45,12 +45,14 @@ export interface GapPlacement {
  * a card-coloured back. Beside the stub it painted over the next card (the gap is 16 px), and near the canvas's right
  * edge the svg clipped it. Right-aligned to the card, never to a handle, a label cannot spill left out of the card
  * either (the longest copy is 185 px; a card's content is 210 px). With no card measured, the anchor's own edge.
+ * Several gaps on one anchor stack (Task 13 fix round B): the `stack`-th label sits that many label lines lower,
+ * so their backs abut and no label hides another.
  */
-export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, label: string): GapPlacement {
+export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, label: string, stack = 0): GapPlacement {
   const sx = anchor.x + anchor.width;
   const sy = anchor.y + anchor.height / 2;
   const right = card ? card.x + card.width : sx;
-  const top = anchor.y + anchor.height + LABEL.below;
+  const top = anchor.y + anchor.height + LABEL.below + stack * LABEL.line;
   const width = Math.round(label.length * LABEL_CHAR_W);
   return {
     stub: `M${sx} ${sy} L ${sx + STUB} ${sy}`,
@@ -101,7 +103,9 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
         const a = anchors[g.at];
         if (!a) return null;
         const label = gapStubText(g.status);
-        const p = gapPlacement(a, card, label);
+        // the gaps before this one on the same anchor: this label goes one line below each of them
+        const stack = trace.gaps.slice(0, i).filter((o) => o.at === g.at).length;
+        const p = gapPlacement(a, card, label, stack);
         return (
           <g key={`g${i}`} data-trace-gap data-status={g.status}>
             <path d={p.stub} fill="none" strokeWidth={2} strokeDasharray="4 4" style={{ stroke: 'var(--sm-line-control)' }} />
