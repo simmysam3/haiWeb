@@ -1,8 +1,8 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateStatus } from '@haiwave/protocol';
+import type { SmCandidateStatus, SmEstimateResponse } from '@haiwave/protocol';
 import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
-  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
@@ -358,4 +358,35 @@ export function traceSentence(trace: SmTrace, names: Record<string, string>): st
   }
   for (const g of trace.gaps) parts.push(`not observed below ${nameOf(g.at)}: ${GAP_STUB_WORD[g.status]}`);
   return parts.join('; ');
+}
+
+const HOUR_UTC = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+/** The hour boundary as "HH:00 UTC", in the UTC form every other instant in this app uses (formatAsOfUtc). */
+export function formatHourUtc(iso: string): string {
+  return `${HOUR_UTC.format(new Date(iso))} UTC`;
+}
+
+/** The em dash of the contract's copy; the one definition, imported by every later user. */
+export const EM_DASH = String.fromCharCode(0x2014);
+
+/**
+ * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
+ * first status frame) or the waiting responder is below tier 1 and so not named (G-52).
+ */
+export function throttledText(w: SmWaitingOn | null): string {
+  if (w === null || w.responder_name === null) return `Waiting for an hourly allowance ${EM_DASH} the run continues on its own.`;
+  return `Waiting for ${w.responder_name}'s hourly allowance until ${formatHourUtc(w.refill_at)} ${EM_DASH} the run continues on its own.`;
+}
+
+/** G-2: may_wait is derived here, never sent — the responders whose planned probes exceed their remaining allowance. */
+export function mayWaitNames(e: SmEstimateResponse): string[] {
+  return e.responders_short.filter((r) => r.probes_planned > r.remaining_allowance).map((r) => r.legal_name);
+}
+
+/** Spec §12.4: "Inputs: 3 observed, 1 not observed · binding at tier 2"; null for an SP1 candidate (no projection). */
+export function pathSummary(c: SmCandidateResult): string | null {
+  if (c.nodes === undefined) return null;
+  const tier = bindingTier(c);
+  const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
+  return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;
 }

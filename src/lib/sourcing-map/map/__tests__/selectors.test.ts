@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
-import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
-import { CANDIDATE_NAMES, multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
+import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
+import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
@@ -229,5 +229,30 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     const deep = { nodes: [{ alias: 'A', tier: 2, role: 'inherited' as const, band: 'moderate' as const, binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding' as const, band: 'severe' as const, binds_for: 2 }],
       edges: [{ parent: 'leon', child: 'A', band: 'moderate' as const }, { parent: 'A', child: 'C', band: 'severe' as const }], gaps: [] };
     expect(traceSentence(deep, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options');
+  });
+});
+
+describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec §12.4, §12.5; G-2)', () => {
+  it('words the wait with the responder and the hour boundary in UTC, exactly', () => {
+    expect(formatHourUtc('2027-03-01T11:00:00.000Z')).toBe('11:00 UTC');
+    expect(formatHourUtc('2027-03-01T23:00:00.000Z')).toBe('23:00 UTC');
+    expect(throttledText(throttledStatus.waiting_on!)).toBe("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own.");
+    // G-52: a responder below tier 1 is not named; before the first frame there is nothing to name
+    expect(throttledText({ responder_name: null, refill_at: '2027-03-01T11:00:00.000Z' })).toBe('Waiting for an hourly allowance — the run continues on its own.');
+    expect(throttledText(null)).toBe('Waiting for an hourly allowance — the run continues on its own.');
+  });
+
+  it('derives may_wait from responders_short: a responder planning more probes than its allowance may wait; none otherwise', () => {
+    expect(mayWaitNames(mayWaitEstimate)).toEqual(['Arno Pelli']);
+    expect(mayWaitNames(vomeroEstimate)).toEqual([]);
+    expect(mayWaitNames({ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] })).toEqual([]);
+  });
+
+  it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate', () => {
+    expect(pathSummary(leon2!)).toBe('Inputs: 3 observed, 1 not observed · binding at tier 2');
+    expect(pathSummary(mekong2!)).toBe('Inputs: 3 observed, 0 not observed');
+    expect(pathSummary(zephyr2)).toBe('Inputs: 1 observed, 0 not observed');
+    expect(pathSummary(arno2!)).toBe('Inputs: 0 observed, 0 not observed');
+    expect(pathSummary(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
   });
 });
