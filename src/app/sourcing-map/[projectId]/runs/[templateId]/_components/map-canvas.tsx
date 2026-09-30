@@ -1,6 +1,6 @@
 'use client';
 import { useLayoutEffect } from 'react';
-import type { SourcingMapExecutionResult } from '@haiwave/protocol';
+import type { SourcingMapExecutionResult2 as SourcingMapExecutionResult } from '@/lib/sourcing-map/types';
 import { layoutMap, MAP_L, RAIL_L } from '@/lib/sourcing-map/map/layout';
 import { candidateWeekAt, heatVar, laneState, slotTitle, slotWeekFor, type LaneState } from '@/lib/sourcing-map/map/selectors';
 import { OptionCard } from './option-card';

@@ -1,6 +1,5 @@
 'use client';
-import type { SmCandidateResult, SmSlotResult } from '@haiwave/protocol';
-import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
+import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
 import { availabilityText, candidateWeekAt, gapText, heatOf, limitText, slotDemandAt, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';

@@ -1,5 +1,5 @@
 'use client';
-import type { SmExecutionSummary } from '@haiwave/protocol';
+import type { SmExecutionSummary2 as SmExecutionSummary } from '@/lib/sourcing-map/types';
 import { formatAsOfUtc } from '@/lib/sourcing-map/map/selectors';
 
 /** The header's result picker (spec §9.1): earlier executions can be selected (AC 18). */

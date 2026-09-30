@@ -1,6 +1,8 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '@haiwave/protocol';
-import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
+import type {
+  SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
+  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+} from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
@@ -75,12 +77,14 @@ export function availabilityText(c: SmCandidateResult, week: string | null, dema
  * answer cannot show whether the supplier or its inputs bind, so the words claim only the shortfall (owner's walk
  * ruling, 2026-09-29). "Limit: own capacity" is kept for the release that traces the inputs (SP2).
  */
-const LIMIT_TEXT: Record<SmOptionLimit, string> = {
+const LIMIT_TEXT: Record<SmOptionLimit2, string> = {
   own: 'Short · cause not traced',
+  inputs: 'Short · cause not traced',
+  both: 'Short · cause not traced',
   lead_time: 'Stated supply starts after the first need date',
   unknown: 'Schedule not assessed',
 };
-export function limitText(limit: SmOptionLimit | null): string {
+export function limitText(limit: SmOptionLimit2 | null): string {
   return limit === null ? 'No shortfall stated' : LIMIT_TEXT[limit];
 }
 
