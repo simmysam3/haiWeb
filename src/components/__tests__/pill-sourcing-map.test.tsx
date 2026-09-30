@@ -53,8 +53,8 @@ describe('<Pill themed> (Sourcing Map)', () => {
     }
   });
 
-  it('SP2 (contract §3): waiting (candidate, live) and throttled (execution) resolve a definition and the warn tone, before 3.96.0 is on the symlink', () => {
-    // Listed by hand: the protocol enums on the symlink are 3.95.0 until SP2-a merges; the loop above picks these up then.
+  it('SP2 (contract §3): waiting (candidate, live) and throttled (execution) resolve a definition, the warn tone and the Waiting label', () => {
+    // The loop above checks definitions only; this test pins the tone and the label.
     for (const [category, value] of [['sm_candidate_status', 'waiting'], ['sm_execution_status', 'throttled']] as const) {
       expect(definitionFor(category, value), `${category}:${value}`).toBeTruthy();
       const { unmount } = render(<Pill themed category={category} value={value} />);

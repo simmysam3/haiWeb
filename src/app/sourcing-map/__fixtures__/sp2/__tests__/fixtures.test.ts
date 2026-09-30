@@ -8,7 +8,7 @@ import estimateJson from '../estimate-may-wait.json';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledDetail, throttledStatus } from '..';
 
 describe('SP2 types (validated by @haiwave/protocol 3.96.0)', () => {
-  it('accepts every 3.95.0 value: an SP1 detail is an SmExecutionDetail2, and its limits are SmOptionLimit2', () => {
+  it('an SP1 (3.95.0-shaped) detail reads through the SP2 aliases: completed, no nodes, limit own', () => {
     const d: SmExecutionDetail2 = vomeroDetail;
     const c: SmCandidateResult2 = vomeroDetail.result!.slots[0]!.candidates[0]!;
     const limits: Array<SmOptionLimit2 | null> = vomeroDetail.result!.slots.flatMap((s) => s.candidates.map((x) => x.limit));
@@ -19,7 +19,7 @@ describe('SP2 types (validated by @haiwave/protocol 3.96.0)', () => {
 });
 
 describe('execution-multitier.json (contract §10)', () => {
-  it('validates as a 3.96.0 SmExecutionDetail, strictly (limit inputs is in the protocol enum)', () => {
+  it('validates as a 3.96.0 SmExecutionDetail, strict at the top level (limit inputs is in the protocol enum)', () => {
     const parsed = SmExecutionDetailSchema.strict().parse(multitierJson);
     const d: SmExecutionDetail2 = parsed;
     expect(d.execution.status).toBe('completed');

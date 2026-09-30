@@ -40,7 +40,7 @@ describe('execution states', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('tolerates more probes answered than planned after a resume (G-23): the count never reads "8 of 6"', () => {
+  it('tolerates more probes answered than planned after a resume or a recomposition (G-23): the count never reads "8 of 6"', () => {
     const { rerender } = render(<ExecutionBanner execution={{ ...vomeroExecution, status: 'running', probes_planned: 6, probes_done: 8 }} />);
     expect(screen.getByRole('status')).toHaveTextContent('Probing: 8 probes answered (6 planned)');
     rerender(<ExecutionBanner execution={{ ...vomeroExecution, status: 'running', probes_planned: 6, probes_done: 6 }} />);
