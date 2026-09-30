@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import type { SmEstimateResponse, SmExecutionDetail, SmExecutionSummary, SmProduct } from '@haiwave/protocol';
+import type { SmEstimateResponse, SmProduct } from '@haiwave/protocol';
+import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 as SmExecutionSummary } from '@/lib/sourcing-map/types';
 import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
-import { resolveAsOfDrop } from '@/lib/sourcing-map/map/selectors';
+import { candidateKeyOf, candidateNamesOf, nodeOf, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
 import { SmHeader } from '@/app/sourcing-map/_components/sm-header';
 import { useExecutionPoll } from './use-execution-poll';
 import { ExecutionPicker } from './execution-picker';
@@ -14,6 +15,7 @@ import { AnswersAsOf, ExecutionBanner } from './execution-state';
 import { SeatBar } from './seat-bar';
 import { MapCanvas } from './map-canvas';
 import { DetailsPanel } from './details-panel';
+import { HandlePanel } from './handle-panel';
 import { ConfigureTray } from './configure-tray';
 
 export interface WorkspaceProps {
@@ -44,13 +46,17 @@ export function Workspace({
   const [loaded, setLoaded] = useState(initialDetail);
   // `loaded` is state, so it is referentially stable, as the hook requires.
   const { detail, error: pollError } = useExecutionPoll(loaded);
-  const running = detail !== null && (detail.execution.status === 'queued' || detail.execution.status === 'running');
+  // SP2 (spec §8.3, §12.5): a throttled execution is live — the tick resumes it — so Cancel stays offered and Run stays blocked.
+  const running = detail !== null && (detail.execution.status === 'queued' || detail.execution.status === 'running' || detail.execution.status === 'throttled');
   const [estimate, setEstimate] = useState<SmEstimateResponse | null>(null);
   // R5: a failed readiness read blocks Run with its reason; RunButton would otherwise say "Checking…" for ever.
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(null);
+  // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
+  // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
+  const [handle, setHandle] = useState<{ alias: string; origin: string } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(detailError);
   const [busy, setBusy] = useState(false);
@@ -87,6 +93,7 @@ export function Workspace({
     setLoaded(out.data);
     // R3: the pick and the collapsed rails are by slot (and candidate) index, so they named the result just replaced.
     setSelected(null);
+    setHandle(null);
     setCollapsed(new Set());
     // The loaded execution's summary replaces (or joins) its picker entry, so a new run needs no list refetch.
     setExecutions((xs) => [out.data.execution, ...xs.filter((x) => x.execution_id !== out.data.execution.execution_id)]);
@@ -147,19 +154,59 @@ export function Workspace({
     }
   }
 
-  // R2: closing the details returns focus to the card that opened them. Only option cards carry aria-pressed
-  // inside the map (SeatBar's pressed chips sit outside this wrapper); the card outlives the close, so it is
-  // focused before the panel unmounts.
+  // R2: closing the details returns focus to the card that opened them, found as the map's pressed button (SeatBar's
+  // pressed chips sit outside this wrapper). Tier-row handles carry aria-pressed too; the lookup still lands on the
+  // card because no handle reads pressed while Close details can be reached: DetailsPanel is hidden whenever the
+  // handle panel renders, and when that panel does not render no handle button is pressed (no handle, or its alias
+  // is on no card, M-4). The card outlives the close, so it is focused before the panel unmounts.
   const mapRef = useRef<HTMLDivElement | null>(null);
   function closeDetails() {
     mapRef.current?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
     setSelected(null);
   }
 
+  // R2 for handles (fix round 1): closing the handle panel, by Close or by pressing the handle again, returns focus to
+  // the pressed handle, found by its origin and alias. The card's details stay mounted (hidden) under the handle panel,
+  // so nothing remounts and takes focus to its heading afterwards, StrictMode's re-run effects included.
+  // C-1: the handle is found by comparing each anchor's value, as measureAnchors does, never by a CSS selector built
+  // from it: a real candidate_key is JSON.stringify([participant, sku]), whose quotes make such a selector throw.
+  function closeHandle() {
+    if (handle) {
+      const anchor = `${handle.origin}/${handle.alias}`;
+      Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor]') ?? []).find((el) => el.dataset.anchor === anchor)?.focus();
+    }
+    setHandle(null);
+  }
+  // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
+  // I-1: a pick whose lane is collapsed (the limits list stays shown) expands that lane, so the card and its trace
+  // are drawn and Close has a card to return focus to. The set is kept as it is when the lane is already open.
+  function selectCard(sel: { slot: number; candidate: number }) {
+    setHandle(null);
+    setSelected(sel);
+    setCollapsed((c) => {
+      if (!c.has(sel.slot)) return c;
+      const n = new Set(c);
+      n.delete(sel.slot);
+      return n;
+    });
+  }
+  function selectHandle(alias: string | null, origin: string) {
+    if (alias === null) closeHandle();
+    else setHandle({ alias, origin });
+  }
+
   // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
-  // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle.
+  // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle. So does a handle
+  // pressed on a card in it that is not the selected card (fix round 1): its panel would describe a card no longer shown.
   function toggleLane(i: number) {
-    if (!collapsed.has(i) && selected?.slot === i) setSelected(null);
+    if (!collapsed.has(i)) {
+      if (selected?.slot === i) {
+        setSelected(null);
+        setHandle(null);
+      } else if (handle && detail?.result?.slots[i]?.candidates.some((c) => candidateKeyOf(c) === handle.origin)) {
+        setHandle(null);
+      }
+    }
     setCollapsed((c) => {
       const n = new Set(c);
       if (n.has(i)) n.delete(i);
@@ -173,6 +220,7 @@ export function Workspace({
   // P2: the side column holds one panel at a time (the details and the tray side by side would overflow the row).
   function openTray() {
     setSelected(null);
+    setHandle(null);
     setTrayOpen(true);
   }
   function closeTray() {
@@ -195,6 +243,13 @@ export function Workspace({
   const listed = detail ? executions.map((x) => (x.execution_id === detail.execution.execution_id ? detail.execution : x)) : executions;
   const asOfDrop = result ? resolveAsOfDrop(params.get('drop'), result.portfolio) : null;
   const productNames = Object.fromEntries(library.map((p) => [p.product_id, p.name]));
+  const selectedCandidate = result && selected ? result.slots[selected.slot]?.candidates[selected.candidate] ?? null : null;
+  const handleNode = result && handle ? nodeOf(result, handle.alias, handle.origin) : null;
+  // the handle's role on the trace is the selected card's, and only when the handle was pressed on that card
+  const handleTraceNode = handle && selectedCandidate && candidateKeyOf(selectedCandidate) === handle.origin
+    ? selectedCandidate.trace?.nodes.find((n) => n.alias === handle.alias) ?? null
+    : null;
+  const candidateNames = result ? candidateNamesOf(result) : {};
   const inRun = library.filter((p) => template.scope.products.some((x) => x.product_id === p.product_id));
   const units = [...new Set(inRun.map((p) => p.unit_label))];
   const days = [...new Set(inRun.map((p) => p.assembly_days))].sort((a, b) => a - b);
@@ -260,18 +315,36 @@ export function Workspace({
                   capacity: template.scope.seat_weekly_capacity,
                 }}
                 selected={selected}
-                onSelect={setSelected}
+                onSelect={selectCard}
                 collapsed={collapsed}
                 onToggle={toggleLane}
+                selectedHandle={handle}
+                onSelectAlias={selectHandle}
               />
             </div>
           )}
         </div>
         {/* P2: while the tray is open it holds the side column; a card picked meanwhile shows once the tray closes. */}
+        {/* SP2 (spec §12.4): a pressed handle's panel takes the column; the card's details return when it closes. */}
+        {!trayOpen && result && handle && handleNode && (
+          <HandlePanel
+            key={`${handle.origin}/${handle.alias}`}
+            node={{ ...handleNode, under: underOf(result, handle.alias) }}
+            origin={handle.origin}
+            candidateNames={candidateNames}
+            trace={handleTraceNode ? { role: handleTraceNode.role, binds_for: handleTraceNode.binds_for } : null}
+            onClose={closeHandle}
+          />
+        )}
         {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
-            // R2: keyed by the pick, so each new pick mounts a panel that moves focus to its heading.
+            // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
+            // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
+            // panel without moving focus.
             key={`${selected.slot}:${selected.candidate}`}
+            // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
+            // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
+            hidden={handle !== null && handleNode !== null}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}
@@ -291,6 +364,7 @@ export function Workspace({
               setTemplate(t);
               // M3: P2d holds for Close only; after an Apply, focus returns to Configure and a pick made meanwhile is dropped.
               setSelected(null);
+              setHandle(null);
               closeTray();
             }}
             onClose={closeTray}

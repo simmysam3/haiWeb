@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { vomeroResult, weeklyDropsResult } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import type { SourcingMapExecutionResult } from '@haiwave/protocol';
 import { MapCanvas } from '../map-canvas';
 
@@ -50,5 +51,25 @@ describe('R-9 map render measurement (jsdom: render + commit, no layout or paint
     const max = medianRender(sp1Max(), '2027-06-28');
     console.log(`SM_MAP_RENDER_MS vomero_median=${vomero.toFixed(1)} sp1max_median=${max.toFixed(1)}`);
     expect(Number.isFinite(vomero) && Number.isFinite(max)).toBe(true);
+  }, 120_000);
+});
+
+describe('SP2 jsdom measurement (render + commit, no layout or paint; the harness has the verdict)', () => {
+  it.skipIf(!process.env.SM_PERF)('measures the multitier fixture, plain and with León’s trace selected', () => {
+    const mt = multitierDetail.result!;
+    const samples: Array<[number, number]> = [];
+    for (let i = 0; i < 5; i++) {
+      const { unmount } = render(
+        <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={{}} seat={SEAT} selected={{ slot: 0, candidate: 0 }} onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} />,
+      );
+      samples.push([
+        performance.getEntriesByName('sm-map-render', 'measure').at(-1)!.duration,
+        performance.getEntriesByName('sm-trace-draw', 'measure').at(-1)!.duration,
+      ]);
+      unmount();
+    }
+    const median = (k: 0 | 1) => [...samples.map((s) => s[k])].sort((a, b) => a - b)[2]!;
+    console.log(`SM_SP2_JSDOM_MS map_median=${median(0).toFixed(1)} trace_median=${median(1).toFixed(1)}`);
+    expect(samples.every(([a, b]) => Number.isFinite(a) && Number.isFinite(b))).toBe(true);
   }, 120_000);
 });

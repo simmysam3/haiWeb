@@ -1,6 +1,6 @@
 'use client';
 import type { CSSProperties } from 'react';
-import type { SmSlotResult } from '@haiwave/protocol';
+import type { SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
 import { formatDropDate, formatPct, formatQty, heatVar, isUnclassifiedSlot, laneState, slotCoverageAt, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { RAIL_L } from '@/lib/sourcing-map/map/layout';

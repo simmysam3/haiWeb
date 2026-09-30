@@ -1,6 +1,5 @@
 'use client';
-import type { SmCandidateResult, SmSlotResult } from '@haiwave/protocol';
-import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
+import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
 import { candidateWeekAt, formatDropDate, formatPct, heatVar, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
 
 /** One pip per portfolio drop coloured by option coverage; the as-of pip is outlined (spec §9.3, ruling 13). */

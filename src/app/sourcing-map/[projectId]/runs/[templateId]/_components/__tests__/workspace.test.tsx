@@ -3,7 +3,8 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import {
   runningDetail, vomeroDetail, vomeroEstimate, vomeroExecution, vomeroProducts, vomeroRunTemplate, VOMERO_IDS,
 } from '@/lib/sourcing-map/__fixtures__/vomero';
-import type { SmExecutionDetail } from '@haiwave/protocol';
+import type { SmCandidateResult2, SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
+import { multitierDetail, throttledDetail, throttledStatus, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
@@ -47,7 +48,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mount(detail = vomeroDetail, executions = [vomeroExecution]) {
+function mount(detail: SmExecutionDetail = vomeroDetail, executions: SmExecutionSummary2[] = [vomeroExecution]) {
   return render(
     <Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={executions} initialDetail={detail} />,
   );
@@ -657,5 +658,156 @@ describe('Workspace', () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: 'Jan 15 100%' }));
     expect(replaceState).toHaveBeenCalledWith(null, '', '/sourcing-map/p/runs/t?x=1&drop=2027-01-15');
+  });
+
+  it('SP2: picking a node from the limits list draws its trace and the card’s details; a handle click swaps the side column to the handle panel (P2, one panel at a time); Close returns focus to the handle and brings the card’s details back (spec §12.3, §12.4)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expectBesideTheMapBelowTheHeader(panel);
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+    expect(within(panel).getByText('binding')).toBeInTheDocument();
+    expect(within(panel).getByText('Also supplies: Mekong Tannery')).toBeInTheDocument();
+    expect(a).toHaveAttribute('aria-pressed', 'true');
+    // R6: the same alias under another card is not the pressed handle
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ })).toHaveAttribute('aria-pressed', 'false');
+    // the trace stays drawn while the handle panel is open
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // Review Focus 3: with León still selected, Mekong's copy of A has no trace role; the role is León's, for León's handle only
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    const mekongWhileLeon = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expect(within(mekongWhileLeon).queryByText('binding')).toBeNull();
+    fireEvent.click(within(mekongWhileLeon).getByRole('button', { name: 'Close handle details' }));
+    // a handle under Mekong, with no card selected: the panel shows Mekong's copy of A (no band, no role) and names León as the other option (Review Focus 3)
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    const fromMekong = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    expect(within(fromMekong).queryByText('binding')).toBeNull();
+    expect(within(fromMekong).queryByText('Band')).toBeNull();
+    expect(within(fromMekong).getByText('Also supplies: León Cuero')).toBeInTheDocument();
+    // Close returns focus to Mekong's handle, the one pressed, not León's copy of the same alias
+    fireEvent.click(within(fromMekong).getByRole('button', { name: 'Close handle details' }));
+    expect(document.activeElement).toBe(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+  });
+
+  it('SP2: a throttled execution keeps polling, names the responder from the summary and then from each frame (or falls back when the name is null), keeps Cancel live, and Run says an execution is running (spec §12.5, G-41, G-52, Review Focus 4)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    expect(swr.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000033/status');
+    // G-41: the detail's summary already names the responder
+    expect(screen.getByRole('status')).toHaveTextContent("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own.");
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument();
+    // G-52: a frame whose waiting responder is below tier 1 carries no name; the fallback sentence, Cancel still live
+    act(() => swr.options.onSuccess?.({ ...throttledStatus, waiting_on: { responder_name: null, refill_at: '2027-03-01T11:00:00.000Z' } }, swr.key!));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Waiting for an hourly allowance — the run continues on its own.'));
+    act(() => swr.options.onSuccess?.(throttledStatus, swr.key!));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own."));
+    expect(screen.getByRole('button', { name: 'Cancel execution' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Run' })).toHaveAccessibleDescription('An execution is running.');
+    expect((screen.getByLabelText('Result') as HTMLSelectElement).selectedOptions[0]!.textContent).toMatch(/· throttled$/);
+    // the settled cards stay drawn; the waiting one says so
+    expect(screen.getByRole('button', { name: 'Arno Pelli, IT: Waiting · hourly allowance' })).toBeInTheDocument();
+  });
+
+  it('SP2: pressing a pressed handle again closes its panel; focus stays on that handle and the card’s details come back without taking it (R7, WCAG 2.4.3)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // fireEvent moves no focus, so where focus lands is the workspace's doing alone
+    fireEvent.click(a);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('SP2 on real wire keys (JSON.stringify([participant, sku]), with quotes): the handle panel closes by Close and by a second press, and focus returns to the handle (C-1)', async () => {
+    const real = withRealKeys(multitierDetail);
+    const leon = real.result!.slots[0]!.candidates[0]!;
+    mount(real, [real.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    // control: the card really carries the wire key, quotes and all, so the rest runs on it
+    expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveAttribute('data-anchor', JSON.stringify([leon.supplier_participant_id, leon.supplier_sku]));
+    const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(a);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+    // a press opens it, a second press closes it; focus stays on the handle
+    fireEvent.click(a);
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    fireEvent.click(a);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(a);
+  });
+
+  it('SP2: a limits entry for a card in a collapsed lane expands the lane and draws the trace; Close details returns focus to the card (I-1)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const rail = within(await screen.findByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    fireEvent.click(rail);
+    expect(rail).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
+    expect(rail).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+  });
+
+  it('SP2: a pressed handle whose node a poll frame takes off the map shows no handle panel, so the card’s details are not hidden under it: never an empty side column (M-4)', async () => {
+    const live: SmExecutionDetail = { ...multitierDetail, execution: { ...multitierDetail.execution, status: 'running' } };
+    mount(live, [live.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+    // the frame re-serves León and Mekong, the two options that carried A, without it
+    const withoutA = (c: SmCandidateResult2): SmCandidateResult2 => ({ ...c, nodes: (c.nodes ?? []).filter((n) => n.alias !== 'A'), trace: null });
+    const [leon, mekong] = live.result!.slots[0]!.candidates;
+    const key = `/api/account/sourcing-map/executions/${live.execution.execution_id}/status`;
+    expect(swr.key).toBe(key);
+    act(() => swr.options.onSuccess?.({
+      execution_id: live.execution.execution_id, status: 'running', failure_reason: null, probes_planned: 15, probes_done: 15, cursor: 15,
+      changed: [{ slot_index: 0, candidate_index: 0, candidate: withoutA(leon!) }, { slot_index: 0, candidate_index: 1, candidate: withoutA(mekong!) }],
+    }, key));
+    expect(screen.queryByRole('group', { name: 'Tier 2 under León Cuero' })).not.toBeNull();
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).queryByRole('button', { name: /^A · / })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('SP2: collapsing the lane of the card a handle was pressed on closes the handle panel with it; focus stays on the lane’s toggle, and a card selected in another lane shows its details again (M1 for handles)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const mekongA = async () => within(await screen.findByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    // nothing selected: Mekong's A, then the leather lane collapses (a press focuses the toggle; fireEvent does not)
+    fireEvent.click(await mekongA());
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    rail.focus();
+    fireEvent.click(rail);
+    expect(rail).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(document.activeElement).toBe(rail);
+    // a card selected in ANOTHER lane stays selected: its details come back, and focus stays on the toggle
+    fireEvent.click(rail);
+    fireEvent.click(screen.getByRole('button', { name: /^FlowKnit Mills/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
+    fireEvent.click(await mekongA());
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeNull();
+    rail.focus();
+    fireEvent.click(rail);
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
+    expect(document.activeElement).toBe(rail);
   });
 });

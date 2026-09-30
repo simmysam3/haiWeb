@@ -1,6 +1,6 @@
 'use client';
-import type { SmExecutionSummary } from '@haiwave/protocol';
-import { answersAreStale, formatAsOfUtc } from '@/lib/sourcing-map/map/selectors';
+import type { SmExecutionSummary2 as SmExecutionSummary } from '@/lib/sourcing-map/types';
+import { answersAreStale, formatAsOfUtc, throttledText } from '@/lib/sourcing-map/map/selectors';
 import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 
 const FAILURE: Record<string, string> = {
@@ -8,7 +8,14 @@ const FAILURE: Record<string, string> = {
   internal_error: 'an internal error stopped it',
 };
 
-/** Honest execution state (spec §9.3, AC 17): probing, failed, cancelled, or nothing yet. */
+/** G-23: done may exceed planned after a resume or a recomposition, so the count never reads "8 of 6". */
+function probingText(done: number, planned: number): string {
+  return done <= planned
+    ? `Probing: ${done} of ${planned} probes answered`
+    : `Probing: ${done} probes answered (${planned} planned)`;
+}
+
+/** Honest execution state (spec §9.3, AC 17; SP2 §12.5): probing, throttled, failed, cancelled, or nothing yet. */
 export function ExecutionBanner({ execution, onCancel, cancelling = false }: {
   execution: SmExecutionSummary | null; onCancel?: () => void; cancelling?: boolean;
 }) {
@@ -18,8 +25,17 @@ export function ExecutionBanner({ execution, onCancel, cancelling = false }: {
   if (execution.status === 'queued' || execution.status === 'running') {
     return (
       <div className="flex items-center gap-3 px-6 py-3 text-sm">
-        <p role="status">{`Probing: ${execution.probes_done} of ${execution.probes_planned} probes answered`}</p>
+        <p role="status">{probingText(execution.probes_done, execution.probes_planned)}</p>
         {/* R4: inert while the cancel request is in flight; busy, not disabled, so it keeps focus (LW-a). */}
+        {onCancel && <SmButton className="sm-btn sm-btn-ghost text-xs" busy={cancelling} onClick={onCancel}>Cancel execution</SmButton>}
+      </div>
+    );
+  }
+  if (execution.status === 'throttled') {
+    return (
+      <div className="flex items-center gap-3 px-6 py-3 text-sm">
+        {/* Spec §12.5: settled cards stay drawn and Cancel stays live; the run resumes on its own at the hour. */}
+        <p role="status">{throttledText(execution.waiting_on ?? null)}</p>
         {onCancel && <SmButton className="sm-btn sm-btn-ghost text-xs" busy={cancelling} onClick={onCancel}>Cancel execution</SmButton>}
       </div>
     );

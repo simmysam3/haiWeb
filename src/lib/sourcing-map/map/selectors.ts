@@ -1,6 +1,9 @@
 /** Pure selectors for the run workspace map (spec §9.3). */
-import type { SmCandidateLiveStatus, SmCandidateResult, SmExecutionStatusResponse, SmSlotResult, SourcingMapExecutionResult } from '@haiwave/protocol';
-import type { SmCandidateWeek, SmCoverageWeek, SmOptionLimit, SmPortfolioDrop, SmPortfolioResult } from '../types';
+import type { SmCandidateStatus, SmEstimateResponse } from '@haiwave/protocol';
+import type {
+  SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
+  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+} from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
@@ -75,12 +78,14 @@ export function availabilityText(c: SmCandidateResult, week: string | null, dema
  * answer cannot show whether the supplier or its inputs bind, so the words claim only the shortfall (owner's walk
  * ruling, 2026-09-29). "Limit: own capacity" is kept for the release that traces the inputs (SP2).
  */
-const LIMIT_TEXT: Record<SmOptionLimit, string> = {
+const LIMIT_TEXT: Record<SmOptionLimit2, string> = {
   own: 'Short · cause not traced',
+  inputs: 'Short · cause not traced',
+  both: 'Short · cause not traced',
   lead_time: 'Stated supply starts after the first need date',
   unknown: 'Schedule not assessed',
 };
-export function limitText(limit: SmOptionLimit | null): string {
+export function limitText(limit: SmOptionLimit2 | null): string {
   return limit === null ? 'No shortfall stated' : LIMIT_TEXT[limit];
 }
 
@@ -92,6 +97,7 @@ const GAP_TEXT: Partial<Record<SmCandidateLiveStatus, string>> = {
   rate_limited: 'No answer · rate limited',
   cap_reached: 'Not probed · cap reached',
   probing: 'Probing',
+  waiting: 'Waiting · hourly allowance',
 };
 /** A card's status line when it has no answer to show; null when it answered. */
 export function gapText(status: SmCandidateLiveStatus): string | null {
@@ -234,4 +240,161 @@ export function applyStatusDelta(result: SourcingMapExecutionResult, status: SmE
     slots[ch.slot_index] = { ...slot, candidates };
   }
   return { ...result, slots };
+}
+
+// ---- SP2 (spec §12, contract §3, §10) -------------------------------------------------------------------------
+
+/** G-4: the planner's key names a card for anchors and shared_exposure; an SP1 execution has none, so the id stands in. */
+export function candidateKeyOf(c: SmCandidateResult): string {
+  return c.candidate_key ?? c.supplier_participant_id;
+}
+
+const BAND_HEAT: Record<SmBand, Heat> = { slight: 'good', moderate: 'mid', severe: 'bad' };
+/** Contract §10: bands reuse the SP1 heat tokens, both themes. */
+export function bandVar(band: SmBand): string {
+  return `var(--sm-heat-${BAND_HEAT[band]})`;
+}
+export function bandWord(band: SmBand): string {
+  return band;
+}
+
+/** The tier the option's shortfall binds at: the trace's binding node, else the shallowest banded node, else none. */
+export function bindingTier(c: SmCandidateResult): number | null {
+  const binding = (c.trace?.nodes ?? []).filter((n) => n.role === 'binding').map((n) => n.tier);
+  if (binding.length > 0) return Math.min(...binding);
+  const banded = (c.nodes ?? []).filter((n) => n.band !== null).map((n) => n.tier);
+  return banded.length > 0 ? Math.min(...banded) : null;
+}
+
+/**
+ * Spec §8.2: "not fully observed below tier N", N the shallowest tier with a gap. SP2-a's composition serves it as
+ * `unobserved_from_tier` (G-46), which wins. Without the field: a node flagged observed_below: false has its gap
+ * beneath it (tier + 1); a candidate flagged with no node flagged has a gap directly under it (tier 2). Review Focus 5.
+ */
+export function unobservedTier(c: SmCandidateResult): number | null {
+  if (c.unobserved_from_tier !== undefined) return c.unobserved_from_tier;
+  if (c.observed_below !== false) return null;
+  const flagged = (c.nodes ?? []).filter((n) => !n.observed_below).map((n) => n.tier);
+  return flagged.length === 0 ? 2 : Math.min(...flagged) + 1;
+}
+
+/**
+ * The card's limit line (spec §12.2). `inputs` and `both` only exist on SP2 candidates, so they read the tiered words
+ * whether or not the projection (`nodes`) has arrived yet. `own` reads "Limit: own capacity" only for an SP2-shaped
+ * candidate (contract G-48); an SP1 execution keeps the walk's words: its tier-1 answer cannot say whether the
+ * supplier or its inputs bind (Review Focus 1).
+ */
+export function limitReason(c: SmCandidateResult): string {
+  const tier = bindingTier(c) ?? unobservedTier(c) ?? 2;
+  switch (c.limit) {
+    case 'inputs': return `Limit: constraint returned by current source, tier ${tier}`;
+    case 'both': return `Limit: own capacity and tier ${tier} source`;
+    case 'own': return c.nodes !== undefined ? 'Limit: own capacity' : limitText(c.limit);
+    case 'lead_time': return LIMIT_TEXT.lead_time;
+    case 'unknown': return LIMIT_TEXT.unknown;
+    case null: return 'No shortfall stated';
+  }
+}
+
+export const GAP_STUB_WORD: Record<SmCandidateStatus, string> = {
+  answered: 'answered', unsupported: 'unsupported', declined: 'declined', timeout: 'timeout', unreachable: 'unreachable',
+  not_connected: 'not connected', rate_limited: 'rate limited', cap_reached: 'cap reached',
+};
+/** Contract §10: the stub at a trace gap, "not observed below: <status word>". */
+export function gapStubText(status: SmCandidateStatus): string {
+  return `not observed below: ${GAP_STUB_WORD[status]}`;
+}
+
+/** The candidate keys whose sub-tier nodes carry this alias, in display order (shared exposure as the map shows it). */
+export function underOf(result: SourcingMapExecutionResult, alias: string): string[] {
+  const keys: string[] = [];
+  for (const slot of result.slots) for (const c of slot.candidates) {
+    if ((c.nodes ?? []).some((n) => n.alias === alias)) keys.push(candidateKeyOf(c));
+  }
+  return keys;
+}
+
+/** The alias's node as one option sees it: the preferred option's copy when it has one, else the first on the map. */
+export function nodeOf(result: SourcingMapExecutionResult, alias: string, preferKey?: string): SmSubtierNode | null {
+  let first: SmSubtierNode | null = null;
+  for (const slot of result.slots) for (const c of slot.candidates) {
+    const n = (c.nodes ?? []).find((x) => x.alias === alias);
+    if (!n) continue;
+    if (preferKey !== undefined && candidateKeyOf(c) === preferKey) return n;
+    first ??= n;
+  }
+  return first;
+}
+
+export interface BindingNode {
+  alias: string;
+  tier: number;
+  options: Array<{ slot: number; candidate: number; key: string; name: string; binds_for: number }>;
+}
+
+/** Spec §12.3: every binding node on the map, once, with the options it binds in display order. */
+export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] {
+  const out: BindingNode[] = [];
+  result.slots.forEach((slot, si) => {
+    slot.candidates.forEach((c, ci) => {
+      for (const n of c.trace?.nodes ?? []) {
+        if (n.role !== 'binding') continue;
+        const option = { slot: si, candidate: ci, key: candidateKeyOf(c), name: c.supplier_name, binds_for: n.binds_for };
+        const seen = out.find((b) => b.alias === n.alias);
+        if (seen) seen.options.push(option);
+        else out.push({ alias: n.alias, tier: n.tier, options: [option] });
+      }
+    });
+  });
+  return out;
+}
+
+/** The trace as one sentence, for the overlay's accessible name: edges with bands, the binding node, the gaps. */
+export function traceSentence(trace: SmTrace, names: Record<string, string>): string {
+  const nameOf = (k: string) => names[k] ?? k;
+  const parts = trace.edges.map((e) => `${nameOf(e.parent)} ${String.fromCharCode(0x2192)} ${e.child} (${bandWord(e.band)})`);
+  for (const n of trace.nodes) {
+    if (n.role === 'binding') parts.push(`binding: ${n.alias} (tier ${n.tier})${n.binds_for > 1 ? `, for ${n.binds_for} options` : ''}`);
+  }
+  for (const g of trace.gaps) parts.push(`not observed below ${nameOf(g.at)}: ${GAP_STUB_WORD[g.status]}`);
+  return parts.join('; ');
+}
+
+const HOUR_UTC = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
+/** The hour boundary as "HH:00 UTC", in the UTC form every other instant in this app uses (formatAsOfUtc). */
+export function formatHourUtc(iso: string): string {
+  return `${HOUR_UTC.format(new Date(iso))} UTC`;
+}
+
+/** The em dash of the contract's copy; the one definition, imported by every later user. */
+export const EM_DASH = String.fromCharCode(0x2014);
+
+/**
+ * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
+ * first status frame) or the waiting responder is below tier 1 and so not named (G-52).
+ */
+export function throttledText(w: SmWaitingOn | null): string {
+  if (w === null || w.responder_name === null) return `Waiting for an hourly allowance ${EM_DASH} the run continues on its own.`;
+  return `Waiting for ${w.responder_name}'s hourly allowance until ${formatHourUtc(w.refill_at)} ${EM_DASH} the run continues on its own.`;
+}
+
+/** G-2: may_wait is derived here, never sent — the responders whose planned probes exceed their remaining allowance. */
+export function mayWaitNames(e: SmEstimateResponse): string[] {
+  return e.responders_short.filter((r) => r.probes_planned > r.remaining_allowance).map((r) => r.legal_name);
+}
+
+/**
+ * Spec §12.4: "Inputs: 3 observed, 1 not observed · binding at tier 2"; null for an SP1 candidate (no projection), and
+ * null for a candidate with a gap status (M-3): one that never answered has no observed inputs, so counting zero misstates it.
+ */
+export function pathSummary(c: SmCandidateResult): string | null {
+  if (c.nodes === undefined || gapText(c.status) !== null) return null;
+  const tier = bindingTier(c);
+  const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
+  return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;
+}
+
+/** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */
+export function candidateNamesOf(result: SourcingMapExecutionResult): Record<string, string> {
+  return Object.fromEntries(result.slots.flatMap((s) => s.candidates.map((c) => [candidateKeyOf(c), c.supplier_name] as const)));
 }

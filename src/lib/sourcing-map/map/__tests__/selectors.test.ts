@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
-import { vomeroResult, runningDetail } from '../../__fixtures__/vomero';
+import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
+import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
+import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
@@ -125,5 +128,148 @@ describe('map selectors', () => {
     expect(out.slots[0]!.candidates[1]).toBe(answered);
     expect(out.slots[0]!.candidates).toHaveLength(count);
     expect(out.slots).toHaveLength(running.slots.length);
+  });
+});
+
+const mt = multitierDetail.result!;
+const [leon2, mekong2, arno2] = mt.slots[0]!.candidates;
+const zephyr2 = mt.slots[3]!.candidates[0]!;
+
+describe('SP2 selectors: bands, keys, tiers and the limit reason (spec §12.2, contract §10)', () => {
+  it('maps bands to the heat tokens and their words; keys a card by candidate_key, falling back to the participant id', () => {
+    expect([bandVar('slight'), bandVar('moderate'), bandVar('severe')]).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-mid)', 'var(--sm-heat-bad)']);
+    expect([bandWord('slight'), bandWord('moderate'), bandWord('severe')]).toEqual(['slight', 'moderate', 'severe']);
+    expect(candidateKeyOf(leon2!)).toBe('leon');
+    expect(candidateKeyOf(vomeroResult.slots[0]!.candidates[0]!)).toBe('5a1e0000-0000-4000-8000-000000000101');
+  });
+
+  it('finds the binding tier from the trace, else from the shallowest banded node, else null', () => {
+    expect(bindingTier(leon2!)).toBe(2);
+    expect(bindingTier(mekong2!)).toBeNull();
+    expect(bindingTier(zephyr2)).toBeNull();
+    const bandedOnly: SmCandidateResult2 = { ...mekong2!, trace: null, nodes: [{ ...mekong2!.nodes![2]!, band: 'moderate' }] };
+    expect(bindingTier(bandedOnly)).toBe(3);
+  });
+
+  it('reads the served unobserved_from_tier first (G-46), and derives it only when the field is absent: 2 when the gap is directly under the candidate, a flagged node’s tier + 1 otherwise, null when fully observed (Review Focus 5)', () => {
+    expect(leon2!.unobserved_from_tier).toBe(2);
+    expect(unobservedTier(leon2!)).toBe(2);
+    expect(unobservedTier(mekong2!)).toBeNull();
+    // the server's word wins over any derivation
+    expect(unobservedTier({ ...leon2!, unobserved_from_tier: 3 })).toBe(3);
+    expect(unobservedTier({ ...leon2!, unobserved_from_tier: null })).toBeNull();
+    // no field (a result before SP2-a's composition filled it): the derivation
+    const { unobserved_from_tier: _dropped, ...leonNoField } = leon2!;
+    void _dropped;
+    expect(unobservedTier(leonNoField)).toBe(2);
+    const flaggedAt2: SmCandidateResult2 = { ...leonNoField, nodes: leon2!.nodes!.map((n) => (n.alias === 'A' ? { ...n, observed_below: false } : n)) };
+    expect(unobservedTier(flaggedAt2)).toBe(3);
+    const flaggedAt2And3: SmCandidateResult2 = { ...leonNoField, nodes: leon2!.nodes!.map((n) => ({ ...n, observed_below: false })) };
+    expect(unobservedTier(flaggedAt2And3)).toBe(3);
+    expect(unobservedTier(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+
+  it('words the limit: SP2 candidates get the tiered reasons and "Limit: own capacity"; an SP1 candidate keeps the walk’s words (Review Focus 1)', () => {
+    expect(limitReason(leon2!)).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason({ ...leon2!, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
+    expect(limitReason({ ...leon2!, limit: 'inputs', trace: null, nodes: [{ ...leon2!.nodes![2]!, band: 'slight' }] })).toBe('Limit: constraint returned by current source, tier 3');
+    expect(limitReason({ ...leon2!, limit: 'inputs', trace: null, nodes: [] })).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason(zephyr2)).toBe('Limit: own capacity');
+    expect(limitReason(mekong2!)).toBe('No shortfall stated');
+    expect(limitReason({ ...mekong2!, limit: 'lead_time' })).toBe('Stated supply starts after the first need date');
+    expect(limitReason({ ...mekong2!, limit: 'unknown' })).toBe('Schedule not assessed');
+    const sp1Leon = vomeroResult.slots[0]!.candidates[0]!;
+    expect(sp1Leon.limit).toBe('own');
+    expect(limitReason(sp1Leon)).toBe('Short · cause not traced');
+    expect(limitReason({ ...sp1Leon, limit: null })).toBe('No shortfall stated');
+  });
+
+  it('switches on the limit first (controller ruling 2): a live SP2 candidate with limit inputs but no projection yet reads the tiered words, the tier falling through binding tier, then the served unobserved tier, then 2; an SP1 own has no nodes and reads the walk’s words', () => {
+    const live: SmCandidateResult2 = { ...leon2!, nodes: undefined, trace: undefined };
+    expect(live.limit).toBe('inputs');
+    expect(limitReason(live)).toBe('Limit: constraint returned by current source, tier 2');
+    expect(limitReason({ ...live, limit: 'both' })).toBe('Limit: own capacity and tier 2 source');
+    // middle term: the served unobserved tier is used when nothing binds
+    expect(limitReason({ ...live, unobserved_from_tier: 3 })).toBe('Limit: constraint returned by current source, tier 3');
+    // last term: a status-delta candidate before composition has no binding tier and no unobserved tier
+    const { unobserved_from_tier: _dropped, ...bare } = live;
+    void _dropped;
+    expect(limitReason({ ...bare, observed_below: true })).toBe('Limit: constraint returned by current source, tier 2');
+    const sp1Own: SmCandidateResult2 = { ...live, limit: 'own' };
+    expect(limitReason(sp1Own)).toBe('Short · cause not traced');
+  });
+});
+
+describe('SP2 selectors: waiting and the gap stubs (contract §10)', () => {
+  it('words a waiting card as itself, never as answered, and every gap stub with its status word', () => {
+    expect(gapText('waiting')).toBe('Waiting · hourly allowance');
+    expect(['declined', 'rate_limited', 'not_connected', 'cap_reached', 'timeout', 'unreachable', 'unsupported'].map((s) => gapStubText(s as never))).toEqual([
+      'not observed below: declined', 'not observed below: rate limited', 'not observed below: not connected', 'not observed below: cap reached',
+      'not observed below: timeout', 'not observed below: unreachable', 'not observed below: unsupported',
+    ]);
+  });
+});
+
+describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', () => {
+  it('lists the options an alias sits under, in display order, and finds its node (the preferred option’s first)', () => {
+    expect(underOf(mt, 'A')).toEqual(['leon', 'mekong']);
+    expect(underOf(mt, 'D')).toEqual(['flowknit', 'bowline']);
+    expect(underOf(mt, 'E')).toEqual(['zephyr']);
+    expect(underOf(mt, 'Z')).toEqual([]);
+    expect(nodeOf(mt, 'A')!.band).toBe('moderate');
+    expect(nodeOf(mt, 'A', 'mekong')!.band).toBeNull();
+    expect(nodeOf(mt, 'Z')).toBeNull();
+  });
+
+  it('collects every binding node once with the options it binds, in display order', () => {
+    expect(bindingNodes(mt)).toEqual([{ alias: 'A', tier: 2, options: [{ slot: 0, candidate: 0, key: 'leon', name: 'León Cuero', binds_for: 1 }] }]);
+    const twice = structuredClone(mt);
+    twice.slots[0]!.candidates[1]!.limit = 'inputs';
+    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    expect(bindingNodes(twice)[0]!.options.map((o) => o.key)).toEqual(['leon', 'mekong']);
+    expect(bindingNodes(vomeroResult)).toEqual([]);
+  });
+
+  it('says the trace in one sentence: each edge with its band, the binding node and tier, each gap with its status word', () => {
+    expect(traceSentence(leon2!.trace!, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); binding: A (tier 2); not observed below León Cuero: not connected');
+    const deep = { nodes: [{ alias: 'A', tier: 2, role: 'inherited' as const, band: 'moderate' as const, binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding' as const, band: 'severe' as const, binds_for: 2 }],
+      edges: [{ parent: 'leon', child: 'A', band: 'moderate' as const }, { parent: 'A', child: 'C', band: 'severe' as const }], gaps: [] };
+    expect(traceSentence(deep, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options');
+  });
+});
+
+describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec §12.4, §12.5; G-2)', () => {
+  it('words the wait with the responder and the hour boundary in UTC, exactly', () => {
+    expect(formatHourUtc('2027-03-01T11:00:00.000Z')).toBe('11:00 UTC');
+    expect(formatHourUtc('2027-03-01T23:00:00.000Z')).toBe('23:00 UTC');
+    expect(throttledText(throttledStatus.waiting_on!)).toBe("Waiting for Arno Pelli's hourly allowance until 11:00 UTC — the run continues on its own.");
+    // G-52: a responder below tier 1 is not named; before the first frame there is nothing to name
+    expect(throttledText({ responder_name: null, refill_at: '2027-03-01T11:00:00.000Z' })).toBe('Waiting for an hourly allowance — the run continues on its own.');
+    expect(throttledText(null)).toBe('Waiting for an hourly allowance — the run continues on its own.');
+  });
+
+  it('derives may_wait from responders_short: a responder planning more probes than its allowance may wait; none otherwise', () => {
+    expect(mayWaitNames(mayWaitEstimate)).toEqual(['Arno Pelli']);
+    expect(mayWaitNames(vomeroEstimate)).toEqual([]);
+    expect(mayWaitNames({ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] })).toEqual([]);
+  });
+
+  it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate, nor for one that never answered (M-3)', () => {
+    expect(pathSummary(leon2!)).toBe('Inputs: 3 observed, 1 not observed · binding at tier 2');
+    expect(pathSummary(mekong2!)).toBe('Inputs: 3 observed, 0 not observed');
+    expect(pathSummary(zephyr2)).toBe('Inputs: 1 observed, 0 not observed');
+    // M-3: Arno timed out, so it has no observed inputs to count; "Inputs: 0 observed, 0 not observed" would misstate it
+    expect(pathSummary(arno2!)).toBeNull();
+    expect(pathSummary(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+});
+
+describe('candidateNamesOf', () => {
+  it('maps every candidate_key to its supplier name (the SP2 map), and falls back to the participant id as the key for an SP1 result', () => {
+    expect(candidateNamesOf(multitierDetail.result!)).toEqual(CANDIDATE_NAMES);
+    const sp1 = candidateNamesOf(vomeroResult);
+    const leon = vomeroResult.slots[0]!.candidates[0]!;
+    expect(sp1[leon.supplier_participant_id]).toBe(leon.supplier_name);
+    expect(Object.keys(sp1)).toHaveLength(new Set(vomeroResult.slots.flatMap((s) => s.candidates.map((c) => c.supplier_participant_id))).size);
   });
 });

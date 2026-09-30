@@ -2,6 +2,7 @@
 import { useId } from 'react';
 import type { SmEstimateResponse, SmReadinessRule } from '@haiwave/protocol';
 import { SmButton } from '@/app/sourcing-map/_components/sm-button';
+import { mayWaitNames } from '@/lib/sourcing-map/map/selectors';
 
 /** Wording for a readiness rule when haiCore sends no detail (a-G12: the window rule measures need-weeks). */
 const RULE_TEXT: Record<SmReadinessRule, string> = {
@@ -42,6 +43,10 @@ export function RunButton({ estimate, blockedReason, running, busy, onRun }: {
         estimate && (
           <span className="sm-muted mt-1 text-xs">
             <span>{`${estimate.slot_count} slot${estimate.slot_count === 1 ? '' : 's'} · ${estimate.probe_count} probe${estimate.probe_count === 1 ? '' : 's'} (up to ${estimate.probe_count_worst_case} with re-probes)`}</span>
+            {/* SP2 (spec §12.5, G-2): may_wait is derived from responders_short — a planned count above the remaining allowance. */}
+            {mayWaitNames(estimate).map((name) => (
+              <span key={name} className="sm-warn">{`; ${name} may need to wait`}</span>
+            ))}
             {estimate.responders_short.map((r) => (
               <span key={r.participant_id} className="sm-warn block">
                 {`${r.legal_name} has ${r.remaining_allowance} probe${r.remaining_allowance === 1 ? '' : 's'} left this hour for ${r.probes_planned} planned.`}

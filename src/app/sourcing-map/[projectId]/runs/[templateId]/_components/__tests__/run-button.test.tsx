@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vomeroEstimate } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { mayWaitEstimate } from '@/app/sourcing-map/__fixtures__/sp2';
 import { RunButton } from '../run-button';
 
 describe('RunButton', () => {
@@ -64,5 +65,18 @@ describe('RunButton', () => {
     fireEvent.click(run);
     expect(onRun).toHaveBeenCalledTimes(1);
   });
-});
 
+  it('adds "; <responder> may need to wait" to the estimate line for a responder planning more probes than its allowance, and nothing when none does (spec §12.5, G-2)', () => {
+    const { rerender } = render(<RunButton estimate={mayWaitEstimate} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
+    const counts = screen.getByText('4 slots · 6 probes (up to 9 with re-probes)');
+    expect(screen.getByText('; Arno Pelli may need to wait')).toBeInTheDocument();
+    expect(counts.parentElement!.textContent).toContain('4 slots · 6 probes (up to 9 with re-probes); Arno Pelli may need to wait');
+    // the SP1 allowance warning stays beside it
+    expect(screen.getByText('Arno Pelli has 1 probe left this hour for 2 planned.')).toBeInTheDocument();
+    rerender(<RunButton estimate={vomeroEstimate} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
+    expect(screen.queryByText(/may need to wait/)).toBeNull();
+    // a responder whose allowance covers its plan does not wait
+    rerender(<RunButton estimate={{ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] }} blockedReason={null} running={false} busy={false} onRun={() => undefined} />);
+    expect(screen.queryByText(/may need to wait/)).toBeNull();
+  });
+});

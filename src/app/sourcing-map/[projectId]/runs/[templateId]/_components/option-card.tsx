@@ -1,10 +1,10 @@
 'use client';
-import type { SmCandidateResult, SmSlotResult } from '@haiwave/protocol';
-import type { SmPortfolioDrop } from '@/lib/sourcing-map/types';
-import { availabilityText, candidateWeekAt, gapText, heatOf, limitText, slotDemandAt, slotWeekFor } from '@/lib/sourcing-map/map/selectors';
+import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
+import { availabilityText, candidateKeyOf, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
+import { TierRows } from './tier-rows';
 
 const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
 // The D-148 disclosure ceiling, in the user's words; the internal register id stays out of the copy (L296).
@@ -20,15 +20,21 @@ const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
  * The dash is also inline: `.sm-card`'s unlayered `border` shorthand outranks the layered `border-dashed` utility.
  * A selected card has a 2px border as well as its colour; focus is a separate outline on the button.
  */
-export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSelect }: {
+export function OptionCard({
+  slot, candidate: c, asOfDrop, drops, selected, onSelect,
+  traced = false, selectedAlias = null, onSelectAlias = () => undefined, hoveredAlias = null, onHoverAlias = () => undefined,
+}: {
   slot: SmSlotResult; candidate: SmCandidateResult; asOfDrop: string | null; drops: SmPortfolioDrop[]; selected: boolean; onSelect(): void;
+  /** SP2 (spec §12.1, §12.3): the tier rows' state, owned by the map; every SP1 call site can omit them */
+  traced?: boolean; selectedAlias?: string | null; onSelectAlias?(alias: string | null, origin: string): void; hoveredAlias?: string | null; onHoverAlias?(alias: string | null): void;
 }) {
   const week = slotWeekFor(slot, asOfDrop);
   const demand = slotDemandAt(slot, week);
   const gap = gapText(c.status);
   const w = candidateWeekAt(c, week);
   const availability = availabilityText(c, week, demand, slot.slot_key.uom);
-  const limit = limitText(c.limit);
+  const limit = limitReason(c);
+  const unobserved = unobservedTier(c);
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
   return (
     <article
@@ -47,9 +53,10 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
     >
       <button
         type="button"
+        data-anchor={candidateKeyOf(c)}
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}`}
+        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${unobserved !== null ? `; not fully observed below tier ${unobserved}` : ''}`}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="truncate text-sm font-semibold" title={c.supplier_name}>{c.supplier_name}</span>
@@ -64,6 +71,7 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
         )}
       </span>
       {!gap && <span className="mt-2">{limit}</span>}
+      {!gap && unobserved !== null && <span className="sm-warn mt-1">{`not fully observed below tier ${unobserved}`}</span>}
       {!gap && (
         <span className="mt-1 flex flex-wrap items-center gap-2">
           {c.own_lead_time_days !== null && <span>{`${c.own_lead_time_days} d lead`}</span>}
@@ -75,6 +83,7 @@ export function OptionCard({ slot, candidate: c, asOfDrop, drops, selected, onSe
         <span className="sm-warn mt-1">Answered at its allocation · spare capacity unknown</span>
       )}
       <DropPips slot={slot} candidate={c} drops={drops} asOfDrop={asOfDrop} />
+      <TierRows candidate={c} traced={traced} selectedAlias={selectedAlias} onSelectAlias={onSelectAlias} hoveredAlias={hoveredAlias} onHoverAlias={onHoverAlias} />
       <span className="mt-auto flex justify-end pt-2"><DetailChevron /></span>
     </article>
   );

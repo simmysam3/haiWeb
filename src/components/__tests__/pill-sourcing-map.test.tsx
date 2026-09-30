@@ -52,4 +52,16 @@ describe('<Pill themed> (Sourcing Map)', () => {
       unmount();
     }
   });
+
+  it('SP2 (contract §3): waiting (candidate, live) and throttled (execution) resolve a definition, the warn tone and the Waiting label', () => {
+    // The loop above checks definitions only; this test pins the tone and the label.
+    for (const [category, value] of [['sm_candidate_status', 'waiting'], ['sm_execution_status', 'throttled']] as const) {
+      expect(definitionFor(category, value), `${category}:${value}`).toBeTruthy();
+      const { unmount } = render(<Pill themed category={category} value={value} />);
+      expect(screen.getByTestId('pill').className).toContain('bg-[var(--sm-pill-warn-bg)]');
+      unmount();
+    }
+    render(<Pill themed category="sm_candidate_status" value="waiting" />);
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
+  });
 });

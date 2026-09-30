@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import { OptionCard } from '../option-card';
 
 const drops = vomeroResult.portfolio.drops;
@@ -107,5 +108,49 @@ describe('OptionCard', () => {
     expect(pill).toHaveAccessibleDescription("The supplier's answer at this drop, never more than you asked.");
     expect(document.body).not.toHaveTextContent('D-148');
   });
-});
 
+  const leather2 = multitierDetail.result!.slots[0]!;
+  const drops2 = multitierDetail.result!.portfolio.drops;
+
+  it('reads the tiered reason and "not fully observed below tier N" on an SP2 card, both in the selecting button’s name (spec §12.2)', () => {
+    const leon2 = leather2.candidates[0]!;
+    const { rerender } = render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('Limit: constraint returned by current source, tier 2')).toBeInTheDocument();
+    expect(screen.getByText('not fully observed below tier 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /León Cuero, MX/ })).toHaveAccessibleName(
+      'León Cuero, MX: States 6,000 of 12,000 sq ft; Limit: constraint returned by current source, tier 2; not fully observed below tier 2',
+    );
+    rerender(<OptionCard slot={leather2} candidate={{ ...leon2, limit: 'both', observed_below: true, unobserved_from_tier: null }} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('Limit: own capacity and tier 2 source')).toBeInTheDocument();
+    expect(screen.queryByText(/not fully observed/)).toBeNull();
+    expect(screen.getByRole('button', { name: /León Cuero, MX/ })).toHaveAccessibleName('León Cuero, MX: States 6,000 of 12,000 sq ft; Limit: own capacity and tier 2 source');
+    const zephyr2 = multitierDetail.result!.slots[3]!.candidates[0]!;
+    rerender(<OptionCard slot={multitierDetail.result!.slots[3]!} candidate={zephyr2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('Limit: own capacity')).toBeInTheDocument();
+  });
+
+  it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onSelectAlias = vi.fn();
+    const onHoverAlias = vi.fn();
+    render(<OptionCard slot={leather2} candidate={leather2.candidates[0]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={onSelect} onSelectAlias={onSelectAlias} onHoverAlias={onHoverAlias} hoveredAlias="C" />);
+    expect(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Tier 3 under León Cuero' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^C · IN/ })).toHaveAttribute('data-lit', 'true');
+    await user.click(screen.getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(onSelectAlias).toHaveBeenCalledWith('A', 'leon');
+    expect(onHoverAlias).toHaveBeenCalledWith('A');
+    expect(onSelect).not.toHaveBeenCalled();
+    // the tier rows sit outside the selecting button (F-a: nothing focusable nests in it)
+    const button = screen.getByRole('button', { name: /León Cuero, MX/ });
+    expect(button.querySelector('[data-anchor]')).toBeNull();
+  });
+
+  it('keeps the SP1 words and draws no tier rows or observation note for an SP1 candidate (Review Focus 1)', () => {
+    render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('Short · cause not traced')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /^Tier \d/ })).toBeNull();
+    expect(screen.queryByText(/not fully observed below/)).toBeNull();
+  });
+});

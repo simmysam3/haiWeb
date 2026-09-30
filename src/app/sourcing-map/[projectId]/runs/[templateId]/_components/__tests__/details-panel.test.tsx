@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vomeroResult, runningDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import { DetailsPanel } from '../details-panel';
 
 const NAMES = { [VOMERO_IDS.pegasus]: 'Pegasus Trail', [VOMERO_IDS.court]: 'Court Classic', [VOMERO_IDS.metcon]: 'Metcon Iron' };
@@ -98,6 +99,33 @@ describe('DetailsPanel', () => {
     expect(within(perSize).getByRole('row', { name: '13' })).toHaveTextContent('1300100%');
     expect(within(perSize).getByRole('row', { name: '12.5' })).toHaveTextContent('12.505100%');
     expect(perSize.textContent).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('summarises the path and shows the aggregates for an SP2 candidate; nothing of the kind for an SP1 candidate (spec §12.4, Review Focus 1)', () => {
+    const mt = multitierDetail.result!;
+    const leather2 = mt.slots[0]!;
+    const { rerender } = render(<DetailsPanel slot={leather2} candidate={leather2.candidates[0]!} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const below = screen.getByRole('region', { name: 'Below tier 1' });
+    expect(within(below).getByText('Inputs: 3 observed, 1 not observed · binding at tier 2')).toBeInTheDocument();
+    const agg = within(below).getByLabelText('Sub-tier aggregates');
+    expect(agg).toHaveTextContent('Responders3Median lead time14 dUtilization1 low · 1 moderate · 0 high · 1 at capacityCountriesIN, IT, USClassesColorants, Dyes, Wet-blueNot observed1');
+    expect(below.textContent).not.toMatch(/Vetta|Halcyon|Rio Bravo|[0-9a-f]{8}-/);
+    // a gap candidate (Arno's timeout) never answered, so it has no inputs to count: no Below tier 1 section at all (M-3)
+    rerender(<DetailsPanel slot={leather2} candidate={leather2.candidates[2]!} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Arno Pelli · IT' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Below tier 1' })).toBeNull();
+    expect(screen.queryByText(/^Inputs:/)).toBeNull();
+    expect(screen.queryByLabelText('Sub-tier aggregates')).toBeNull();
+    // a null median reads the em dash
+    const noMedian = { ...leather2.candidates[1]!, aggregates: { ...leather2.candidates[1]!.aggregates!, median_lead_time_days: null, countries: [], classes: [] } };
+    rerender(<DetailsPanel slot={leather2} candidate={noMedian} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const D = String.fromCharCode(0x2014);
+    expect(screen.getByLabelText('Sub-tier aggregates')).toHaveTextContent(`Median lead time${D}Utilization1 low · 1 moderate · 0 high · 1 at capacityCountries${D}Classes${D}`);
+    // SP1
+    const leather = vomeroResult.slots[0]!;
+    rerender(<DetailsPanel slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(screen.queryByRole('region', { name: 'Below tier 1' })).toBeNull();
+    expect(screen.getByText('Scorecard, delivery history and price terms arrive in later releases.')).toBeInTheDocument();
   });
 });
 
