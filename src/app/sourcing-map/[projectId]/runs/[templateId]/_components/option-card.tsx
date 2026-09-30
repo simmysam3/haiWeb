@@ -1,6 +1,6 @@
 'use client';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { availabilityText, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
+import { availabilityText, candidateKeyOf, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
@@ -53,6 +53,7 @@ export function OptionCard({
     >
       <button
         type="button"
+        data-anchor={candidateKeyOf(c)}
         onClick={onSelect}
         aria-pressed={selected}
         aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${unobserved !== null ? `; not fully observed below tier ${unobserved}` : ''}`}

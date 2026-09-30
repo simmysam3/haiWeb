@@ -6,6 +6,7 @@ import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__f
 import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@haiwave/protocol';
 import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
 import { layoutMap } from '@/lib/sourcing-map/map/layout';
+import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import { MapCanvas } from '../map-canvas';
 
 const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athletic footwear', productCount: 3, slotCount: 5, assemblyDays: '21', capacity: 18000 };
@@ -238,6 +239,41 @@ describe('MapCanvas', () => {
     expect(within(lane).getAllByRole('button', { name: /,/ })).toHaveLength(3);
     expect(within(lane).queryByRole('button', { name: /^Capped Tannery/ })).toBeNull();
     expect(within(lane).getByText('+1 not probed')).toBeInTheDocument();
+  });
+
+  const mt = multitierDetail.result!;
+  function mount2(extra: Partial<Parameters<typeof MapCanvas>[0]> = {}) {
+    return render(
+      <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={null}
+        onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} {...extra} />,
+    );
+  }
+
+  it('an SP2 result: the disclosure caption, the Supply-chain limits list at the top under the seat bar, tier rows under the cards, card boxes as tall as their rows, the card anchored by its key; an SP1 result keeps the SP1 caption and none of it (spec §12.1, §12.3, Review Focus 1)', () => {
+    const sp2 = mount2();
+    expect(screen.getByText('Identity, quantities and names below tier 1 are not disclosed.')).toBeInTheDocument();
+    expect(screen.queryByText('Direct suppliers only; nothing below tier 1 has been traced.')).toBeNull();
+    const map = screen.getByRole('region', { name: 'Sourcing map' });
+    const limits = screen.getByRole('region', { name: 'Supply-chain limits' });
+    expect(map.contains(limits)).toBe(true);
+    expect(screen.getByRole('region', { name: 'Shared exposure' })).toBeInTheDocument();
+    const leatherLane = screen.getByRole('group', { name: 'Full grain leather hides' });
+    expect(limits.compareDocumentPosition(leatherLane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(leatherLane).getByRole('group', { name: 'Tier 2 under León Cuero' })).toBeInTheDocument();
+    expect(within(leatherLane).getByRole('group', { name: 'Tier 3 under León Cuero' })).toBeInTheDocument();
+    const lay = layoutMap(mt.slots, new Set());
+    const leonButton = within(leatherLane).getByRole('button', { name: /^León Cuero, MX/ });
+    expect(leonButton).toHaveAttribute('data-anchor', 'leon');
+    const wrapper = leonButton.closest<HTMLElement>('.sm-card')!.parentElement!;
+    expect(wrapper.style.height).toBe(`${lay.lanes[0]!.cardH}px`);
+    expect(lay.lanes[0]!.cardH).toBeGreaterThan(212);
+    expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+    sp2.unmount();
+    mount(vomeroResult);
+    expect(screen.getByText('Direct suppliers only; nothing below tier 1 has been traced.')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Supply-chain limits' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Shared exposure' })).toBeNull();
+    expect(screen.queryByRole('group', { name: /^Tier \d/ })).toBeNull();
   });
 });
 
