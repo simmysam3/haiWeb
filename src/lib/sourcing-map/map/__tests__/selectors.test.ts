@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier } from '../selectors';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 
 describe('map selectors', () => {
@@ -260,5 +260,15 @@ describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec 
     expect(pathSummary(zephyr2)).toBe('Inputs: 1 observed, 0 not observed');
     expect(pathSummary(arno2!)).toBe('Inputs: 0 observed, 0 not observed');
     expect(pathSummary(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+});
+
+describe('candidateNamesOf', () => {
+  it('maps every candidate_key to its supplier name (the SP2 map), and falls back to the participant id as the key for an SP1 result', () => {
+    expect(candidateNamesOf(multitierDetail.result!)).toEqual(CANDIDATE_NAMES);
+    const sp1 = candidateNamesOf(vomeroResult);
+    const leon = vomeroResult.slots[0]!.candidates[0]!;
+    expect(sp1[leon.supplier_participant_id]).toBe(leon.supplier_name);
+    expect(Object.keys(sp1)).toHaveLength(new Set(vomeroResult.slots.flatMap((s) => s.candidates.map((c) => c.supplier_participant_id))).size);
   });
 });

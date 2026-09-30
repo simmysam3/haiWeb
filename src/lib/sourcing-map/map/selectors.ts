@@ -390,3 +390,8 @@ export function pathSummary(c: SmCandidateResult): string | null {
   const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
   return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;
 }
+
+/** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */
+export function candidateNamesOf(result: SourcingMapExecutionResult): Record<string, string> {
+  return Object.fromEntries(result.slots.flatMap((s) => s.candidates.map((c) => [candidateKeyOf(c), c.supplier_name] as const)));
+}
