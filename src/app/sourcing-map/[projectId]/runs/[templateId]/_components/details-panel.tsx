@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 
 /**
  * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP2 and SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
+ * SP2 (spec §12.4): the path summary and the sub-tier aggregates; scorecard and delivery history are SP3.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
 export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose }: {
@@ -16,6 +17,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
   const asOfWeek = slotWeekFor(slot, asOfDrop);
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
   const answerWeek = candidateWeekAt(c, asOfWeek);
+  const summary = pathSummary(c);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -33,6 +35,23 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
         <dt className="sm-muted">Allocation</dt><dd>{c.allocation_share_pct > 0 ? `Allocated ${c.allocation_share_pct}%` : 'Not allocated'}</dd>
         <dt className="sm-muted">Products using this slot</dt><dd>{slot.product_ids.map((id) => productNames[id] ?? id).join(', ')}</dd>
       </dl>
+      {summary !== null && (
+        <section aria-label="Below tier 1" className="mt-4">
+          <h3 className="sm-muted text-xs">Below tier 1</h3>
+          <p className="mt-1">{summary}</p>
+          {c.aggregates && (
+            <dl aria-label="Sub-tier aggregates" className="mt-2 grid grid-cols-2 gap-2">
+              <dt className="sm-muted">Responders</dt><dd>{c.aggregates.responders}</dd>
+              <dt className="sm-muted">Median lead time</dt><dd>{c.aggregates.median_lead_time_days !== null ? `${c.aggregates.median_lead_time_days} d` : EM_DASH}</dd>
+              <dt className="sm-muted">Utilization</dt>
+              <dd>{`${c.aggregates.utilization.low} low · ${c.aggregates.utilization.moderate} moderate · ${c.aggregates.utilization.high} high · ${c.aggregates.utilization.at_capacity} at capacity`}</dd>
+              <dt className="sm-muted">Countries</dt><dd>{c.aggregates.countries.length > 0 ? c.aggregates.countries.join(', ') : EM_DASH}</dd>
+              <dt className="sm-muted">Classes</dt><dd>{c.aggregates.classes.length > 0 ? c.aggregates.classes.join(', ') : EM_DASH}</dd>
+              <dt className="sm-muted">Not observed</dt><dd>{c.aggregates.not_observed}</dd>
+            </dl>
+          )}
+        </section>
+      )}
       <table aria-label="Coverage by drop" className="sm-table mt-6">
         <thead><tr><th>Drop</th><th>Need week</th><th>Required</th><th>Stated</th><th>Coverage</th></tr></thead>
         <tbody>
