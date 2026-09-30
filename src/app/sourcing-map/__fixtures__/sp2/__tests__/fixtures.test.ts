@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { vomeroDetail } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmExecutionDetail2, SmCandidateResult2, SmOptionLimit2 } from '@/lib/sourcing-map/types';
-import { SmEstimateResponseSchema, SmExecutionDetailSchema } from '@haiwave/protocol';
-import { SmExecutionDetailSchema2, SmExecutionStatusResponseSchema2 } from '../schemas';
+import { SmEstimateResponseSchema, SmExecutionDetailSchema, SmExecutionStatusResponseSchema } from '@haiwave/protocol';
 import multitierJson from '../execution-multitier.json';
 import throttledJson from '../execution-throttled.json';
 import estimateJson from '../estimate-may-wait.json';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledDetail, throttledStatus } from '..';
 
-describe('SP2 types (contract §3, typed locally until 3.96.0 is on the symlink)', () => {
+describe('SP2 types (validated by @haiwave/protocol 3.96.0)', () => {
   it('accepts every 3.95.0 value: an SP1 detail is an SmExecutionDetail2, and its limits are SmOptionLimit2', () => {
     const d: SmExecutionDetail2 = vomeroDetail;
     const c: SmCandidateResult2 = vomeroDetail.result!.slots[0]!.candidates[0]!;
@@ -20,15 +19,14 @@ describe('SP2 types (contract §3, typed locally until 3.96.0 is on the symlink)
 });
 
 describe('execution-multitier.json (contract §10)', () => {
-  it('validates against contract §3 as an SmExecutionDetail2, and is NOT a 3.95.0 detail (limit inputs is new)', () => {
-    const parsed = SmExecutionDetailSchema2.strict().parse(multitierJson);
+  it('validates as a 3.96.0 SmExecutionDetail, strictly (limit inputs is in the protocol enum)', () => {
+    const parsed = SmExecutionDetailSchema.strict().parse(multitierJson);
     const d: SmExecutionDetail2 = parsed;
     expect(d.execution.status).toBe('completed');
-    expect(SmExecutionDetailSchema.safeParse(multitierJson).success).toBe(false);
   });
 
   it('tells the story: León limit inputs with a moderate trace to A, Mekong covers with A beneath, Zephyr own with E beneath, León not fully observed (a not_connected gap), shared exposure A/C/D', () => {
-    const d = SmExecutionDetailSchema2.parse(multitierJson);
+    const d = SmExecutionDetailSchema.parse(multitierJson);
     const r = d.result!;
     const leather = r.slots[0]!;
     const [leon, mekong, arno] = leather.candidates;
@@ -69,8 +67,8 @@ describe('execution-multitier.json (contract §10)', () => {
 
 describe('execution-throttled.json and estimate-may-wait.json (contract §10)', () => {
   it('throttled: the detail is a throttled, incomplete SP1-shaped result with Arno waiting; the status frame names Arno (tier 1, G-52) and the hour', () => {
-    const detail = SmExecutionDetailSchema2.parse(throttledJson.detail);
-    const status = SmExecutionStatusResponseSchema2.parse(throttledJson.status);
+    const detail = SmExecutionDetailSchema.parse(throttledJson.detail);
+    const status = SmExecutionStatusResponseSchema.parse(throttledJson.status);
     expect(detail.execution.status).toBe('throttled');
     expect(detail.execution.waiting_on).toEqual({ responder_name: 'Arno Pelli', refill_at: '2027-03-01T11:00:00.000Z' });
     expect(detail.execution.template_name).toBe('Chroma stress');
@@ -79,8 +77,6 @@ describe('execution-throttled.json and estimate-may-wait.json (contract §10)', 
     expect(detail.result!.slots[0]!.candidates.every((c) => c.nodes === undefined && c.trace === undefined)).toBe(true);
     expect(status).toMatchObject({ execution_id: detail.execution.execution_id, status: 'throttled', cursor: 3, changed: [] });
     expect(status.waiting_on).toEqual({ responder_name: 'Arno Pelli', refill_at: '2027-03-01T11:00:00.000Z' });
-    // 3.95.0 rejects both: 'throttled' and 'waiting' are new
-    expect(SmExecutionDetailSchema.safeParse(throttledJson.detail).success).toBe(false);
   });
 
   it('estimate: a 3.95.0 SmEstimateResponse whose one short responder plans more probes than its allowance (G-2: may_wait derives from it)', () => {
