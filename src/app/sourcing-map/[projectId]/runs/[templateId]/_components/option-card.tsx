@@ -1,6 +1,6 @@
 'use client';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { availabilityText, candidateKeyOf, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
+import { availabilityReason, availabilityText, candidateKeyOf, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
@@ -67,7 +67,7 @@ export function OptionCard({
         {gap ? (
           <Pill themed category="sm_candidate_status" value={c.status}>{gap}</Pill>
         ) : (
-          <Pill themed tone={w ? TONE[heatOf(w.option_coverage)] : 'neutral'} definition={AVAILABILITY_DEFINITION}>{availability}</Pill>
+          <Pill themed tone={w ? TONE[heatOf(w.option_coverage)] : 'neutral'} definition={[AVAILABILITY_DEFINITION, availabilityReason(c, week, demand)].filter(Boolean).join(' ')}>{availability}</Pill>
         )}
       </span>
       {!gap && <span className="mt-2">{limit}</span>}
