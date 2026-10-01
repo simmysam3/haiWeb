@@ -398,3 +398,15 @@ export function pathSummary(c: SmCandidateResult): string | null {
 export function candidateNamesOf(result: SourcingMapExecutionResult): Record<string, string> {
   return Object.fromEntries(result.slots.flatMap((s) => s.candidates.map((c) => [candidateKeyOf(c), c.supplier_name] as const)));
 }
+
+/** The availability pill's tip: why the pill is in its state, in the user's words (owner, 2026-10-01). */
+export function availabilityReason(c: SmCandidateResult, week: string | null, demand: number): string | null {
+  if (c.availability_form === 'not_probed_trust' || demand === 0) return null;
+  const w = candidateWeekAt(c, week);
+  if (!w) return null;
+  if (w.cum_achievable >= demand) return 'Covers the full ask.';
+  const covers = `Covers ${formatPct(w.option_coverage)} of the ask`;
+  const heat = heatOf(w.option_coverage);
+  if (heat === 'good') return `${covers}, which meets the ${formatPct(HEAT_GOOD)} threshold.`;
+  return `${covers}, below the ${formatPct(heat === 'mid' ? HEAT_GOOD : HEAT_MID)} threshold.`;
+}

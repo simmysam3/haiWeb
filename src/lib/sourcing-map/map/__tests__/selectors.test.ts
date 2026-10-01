@@ -4,6 +4,7 @@ import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
 import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
+import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
 describe('map selectors', () => {
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
@@ -271,5 +272,52 @@ describe('candidateNamesOf', () => {
     const leon = vomeroResult.slots[0]!.candidates[0]!;
     expect(sp1[leon.supplier_participant_id]).toBe(leon.supplier_name);
     expect(Object.keys(sp1)).toHaveLength(new Set(vomeroResult.slots.flatMap((s) => s.candidates.map((c) => c.supplier_participant_id))).size);
+  });
+});
+
+describe('availabilityReason: the pill tip says why the pill is in its state (owner, 2026-10-01)', () => {
+  const leon = vomeroResult.slots[0]!.candidates[0]!;
+  const week = '2027-02-22';
+  /** León's answer at `week`, restated as `stated` of `asked`. */
+  const at = (stated: number, asked: number): SmCandidateResult2 => ({
+    ...leon,
+    weeks: leon.weeks.map((w) => (w.week === week ? { ...w, cum_achievable: stated, option_coverage: stated / asked } : w)),
+  });
+
+  it('names the threshold a short answer meets: the live Zephyr figure, 23,869 of 25,500, meets the 90% threshold', () => {
+    expect(availabilityReason(at(23869, 25500), week, 25500)).toBe('Covers 93% of the ask, which meets the 90% threshold.');
+    expect(availabilityReason(at(9000, 10000), week, 10000)).toBe('Covers 90% of the ask, which meets the 90% threshold.');
+  });
+
+  it('says a full answer covers the full ask, by the same test as the pill text, not by a percentage', () => {
+    expect(availabilityReason(at(12000, 12000), week, 12000)).toBe('Covers the full ask.');
+  });
+
+  it('says an answer from 70% up to 90% falls below the 90% threshold, the percentage floored as the pips floor it', () => {
+    expect(availabilityReason(at(8200, 10000), week, 10000)).toBe('Covers 82% of the ask, below the 90% threshold.');
+    expect(availabilityReason(at(8999, 10000), week, 10000)).toBe('Covers 89% of the ask, below the 90% threshold.');
+    expect(availabilityReason(at(7000, 10000), week, 10000)).toBe('Covers 70% of the ask, below the 90% threshold.');
+  });
+
+  it('says an answer under 70% falls below the 70% threshold', () => {
+    expect(availabilityReason(at(5500, 10000), week, 10000)).toBe('Covers 55% of the ask, below the 70% threshold.');
+    expect(availabilityReason(at(6999, 10000), week, 10000)).toBe('Covers 69% of the ask, below the 70% threshold.');
+    expect(availabilityReason(at(0, 10000), week, 10000)).toBe('Covers 0% of the ask, below the 70% threshold.');
+  });
+
+  it('adds nothing where the pill grades nothing: not probed at this trust level, no demand yet, or no answer for the week', () => {
+    expect(availabilityReason({ ...at(5500, 10000), availability_form: 'not_probed_trust' }, week, 10000)).toBeNull();
+    expect(availabilityReason(at(5500, 10000), week, 0)).toBeNull();
+    expect(availabilityReason(at(5500, 10000), null, 10000)).toBeNull();
+    expect(availabilityReason(at(5500, 10000), '2031-01-06', 10000)).toBeNull();
+  });
+
+  it('takes its band and its numbers from the source the pill colour uses (heatOf, HEAT_GOOD, HEAT_MID), so the tip and the colour never disagree', () => {
+    for (const stated of [9999, 9360, 9000, 8999, 7000, 6999, 3000]) {
+      const ratio = stated / 10000;
+      const heat = heatOf(ratio);
+      const threshold = formatPct(heat === 'bad' ? HEAT_MID : HEAT_GOOD);
+      expect(availabilityReason(at(stated, 10000), week, 10000)).toBe(`Covers ${formatPct(ratio)} of the ask, ${heat === 'good' ? 'which meets' : 'below'} the ${threshold} threshold.`);
+    }
   });
 });

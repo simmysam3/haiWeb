@@ -105,8 +105,15 @@ describe('OptionCard', () => {
   it('defines the availability pill in plain words, never with an internal register id (L296)', () => {
     render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
     const pill = screen.getAllByTestId('pill')[0]!;
-    expect(pill).toHaveAccessibleDescription("The supplier's answer at this drop, never more than you asked.");
+    expect(pill).toHaveAccessibleDescription("The supplier's answer at this drop, never more than you asked. Covers 41% of the ask, below the 70% threshold.");
     expect(document.body).not.toHaveTextContent('D-148');
+  });
+
+  it('keeps the plain definition alone where the pill grades nothing (not probed at this trust level)', () => {
+    render(<OptionCard slot={leather} candidate={{ ...leather.candidates[0]!, availability_form: 'not_probed_trust' }} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    const pill = screen.getAllByTestId('pill')[0]!;
+    expect(pill).toHaveTextContent('Not probed at this trust level');
+    expect(pill).toHaveAccessibleDescription("The supplier's answer at this drop, never more than you asked.");
   });
 
   const leather2 = multitierDetail.result!.slots[0]!;
