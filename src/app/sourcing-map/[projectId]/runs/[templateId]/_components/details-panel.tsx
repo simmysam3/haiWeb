@@ -53,6 +53,7 @@ export function DetailsPanel({ executionId, slot, candidate: c, drops, asOfDrop,
               <dt className="sm-muted">Not observed</dt><dd>{c.aggregates.not_observed}</dd>
             </dl>
           )}
+          <p className="sm-muted mt-2 text-xs">Sources below tier 1 were not searched for alternatives.</p>
         </section>
       )}
       <table aria-label="Coverage by drop" className="sm-table mt-6">

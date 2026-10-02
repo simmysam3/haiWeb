@@ -121,12 +121,20 @@ describe('DetailsPanel', () => {
     const agg = within(below).getByLabelText('Sub-tier aggregates');
     expect(agg).toHaveTextContent('Responders3Median lead time14 dUtilization1 low · 1 moderate · 0 high · 1 at capacityCountriesIN, IT, USClassesColorants, Dyes, Wet-blueNot observed1');
     expect(below.textContent).not.toMatch(/Vetta|Halcyon|Rio Bravo|[0-9a-f]{8}-/);
+    // AC 15: the section says what it did not do
+    expect(within(below).getByText('Sources below tier 1 were not searched for alternatives.')).toBeInTheDocument();
     // a gap candidate (Arno's timeout) never answered, so it has no inputs to count: no Below tier 1 section at all (M-3)
     rerender(<DetailsPanel executionId={EXEC} slot={leather2} candidate={leather2.candidates[2]!} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Arno Pelli · IT' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Below tier 1' })).toBeNull();
     expect(screen.queryByText(/^Inputs:/)).toBeNull();
     expect(screen.queryByLabelText('Sub-tier aggregates')).toBeNull();
+    expect(screen.queryByText(/not searched/)).toBeNull();
+    // Mekong answered with no trace: the sentence does not depend on a trace
+    const mekong = leather2.candidates[1]!;
+    expect(mekong.trace).toBeNull();
+    rerender(<DetailsPanel executionId={EXEC} slot={leather2} candidate={mekong} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    expect(within(screen.getByRole('region', { name: 'Below tier 1' })).getByText('Sources below tier 1 were not searched for alternatives.')).toBeInTheDocument();
     // a null median reads the em dash
     const noMedian = { ...leather2.candidates[1]!, aggregates: { ...leather2.candidates[1]!.aggregates!, median_lead_time_days: null, countries: [], classes: [] } };
     rerender(<DetailsPanel executionId={EXEC} slot={leather2} candidate={noMedian} drops={mt.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
@@ -136,6 +144,7 @@ describe('DetailsPanel', () => {
     const leather = vomeroResult.slots[0]!;
     rerender(<DetailsPanel executionId={EXEC} slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
     expect(screen.queryByRole('region', { name: 'Below tier 1' })).toBeNull();
+    expect(screen.queryByText(/not searched/)).toBeNull();
   });
 
   it('replaces the later-releases sentence with the panel and the price-terms footer (spec §12.3)', () => {
