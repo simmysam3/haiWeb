@@ -160,7 +160,7 @@ describe('the option panel route refuses a dot-segment candidateKey before haiCo
     it(`answers 404 for candidateKey ${key} and calls nothing`, async () => {
       state.role = 'account_admin';
       const { GET } = await import('../executions/[executionId]/options/[candidateKey]/panel/route');
-      const res = await (GET as Handler)(requestOf(ROUTES[0]!, 'GET'), { params: Promise.resolve({ executionId: EXECUTION, candidateKey: key }) });
+      const res = await (GET as unknown as Handler)(requestOf(ROUTES[0]!, 'GET'), { params: Promise.resolve({ executionId: EXECUTION, candidateKey: key }) });
       expect(res.status).toBe(404);
       expect(state.calls).toEqual([]);
     });
