@@ -53,16 +53,15 @@
       "template_id": "5a1e0000-0000-4000-8000-000000000021",
       "template_name": "Line A base",
       "slot": {
-        "class_id": "cpt_full_grain_leather_hides",
-        "uom": "sq ft",
+        "class_id": "cpt_polyester_knit_uppers",
+        "uom": "pr",
         "variant_bound": false,
         "variant_system": null
       },
-      "slot_label": "Full grain leather hides",
+      "slot_label": "Polyester knit uppers",
       "products": [
         "Pegasus Trail",
-        "Court Classic",
-        "Metcon Iron"
+        "Court Classic"
       ],
       "first_short_week": "2027-02-22",
       "opened_at": "2026-10-05T10:43:10.000Z",
@@ -77,9 +76,9 @@
       "next_review": "2026-11-02",
       "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000107",
       "supplier_name": "FlowKnit Mills",
-      "supplier_sku": "FK-PES-KNIT-02",
-      "requested": 13000,
-      "covered": 9821,
+      "supplier_sku": "FK-KNIT-UP-3",
+      "requested": 11000,
+      "covered": 8200,
       "origin": {
         "tier": 2,
         "class": {
@@ -120,9 +119,9 @@
       "next_review": null,
       "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000102",
       "supplier_name": "Mekong Tannery",
-      "supplier_sku": "MK-WB-HIDE-03",
-      "requested": 13000,
-      "covered": 9821,
+      "supplier_sku": "MK-FG-HIDE-2",
+      "requested": 4000,
+      "covered": 2500,
       "origin": {
         "tier": 2,
         "class": {

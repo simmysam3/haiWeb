@@ -7,16 +7,19 @@
  * when nothing was requested, or nothing requested survives, the full pill
  * set goes on the wire. An empty `kind` list is not "no rows" to haiCore, it
  * is "no filter" — the whole non-gap feed, every kind of the other surface
- * included (SEC-web-sonar-3-03; the v1.73 WP4 incident by a user-supplied
+ * included. `fallback` is what goes on the wire then; it defaults to the full
+ * set, and a surface with a narrower default view (Supply Risks: the active
+ * statuses) passes it, still never empty (SEC-web-sonar-3-03; the v1.73 WP4 incident by a user-supplied
  * route). haiCore's own handling of an unknown kind is to ignore it, which is
  * right for the API and is exactly why the surface must fail closed here.
  */
 export function resolveKindFilter(
   requested: string | string[] | undefined,
   pills: readonly string[],
+  fallback: readonly string[] = pills,
 ): string[] {
   const asked = Array.isArray(requested) ? requested : requested ? [requested] : [];
   const allowed = new Set<string>(pills);
   const kept = asked.filter((k) => allowed.has(k));
-  return kept.length ? kept : [...pills];
+  return kept.length ? kept : [...fallback];
 }
