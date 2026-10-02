@@ -1,0 +1,27 @@
+{
+  "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000101",
+  "scorecard": {
+    "scope": "network",
+    "dimensions": [
+      {
+        "key": "fulfillment_reliability",
+        "value": 0.94,
+        "provisional": false
+      },
+      {
+        "key": "price_adherence",
+        "value": 0.5,
+        "provisional": true
+      },
+      {
+        "key": "agent_uptime",
+        "value": 0.5,
+        "provisional": true
+      }
+    ]
+  },
+  "delivery_history": null,
+  "unavailable": [
+    "delivery_history"
+  ]
+}

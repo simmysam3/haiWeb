@@ -1,0 +1,68 @@
+{
+  "exceptions": [
+    {
+      "exception_id": "5a1e0000-0000-4000-8000-000000000601",
+      "requestor": {
+        "participant_id": "6ab14288-fe43-490e-bc4e-4902ce857fba",
+        "name": "CSG Footwear Vietnam"
+      },
+      "sku": "LC-BOV-UP-01",
+      "cause": "chain",
+      "asked": 13000,
+      "answered": 9821,
+      "gap": 3179,
+      "short_week": "2027-02-22",
+      "window": {
+        "first": "2026-12-21",
+        "last": "2027-05-24"
+      },
+      "count": 2,
+      "first_filed_at": "2026-10-05T10:43:10.000Z",
+      "last_filed_at": "2026-10-05T10:43:10.000Z",
+      "request_status": "open"
+    },
+    {
+      "exception_id": "5a1e0000-0000-4000-8000-000000000602",
+      "requestor": {
+        "participant_id": "6ab14288-fe43-490e-bc4e-4902ce857fba",
+        "name": "CSG Footwear Vietnam"
+      },
+      "sku": "LC-BOV-UP-01",
+      "cause": "posture",
+      "asked": 4000,
+      "answered": null,
+      "gap": null,
+      "short_week": "2026-12-21",
+      "window": {
+        "first": "2026-12-21",
+        "last": "2027-05-24"
+      },
+      "count": 1,
+      "first_filed_at": "2026-10-05T10:43:10.000Z",
+      "last_filed_at": "2026-10-05T10:43:10.000Z",
+      "request_status": "open"
+    },
+    {
+      "exception_id": "5a1e0000-0000-4000-8000-000000000603",
+      "requestor": {
+        "participant_id": "6ab14288-fe43-490e-bc4e-4902ce857fba",
+        "name": "CSG Footwear Vietnam"
+      },
+      "sku": "LC-BOV-UP-01",
+      "cause": "own_capacity",
+      "asked": 9000,
+      "answered": 7200,
+      "gap": 1800,
+      "short_week": "2027-02-22",
+      "window": {
+        "first": "2026-12-21",
+        "last": "2027-05-24"
+      },
+      "count": 1,
+      "first_filed_at": "2026-10-04T10:43:10.000Z",
+      "last_filed_at": "2026-10-04T10:43:10.000Z",
+      "request_status": "request_closed"
+    }
+  ],
+  "next_cursor": null
+}

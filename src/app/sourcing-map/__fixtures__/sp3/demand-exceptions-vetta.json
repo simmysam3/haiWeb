@@ -1,0 +1,26 @@
+{
+  "exceptions": [
+    {
+      "exception_id": "5a1e0000-0000-4000-8000-000000000604",
+      "requestor": {
+        "participant_id": "5a1e0000-0000-4000-8000-000000000101",
+        "name": "León Cuero"
+      },
+      "sku": "VETTA-ANILINE-RED-7",
+      "cause": "own_capacity",
+      "asked": 156000,
+      "answered": 117860,
+      "gap": 38140,
+      "short_week": "2027-02-22",
+      "window": {
+        "first": "2026-12-21",
+        "last": "2027-05-24"
+      },
+      "count": 1,
+      "first_filed_at": "2026-10-05T10:43:10.000Z",
+      "last_filed_at": "2026-10-05T10:43:10.000Z",
+      "request_status": "open"
+    }
+  ],
+  "next_cursor": null
+}
