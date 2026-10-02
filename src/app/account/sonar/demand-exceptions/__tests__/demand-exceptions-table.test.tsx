@@ -27,14 +27,28 @@ describe('DemandExceptionsTable', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('reads the Chain row: asked, answered, gap, and no supplier but the requestor', () => {
+  it('reads the Chain row: requestor, asked, answered and gap', () => {
     renderTable();
     const row = rows()[0]!;
     expect(within(row).getByText('CSG Footwear Vietnam')).toBeInTheDocument();
     expect(within(row).getByText('13,000')).toBeInTheDocument();
     expect(within(row).getByText('9,821 / 3,179')).toBeInTheDocument();
     expect(within(row).getByText('an input of yours ran short')).toBeInTheDocument();
-    expect(row.textContent).not.toMatch(/León|Mekong|FlowKnit/);
+  });
+
+  it('names the cause and its detail per row', () => {
+    renderTable();
+    const chain = rows()[0]!;
+    expect(within(chain).getByText('Chain')).toBeInTheDocument();
+    expect(within(chain).getByText('an input of yours ran short')).toBeInTheDocument();
+    const own = within(rows()[2]!).getByText('Own capacity').parentElement!;
+    expect(own.textContent).toBe('Own capacity');
+    expect(within(own).queryByRole('link')).toBeNull();
+  });
+
+  it('shows the SKU in the product cell', () => {
+    renderTable();
+    expect(within(rows()[0]!).getByText('LC-BOV-UP-01')).toBeInTheDocument();
   });
 
   it('reads the Posture row: asked and window, a dash for answered and gap', () => {

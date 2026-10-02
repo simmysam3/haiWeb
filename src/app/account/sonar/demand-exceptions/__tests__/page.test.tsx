@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { leonExceptions } from '@/app/sourcing-map/__fixtures__/sp3';
+import { leonExceptions, vettaExceptions } from '@/app/sourcing-map/__fixtures__/sp3';
 
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
 vi.mock('@/lib/server-fetch', () => ({ fetchBffJson }));
@@ -58,5 +58,14 @@ describe('Demand Exceptions page', () => {
     render(await DemandExceptionsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole('alert').textContent).toBe('You do not have permission to view demand exceptions.');
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('re-seeds the rows when the query changes (the table key)', async () => {
+    const view = render(await DemandExceptionsPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText('13,000')).toBeInTheDocument();
+    fetchBffJson.mockResolvedValue({ kind: 'ok', data: vettaExceptions });
+    view.rerender(await DemandExceptionsPage({ searchParams: Promise.resolve({ cursor: 'c2' }) }));
+    expect(screen.getByText('156,000')).toBeInTheDocument();
+    expect(screen.queryByText('13,000')).toBeNull();
   });
 });
