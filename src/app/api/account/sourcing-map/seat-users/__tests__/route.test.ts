@@ -33,4 +33,40 @@ describe('GET /api/account/sourcing-map/seat-users', () => {
     expect(body.users[0]).toEqual({ user_id: 'u-a', name: 'Ana Ruiz' });
     expect(listUsers).toHaveBeenCalledWith('p-apex');
   });
+
+  it('excludes a disabled user', async () => {
+    (listUsers as ReturnType<typeof vi.fn>).mockResolvedValue([rep({}), rep({ id: 'u-b', enabled: false })]);
+    const body = (await (await GET()).json()) as { users: Array<{ user_id: string }> };
+    expect(body.users.map((u) => u.user_id)).toEqual(['u-a']);
+  });
+
+  it('names a user with no first or last name by email, then by id', async () => {
+    (listUsers as ReturnType<typeof vi.fn>).mockResolvedValue([
+      rep({ id: 'u-c', firstName: undefined, lastName: undefined }),
+      rep({ id: 'u-d', firstName: undefined, lastName: undefined, email: undefined }),
+    ]);
+    const body = (await (await GET()).json()) as { users: Array<{ name: string }> };
+    expect(body.users.map((u) => u.name)).toEqual(['a@apex.com', 'u-d']);
+  });
+
+  it('answers 502, never an empty list, when Keycloak fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    (listUsers as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('keycloak down'));
+    const res = await GET();
+    expect(res.status).toBe(502);
+    expect(await res.json()).not.toHaveProperty('users');
+  });
+
+  it('answers 403 before listUsers for buyer_view_only', async () => {
+    (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(session('buyer_view_only'));
+    const res = await GET();
+    expect(res.status).toBe(403);
+    expect(listUsers).not.toHaveBeenCalled();
+  });
+
+  it('answers 401 without a session', async () => {
+    (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    expect((await GET()).status).toBe(401);
+    expect(listUsers).not.toHaveBeenCalled();
+  });
 });

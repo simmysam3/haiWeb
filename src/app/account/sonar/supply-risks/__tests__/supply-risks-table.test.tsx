@@ -20,8 +20,15 @@ function rowOf(name: string): HTMLElement {
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
-function renderTable(over: Partial<{ initial: SmSupplyRiskListResponse; nextHref: string | null }> = {}) {
-  return render(<SupplyRisksTable initial={over.initial ?? supplyRisksList} nextHref={over.nextHref ?? null} />);
+const ANA = { user_id: '5a1e0000-0000-4000-8000-000000000a01', name: 'Ana Ruiz' };
+const BEN = { user_id: '5a1e0000-0000-4000-8000-000000000a02', name: 'Ben Okoro' };
+
+function renderTable(over: Partial<{
+  initial: SmSupplyRiskListResponse;
+  nextHref: string | null;
+  seatUsers: ReadonlyArray<{ user_id: string; name: string }> | null;
+}> = {}) {
+  return render(<SupplyRisksTable initial={over.initial ?? supplyRisksList} nextHref={over.nextHref ?? null} seatUsers={over.seatUsers} />);
 }
 
 describe('SupplyRisksTable', () => {
@@ -182,5 +189,67 @@ describe('SupplyRisksTable', () => {
     const { rerender } = renderTable();
     rerender(<SupplyRisksTable initial={supplyRisksList} nextHref={null} />);
     expect(performance.getEntriesByName('sm-supply-risks-render', 'measure')).toHaveLength(1);
+  });
+
+  describe('the owner select (G-32)', () => {
+    const ownerSelect = () => screen.getByLabelText('Owner for León Cuero');
+
+    it('lists Unassigned and the seat users, and choosing one sends its id', async () => {
+      fetchMock.mockResolvedValue(json(200, riskOf({ owner: BEN })));
+      renderTable({ seatUsers: [ANA, BEN] });
+      expect(within(ownerSelect()).getAllByRole('option').map((o) => o.textContent)).toEqual(['Unassigned', 'Ana Ruiz', 'Ben Okoro']);
+      expect(ownerSelect()).toHaveValue('');
+      fireEvent.change(ownerSelect(), { target: { value: BEN.user_id } });
+      await waitFor(() => expect(ownerSelect()).toHaveValue(BEN.user_id));
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toBe(URL_OF(LEON.risk_id));
+      expect(init.body).toBe(`{"owner_user_id":"${BEN.user_id}"}`);
+    });
+
+    it('choosing Unassigned sends null, not an empty string', async () => {
+      fetchMock.mockResolvedValue(json(200, riskOf({ owner: null })));
+      renderTable({ initial: { ...supplyRisksList, risks: [riskOf({ owner: ANA })] }, seatUsers: [ANA, BEN] });
+      expect(ownerSelect()).toHaveValue(ANA.user_id);
+      fireEvent.change(ownerSelect(), { target: { value: '' } });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].body).toBe('{"owner_user_id":null}');
+    });
+
+    it('keeps the current owner as an option when the list lacks them', () => {
+      renderTable({ initial: { ...supplyRisksList, risks: [riskOf({ owner: ANA })] }, seatUsers: [BEN] });
+      expect(within(ownerSelect()).getAllByRole('option').map((o) => o.textContent)).toEqual(['Unassigned', 'Ben Okoro', 'Ana Ruiz']);
+      expect(ownerSelect()).toHaveValue(ANA.user_id);
+    });
+
+    it('a 400 on owner_user_id reverts the select and says so (G-33)', async () => {
+      fetchMock.mockResolvedValue(json(400, { error: 'VALIDATION_ERROR', field: 'owner_user_id' }));
+      renderTable({ seatUsers: [ANA, BEN] });
+      fireEvent.change(ownerSelect(), { target: { value: ANA.user_id } });
+      expect((await screen.findByRole('alert')).textContent).toBe("Couldn't save — the risk is unchanged.");
+      expect(ownerSelect()).toHaveValue('');
+    });
+
+    it('disables the select while its save is in flight', async () => {
+      let release!: (r: Response) => void;
+      fetchMock.mockImplementation(() => new Promise<Response>((r) => { release = r; }));
+      renderTable({ seatUsers: [ANA] });
+      fireEvent.change(ownerSelect(), { target: { value: ANA.user_id } });
+      await waitFor(() => expect(ownerSelect()).toBeDisabled());
+      release(json(200, riskOf({ owner: ANA })));
+      await waitFor(() => expect(ownerSelect()).toBeEnabled());
+    });
+
+    it('stays text when the users could not be read', () => {
+      renderTable({ initial: { ...supplyRisksList, risks: [riskOf({ owner: ANA })] }, seatUsers: null });
+      expect(screen.queryByLabelText('Owner for León Cuero')).toBeNull();
+      expect(within(rowOf('León Cuero')).getByText('Ana Ruiz')).toBeInTheDocument();
+    });
+
+    it('a closed row keeps the owner as text', () => {
+      renderTable({ seatUsers: [ANA, BEN] });
+      const row = rowOf('FlowKnit Mills');
+      expect(within(row).queryByLabelText('Owner for FlowKnit Mills')).toBeNull();
+      expect(within(row).getByText('CSG Demo')).toBeInTheDocument();
+    });
   });
 });

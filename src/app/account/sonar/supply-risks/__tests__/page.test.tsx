@@ -79,4 +79,26 @@ describe('Supply Risks page', () => {
     expect(screen.getByText('Older Mills')).toBeInTheDocument();
     expect(screen.queryByText('León Cuero')).toBeNull();
   });
+
+  describe('the owner select (G-32)', () => {
+    const SEAT = '/api/account/sourcing-map/seat-users';
+    function serve(seat: unknown) {
+      fetchBffJson.mockImplementation(async (path: string) =>
+        path === SEAT ? seat : { kind: 'ok', data: supplyRisksList });
+    }
+
+    it('reads the seat users and renders the owner select', async () => {
+      serve({ kind: 'ok', data: { users: [{ user_id: 'u-1', name: 'Ana Ruiz' }] } });
+      render(await SupplyRisksPage({ searchParams: Promise.resolve({}) }));
+      expect(fetchBffJson).toHaveBeenCalledWith(SEAT);
+      expect(screen.getByLabelText('Owner for León Cuero')).toBeInTheDocument();
+    });
+
+    it('leaves the owner as text when the users cannot be read', async () => {
+      serve({ kind: 'error', status: 502, message: 'down' });
+      render(await SupplyRisksPage({ searchParams: Promise.resolve({}) }));
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Owner for León Cuero')).toBeNull();
+    });
+  });
 });

@@ -12,9 +12,9 @@ import { useRenderMeasure } from '../../_components/use-render-measure';
 const SAVE_FAILED = `Couldn't save ${EM_DASH} the risk is unchanged.`;
 const FIELD = 'rounded border border-slate/30 bg-white px-2 py-1 text-xs';
 
-type Field = 'status' | 'note' | 'next_review';
+type Field = 'status' | 'owner' | 'note' | 'next_review';
 
-export function SupplyRisksTable({ initial, nextHref }: {
+export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
   initial: SmSupplyRiskListResponse;
   nextHref: string | null;
   seatUsers?: ReadonlyArray<{ user_id: string; name: string }> | null;
@@ -80,7 +80,29 @@ export function SupplyRisksTable({ initial, nextHref }: {
           </select>
         ),
     },
-    { key: 'owner', label: 'Owner', render: (r) => r.owner?.name ?? EM_DASH },
+    {
+      key: 'owner',
+      label: 'Owner',
+      render: (r) => {
+        if (r.closed_at !== null || seatUsers === null) return r.owner?.name ?? EM_DASH;
+        // The current owner stays selectable even when the seat's list no longer holds them.
+        const options = r.owner !== null && !seatUsers.some((u) => u.user_id === r.owner?.user_id)
+          ? [...seatUsers, r.owner]
+          : seatUsers;
+        return (
+          <select
+            aria-label={`Owner for ${r.supplier_name}`}
+            className={FIELD}
+            value={value(r, 'owner', r.owner?.user_id ?? '')}
+            disabled={busy(r, 'owner')}
+            onChange={(e) => void save(r, 'owner', e.target.value, { owner_user_id: e.target.value === '' ? null : e.target.value })}
+          >
+            <option value="">Unassigned</option>
+            {options.map((u) => <option key={u.user_id} value={u.user_id}>{u.name}</option>)}
+          </select>
+        );
+      },
+    },
     {
       key: 'note',
       label: 'Note',
