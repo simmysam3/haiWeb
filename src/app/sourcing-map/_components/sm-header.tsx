@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { ThemeToggle } from './theme-root';
+import { useOpenRisks } from './open-risks';
 import { smThemeStyle } from '@/lib/sourcing-map/theme';
 
 export interface SmCrumb {
@@ -18,6 +19,7 @@ export interface SmCrumb {
  * the dark value even when the app root has switched to light.
  */
 export function SmHeader({ crumbs, actions }: { crumbs: SmCrumb[]; actions?: ReactNode }) {
+  const openRisks = useOpenRisks();
   return (
     <header
       className="sm-header flex flex-wrap items-center gap-4 px-6 py-3"
@@ -48,6 +50,9 @@ export function SmHeader({ crumbs, actions }: { crumbs: SmCrumb[]; actions?: Rea
         </ol>
       </nav>
       <div className="ml-auto flex items-center gap-3">
+        <Link href="/account/sonar/supply-risks" className="sm-muted text-sm hover:underline">
+          {openRisks === null ? 'Supply Risks' : `Supply Risks (${openRisks} open)`}
+        </Link>
         {actions}
         <ThemeToggle />
         <Link href="/account" className="sm-btn sm-btn-ghost text-sm">

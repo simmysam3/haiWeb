@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SmHeader } from '../sm-header';
 import { SmThemeRoot } from '../theme-root';
+import { OpenRisksProvider } from '../open-risks';
 import { SM_THEME_TOKENS } from '@/lib/sourcing-map/theme';
 
 afterEach(() => {
@@ -69,5 +70,28 @@ describe('SmHeader', () => {
     expect(screen.getByTestId('sm-root').style.getPropertyValue('--sm-line-control')).toBe('#788BA6');
     // The header's own style sets the dark value; without it, its ghost buttons would inherit the light one.
     expect((container.querySelector('header') as HTMLElement).style.getPropertyValue('--sm-line-control')).toBe('#5D71A6');
+  });
+
+  it('links "Supply Risks (3 open)" to the supply-risk backlog when the layout supplied a count', () => {
+    render(
+      <OpenRisksProvider count={3}>
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </OpenRisksProvider>,
+    );
+    expect(screen.getByRole('link', { name: 'Supply Risks (3 open)' })).toHaveAttribute('href', '/account/sonar/supply-risks');
+  });
+
+  it('shows "(0 open)" for a count of zero, not the plain link', () => {
+    render(
+      <OpenRisksProvider count={0}>
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </OpenRisksProvider>,
+    );
+    expect(screen.getByRole('link', { name: 'Supply Risks (0 open)' })).toBeInTheDocument();
+  });
+
+  it('shows the plain "Supply Risks" link with no provider, never "(0 open)"', () => {
+    render(<SmHeader crumbs={[{ label: 'Projects' }]} />);
+    expect(screen.getByRole('link', { name: 'Supply Risks' })).toHaveAttribute('href', '/account/sonar/supply-risks');
   });
 });
