@@ -35,6 +35,12 @@ export function formatDropDate(iso: string): string {
   return SHORT_DATE.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const FULL_DATE = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+/** A date or an instant as "Jul 24, 2026": the year formatDropDate leaves out. */
+export function formatDay(iso: string): string {
+  return FULL_DATE.format(new Date(iso));
+}
+
 const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 /** An instant as "Sep 23, 10:42 UTC": the one "as of" format that "Answers as of" and the execution picker share (ruling R3). */
 export function formatAsOfUtc(iso: string): string {

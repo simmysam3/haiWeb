@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
+import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
 import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
@@ -7,6 +7,11 @@ import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
 describe('map selectors', () => {
+  it('formats a date or an instant with the year (UTC)', () => {
+    expect(formatDay('2026-07-24')).toBe('Jul 24, 2026');
+    expect(formatDay('2026-07-24T16:57:29.300Z')).toBe('Jul 24, 2026');
+  });
+
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
     expect([heatOf(1), heatOf(0.9), heatOf(0.8999), heatOf(0.7), heatOf(0.6999), heatOf(0)]).toEqual(['good', 'good', 'mid', 'mid', 'bad', 'bad']);
     expect([heatVar(0.95), heatVar(0.8), heatVar(0.5)]).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-mid)', 'var(--sm-heat-bad)']);
