@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
 import { OptionCard } from '../option-card';
 
 const drops = vomeroResult.portfolio.drops;
@@ -134,6 +135,32 @@ describe('OptionCard', () => {
     const zephyr2 = multitierDetail.result!.slots[3]!.candidates[0]!;
     rerender(<OptionCard slot={multitierDetail.result!.slots[3]!} candidate={zephyr2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
     expect(screen.getByText('Limit: own capacity')).toBeInTheDocument();
+  });
+
+  const NOT_TRACED = 'not traced below (answers for itself only)';
+  const notTracedSlot = notTracedDetail.result!.slots[0]!;
+  const notTracedDrops = notTracedDetail.result!.portfolio.drops;
+
+  it('says "not traced below (answers for itself only)" in place of the unobserved note on a card that does not traverse (G-5)', () => {
+    render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[0]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText(NOT_TRACED)).toBeInTheDocument();
+    expect(screen.queryByText(/not fully observed/)).toBeNull();
+  });
+
+  it('ends the selecting button’s name with the not-traced copy, never the unobserved clause (G-5)', () => {
+    render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[0]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    const name = screen.getByRole('button', { name: /León Cuero, MX/ }).getAttribute('aria-label')!;
+    expect(name.endsWith(`; ${NOT_TRACED}`)).toBe(true);
+    expect(name).not.toMatch(/not fully observed/);
+  });
+
+  it('leaves every other card alone: Mekong shows no note beside a not-traced León, and SP2’s León still reads "not fully observed below tier 2" (G-5)', () => {
+    const { rerender } = render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[1]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByText(NOT_TRACED)).toBeNull();
+    expect(screen.queryByText(/not fully observed/)).toBeNull();
+    rerender(<OptionCard slot={leather2} candidate={leather2.candidates[0]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('not fully observed below tier 2')).toBeInTheDocument();
+    expect(screen.queryByText(NOT_TRACED)).toBeNull();
   });
 
   it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {

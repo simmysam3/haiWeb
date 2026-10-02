@@ -12,9 +12,10 @@ export const MAP_L = {
    * SP2 lines on an answered card beyond the SP1 card's (spec §12.2), measured in chromium (Task 13 R2, text-xs 12/16):
    * a tiered limit takes a second 16 px line — "Limit: constraint returned by current source, tier N" is 283 px in a
    * 208–210 px card, and "Limit: own capacity and tier N source" is 208 px, so it wraps on any sans wider than the
-   * harness's — and "not fully observed below tier N" is a line of its own (4 px margin + 16).
+   * harness's — and "not fully observed below tier N" is a line of its own (4 px margin + 16). SP3's "not traced below
+   * (answers for itself only)" is 42 characters, so it wraps in the card: two 16 px lines plus the 4 px margin.
    */
-  limitWrapH: 16, noteLineH: 20,
+  limitWrapH: 16, noteLineH: 20, notTracedH: 36,
 } as const;
 
 /**
@@ -85,8 +86,11 @@ export function tierRowsHeight(slot: SmSlotResult): number {
 export function sp2LinesHeight(slot: SmSlotResult): number {
   const answered = shownOf(slot).map(({ c }) => c).filter((c) => gapText(c.status) === null);
   const wraps = answered.some((c) => c.limit === 'inputs' || c.limit === 'both');
-  const note = answered.some((c) => unobservedTier(c) !== null);
-  return (wraps ? MAP_L.limitWrapH : 0) + (note ? MAP_L.noteLineH : 0);
+  // A not-traced card shows its two-line copy in place of the unobserved note, so it reserves notTracedH instead.
+  const noteH = answered.some((c) => c.not_traced_below === true)
+    ? MAP_L.notTracedH
+    : answered.some((c) => unobservedTier(c) !== null) ? MAP_L.noteLineH : 0;
+  return (wraps ? MAP_L.limitWrapH : 0) + noteH;
 }
 
 /** Lane and card positions. Cards are the probed candidates; cap_reached rows are "+N not probed". */

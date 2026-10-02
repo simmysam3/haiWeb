@@ -43,4 +43,12 @@ describe('HandlePanel', () => {
     expect(within(panel).getAllByText(String.fromCharCode(0x2014))).toHaveLength(2);
     expect(within(panel).queryByText(/^Also supplies/)).toBeNull();
   });
+
+  it('says "not traced below (answers for itself only)" for a node flagged not_traced_below, and only for it (G-5)', () => {
+    const copy = 'not traced below (answers for itself only)';
+    const { rerender } = render(<HandlePanel node={{ ...A, not_traced_below: true, under: ['leon'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} onClose={vi.fn()} />);
+    expect(within(screen.getByRole('complementary')).getByText(copy)).toBeInTheDocument();
+    rerender(<HandlePanel node={{ ...A, under: ['leon'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} onClose={vi.fn()} />);
+    expect(screen.queryByText(copy)).toBeNull();
+  });
 });

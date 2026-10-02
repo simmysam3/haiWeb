@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { layoutMap, MAP_L, RAIL_L, sp2LinesHeight, tierRowsHeight, tiersOf } from '../layout';
 import { vomeroResult } from '../../__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
 
 describe('layoutMap', () => {
   it('places lanes and cards like the prototype, collapses a lane, and survives zero slots (Review Focus 5)', () => {
@@ -70,5 +71,12 @@ describe('layoutMap', () => {
     expect(layoutMap(vomeroResult.slots, new Set()).lanes.map((ln) => [ln.y, ln.cardH])).toEqual(
       layoutMap(vomeroResult.slots, new Set()).lanes.map((ln) => [ln.y, MAP_L.cardH]),
     );
+  });
+
+  it("reserves the two lines of the not-traced copy in a lane whose answered card carries it: 212 + Mekong's two tier rows + notTracedH (G-5)", () => {
+    expect(MAP_L.notTracedH).toBe(36);
+    const slots = notTracedDetail.result!.slots;
+    expect(sp2LinesHeight(slots[0]!)).toBe(36);
+    expect(layoutMap(slots, new Set()).lanes[0]!.cardH).toBe(212 + 60 + 36);
   });
 });
