@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { EM_DASH, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
+import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries, traceSentence, traceable } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { OptionPanel } from './option-panel';
+
+const TRACE_BANDS: SmBand[] = ['slight', 'moderate', 'severe'];
 
 /**
  * Card details (spec §9.3). Price terms arrive with SP4.
@@ -11,8 +13,8 @@ import { OptionPanel } from './option-panel';
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ executionId, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
-  executionId: string; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
+export function DetailsPanel({ executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
+  executionId: string; result: SourcingMapExecutionResult2; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
   productNames: Record<string, string>; onClose(): void;
   /** SP2 (spec §12.4, P2): hidden, not unmounted, while a handle panel holds the column, so it never remounts and refocuses */
   hidden?: boolean;
@@ -42,6 +44,17 @@ export function DetailsPanel({ executionId, slot, candidate: c, drops, asOfDrop,
         <section aria-label="Below tier 1" className="mt-4">
           <h3 className="sm-muted text-xs">Below tier 1</h3>
           <p className="mt-1">{summary}</p>
+          {c.trace && traceable(c) && <p className="mt-1">{`Shortfall trace: ${traceSentence(c.trace, candidateNamesOf(result))}`}</p>}
+          {c.trace && c.trace.edges.length > 0 && (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className="sm-muted">Trace lines:</span>
+              <ul aria-label="Trace line bands" className="flex gap-3">
+                {TRACE_BANDS.map((band) => (
+                  <li key={band} className="flex items-center gap-1"><span aria-hidden="true" className="inline-block h-0.5 w-4" style={{ background: bandVar(band) }} />{bandWord(band)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {c.aggregates && (
             <dl aria-label="Sub-tier aggregates" className="mt-2 grid grid-cols-2 gap-2">
               <dt className="sm-muted">Responders</dt><dd>{c.aggregates.responders}</dd>

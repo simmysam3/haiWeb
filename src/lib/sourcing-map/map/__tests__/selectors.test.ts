@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
@@ -241,6 +241,14 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     const deep = { nodes: [{ alias: 'A', tier: 2, role: 'inherited' as const, band: 'moderate' as const, binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding' as const, band: 'severe' as const, binds_for: 2 }],
       edges: [{ parent: 'leon', child: 'A', band: 'moderate' as const }, { parent: 'A', child: 'C', band: 'severe' as const }], gaps: [] };
     expect(traceSentence(deep, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options');
+  });
+
+  it('a card is traceable when its trace has at least one edge or gap (A2)', () => {
+    expect(traceable(leon2!)).toBe(true);
+    expect(traceable(mekong2!)).toBe(false);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: [] } })).toBe(false);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: leon2!.trace!.gaps } })).toBe(true);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: leon2!.trace!.edges, gaps: [] } })).toBe(true);
   });
 });
 

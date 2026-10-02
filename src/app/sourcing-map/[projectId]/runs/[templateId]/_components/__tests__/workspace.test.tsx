@@ -674,6 +674,10 @@ describe('Workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
     expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // A2: the details panel says the trace in words, its names resolved from the run's result
+    const traceLine = within(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('region', { name: 'Below tier 1' })).getByText(/^Shortfall trace:/);
+    expect(traceLine.tagName).toBe('P');
+    expect(traceLine.textContent).toMatch(/^Shortfall trace: León Cuero → A \(moderate\)/);
     const a = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
     fireEvent.click(a);
     const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });

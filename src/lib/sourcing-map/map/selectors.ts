@@ -366,6 +366,11 @@ export function traceSentence(trace: SmTrace, names: Record<string, string>): st
   return parts.join('; ');
 }
 
+/** A card has something to trace: a trace with at least one edge or gap (A2's sentence, A4's cue). */
+export function traceable(c: SmCandidateResult): boolean {
+  return c.trace != null && (c.trace.edges.length > 0 || c.trace.gaps.length > 0);
+}
+
 const HOUR_UTC = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
 /** The hour boundary as "HH:00 UTC", in the UTC form every other instant in this app uses (formatAsOfUtc). */
 export function formatHourUtc(iso: string): string {

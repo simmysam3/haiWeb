@@ -361,6 +361,7 @@ export function Workspace({
             // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
             hidden={handle !== null && handleNode !== null}
             executionId={detail.execution.execution_id}
+            result={result}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}
