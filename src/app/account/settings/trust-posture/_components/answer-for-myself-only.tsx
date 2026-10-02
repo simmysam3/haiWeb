@@ -23,7 +23,11 @@ export function AnswerForMyselfOnly({ initial }: { initial: boolean | null }) {
       body: { answer_for_myself_only: next },
     });
     setSaving(false);
-    if (result.ok) return;
+    if (result.ok) {
+      const answer = result.data?.answer_for_myself_only;
+      if (typeof answer === 'boolean') setValue(answer);
+      return;
+    }
     setValue(!next);
     setFailed(true);
   }

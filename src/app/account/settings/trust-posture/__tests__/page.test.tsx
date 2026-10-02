@@ -132,4 +132,17 @@ describe('TrustPosturePage', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/unable to load trust posture/i);
     expect(screen.getByText("Couldn't load the setting.")).toBeInTheDocument();
   });
+
+  it("reads the setting from its URL: a saved true renders the switch checked and enabled", async () => {
+    routeFetch(
+      async () => ({ ok: true, json: async () => ({ postures: [] }) }) as Response,
+      async () => ({ ok: true, json: async () => ({ answer_for_myself_only: true }) }) as Response,
+    );
+    const Page = (await import('../page')).default;
+    const ui = await Page();
+    render(ui as React.ReactElement);
+    const box = screen.getByRole('switch');
+    expect(box).toBeChecked();
+    expect(box).toBeEnabled();
+  });
 });

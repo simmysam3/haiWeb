@@ -62,4 +62,21 @@ describe('AnswerForMyselfOnly', () => {
     expect(screen.getByText("Couldn't load the setting.").tagName).toBe('P');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it("after an ok save the box takes the server's answer, not the sent value", async () => {
+    fetchSpy.mockResolvedValue(new Response('{"answer_for_myself_only":false}', { status: 200 }));
+    render(<AnswerForMyselfOnly initial={false} />);
+    const box = screen.getByRole('switch', { name: LABEL });
+    fireEvent.click(box);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(box).toBeEnabled());
+    expect(box).not.toBeChecked();
+  });
+
+  it('initial true renders the box checked and enabled', () => {
+    render(<AnswerForMyselfOnly initial={true} />);
+    const box = screen.getByRole('switch', { name: LABEL });
+    expect(box).toBeChecked();
+    expect(box).toBeEnabled();
+  });
 });
