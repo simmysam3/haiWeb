@@ -46,6 +46,34 @@ describe('run workspace page', () => {
     expect(fetchBffJson).toHaveBeenLastCalledWith(`/api/account/sourcing-map/executions/${VOMERO_IDS.execution}`);
   });
 
+  // Task 9 ("Open map"): two executions in the list; the older one is named by ?execution=.
+  const older = { ...vomeroExecution, execution_id: VOMERO_IDS.executionOld, created_at: '2026-09-20T08:00:00.000Z', started_at: '2026-09-20T08:00:00.000Z' };
+  function queueTwoExecutions() {
+    fetchBffJson
+      .mockResolvedValueOnce({ kind: 'ok', data: { template: vomeroRunTemplate } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroProject })
+      .mockResolvedValueOnce({ kind: 'ok', data: { products: vomeroProducts } })
+      .mockResolvedValueOnce({ kind: 'ok', data: { executions: [vomeroExecution, older] } })
+      .mockResolvedValueOnce({ kind: 'ok', data: vomeroDetail });
+  }
+  const pageParams = { params: Promise.resolve({ projectId: VOMERO_IDS.project, templateId: VOMERO_IDS.template }) };
+
+  it('loads the execution ?execution= names when the run lists it, not the newest ("Open map", spec §12.1)', async () => {
+    queueTwoExecutions();
+    const { default: Page } = await import('../page');
+    render(await Page({ ...pageParams, searchParams: Promise.resolve({ execution: VOMERO_IDS.executionOld }) }));
+    expect(fetchBffJson).toHaveBeenLastCalledWith(`/api/account/sourcing-map/executions/${VOMERO_IDS.executionOld}`);
+  });
+
+  it('loads the newest, and never reads a foreign id, when ?execution= is not in the run’s list', async () => {
+    queueTwoExecutions();
+    const foreign = '5a1e0000-0000-4000-8000-0000000000ff';
+    const { default: Page } = await import('../page');
+    render(await Page({ ...pageParams, searchParams: Promise.resolve({ execution: foreign }) }));
+    expect(fetchBffJson).toHaveBeenLastCalledWith(`/api/account/sourcing-map/executions/${VOMERO_IDS.execution}`);
+    expect(fetchBffJson.mock.calls.map(([u]) => String(u)).some((u) => u.includes(foreign))).toBe(false);
+  });
+
   it('is a 404 when the run is not the caller’s', async () => {
     fetchBffJson.mockReset();
     fetchBffJson.mockResolvedValueOnce({ kind: 'error', status: 404, message: '' });

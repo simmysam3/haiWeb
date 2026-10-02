@@ -819,4 +819,55 @@ describe('Workspace', () => {
     expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
     expect(document.activeElement).toBe(rail);
   });
+  describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
+    const real = withRealKeys(multitierDetail);
+    const leon = real.result!.slots[0]!.candidates[0]!;
+    const option = `0:${leon.candidate_key}`;
+    const leonCard = () => screen.getByRole('button', { name: /^León Cuero, MX/ });
+
+    it('presses the named card and draws its trace when the URL names the loaded execution and a real option key', async () => {
+      search.value = new URLSearchParams({ execution: real.execution.execution_id, option }).toString();
+      mount(real, [real.execution]);
+      expect(await screen.findByRole('button', { name: /^León Cuero, MX/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('img', { name: /^Shortfall trace: León Cuero/ })).toBeInTheDocument();
+    });
+
+    it('presses nothing when the URL names another execution than the loaded one (the page fell back to the newest)', () => {
+      search.value = new URLSearchParams({ execution: VOMERO_IDS.executionOld, option }).toString();
+      mount(real, [real.execution]);
+      expect(leonCard()).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
+    });
+
+    it('presses nothing, and raises no alert, for an option no candidate has', () => {
+      search.value = new URLSearchParams({ execution: real.execution.execution_id, option: '0:["nobody","no-sku"]' }).toString();
+      mount(real, [real.execution]);
+      expect(leonCard()).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('never matches an SP1-shaped candidate (no candidate_key) by its participant id', () => {
+      const sp1 = vomeroDetail.result!.slots[0]!.candidates[0]!;
+      search.value = new URLSearchParams({ execution: vomeroDetail.execution.execution_id, option: `0:${sp1.supplier_participant_id}` }).toString();
+      mount();
+      expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    });
+
+    it('seeds once: after the details are closed, a re-render with the same params selects nothing', async () => {
+      search.value = new URLSearchParams({ execution: real.execution.execution_id, option }).toString();
+      const view = mount(real, [real.execution]);
+      fireEvent.click(within(await screen.findByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+      view.rerender(<Workspace projectName="Spring 2027" template={vomeroRunTemplate} library={vomeroProducts} executions={[real.execution]} initialDetail={real} />);
+      expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+      expect(leonCard()).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('leaves the URL alone on mount: ?drop= alone selects nothing and rewrites nothing', () => {
+      const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
+      search.value = 'drop=2027-04-15';
+      mount(real, [real.execution]);
+      expect(leonCard()).toHaveAttribute('aria-pressed', 'false');
+      expect(replaceState).not.toHaveBeenCalled();
+    });
+  });
 });

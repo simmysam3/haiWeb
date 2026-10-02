@@ -34,6 +34,21 @@ export interface WorkspaceProps {
   detailError?: string | null;
 }
 
+/**
+ * "Open map" (spec §12.1): the card ?option= names, only when ?execution= names the loaded execution. The option is
+ * `${slot}:${candidate_key}`, answerKey's own form, so it is composed forward and never parsed. A candidate without a
+ * `candidate_key` (an SP1 result) is never matched, so a participant id can't select a card.
+ */
+function seedSelection(execution: string | null, option: string | null, detail: SmExecutionDetail | null): { slot: number; candidate: number } | null {
+  if (!option || !detail?.result || execution !== detail.execution.execution_id) return null;
+  const slots = detail.result.slots;
+  for (let slot = 0; slot < slots.length; slot++) {
+    const candidate = slots[slot]!.candidates.findIndex((c) => c.candidate_key !== undefined && `${slot}:${c.candidate_key}` === option);
+    if (candidate !== -1) return { slot, candidate };
+  }
+  return null;
+}
+
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
   projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail,
@@ -53,7 +68,7 @@ export function Workspace({
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
-  const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(null);
+  const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(() => seedSelection(params.get('execution'), params.get('option'), initialDetail));
   // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
   // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
   const [handle, setHandle] = useState<{ alias: string; origin: string } | null>(null);
