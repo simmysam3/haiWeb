@@ -16,6 +16,18 @@ export type {
   SmOptionAggregates,
   SmTrace,
   SmWaitingOn,
+  SmSupplyRiskStatus,
+  SmSupplyRiskClosedReason,
+  SmSupplyRisk,
+  SmSupplyRiskListResponse,
+  SmSupplyRiskPatch,
+  SmDemandCause,
+  SmRequestStatus,
+  SmDemandException,
+  SmDemandExceptionListResponse,
+  SmScorecardDimensionKey,
+  SmOptionPanel,
+  SmTraversalSetting,
 } from '@haiwave/protocol';
 import type {
   SmCandidateLiveStatus, SmCandidateResult, SmExecutionDetail, SmExecutionStatus, SmExecutionStatusResponse, SmExecutionSummary,
