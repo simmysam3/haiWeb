@@ -336,7 +336,7 @@ export function Workspace({
             onClose={closeHandle}
           />
         )}
-        {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+        {!trayOpen && detail && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
             // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
             // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
@@ -345,6 +345,7 @@ export function Workspace({
             // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
             // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
             hidden={handle !== null && handleNode !== null}
+            executionId={detail.execution.execution_id}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}

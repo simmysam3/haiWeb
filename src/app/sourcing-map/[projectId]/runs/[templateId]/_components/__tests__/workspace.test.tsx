@@ -237,6 +237,15 @@ describe('Workspace', () => {
     expect(screen.queryByText('The first pick failed.')).toBeNull();
   });
 
+  it('opening a card’s details fetches its option panel under the execution’s own id and the card’s real key (spec §12.3, C-13)', async () => {
+    const real = withRealKeys(multitierDetail);
+    const leon = real.result!.slots[0]!.candidates[0]!;
+    mount(real, [real.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    const want = `/api/account/sourcing-map/executions/${real.execution.execution_id}/options/${encodeURIComponent(leon.candidate_key!)}/panel`;
+    await waitFor(() => expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain(want));
+  });
+
   it('opens a card’s details panel and closes it (AC 18)', async () => {
     mount();
     fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));

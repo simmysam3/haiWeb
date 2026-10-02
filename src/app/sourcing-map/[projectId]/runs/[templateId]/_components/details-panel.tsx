@@ -3,15 +3,16 @@ import { useEffect, useRef } from 'react';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
 import { EM_DASH, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
+import { OptionPanel } from './option-panel';
 
 /**
- * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP3 and SP4.
+ * Card details (spec §9.3). Price terms arrive with SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
- * SP2 (spec §12.4): the path summary and the sub-tier aggregates; scorecard and delivery history are SP3.
+ * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
-  slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
+export function DetailsPanel({ executionId, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
+  executionId: string; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
   productNames: Record<string, string>; onClose(): void;
   /** SP2 (spec §12.4, P2): hidden, not unmounted, while a handle panel holds the column, so it never remounts and refocuses */
   hidden?: boolean;
@@ -90,7 +91,9 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
           </tbody>
         </table>
       )}
-      <p className="sm-muted mt-6 text-xs">Scorecard, delivery history and price terms arrive in later releases.</p>
+      {/* An SP1 candidate has no candidate_key: its participant id is not an option key, so the panel never asks for it. */}
+      <OptionPanel executionId={executionId} candidateKey={c.candidate_key ?? null} />
+      <p className="sm-muted mt-6 text-xs">Price terms arrive in a later release.</p>
     </aside>
   );
 }
