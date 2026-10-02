@@ -12,9 +12,24 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 
+const POSTURE_URL = '/api/account/settings/trust-posture';
+const SETTING_URL = '/api/account/settings/sourcing-map-setting';
+
+/** Answers by URL: the posture grid and the Sourcing Map setting are fetched in parallel. */
+function routeFetch(posture: () => Promise<Response>, setting?: () => Promise<Response>) {
+  fetchMock.mockImplementation(async (url: unknown) => {
+    const u = String(url);
+    if (u.endsWith(POSTURE_URL)) return posture();
+    if (u.endsWith(SETTING_URL)) {
+      return (setting ?? (async () => ({ ok: true, json: async () => ({ answer_for_myself_only: false }) }) as Response))();
+    }
+    throw new Error(`unexpected fetch ${u}`);
+  });
+}
+
 describe('TrustPosturePage', () => {
   it('renders postures from BFF when fetch succeeds', async () => {
-    fetchMock.mockResolvedValueOnce({
+    routeFetch(async () => ({
       ok: true,
       json: async () => ({
         postures: [
@@ -29,7 +44,7 @@ describe('TrustPosturePage', () => {
           },
         ],
       }),
-    } as Response);
+    }) as Response);
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
@@ -40,12 +55,12 @@ describe('TrustPosturePage', () => {
   });
 
   it('shows an error banner and synthesised default grid when fetch returns non-200', async () => {
-    fetchMock.mockResolvedValueOnce({
+    routeFetch(async () => ({
       ok: false,
       status: 503,
       json: async () => ({}),
       text: async () => 'Service Unavailable',
-    } as Response);
+    }) as Response);
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
@@ -58,7 +73,9 @@ describe('TrustPosturePage', () => {
   });
 
   it('shows an error banner when fetch itself rejects (network error)', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    routeFetch(async () => {
+      throw new Error('network down');
+    });
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
@@ -70,11 +87,11 @@ describe('TrustPosturePage', () => {
   });
 
   it('synthesised default grid uses permissive for phantom_demand (spec §6.2)', async () => {
-    fetchMock.mockResolvedValueOnce({
+    routeFetch(async () => ({
       ok: false,
       status: 500,
       json: async () => ({}),
-    } as Response);
+    }) as Response);
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
@@ -82,5 +99,37 @@ describe('TrustPosturePage', () => {
     // the prior silent-fallback path would have produced.
     const permissiveChips = screen.getAllByText('permissive');
     expect(permissiveChips.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('a setting reply without a boolean disables the switch', async () => {
+    routeFetch(
+      async () => ({ ok: true, json: async () => ({ postures: [] }) }) as Response,
+      async () => ({ ok: true, json: async () => ({ postures: [] }) }) as Response,
+    );
+    const Page = (await import('../page')).default;
+    const ui = await Page();
+    render(ui as React.ReactElement);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('the switch is not inside the grid and follows it in DOM order', async () => {
+    routeFetch(async () => ({ ok: true, json: async () => ({ postures: [] }) }) as Response);
+    const Page = (await import('../page')).default;
+    const ui = await Page();
+    render(ui as React.ReactElement);
+    const grid = screen.getByRole('grid');
+    const box = screen.getByRole('switch');
+    expect(grid).not.toContainElement(box);
+    expect(grid.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('with both loads failing, the posture banner is the only alert', async () => {
+    const failing = async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => '' }) as Response;
+    routeFetch(failing, failing);
+    const Page = (await import('../page')).default;
+    const ui = await Page();
+    render(ui as React.ReactElement);
+    expect(screen.getByRole('alert').textContent).toMatch(/unable to load trust posture/i);
+    expect(screen.getByText("Couldn't load the setting.")).toBeInTheDocument();
   });
 });
