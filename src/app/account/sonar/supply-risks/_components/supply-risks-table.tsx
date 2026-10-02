@@ -9,7 +9,7 @@ import { EM_DASH, formatDay } from '@/lib/sourcing-map/map/selectors';
 import type { SmSupplyRisk, SmSupplyRiskListResponse, SmSupplyRiskPatch, SmSupplyRiskStatus } from '@/lib/sourcing-map/types';
 import { useRenderMeasure } from '../../_components/use-render-measure';
 
-const SAVE_FAILED = "Couldn't save — the risk is unchanged.";
+const SAVE_FAILED = `Couldn't save ${EM_DASH} the risk is unchanged.`;
 const FIELD = 'rounded border border-slate/30 bg-white px-2 py-1 text-xs';
 
 type Field = 'status' | 'note' | 'next_review';
@@ -35,8 +35,9 @@ export function SupplyRisksTable({ initial, nextHref }: {
     if (res.ok) setRows((rs) => rs.map((r) => (r.risk_id === risk.risk_id ? res.data : r)));
     else setFailed(true);
     setDrafts((d) => {
-      const { [key]: _gone, ...rest } = d;
-      return rest;
+      const next = { ...d };
+      delete next[key];
+      return next;
     });
     setSaving((s) => {
       const next = new Set(s);
@@ -114,7 +115,12 @@ export function SupplyRisksTable({ initial, nextHref }: {
             className={FIELD}
             value={value(r, 'next_review', r.next_review ?? '')}
             disabled={busy(r, 'next_review')}
-            onChange={(e) => void save(r, 'next_review', e.target.value, { next_review: e.target.value === '' ? null : e.target.value })}
+            onChange={(e) => setDrafts((d) => ({ ...d, [`${r.risk_id}:next_review`]: e.target.value }))}
+            onBlur={() => {
+              // Saved on blur like the note: typing a year passes through valid dates (0002-11-09) on the way.
+              const day = value(r, 'next_review', r.next_review ?? '');
+              if (day !== (r.next_review ?? '')) void save(r, 'next_review', day, { next_review: day === '' ? null : day });
+            }}
           />
         ),
     },

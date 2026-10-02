@@ -14,9 +14,8 @@ export default async function SupplyRisksPage({ searchParams }: {
   const sp = await searchParams;
   // Fail closed (G-15): an empty or unknown `status` means the active statuses, never "no filter".
   const statuses = resolveKindFilter(sp.status, RISK_STATUS_PILLS.map((p) => p.value), ACTIVE_RISK_STATUSES);
-  const result = await fetchBffJson<SmSupplyRiskListResponse>(
-    `/api/account/sourcing-map/supply-risks?${backlogQuery('status', statuses, sp.cursor)}`,
-  );
+  const query = backlogQuery('status', statuses, sp.cursor);
+  const result = await fetchBffJson<SmSupplyRiskListResponse>(`/api/account/sourcing-map/supply-risks?${query}`);
 
   return (
     <div>
@@ -26,7 +25,7 @@ export default async function SupplyRisksPage({ searchParams }: {
         <p role="alert" className="text-red-900">{loadErrorText(result.status, 'supply risks')}</p>
       ) : (
         <SupplyRisksTable
-          key={backlogQuery('status', statuses, sp.cursor)}
+          key={query}
           initial={result.data}
           nextHref={nextHref(PATHNAME, 'status', statuses, result.data.next_cursor)}
         />

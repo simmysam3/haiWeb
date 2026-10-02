@@ -66,7 +66,7 @@ describe('SupplyRisksTable', () => {
     renderTable();
     const row = rowOf('Mekong Tannery');
     expect(within(row).queryByRole('link', { name: 'Open map' })).toBeNull();
-    expect(within(row).getAllByText('—').length).toBeGreaterThan(0);
+    expect(within(row).getAllByRole('cell').at(-1)!.textContent).toBe('—');
   });
 
   it("León's Open map link is the run with its query", () => {
@@ -112,7 +112,7 @@ describe('SupplyRisksTable', () => {
     fetchMock.mockResolvedValue(json(409, { error: 'closed' }));
     renderTable();
     fireEvent.change(screen.getByLabelText('Status for León Cuero'), { target: { value: 'resolving' } });
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save — the risk is unchanged.");
+    expect((await screen.findByRole('alert')).textContent).toBe("Couldn't save — the risk is unchanged.");
     expect(screen.getByLabelText('Status for León Cuero')).toHaveValue('open');
   });
 
@@ -138,17 +138,37 @@ describe('SupplyRisksTable', () => {
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].body).toBe('{"note":"call Monday"}');
   });
 
-  it('a changed review date is saved on change, and emptying it sends null', async () => {
+  it('a changed review date is saved on blur, and emptying it sends null', async () => {
     fetchMock.mockResolvedValueOnce(json(200, riskOf({ next_review: '2026-11-09' })));
     fetchMock.mockResolvedValueOnce(json(200, riskOf({ next_review: null })));
     renderTable();
     const date = screen.getByLabelText('Next review for León Cuero');
     fireEvent.change(date, { target: { value: '2026-11-09' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.blur(date);
     await waitFor(() => expect(date).toHaveValue('2026-11-09'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     fireEvent.change(date, { target: { value: '' } });
+    fireEvent.blur(date);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].body).toBe('{"next_review":"2026-11-09"}');
     expect((fetchMock.mock.calls[1] as [string, RequestInit])[1].body).toBe('{"next_review":null}');
+  });
+
+  it('a date blur without a change sends nothing', () => {
+    renderTable();
+    fireEvent.blur(screen.getByLabelText('Next review for León Cuero'));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('clearing a note sends null, not an empty string', async () => {
+    fetchMock.mockResolvedValue(json(200, riskOf({ note: null })));
+    renderTable({ initial: { ...supplyRisksList, risks: [riskOf({ note: 'x' })] } });
+    const note = screen.getByLabelText('Note for León Cuero');
+    fireEvent.change(note, { target: { value: '' } });
+    fireEvent.blur(note);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].body).toBe('{"note":null}');
   });
 
   it('caps the note at 2000 characters', () => {

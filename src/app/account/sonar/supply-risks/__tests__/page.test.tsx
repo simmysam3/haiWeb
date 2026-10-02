@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { supplyRisksList } from '@/app/sourcing-map/__fixtures__/sp3';
+import { supplyRisksList, riskOf } from '@/app/sourcing-map/__fixtures__/sp3';
 
 const { fetchBffJson } = vi.hoisted(() => ({ fetchBffJson: vi.fn() }));
 vi.mock('@/lib/server-fetch', () => ({ fetchBffJson }));
@@ -53,7 +53,7 @@ describe('Supply Risks page', () => {
   it('shows the error line and no table on a 403', async () => {
     fetchBffJson.mockResolvedValue({ kind: 'error', status: 403, message: 'no' });
     render(await SupplyRisksPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole('alert')).toHaveTextContent('You do not have permission to view supply risks.');
+    expect(screen.getByRole('alert').textContent).toBe('You do not have permission to view supply risks.');
     expect(screen.queryByRole('table')).toBeNull();
   });
 
@@ -66,5 +66,17 @@ describe('Supply Risks page', () => {
     for (const name of ['Resolved', 'Accepted']) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
     }
+  });
+
+  it('re-seeds the rows when the query changes (the table key)', async () => {
+    const view = render(await SupplyRisksPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText('León Cuero')).toBeInTheDocument();
+    fetchBffJson.mockResolvedValue({
+      kind: 'ok',
+      data: { risks: [riskOf({ risk_id: 'older-1', supplier_name: 'Older Mills' })], open_count: 1, next_cursor: null },
+    });
+    view.rerender(await SupplyRisksPage({ searchParams: Promise.resolve({ cursor: 'c2' }) }));
+    expect(screen.getByText('Older Mills')).toBeInTheDocument();
+    expect(screen.queryByText('León Cuero')).toBeNull();
   });
 });
