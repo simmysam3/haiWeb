@@ -91,6 +91,14 @@ describe('SupplyRisksTable', () => {
     expect(screen.getByText('No supply risks.')).toBeInTheDocument();
   });
 
+  it('its teal links use the dark teal, which clears 4.5:1 on white (axe color-contrast, SP3-d Task 12)', () => {
+    renderTable({ nextHref: '/account/sonar/supply-risks?status=open&cursor=c2' });
+    for (const el of [within(rowOf('León Cuero')).getByRole('link', { name: 'Open map' }), screen.getByRole('link', { name: 'Show older' })]) {
+      expect(el).toHaveClass('text-teal-dark');
+      expect(el).not.toHaveClass('text-teal');
+    }
+  });
+
   it('Show older links only when there is a next page', () => {
     const { unmount } = renderTable({ nextHref: '/account/sonar/supply-risks?status=open&cursor=c2' });
     expect(screen.getByRole('link', { name: 'Show older' })).toHaveAttribute('href', '/account/sonar/supply-risks?status=open&cursor=c2');

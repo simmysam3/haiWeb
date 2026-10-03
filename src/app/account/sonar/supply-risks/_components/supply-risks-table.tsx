@@ -151,7 +151,7 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
       label: '',
       render: (r) => r.open_map === null
         ? EM_DASH
-        : <Link href={openMapHref(r.open_map)} className="text-xs font-medium text-teal hover:text-navy">Open map</Link>,
+        : <Link href={openMapHref(r.open_map)} className="text-xs font-medium text-teal-dark hover:text-navy">Open map</Link>,
     },
   ];
 
@@ -161,7 +161,7 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
       <DataTable columns={columns} data={rows} keyFn={(r) => r.risk_id} emptyMessage="No supply risks." />
       {nextHref !== null && (
         <p className="mt-3">
-          <Link href={nextHref} className="text-sm font-medium text-teal hover:text-navy">Show older</Link>
+          <Link href={nextHref} className="text-sm font-medium text-teal-dark hover:text-navy">Show older</Link>
         </p>
       )}
     </div>

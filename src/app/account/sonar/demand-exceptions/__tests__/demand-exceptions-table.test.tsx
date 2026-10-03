@@ -93,6 +93,19 @@ describe('DemandExceptionsTable', () => {
     expect(screen.getByText('No demand exceptions.')).toBeInTheDocument();
   });
 
+  it('its teal controls use the dark teal, which clears 4.5:1 on white (axe color-contrast, SP3-d Task 12)', () => {
+    renderTable({ nextHref: '/account/sonar/demand-exceptions?cursor=c1' });
+    const controls = [
+      within(rows()[1]!).getByRole('link', { name: 'Trust posture' }),
+      screen.getAllByRole('button', { name: 'Ignore' })[0]!,
+      screen.getByRole('link', { name: 'Show older' }),
+    ];
+    for (const el of controls) {
+      expect(el).toHaveClass('text-teal-dark');
+      expect(el).not.toHaveClass('text-teal');
+    }
+  });
+
   it('links Show older only with a next href', () => {
     const view = renderTable();
     expect(screen.queryByRole('link', { name: 'Show older' })).toBeNull();

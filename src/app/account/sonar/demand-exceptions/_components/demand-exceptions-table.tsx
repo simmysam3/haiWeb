@@ -57,7 +57,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
           <div>{CAUSE_PILLS.find((p) => p.value === r.cause)?.label ?? r.cause}</div>
           {r.cause === 'chain' && <div className="text-xs text-slate">an input of yours ran short</div>}
           {r.cause === 'posture' && (
-            <Link href="/account/settings/trust-posture" className="text-xs font-medium text-teal hover:text-navy">Trust posture</Link>
+            <Link href="/account/settings/trust-posture" className="text-xs font-medium text-teal-dark hover:text-navy">Trust posture</Link>
           )}
         </>
       ),
@@ -70,7 +70,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
       render: (r) => (
         <button
           type="button"
-          className="text-xs font-medium text-teal hover:text-navy disabled:opacity-50"
+          className="text-xs font-medium text-teal-dark hover:text-navy disabled:opacity-50"
           disabled={ignoring.has(r.exception_id)}
           onClick={() => void ignore(r.exception_id)}
         >
@@ -86,7 +86,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
       <DataTable columns={columns} data={rows} keyFn={(r) => r.exception_id} emptyMessage="No demand exceptions." />
       {nextHref !== null && (
         <p className="mt-3">
-          <Link href={nextHref} className="text-sm font-medium text-teal hover:text-navy">Show older</Link>
+          <Link href={nextHref} className="text-sm font-medium text-teal-dark hover:text-navy">Show older</Link>
         </p>
       )}
     </div>
