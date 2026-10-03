@@ -7,7 +7,7 @@ import { smFetch } from '@/lib/sourcing-map/client';
 import { CAUSE_PILLS, figureText, requestStatusText, windowText } from '@/lib/sourcing-map/backlogs';
 import { EM_DASH, formatQty } from '@/lib/sourcing-map/map/selectors';
 import type { SmDemandException, SmDemandExceptionListResponse } from '@/lib/sourcing-map/types';
-import { BacklogTable, type BacklogColumn } from '../../_components/backlog-table';
+import { DataTable, type Column } from '@/components/data-table';
 import { useRenderMeasure } from '../../_components/use-render-measure';
 
 const IGNORE_FAILED = `Couldn't ignore ${EM_DASH} the row is unchanged.`;
@@ -34,7 +34,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
     });
   }
 
-  const columns: BacklogColumn<SmDemandException>[] = [
+  const columns: Column<SmDemandException>[] = [
     { key: 'requestor', label: 'Requestor', render: (r) => r.requestor.name },
     { key: 'product', label: 'Product', render: (r) => r.sku },
     {
@@ -85,7 +85,9 @@ export function DemandExceptionsTable({ initial, nextHref }: {
   return (
     <div>
       {failed && <p role="alert" className="mb-2 text-sm text-red-900">{IGNORE_FAILED}</p>}
-      <BacklogTable columns={columns} data={rows} keyFn={(r) => r.exception_id} emptyMessage="No demand exceptions." />
+      <div className="rounded bg-white">
+        <DataTable columns={columns} data={rows} keyFn={(r) => r.exception_id} emptyMessage="No demand exceptions." />
+      </div>
       {nextHref !== null && (
         <p className="mt-3">
           <Link href={nextHref} className="text-sm font-medium text-teal-dark hover:text-navy">Show older</Link>

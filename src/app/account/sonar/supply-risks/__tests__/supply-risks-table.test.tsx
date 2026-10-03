@@ -4,6 +4,7 @@ import { render, screen, within, fireEvent, waitFor } from '@testing-library/rea
 import { supplyRisksList, riskOf } from '@/app/sourcing-map/__fixtures__/sp3';
 import { openMapHref } from '@/lib/sourcing-map/backlogs';
 import type { SmSupplyRiskListResponse } from '@/lib/sourcing-map/types';
+import { groundToken } from '@/test/contrast';
 
 import { SupplyRisksTable } from '../_components/supply-risks-table';
 
@@ -40,7 +41,7 @@ describe('SupplyRisksTable', () => {
 
   it('sits on a white card: the account page is grey (#ECF0F4), where the slate secondary text is 4.16:1, short of 4.5:1 (I-2)', () => {
     renderTable();
-    expect(screen.getByRole('table').parentElement).toHaveClass('bg-white');
+    expect(groundToken(screen.getByRole('table'))).toBe('white');
   });
 
   it("reads León's row: supplier, requested / covered, origin, status select", () => {
@@ -112,7 +113,7 @@ describe('SupplyRisksTable', () => {
     }
   });
 
-  it('its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (axe color-contrast, ruling C-11)', () => {
+  it("its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (DataTable's header token)", () => {
     renderTable();
     const heads = screen.getAllByRole('columnheader');
     expect(heads.length).toBeGreaterThan(0);

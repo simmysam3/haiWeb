@@ -6,7 +6,7 @@ import { smFetch } from '@/lib/sourcing-map/client';
 import { RISK_STATUS_PILLS, figureText, openMapHref, originText } from '@/lib/sourcing-map/backlogs';
 import { EM_DASH, formatDay } from '@/lib/sourcing-map/map/selectors';
 import type { SmSupplyRisk, SmSupplyRiskListResponse, SmSupplyRiskPatch, SmSupplyRiskStatus } from '@/lib/sourcing-map/types';
-import { BacklogTable, type BacklogColumn } from '../../_components/backlog-table';
+import { DataTable, type Column } from '@/components/data-table';
 import { useRenderMeasure } from '../../_components/use-render-measure';
 
 const SAVE_FAILED = `Couldn't save ${EM_DASH} the risk is unchanged.`;
@@ -49,7 +49,7 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
   const value = (r: SmSupplyRisk, field: Field, served: string) => drafts[`${r.risk_id}:${field}`] ?? served;
   const busy = (r: SmSupplyRisk, field: Field) => saving.has(`${r.risk_id}:${field}`);
 
-  const columns: BacklogColumn<SmSupplyRisk>[] = [
+  const columns: Column<SmSupplyRisk>[] = [
     {
       key: 'supplier',
       label: 'Supplier',
@@ -161,7 +161,9 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
   return (
     <div>
       {failed && <p role="alert" className="mb-2 text-sm text-red-900">{SAVE_FAILED}</p>}
-      <BacklogTable columns={columns} data={rows} keyFn={(r) => r.risk_id} emptyMessage="No supply risks." />
+      <div className="rounded bg-white">
+        <DataTable columns={columns} data={rows} keyFn={(r) => r.risk_id} emptyMessage="No supply risks." />
+      </div>
       {nextHref !== null && (
         <p className="mt-3">
           <Link href={nextHref} className="text-sm font-medium text-teal-dark hover:text-navy">Show older</Link>
