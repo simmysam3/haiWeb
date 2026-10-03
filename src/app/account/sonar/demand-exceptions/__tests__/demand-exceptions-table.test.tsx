@@ -106,6 +106,16 @@ describe('DemandExceptionsTable', () => {
     }
   });
 
+  it('its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (axe color-contrast, ruling C-11)', () => {
+    renderTable();
+    const heads = screen.getAllByRole('columnheader');
+    expect(heads.length).toBeGreaterThan(0);
+    for (const th of heads) {
+      expect(th).toHaveClass('text-charcoal');
+      expect(th).not.toHaveClass('text-slate');
+    }
+  });
+
   it('links Show older only with a next href', () => {
     const view = renderTable();
     expect(screen.queryByRole('link', { name: 'Show older' })).toBeNull();

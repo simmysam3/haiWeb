@@ -99,6 +99,16 @@ describe('SupplyRisksTable', () => {
     }
   });
 
+  it('its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (axe color-contrast, ruling C-11)', () => {
+    renderTable();
+    const heads = screen.getAllByRole('columnheader');
+    expect(heads.length).toBeGreaterThan(0);
+    for (const th of heads) {
+      expect(th).toHaveClass('text-charcoal');
+      expect(th).not.toHaveClass('text-slate');
+    }
+  });
+
   it('Show older links only when there is a next page', () => {
     const { unmount } = renderTable({ nextHref: '/account/sonar/supply-risks?status=open&cursor=c2' });
     expect(screen.getByRole('link', { name: 'Show older' })).toHaveAttribute('href', '/account/sonar/supply-risks?status=open&cursor=c2');
