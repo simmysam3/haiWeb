@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { login } from './sourcing-map-login';
+import { axe, axeLine, cardBoxes, durations, overflowing } from './sourcing-map-harness';
 
 /**
  * Sourcing Map SP2 (spec §12.6): the run workspace on the SP2-0 fixtures in a real browser, through the dev-only
@@ -17,8 +18,6 @@ const HARNESS = process.env.SM_HARNESS_URL;
 const FIXTURES = path.join(process.cwd(), 'src/app/sourcing-map/__fixtures__/sp2');
 const estimate = JSON.parse(readFileSync(path.join(FIXTURES, 'estimate-may-wait.json'), 'utf8')) as unknown;
 const throttled = JSON.parse(readFileSync(path.join(FIXTURES, 'execution-throttled.json'), 'utf8')) as { status: unknown };
-/** axe-core 4.11.1, a dev transitive dependency already in node_modules (package-lock.json:3393); injected, not bundled. */
-const AXE = path.join(process.cwd(), 'node_modules/axe-core/axe.min.js');
 /** The multitier fixture's option cards: leather (León, Mekong, Arno's timeout), knit uppers, laces, outsoles. */
 const MULTITIER_CARDS = 6;
 /** Its tier-row handles: León A B C, Mekong A F C, FlowKnit D, Bowline D, Zephyr E. */
@@ -29,23 +28,6 @@ const TIER_ROW_H = 26;
 async function routeBff(page: Page): Promise<void> {
   await page.route('**/api/account/sourcing-map/runs/*/estimate', (route) => route.fulfill({ json: estimate }));
   await page.route('**/api/account/sourcing-map/executions/*/status**', (route) => route.fulfill({ json: throttled.status }));
-}
-
-interface AxeViolation { id: string; impact: string | null; nodes: Array<{ target: string[] }> }
-async function axe(page: Page): Promise<AxeViolation[]> {
-  await page.addScriptTag({ path: AXE });
-  return page.evaluate(async () => {
-    const runner = (window as unknown as { axe: { run(ctx: Element, opts: unknown): Promise<{ violations: AxeViolation[] }> } }).axe;
-    const result = await runner.run(document.querySelector('[data-testid="sm-root"]')!, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
-    return result.violations;
-  });
-}
-function axeLine(violations: AxeViolation[]): string {
-  return JSON.stringify(violations.map((v) => ({ id: v.id, impact: v.impact, targets: v.nodes.map((n) => n.target.join(' ')) })));
-}
-
-function durations(page: Page, name: string): Promise<number[]> {
-  return page.evaluate((n) => performance.getEntriesByName(n, 'measure').map((e) => e.duration), name);
 }
 
 /**
@@ -64,30 +46,6 @@ async function observeMeasures(page: Page): Promise<void> {
 function observed(page: Page, name: string): Promise<number[]> {
   return page.evaluate((n) => (window as unknown as { __smMeasures: Array<{ name: string; duration: number }> }).__smMeasures.filter((e) => e.name === n).map((e) => Number(e.duration.toFixed(1))), name);
 }
-
-interface CardBox {
-  name: string; scrollHeight: number; clientHeight: number;
-  /** lines the card's flex column squeezed below their content (only a child whose overflow is not visible can shrink so) */
-  squeezed: Array<{ text: string; scrollHeight: number; clientHeight: number }>;
-}
-/**
- * R2: every option card in the map, with its content height against its box (a card overflows when content > box).
- * The card is a flex column, so a short box first shrinks a `truncate` line (overflow hidden, so no content minimum),
- * down to nothing, before anything spills: a squeezed line is overflow too, which scrollHeight alone does not show.
- */
-function cardBoxes(page: Page): Promise<CardBox[]> {
-  return page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>('section[aria-label="Sourcing map"] article')).map((a) => ({
-      name: a.querySelector('button[data-anchor]')?.getAttribute('data-anchor') ?? '?',
-      scrollHeight: a.scrollHeight,
-      clientHeight: a.clientHeight,
-      squeezed: Array.from(a.children as HTMLCollectionOf<HTMLElement>)
-        .filter((c) => getComputedStyle(c).overflowY !== 'visible' && c.clientHeight < c.scrollHeight - 1)
-        .map((c) => ({ text: (c.textContent ?? '').slice(0, 60), scrollHeight: c.scrollHeight, clientHeight: c.clientHeight })),
-    })),
-  );
-}
-const overflowing = (cards: CardBox[]) => cards.filter((c) => c.scrollHeight > c.clientHeight + 1 || c.squeezed.length > 0);
 
 interface HandleBox { anchor: string; height: number; scrollHeight: number; clientHeight: number; inCard: boolean }
 /**
