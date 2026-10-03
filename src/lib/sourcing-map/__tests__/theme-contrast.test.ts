@@ -1,25 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { contrastRatio } from '@/test/contrast';
 import { SM_THEME_TOKENS, SM_PILL_TONES, SM_PILL_TOKENS, SM_HEADER, SM_BUTTON_PRIMARY_FG, smThemeStyle } from '../theme';
 
-// The WCAG 2.1 instrument lives here: nothing in production calls it.
-function channel(c: number): number {
-  const s = c / 255;
-  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-}
-function luminance(hex: string): number {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-function contrastRatio(fg: string, bg: string): number {
-  const a = luminance(fg);
-  const b = luminance(bg);
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
 const hundredths = (r: number) => Math.round(r * 100);
 
 const SURFACES = ['canvas', 'surface', 'card'] as const;
