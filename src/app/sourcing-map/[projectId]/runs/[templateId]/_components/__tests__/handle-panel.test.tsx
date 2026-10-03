@@ -26,6 +26,16 @@ describe('HandlePanel', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('closes on Escape from inside the panel; another key does not close it', () => {
+    const onClose = vi.fn();
+    render(<HandlePanel node={{ ...A, under: ['leon'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} onClose={onClose} />);
+    // focus is on the heading once the panel opens (R1), so the key lands inside it
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('omits the band and trace rows when the node is not short or not on the trace, names every option when opened from the limits list, and says "Binding for N options"', () => {
     const { rerender } = render(<HandlePanel node={{ ...C, under: ['leon', 'mekong'] }} origin="mekong" candidateNames={CANDIDATE_NAMES} trace={null} onClose={vi.fn()} />);
     let panel = screen.getByRole('complementary', { name: 'Details for supplier C' });
