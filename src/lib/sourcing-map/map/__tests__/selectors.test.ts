@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
@@ -217,6 +217,15 @@ describe('SP2 selectors: waiting and the gap stubs (contract §10)', () => {
 });
 
 describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', () => {
+  // León and Mekong both bind alias A (binds_for 2): the SP2 fixture has no shared binding of its own
+  const buildTwice = () => {
+    const twice = structuredClone(mt);
+    twice.slots[0]!.candidates[1]!.limit = 'inputs';
+    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    twice.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+    return twice;
+  };
+
   it('lists the options an alias sits under, in display order, and finds its node (the preferred option’s first)', () => {
     expect(underOf(mt, 'A')).toEqual(['leon', 'mekong']);
     expect(underOf(mt, 'D')).toEqual(['flowknit', 'bowline']);
@@ -229,11 +238,38 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
 
   it('collects every binding node once with the options it binds, in display order', () => {
     expect(bindingNodes(mt)).toEqual([{ alias: 'A', tier: 2, options: [{ slot: 0, candidate: 0, key: 'leon', name: 'León Cuero', binds_for: 1 }] }]);
-    const twice = structuredClone(mt);
-    twice.slots[0]!.candidates[1]!.limit = 'inputs';
-    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    const twice = buildTwice();
     expect(bindingNodes(twice)[0]!.options.map((o) => o.key)).toEqual(['leon', 'mekong']);
     expect(bindingNodes(vomeroResult)).toEqual([]);
+  });
+
+  it('names the other options a shared binding source limits, each from its own side (A3)', () => {
+    const twice = buildTwice();
+    const [leon, mekong] = twice.slots[0]!.candidates;
+    const tail = 'splitting between these options will not relieve the constraint.';
+    expect(sharedBindingText(twice, leon!)).toBe(`The same source limits Mekong Tannery; ${tail}`);
+    expect(sharedBindingText(twice, mekong!)).toBe(`The same source limits León Cuero; ${tail}`);
+  });
+
+  it('lists three options with the conjunction, in first-seen order (A3)', () => {
+    const three = buildTwice();
+    const slots = three.slots;
+    slots[1]!.candidates[0]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 3 }], edges: [{ parent: 'flowknit', child: 'A', band: 'slight' }], gaps: [] };
+    slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 3;
+    slots[0]!.candidates[1]!.trace!.nodes[0]!.binds_for = 3;
+    expect(sharedBindingText(three, slots[0]!.candidates[0]!)).toBe('The same source limits Mekong Tannery and FlowKnit Mills; splitting between these options will not relieve the constraint.');
+  });
+
+  it('says nothing when the source binds one option, or when no peer resolves (A3, AR-4)', () => {
+    expect(sharedBindingText(mt, leon2!)).toBeNull();
+    const lone = structuredClone(mt);
+    lone.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+    expect(sharedBindingText(lone, lone.slots[0]!.candidates[0]!)).toBeNull();
+    expect(sharedBindingText(mt, mekong2!)).toBeNull();
+    // a peer exists, but this option's own node binds for one: the gate is binds_for, not the role alone
+    const gated = buildTwice();
+    gated.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 1;
+    expect(sharedBindingText(gated, gated.slots[0]!.candidates[0]!)).toBeNull();
   });
 
   it('says the trace in one sentence: each edge with its band, the binding node and tier, each gap with its status word', () => {

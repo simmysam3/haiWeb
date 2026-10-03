@@ -355,6 +355,20 @@ export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] 
   return out;
 }
 
+const PEER_LIST = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
+/** DECISIONS §1.2: the binding source also limits other options, so splitting between them does not help. Null when nothing is shared or no peer resolves. */
+export function sharedBindingText(result: SourcingMapExecutionResult, c: SmCandidateResult): string | null {
+  const aliases = (c.trace?.nodes ?? []).filter((n) => n.role === 'binding' && n.binds_for > 1).map((n) => n.alias);
+  const self = candidateKeyOf(c);
+  const peers: string[] = [];
+  for (const b of bindingNodes(result)) {
+    if (!aliases.includes(b.alias)) continue;
+    for (const o of b.options) if (o.key !== self && !peers.includes(o.name)) peers.push(o.name);
+  }
+  if (peers.length === 0) return null;
+  return `The same source limits ${PEER_LIST.format(peers)}; splitting between these options will not relieve the constraint.`;
+}
+
 /** The trace as one sentence, for the overlay's accessible name: edges with bands, the binding node, the gaps. */
 export function traceSentence(trace: SmTrace, names: Record<string, string>): string {
   const nameOf = (k: string) => names[k] ?? k;

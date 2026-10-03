@@ -177,6 +177,28 @@ describe('DetailsPanel', () => {
     expect(screen.queryByRole('list', { name: 'Trace line bands' })).toBeNull();
   });
 
+  it('warns when the binding source limits other options too, inside Below tier 1 and before the AC 15 sentence; not when it binds one (A3)', () => {
+    const mt = multitierDetail.result!;
+    const twice = structuredCloneSafe(mt);
+    twice.slots[0]!.candidates[1]!.limit = 'inputs';
+    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    twice.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+    const warning = 'The same source limits Mekong Tannery; splitting between these options will not relieve the constraint.';
+    const mount = (result: typeof mt) => (
+      <DetailsPanel executionId={EXEC} result={result} slot={result.slots[0]!} candidate={result.slots[0]!.candidates[0]!} drops={result.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />
+    );
+    const { rerender } = render(mount(twice));
+    const below = screen.getByRole('region', { name: 'Below tier 1' });
+    const p = within(below).getByText(warning);
+    expect(p.tagName).toBe('P');
+    expect(p).not.toHaveAttribute('role');
+    expect(below.lastElementChild!.textContent).toBe('Sources below tier 1 were not searched for alternatives.');
+    // the SP2 fixture binds one option: no warning
+    rerender(mount(mt));
+    expect(screen.queryByText(/^The same source limits/)).toBeNull();
+    expect(screen.getByRole('region', { name: 'Below tier 1' }).querySelector('.sm-warn')).toBeNull();
+  });
+
   it('replaces the later-releases sentence with the panel and the price-terms footer (spec §12.3)', () => {
     const leather = vomeroResult.slots[0]!;
     render(<DetailsPanel executionId={EXEC} result={vomeroResult} slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);

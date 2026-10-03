@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
-import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries, traceSentence, traceable } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { OptionPanel } from './option-panel';
 
@@ -23,6 +23,7 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
   const answerWeek = candidateWeekAt(c, asOfWeek);
   const summary = pathSummary(c);
+  const shared = sharedBindingText(result, c);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -55,6 +56,7 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
               </ul>
             </div>
           )}
+          {shared !== null && <p className="sm-warn mt-2">{shared}</p>}
           {c.aggregates && (
             <dl aria-label="Sub-tier aggregates" className="mt-2 grid grid-cols-2 gap-2">
               <dt className="sm-muted">Responders</dt><dd>{c.aggregates.responders}</dd>
