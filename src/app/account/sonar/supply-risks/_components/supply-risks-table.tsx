@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { RISK_STATUS_PILLS, figureText, openMapHref, originText } from '@/lib/sourcing-map/backlogs';
-import { EM_DASH, formatDay } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, formatDay, slotKeyTitle } from '@/lib/sourcing-map/map/selectors';
 import type { SmSupplyRisk, SmSupplyRiskListResponse, SmSupplyRiskPatch, SmSupplyRiskStatus } from '@/lib/sourcing-map/types';
 import { DataTable, type Column } from '@/components/data-table';
 import { useRenderMeasure } from '../../_components/use-render-measure';
@@ -66,7 +66,7 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
       label: 'Slot and products',
       render: (r) => (
         <>
-          <div>{r.slot_label}</div>
+          <div>{slotKeyTitle(r.slot, r.slot_label)}</div>
           <div className="text-xs text-slate">{r.products.join(', ')}</div>
         </>
       ),

@@ -5,6 +5,8 @@ import { supplyRisksList, riskOf } from '@/app/sourcing-map/__fixtures__/sp3';
 import { openMapHref } from '@/lib/sourcing-map/backlogs';
 import type { SmSupplyRiskListResponse } from '@/lib/sourcing-map/types';
 import { groundToken } from '@/test/contrast';
+import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
 import { SupplyRisksTable } from '../_components/supply-risks-table';
 
@@ -63,6 +65,15 @@ describe('SupplyRisksTable', () => {
     const row = rowOf('FlowKnit Mills');
     expect(within(row).getByText('Polyester knit uppers')).toBeInTheDocument();
     expect(within(row).getByText('Pegasus Trail, Court Classic')).toBeInTheDocument();
+  });
+
+  it('titles an unclassified slot "Unclassified · <component>", as the map rail does (SP3-d m-2)', () => {
+    const unclassified = riskOf({
+      slot: { ...LEON.slot, class_id: `${SM_UNCLASSIFIED_CLASS_PREFIX}${VOMERO_IDS.bowline}:BW-EYE-8` },
+      slot_label: 'Eyelets, antique brass',
+    });
+    renderTable({ initial: { ...supplyRisksList, risks: [unclassified] } });
+    expect(within(rowOf('León Cuero')).getByText('Unclassified · Eyelets, antique brass')).toBeInTheDocument();
   });
 
   it('a closed row has no controls: the accepted row reads as text', () => {
