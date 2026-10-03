@@ -218,6 +218,23 @@ describe('AccountNav', () => {
     expect(screen.queryByRole('link', { name: 'Sourcing Map' })).toBeNull();
   });
 
+  it('shows Supply Risks and Demand Exceptions right after Watcher Backlog only when canUseSourcingMap', () => {
+    const { container, unmount } = render(
+      <AccountNav userName="Test User" userEmail="test@example.com" canUseSourcingMap />,
+    );
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const observe = sections.find((s) => s.textContent?.trimStart().startsWith('Sonar Observe'));
+    const hrefs = Array.from(observe!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    const at = hrefs.indexOf('/account/sonar/posture/changes');
+    expect(hrefs[at + 1]).toBe('/account/sonar/supply-risks');
+    expect(hrefs[at + 2]).toBe('/account/sonar/demand-exceptions');
+    expect(hrefs[hrefs.length - 1]).toBe('/sourcing-map');
+    unmount();
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Supply Risks' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Demand Exceptions' })).toBeNull();
+  });
+
   it('renders Sign Out as a POST form, never a prefetchable logout link', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     // No anchor to the logout route (a <Link> would be prefetched by Next).

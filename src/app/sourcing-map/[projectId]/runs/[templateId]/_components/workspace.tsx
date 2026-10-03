@@ -34,6 +34,21 @@ export interface WorkspaceProps {
   detailError?: string | null;
 }
 
+/**
+ * "Open map" (spec §12.1): the card ?option= names, only when ?execution= names the loaded execution. The option is
+ * `${slot}:${candidate_key}`, answerKey's own form, so it is composed forward and never parsed. A candidate without a
+ * `candidate_key` (an SP1 result) is never matched, so a participant id can't select a card.
+ */
+function seedSelection(execution: string | null, option: string | null, detail: SmExecutionDetail | null): { slot: number; candidate: number } | null {
+  if (!option || !detail?.result || execution !== detail.execution.execution_id) return null;
+  const slots = detail.result.slots;
+  for (let slot = 0; slot < slots.length; slot++) {
+    const candidate = slots[slot]!.candidates.findIndex((c) => c.candidate_key !== undefined && `${slot}:${c.candidate_key}` === option);
+    if (candidate !== -1) return { slot, candidate };
+  }
+  return null;
+}
+
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
   projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail,
@@ -53,7 +68,7 @@ export function Workspace({
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
-  const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(null);
+  const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(() => seedSelection(params.get('execution'), params.get('option'), initialDetail));
   // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
   // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
   const [handle, setHandle] = useState<{ alias: string; origin: string } | null>(null);
@@ -91,6 +106,14 @@ export function Workspace({
       return false;
     }
     setLoaded(out.data);
+    // I-1: an "Open map" link's ?execution=&option= named the result just replaced; a reload or a copied link would reopen it.
+    if (params.has('execution') || params.has('option')) {
+      const q = new URLSearchParams(params.toString());
+      q.delete('execution');
+      q.delete('option');
+      const rest = q.toString();
+      window.history.replaceState(null, '', rest ? `${pathname}?${rest}` : pathname);
+    }
     // R3: the pick and the collapsed rails are by slot (and candidate) index, so they named the result just replaced.
     setSelected(null);
     setHandle(null);
@@ -336,7 +359,7 @@ export function Workspace({
             onClose={closeHandle}
           />
         )}
-        {!trayOpen && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
+        {!trayOpen && detail && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
           <DetailsPanel
             // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
             // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
@@ -345,6 +368,8 @@ export function Workspace({
             // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
             // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
             hidden={handle !== null && handleNode !== null}
+            executionId={detail.execution.execution_id}
+            result={result}
             slot={result.slots[selected.slot]!}
             candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
             drops={result.portfolio.drops}

@@ -2,7 +2,7 @@
 import type { SmCandidateStatus, SmEstimateResponse } from '@haiwave/protocol';
 import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
-  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+  SmOptionAggregates, SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
@@ -33,6 +33,12 @@ export function formatQty(n: number): string {
 const SHORT_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 export function formatDropDate(iso: string): string {
   return SHORT_DATE.format(new Date(`${iso}T00:00:00Z`));
+}
+
+const FULL_DATE = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+/** A date or an instant as "Jul 24, 2026": the year formatDropDate leaves out. */
+export function formatDay(iso: string): string {
+  return FULL_DATE.format(new Date(iso));
 }
 
 const AS_OF = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
@@ -349,6 +355,20 @@ export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] 
   return out;
 }
 
+const PEER_LIST = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
+/** DECISIONS §1.2: the binding source also limits other options, so splitting between them does not help. Null when nothing is shared or no peer resolves. */
+export function sharedBindingText(result: SourcingMapExecutionResult, c: SmCandidateResult): string | null {
+  const aliases = (c.trace?.nodes ?? []).filter((n) => n.role === 'binding' && n.binds_for > 1).map((n) => n.alias);
+  const self = candidateKeyOf(c);
+  const peers: string[] = [];
+  for (const b of bindingNodes(result)) {
+    if (!aliases.includes(b.alias)) continue;
+    for (const o of b.options) if (o.key !== self && !peers.includes(o.name)) peers.push(o.name);
+  }
+  if (peers.length === 0) return null;
+  return `The same source limits ${PEER_LIST.format(peers)}; splitting between these options will not relieve the constraint.`;
+}
+
 /** The trace as one sentence, for the overlay's accessible name: edges with bands, the binding node, the gaps. */
 export function traceSentence(trace: SmTrace, names: Record<string, string>): string {
   const nameOf = (k: string) => names[k] ?? k;
@@ -358,6 +378,11 @@ export function traceSentence(trace: SmTrace, names: Record<string, string>): st
   }
   for (const g of trace.gaps) parts.push(`not observed below ${nameOf(g.at)}: ${GAP_STUB_WORD[g.status]}`);
   return parts.join('; ');
+}
+
+/** A card has something to trace: a trace with at least one edge or gap (A2's sentence, A4's cue). */
+export function traceable(c: SmCandidateResult): boolean {
+  return c.trace != null && (c.trace.edges.length > 0 || c.trace.gaps.length > 0);
 }
 
 const HOUR_UTC = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' });
@@ -392,6 +417,20 @@ export function pathSummary(c: SmCandidateResult): string | null {
   const tier = bindingTier(c);
   const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
   return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;
+}
+
+/** The card face's line for what is beneath (DECISIONS §1.3): null for a gap card or one with no aggregates. */
+export function cardSummaryText(c: SmCandidateResult): string | null {
+  if (c.aggregates == null || gapText(c.status) !== null) return null;
+  const { responders, median_lead_time_days: median } = c.aggregates;
+  const base = `${responders} ${responders === 1 ? 'responder' : 'responders'}`;
+  return median === null ? base : `${base} ${String.fromCharCode(0xb7)} median ${median} d`;
+}
+
+/** The aggregates' utilization counts as words: the details panel's string, shared with the card's bar name. */
+export function utilizationText(u: SmOptionAggregates['utilization']): string {
+  const dot = String.fromCharCode(0xb7);
+  return `${u.low} low ${dot} ${u.moderate} moderate ${dot} ${u.high} high ${dot} ${u.at_capacity} at capacity`;
 }
 
 /** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */

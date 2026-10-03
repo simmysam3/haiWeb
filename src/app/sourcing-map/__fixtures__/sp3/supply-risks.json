@@ -1,0 +1,142 @@
+{
+  "risks": [
+    {
+      "risk_id": "5a1e0000-0000-4000-8000-000000000501",
+      "template_id": "5a1e0000-0000-4000-8000-000000000021",
+      "template_name": "Line A base",
+      "slot": {
+        "class_id": "cpt_full_grain_leather_hides",
+        "uom": "sq ft",
+        "variant_bound": false,
+        "variant_system": null
+      },
+      "slot_label": "Full grain leather hides",
+      "products": [
+        "Pegasus Trail",
+        "Court Classic",
+        "Metcon Iron"
+      ],
+      "first_short_week": "2027-02-22",
+      "opened_at": "2026-10-05T10:43:10.000Z",
+      "last_seen_at": "2026-10-05T10:43:10.000Z",
+      "closed_at": null,
+      "closed_reason": null,
+      "owner": null,
+      "note": null,
+      "next_review": null,
+      "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000101",
+      "supplier_name": "León Cuero",
+      "supplier_sku": "LC-BOV-UP-01",
+      "requested": 13000,
+      "covered": 9821,
+      "origin": {
+        "tier": 2,
+        "class": {
+          "slug": "cpt_chemicals",
+          "label": "Chemicals",
+          "level": 1,
+          "of_levels": 4
+        },
+        "country": "IT",
+        "band": "moderate"
+      },
+      "status": "open",
+      "open_map": {
+        "project_id": "5a1e0000-0000-4000-8000-000000000001",
+        "template_id": "5a1e0000-0000-4000-8000-000000000021",
+        "execution_id": "5a1e0000-0000-4000-8000-000000000031",
+        "option_key": "0:[\"5a1e0000-0000-4000-8000-000000000101\",\"LC-BOV-UP-01\"]"
+      }
+    },
+    {
+      "risk_id": "5a1e0000-0000-4000-8000-000000000502",
+      "template_id": "5a1e0000-0000-4000-8000-000000000021",
+      "template_name": "Line A base",
+      "slot": {
+        "class_id": "cpt_polyester_knit_uppers",
+        "uom": "pr",
+        "variant_bound": false,
+        "variant_system": null
+      },
+      "slot_label": "Polyester knit uppers",
+      "products": [
+        "Pegasus Trail",
+        "Court Classic"
+      ],
+      "first_short_week": "2027-02-22",
+      "opened_at": "2026-10-05T10:43:10.000Z",
+      "last_seen_at": "2026-10-05T10:43:10.000Z",
+      "closed_at": "2026-10-05T10:43:10.000Z",
+      "closed_reason": "accepted",
+      "owner": {
+        "user_id": "5a1e0000-0000-4000-8000-000000000901",
+        "name": "CSG Demo"
+      },
+      "note": "Accepted: the shortfall is inside our safety stock.",
+      "next_review": "2026-11-02",
+      "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000107",
+      "supplier_name": "FlowKnit Mills",
+      "supplier_sku": "FK-KNIT-UP-3",
+      "requested": 11000,
+      "covered": 8200,
+      "origin": {
+        "tier": 2,
+        "class": {
+          "slug": "cpt_polyester",
+          "label": "Polyester",
+          "level": 3,
+          "of_levels": 4
+        },
+        "country": "TW",
+        "band": "slight"
+      },
+      "status": "accepted",
+      "open_map": null
+    },
+    {
+      "risk_id": "5a1e0000-0000-4000-8000-000000000503",
+      "template_id": null,
+      "template_name": "Line A base (old)",
+      "slot": {
+        "class_id": "cpt_full_grain_leather_hides",
+        "uom": "sq ft",
+        "variant_bound": false,
+        "variant_system": null
+      },
+      "slot_label": "Full grain leather hides",
+      "products": [
+        "Pegasus Trail",
+        "Court Classic",
+        "Metcon Iron"
+      ],
+      "first_short_week": "2027-02-22",
+      "opened_at": "2026-10-05T10:43:10.000Z",
+      "last_seen_at": "2026-10-05T10:43:10.000Z",
+      "closed_at": "2026-10-05T10:43:10.000Z",
+      "closed_reason": "auto_cleared",
+      "owner": null,
+      "note": null,
+      "next_review": null,
+      "supplier_participant_id": "5a1e0000-0000-4000-8000-000000000102",
+      "supplier_name": "Mekong Tannery",
+      "supplier_sku": "MK-FG-HIDE-2",
+      "requested": 4000,
+      "covered": 2500,
+      "origin": {
+        "tier": 2,
+        "class": {
+          "slug": "cpt_wet_blue",
+          "label": "Wet-blue",
+          "level": 4,
+          "of_levels": 4
+        },
+        "country": "VN",
+        "band": "slight"
+      },
+      "status": "resolved",
+      "open_map": null
+    }
+  ],
+  "open_count": 1,
+  "next_cursor": null
+}

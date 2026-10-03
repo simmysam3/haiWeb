@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { layoutMap, MAP_L, RAIL_L, sp2LinesHeight, tierRowsHeight, tiersOf } from '../layout';
+import { layoutMap, MAP_L, RAIL_L, sp2LinesHeight, summaryLineHeight, tierRowsHeight, tiersOf } from '../layout';
 import { vomeroResult } from '../../__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
 
 describe('layoutMap', () => {
   it('places lanes and cards like the prototype, collapses a lane, and survives zero slots (Review Focus 5)', () => {
@@ -40,7 +41,7 @@ describe('layoutMap', () => {
     expect(tierRowsHeight(slots[3]!)).toBe(MAP_L.tierRowsTop + MAP_L.tierRowH);     // Zephyr: tier 2 only
     expect(tierRowsHeight(vomeroResult.slots[0]!)).toBe(0);
     const l = layoutMap(slots, new Set());
-    expect(l.lanes[0]!.cardH).toBe(MAP_L.cardH + MAP_L.tierRowsTop + 2 * MAP_L.tierRowH + sp2LinesHeight(slots[0]!));
+    expect(l.lanes[0]!.cardH).toBe(MAP_L.cardH + MAP_L.tierRowsTop + 2 * MAP_L.tierRowH + sp2LinesHeight(slots[0]!) + MAP_L.summaryLineH);
     expect(l.lanes[0]!.h).toBe(l.lanes[0]!.textH + RAIL_L.linkGutter + l.lanes[0]!.cardH);
     expect(l.lanes[1]!.y).toBe(l.lanes[0]!.y + l.lanes[0]!.h + MAP_L.laneGap);
     const collapsed = layoutMap(slots, new Set([0]));
@@ -57,8 +58,8 @@ describe('layoutMap', () => {
     expect(MAP_L.noteLineH).toBe(20);
     expect(sp2LinesHeight(slots[0]!)).toBe(36);
     const l = layoutMap(slots, new Set());
-    expect(l.lanes.map((ln) => ln.cardH)).toEqual([212 + 60 + 36, 212 + 34, 212 + 34, 212 + 34]);
-    expect(l.lanes[1]!.y).toBe(l.lanes[0]!.y + l.lanes[0]!.textH + RAIL_L.linkGutter + 308 + MAP_L.laneGap);
+    expect(l.lanes.map((ln) => ln.cardH)).toEqual([212 + 60 + 36 + 20, 212 + 34 + 20, 212 + 34 + 20, 212 + 34 + 20]);
+    expect(l.lanes[1]!.y).toBe(l.lanes[0]!.y + l.lanes[0]!.textH + RAIL_L.linkGutter + 328 + MAP_L.laneGap);
     // `both` wraps as `inputs` does; Zephyr's `own` ("Limit: own capacity") is one line
     const zephyr = slots[3]!.candidates[0]!;
     expect(sp2LinesHeight(slots[3]!)).toBe(0);
@@ -70,5 +71,22 @@ describe('layoutMap', () => {
     expect(layoutMap(vomeroResult.slots, new Set()).lanes.map((ln) => [ln.y, ln.cardH])).toEqual(
       layoutMap(vomeroResult.slots, new Set()).lanes.map((ln) => [ln.y, MAP_L.cardH]),
     );
+  });
+
+  it("reserves the card summary's line in a lane whose answered card shows one, apart from the SP2 lines (A4, AR-5)", () => {
+    expect(MAP_L.summaryLineH).toBe(20);
+    const slots = multitierDetail.result!.slots;
+    expect(summaryLineHeight(slots[0]!)).toBe(20);
+    // a lane whose only card is a gap shows no summary
+    expect(summaryLineHeight({ ...slots[0]!, candidates: [{ ...slots[0]!.candidates[0]!, status: 'timeout' }] })).toBe(0);
+    // an SP1 card carries no aggregates
+    expect(vomeroResult.slots.every((slot) => summaryLineHeight(slot) === 0)).toBe(true);
+  });
+
+  it("reserves the two lines of the not-traced copy in a lane whose answered card carries it: 212 + Mekong's two tier rows + notTracedH (G-5)", () => {
+    expect(MAP_L.notTracedH).toBe(36);
+    const slots = notTracedDetail.result!.slots;
+    expect(sp2LinesHeight(slots[0]!)).toBe(36);
+    expect(layoutMap(slots, new Set()).lanes[0]!.cardH).toBe(212 + 60 + 36 + 20);
   });
 });

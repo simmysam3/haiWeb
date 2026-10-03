@@ -1,13 +1,17 @@
 'use client';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { availabilityReason, availabilityText, candidateKeyOf, candidateWeekAt, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, unobservedTier } from '@/lib/sourcing-map/map/selectors';
+import { availabilityReason, availabilityText, candidateKeyOf, candidateWeekAt, cardSummaryText, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, traceable, unobservedTier, utilizationText } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
 import { TierRows } from './tier-rows';
 
 const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
+/** The utilization bar's segments, in band order, with the tones `pill.tsx`'s `sm_utilization` map gives the same bands (AR-6). */
+const UTIL_BANDS = [['low', 'success'], ['moderate', 'info'], ['high', 'warn'], ['at_capacity', 'problem']] as const;
 // The D-148 disclosure ceiling, in the user's words; the internal register id stays out of the copy (L296).
+/** Contract §9: the card's and the handle panel's copy for a seat that answers for itself only. */
+export const NOT_TRACED_NOTE = 'not traced below (answers for itself only)';
 const AVAILABILITY_DEFINITION = "The supplier's answer at this drop, never more than you asked.";
 /** A click that lands on one of these inside the card belongs to it: the button, or a Pill's definition tip. */
 const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
@@ -35,6 +39,11 @@ export function OptionCard({
   const availability = availabilityText(c, week, demand, slot.slot_key.uom);
   const limit = limitReason(c);
   const unobserved = unobservedTier(c);
+  // Not traversing (SP3, G-5) outranks the unobserved note: the two never show together.
+  const note = c.not_traced_below === true ? NOT_TRACED_NOTE : unobserved !== null ? `not fully observed below tier ${unobserved}` : null;
+  const summary = cardSummaryText(c);
+  const util = summary !== null && c.aggregates != null ? c.aggregates.utilization : null;
+  const segments = util === null ? [] : UTIL_BANDS.filter(([k]) => util[k] > 0);
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
   return (
     <article
@@ -56,7 +65,7 @@ export function OptionCard({
         data-anchor={candidateKeyOf(c)}
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${unobserved !== null ? `; not fully observed below tier ${unobserved}` : ''}`}
+        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${note !== null ? `; ${note}` : ''}`}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="truncate text-sm font-semibold" title={c.supplier_name}>{c.supplier_name}</span>
@@ -71,7 +80,7 @@ export function OptionCard({
         )}
       </span>
       {!gap && <span className="mt-2">{limit}</span>}
-      {!gap && unobserved !== null && <span className="sm-warn mt-1">{`not fully observed below tier ${unobserved}`}</span>}
+      {!gap && note !== null && <span className="sm-warn mt-1">{note}</span>}
       {!gap && (
         <span className="mt-1 flex flex-wrap items-center gap-2">
           {c.own_lead_time_days !== null && <span>{`${c.own_lead_time_days} d lead`}</span>}
@@ -84,7 +93,20 @@ export function OptionCard({
       )}
       <DropPips slot={slot} candidate={c} drops={drops} asOfDrop={asOfDrop} />
       <TierRows candidate={c} traced={traced} selectedAlias={selectedAlias} onSelectAlias={onSelectAlias} hoveredAlias={hoveredAlias} onHoverAlias={onHoverAlias} />
-      <span className="mt-auto flex justify-end pt-2"><DetailChevron /></span>
+      <span className="mt-auto flex flex-col pt-2">
+        {summary !== null && <span className="truncate" title={summary}>{summary}</span>}
+        <span className={`flex items-center gap-2 ${summary !== null ? 'mt-1' : ''}`}>
+          {util !== null && segments.length > 0 && (
+            <span role="img" aria-label={`Utilization below tier 1: ${utilizationText(util)}`} className="flex h-1.5 w-16 overflow-hidden rounded-full">
+              {segments.map(([k, tone]) => (
+                <span key={k} data-util={k} style={{ flexGrow: util[k], background: `var(--sm-pill-${tone}-fg)` }} />
+              ))}
+            </span>
+          )}
+          {traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
+          <span className="ml-auto flex"><DetailChevron /></span>
+        </span>
+      </span>
     </article>
   );
 }

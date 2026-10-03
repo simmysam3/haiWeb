@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
+import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf } from '../selectors';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
 describe('map selectors', () => {
+  it('formats a date or an instant with the year (UTC)', () => {
+    expect(formatDay('2026-07-24')).toBe('Jul 24, 2026');
+    expect(formatDay('2026-07-24T16:57:29.300Z')).toBe('Jul 24, 2026');
+  });
+
   it('colours links by the 90 / 70 thresholds and floors percentages', () => {
     expect([heatOf(1), heatOf(0.9), heatOf(0.8999), heatOf(0.7), heatOf(0.6999), heatOf(0)]).toEqual(['good', 'good', 'mid', 'mid', 'bad', 'bad']);
     expect([heatVar(0.95), heatVar(0.8), heatVar(0.5)]).toEqual(['var(--sm-heat-good)', 'var(--sm-heat-mid)', 'var(--sm-heat-bad)']);
@@ -212,6 +217,15 @@ describe('SP2 selectors: waiting and the gap stubs (contract §10)', () => {
 });
 
 describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', () => {
+  // León and Mekong both bind alias A (binds_for 2): the SP2 fixture has no shared binding of its own
+  const buildTwice = () => {
+    const twice = structuredClone(mt);
+    twice.slots[0]!.candidates[1]!.limit = 'inputs';
+    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    twice.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+    return twice;
+  };
+
   it('lists the options an alias sits under, in display order, and finds its node (the preferred option’s first)', () => {
     expect(underOf(mt, 'A')).toEqual(['leon', 'mekong']);
     expect(underOf(mt, 'D')).toEqual(['flowknit', 'bowline']);
@@ -224,11 +238,38 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
 
   it('collects every binding node once with the options it binds, in display order', () => {
     expect(bindingNodes(mt)).toEqual([{ alias: 'A', tier: 2, options: [{ slot: 0, candidate: 0, key: 'leon', name: 'León Cuero', binds_for: 1 }] }]);
-    const twice = structuredClone(mt);
-    twice.slots[0]!.candidates[1]!.limit = 'inputs';
-    twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+    const twice = buildTwice();
     expect(bindingNodes(twice)[0]!.options.map((o) => o.key)).toEqual(['leon', 'mekong']);
     expect(bindingNodes(vomeroResult)).toEqual([]);
+  });
+
+  it('names the other options a shared binding source limits, each from its own side (A3)', () => {
+    const twice = buildTwice();
+    const [leon, mekong] = twice.slots[0]!.candidates;
+    const tail = 'splitting between these options will not relieve the constraint.';
+    expect(sharedBindingText(twice, leon!)).toBe(`The same source limits Mekong Tannery; ${tail}`);
+    expect(sharedBindingText(twice, mekong!)).toBe(`The same source limits León Cuero; ${tail}`);
+  });
+
+  it('lists three options with the conjunction, in first-seen order (A3)', () => {
+    const three = buildTwice();
+    const slots = three.slots;
+    slots[1]!.candidates[0]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 3 }], edges: [{ parent: 'flowknit', child: 'A', band: 'slight' }], gaps: [] };
+    slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 3;
+    slots[0]!.candidates[1]!.trace!.nodes[0]!.binds_for = 3;
+    expect(sharedBindingText(three, slots[0]!.candidates[0]!)).toBe('The same source limits Mekong Tannery and FlowKnit Mills; splitting between these options will not relieve the constraint.');
+  });
+
+  it('says nothing when the source binds one option, or when no peer resolves (A3, AR-4)', () => {
+    expect(sharedBindingText(mt, leon2!)).toBeNull();
+    const lone = structuredClone(mt);
+    lone.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+    expect(sharedBindingText(lone, lone.slots[0]!.candidates[0]!)).toBeNull();
+    expect(sharedBindingText(mt, mekong2!)).toBeNull();
+    // a peer exists, but this option's own node binds for one: the gate is binds_for, not the role alone
+    const gated = buildTwice();
+    gated.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 1;
+    expect(sharedBindingText(gated, gated.slots[0]!.candidates[0]!)).toBeNull();
   });
 
   it('says the trace in one sentence: each edge with its band, the binding node and tier, each gap with its status word', () => {
@@ -236,6 +277,14 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     const deep = { nodes: [{ alias: 'A', tier: 2, role: 'inherited' as const, band: 'moderate' as const, binds_for: 1 }, { alias: 'C', tier: 3, role: 'binding' as const, band: 'severe' as const, binds_for: 2 }],
       edges: [{ parent: 'leon', child: 'A', band: 'moderate' as const }, { parent: 'A', child: 'C', band: 'severe' as const }], gaps: [] };
     expect(traceSentence(deep, CANDIDATE_NAMES)).toBe('León Cuero → A (moderate); A → C (severe); binding: C (tier 3), for 2 options');
+  });
+
+  it('a card is traceable when its trace has at least one edge or gap (A2)', () => {
+    expect(traceable(leon2!)).toBe(true);
+    expect(traceable(mekong2!)).toBe(false);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: [] } })).toBe(false);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: leon2!.trace!.gaps } })).toBe(true);
+    expect(traceable({ ...leon2!, trace: { nodes: [], edges: leon2!.trace!.edges, gaps: [] } })).toBe(true);
   });
 });
 
@@ -253,6 +302,22 @@ describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec 
     expect(mayWaitNames(mayWaitEstimate)).toEqual(['Arno Pelli']);
     expect(mayWaitNames(vomeroEstimate)).toEqual([]);
     expect(mayWaitNames({ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] })).toEqual([]);
+  });
+
+  it("summarises what is beneath a card in one line: the responders and, when served, the median lead time; nothing for a gap card or an SP1 card (A4, AR-8)", () => {
+    expect(cardSummaryText(leon2!)).toBe('3 responders · median 14 d');
+    // FlowKnit: one responder, median null, so the clause drops (no "median null d", no dash)
+    expect(cardSummaryText(mt.slots[1]!.candidates[0]!)).toBe('1 responder');
+    // Arno timed out and carries aggregates: null, so there is nothing to count
+    expect(arno2!.aggregates).toBeNull();
+    expect(cardSummaryText(arno2!)).toBeNull();
+    // a gap card that still carries aggregates has no beneath either
+    expect(cardSummaryText({ ...leon2!, status: 'timeout' })).toBeNull();
+    expect(cardSummaryText(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+
+  it("reads the aggregates' utilization counts as words, every band always present, even at 0 (A4)", () => {
+    expect(utilizationText({ low: 1, moderate: 1, high: 0, at_capacity: 1 })).toBe('1 low · 1 moderate · 0 high · 1 at capacity');
   });
 
   it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate, nor for one that never answered (M-3)', () => {

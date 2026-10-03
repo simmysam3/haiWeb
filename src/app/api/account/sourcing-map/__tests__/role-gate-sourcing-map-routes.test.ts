@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import type { UserRole } from '@/lib/auth';
+import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { Method, RecordedCall, RouteSpec } from '@/test/role-gate';
 
 const state = vi.hoisted(() => ({ role: 'buyer_view_only' as string, calls: [] as string[], recorded: [] as RecordedCall[] }));
@@ -20,6 +21,10 @@ const PROJECT = '5a1e0000-0000-4000-8000-000000000001';
 const PRODUCT = '5a1e0000-0000-4000-8000-000000000011';
 const TEMPLATE = '5a1e0000-0000-4000-8000-000000000021';
 const EXECUTION = '5a1e0000-0000-4000-8000-000000000031';
+const RISK = '5a1e0000-0000-4000-8000-000000000041';
+const EXCEPTION = '5a1e0000-0000-4000-8000-000000000051';
+const LEON = VOMERO_IDS.leon;
+const KEY = JSON.stringify([LEON, 'A/B "x",1']);
 const SCOPE = { kind: 'sourcing_map', project_id: PROJECT, products: [] };
 
 interface SmRouteSpec extends RouteSpec {
@@ -31,7 +36,7 @@ interface SmRouteSpec extends RouteSpec {
   bodies?: Partial<Record<Method, unknown>>;
 }
 
-// Contract §6.2: 21 files, 29 handlers. Spec §10: 403 outside the account_admin family, reads included.
+// Contract §6.2 + §9: 27 files, 36 handlers. Spec §10: 403 outside the account_admin family, reads included.
 const ROUTES: SmRouteSpec[] = [
   { name: 'projects', load: () => import('../projects/route'), methods: ['GET', 'POST'],
     upstream: '/sourcing-map/projects', bodies: { POST: { name: 'Spring 2027' } } },
@@ -76,6 +81,20 @@ const ROUTES: SmRouteSpec[] = [
     upstream: `/sourcing-map/executions/${EXECUTION}/status`, queries: { GET: '?cursor=4' } },
   { name: 'executions/[executionId]/cancel', load: () => import('../executions/[executionId]/cancel/route'), methods: ['POST'], params: { executionId: EXECUTION },
     upstream: `/sourcing-map/executions/${EXECUTION}/cancel` },
+  { name: 'supply-risks', load: () => import('../supply-risks/route'), methods: ['GET'],
+    upstream: '/sourcing-map/supply-risks', queries: { GET: '?status=open' } },
+  { name: 'supply-risks/[riskId]', load: () => import('../supply-risks/[riskId]/route'), methods: ['PATCH'], params: { riskId: RISK },
+    upstream: `/sourcing-map/supply-risks/${RISK}`, bodies: { PATCH: { status: 'contacted' } } },
+  { name: 'demand-exceptions', load: () => import('../demand-exceptions/route'), methods: ['GET'],
+    upstream: '/sourcing-map/demand-exceptions', queries: { GET: '?cursor=2' } },
+  { name: 'demand-exceptions/[exceptionId]/ignore', load: () => import('../demand-exceptions/[exceptionId]/ignore/route'), methods: ['POST'], params: { exceptionId: EXCEPTION },
+    upstream: `/sourcing-map/demand-exceptions/${EXCEPTION}/ignore` },
+  { name: 'executions/[executionId]/options/[candidateKey]/panel', load: () => import('../executions/[executionId]/options/[candidateKey]/panel/route'), methods: ['GET'],
+    params: { executionId: EXECUTION, candidateKey: KEY },
+    upstream: `/sourcing-map/executions/${EXECUTION}/options/${encodeURIComponent(KEY)}/panel` },
+  { name: 'settings/sourcing-map-setting', load: () => import('../../settings/sourcing-map-setting/route'), methods: ['GET', 'PUT'],
+    upstream: '/participants/participant-1/sourcing-map-setting', queries: { GET: '?participant=other', PUT: '?participant=other' },
+    bodies: { PUT: { answer_for_myself_only: true } } },
 ];
 
 function requestOf(route: SmRouteSpec, method: Method): NextRequest {
@@ -101,9 +120,9 @@ beforeEach(() => {
 });
 
 describe('Sourcing Map BFF routes forward to haiCore and are role-gated, reads included (contract §6.2, spec §10, AC 1)', () => {
-  it('covers 29 handlers in 21 files', () => {
-    expect(ROUTES).toHaveLength(21);
-    expect(ROUTES.reduce((a, r) => a + r.methods.length, 0)).toBe(29);
+  it('covers 36 handlers in 27 files', () => {
+    expect(ROUTES).toHaveLength(27);
+    expect(ROUTES.reduce((a, r) => a + r.methods.length, 0)).toBe(36);
   });
   for (const route of ROUTES) {
     for (const method of route.methods) {
@@ -133,5 +152,17 @@ describe('Sourcing Map BFF routes forward to haiCore and are role-gated, reads i
         });
       }
     }
+  }
+});
+
+describe('the option panel route refuses a dot-segment candidateKey before haiCore (G-34)', () => {
+  for (const key of ['..', '.']) {
+    it(`answers 404 for candidateKey ${key} and calls nothing`, async () => {
+      state.role = 'account_admin';
+      const { GET } = await import('../executions/[executionId]/options/[candidateKey]/panel/route');
+      const res = await (GET as unknown as Handler)(requestOf(ROUTES[0]!, 'GET'), { params: Promise.resolve({ executionId: EXECUTION, candidateKey: key }) });
+      expect(res.status).toBe(404);
+      expect(state.calls).toEqual([]);
+    });
   }
 });

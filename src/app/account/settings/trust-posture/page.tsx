@@ -2,6 +2,7 @@ import { fetchBffJson } from '@/lib/server-fetch';
 import type { ParticipantModalityPosture, Modality, Posture, TrustClass } from '@haiwave/protocol';
 import { PageHeader } from '@/components/page-header';
 import { PostureGrid } from './_components/posture-grid';
+import { AnswerForMyselfOnly } from './_components/answer-for-myself-only';
 
 interface PostureGridResponse {
   postures: ParticipantModalityPosture[];
@@ -76,6 +77,16 @@ async function loadPostures(): Promise<LoadResult> {
   return { postures: result.data.postures ?? [], error: null };
 }
 
+/** The caller's Sourcing Map setting; null when it could not be read (so the switch is disabled). */
+async function loadSetting(): Promise<boolean | null> {
+  const result = await fetchBffJson<{ answer_for_myself_only?: unknown }>(
+    '/api/account/settings/sourcing-map-setting',
+  );
+  if (result.kind === 'error') return null;
+  const value = result.data?.answer_for_myself_only;
+  return typeof value === 'boolean' ? value : null;
+}
+
 /**
  * Server component for /account/settings/trust-posture. Loads the caller's
  * 4 × 3 posture grid (12 rows) on the server via the BFF passthrough so the
@@ -93,7 +104,7 @@ async function loadPostures(): Promise<LoadResult> {
  * /account/* requests to /api/auth/login before this component runs.
  */
 export default async function TrustPosturePage() {
-  const { postures, error } = await loadPostures();
+  const [{ postures, error }, setting] = await Promise.all([loadPostures(), loadSetting()]);
 
   return (
     <div className="space-y-2">
@@ -110,6 +121,7 @@ export default async function TrustPosturePage() {
         </div>
       )}
       <PostureGrid initialPostures={postures} />
+      <AnswerForMyselfOnly initial={setting} />
     </div>
   );
 }

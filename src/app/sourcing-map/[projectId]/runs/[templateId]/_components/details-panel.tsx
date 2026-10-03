@@ -1,17 +1,20 @@
 'use client';
 import { useEffect, useRef } from 'react';
-import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { EM_DASH, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, slotWeekFor, sortedVariantEntries } from '@/lib/sourcing-map/map/selectors';
+import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
+import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable, utilizationText } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
+import { OptionPanel } from './option-panel';
+
+const TRACE_BANDS: SmBand[] = ['slight', 'moderate', 'severe'];
 
 /**
- * Card details (spec §9.3). Scorecard, delivery history and price terms arrive with SP3 and SP4.
+ * Card details (spec §9.3). Price terms arrive with SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
- * SP2 (spec §12.4): the path summary and the sub-tier aggregates; scorecard and delivery history are SP3.
+ * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
-  slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
+export function DetailsPanel({ executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false }: {
+  executionId: string; result: SourcingMapExecutionResult2; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
   productNames: Record<string, string>; onClose(): void;
   /** SP2 (spec §12.4, P2): hidden, not unmounted, while a handle panel holds the column, so it never remounts and refocuses */
   hidden?: boolean;
@@ -20,6 +23,7 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
   const answerWeek = candidateWeekAt(c, asOfWeek);
   const summary = pathSummary(c);
+  const shared = sharedBindingText(result, c);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -41,17 +45,30 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
         <section aria-label="Below tier 1" className="mt-4">
           <h3 className="sm-muted text-xs">Below tier 1</h3>
           <p className="mt-1">{summary}</p>
+          {c.trace && traceable(c) && <p className="mt-1">{`Shortfall trace: ${traceSentence(c.trace, candidateNamesOf(result))}`}</p>}
+          {c.trace && c.trace.edges.length > 0 && (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className="sm-muted">Trace lines:</span>
+              <ul aria-label="Trace line bands" className="flex gap-3">
+                {TRACE_BANDS.map((band) => (
+                  <li key={band} className="flex items-center gap-1"><span aria-hidden="true" className="inline-block h-0.5 w-4" style={{ background: bandVar(band) }} />{bandWord(band)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {shared !== null && <p className="sm-warn mt-2">{shared}</p>}
           {c.aggregates && (
             <dl aria-label="Sub-tier aggregates" className="mt-2 grid grid-cols-2 gap-2">
               <dt className="sm-muted">Responders</dt><dd>{c.aggregates.responders}</dd>
               <dt className="sm-muted">Median lead time</dt><dd>{c.aggregates.median_lead_time_days !== null ? `${c.aggregates.median_lead_time_days} d` : EM_DASH}</dd>
               <dt className="sm-muted">Utilization</dt>
-              <dd>{`${c.aggregates.utilization.low} low · ${c.aggregates.utilization.moderate} moderate · ${c.aggregates.utilization.high} high · ${c.aggregates.utilization.at_capacity} at capacity`}</dd>
+              <dd>{utilizationText(c.aggregates.utilization)}</dd>
               <dt className="sm-muted">Countries</dt><dd>{c.aggregates.countries.length > 0 ? c.aggregates.countries.join(', ') : EM_DASH}</dd>
               <dt className="sm-muted">Classes</dt><dd>{c.aggregates.classes.length > 0 ? c.aggregates.classes.join(', ') : EM_DASH}</dd>
               <dt className="sm-muted">Not observed</dt><dd>{c.aggregates.not_observed}</dd>
             </dl>
           )}
+          <p className="sm-muted mt-2 text-xs">Sources below tier 1 were not searched for alternatives.</p>
         </section>
       )}
       <table aria-label="Coverage by drop" className="sm-table mt-6">
@@ -90,7 +107,9 @@ export function DetailsPanel({ slot, candidate: c, drops, asOfDrop, productNames
           </tbody>
         </table>
       )}
-      <p className="sm-muted mt-6 text-xs">Scorecard, delivery history and price terms arrive in later releases.</p>
+      {/* An SP1 candidate has no candidate_key: its participant id is not an option key, so the panel never asks for it. */}
+      <OptionPanel executionId={executionId} candidateKey={c.candidate_key ?? null} />
+      <p className="sm-muted mt-6 text-xs">Price terms arrive in a later release.</p>
     </aside>
   );
 }

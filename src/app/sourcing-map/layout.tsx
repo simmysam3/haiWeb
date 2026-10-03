@@ -1,5 +1,8 @@
 import { forbidden } from 'next/navigation';
 import { getSession, hasRole } from '@/lib/auth';
+import { fetchBffJson } from '@/lib/server-fetch';
+import type { SmSupplyRiskListResponse } from '@/lib/sourcing-map/types';
+import { OpenRisksProvider } from './_components/open-risks';
 import { SmThemeRoot } from './_components/theme-root';
 import './sourcing-map.css';
 
@@ -8,10 +11,19 @@ import './sourcing-map.css';
  * /admin precedent (src/app/admin/layout.tsx). proxy.ts sends a request
  * with no session cookie to login; a stale cookie with no session also
  * gets 403 here. Roles outside hasRole(…,'account_admin') get 403
- * (spec §9.2, §10, AC 1).
+ * (spec §9.2, §10, AC 1). After that check it reads the header's open supply-risk
+ * count once for every page under it; a failed read leaves the plain link.
  */
 export default async function SourcingMapLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session || !hasRole(session.user.role, 'account_admin')) forbidden();
-  return <SmThemeRoot>{children}</SmThemeRoot>;
+  const risks = await fetchBffJson<SmSupplyRiskListResponse>(
+    '/api/account/sourcing-map/supply-risks?status=open&status=contacted&status=resolving',
+  );
+  const openCount = risks.kind === 'ok' && Number.isInteger(risks.data.open_count) ? risks.data.open_count : null;
+  return (
+    <SmThemeRoot>
+      <OpenRisksProvider count={openCount}>{children}</OpenRisksProvider>
+    </SmThemeRoot>
+  );
 }

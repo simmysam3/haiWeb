@@ -5,7 +5,10 @@ import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smPageId } from '@/lib/sourcing-map/page-id';
 import { Workspace } from './_components/workspace';
 
-export default async function RunWorkspacePage({ params }: { params: Promise<{ projectId: string; templateId: string }> }) {
+export default async function RunWorkspacePage({ params, searchParams }: {
+  params: Promise<{ projectId: string; templateId: string }>;
+  searchParams?: Promise<{ execution?: string | string[] }>;
+}) {
   const ids = await params;
   const projectId = smPageId(ids.projectId);
   const templateId = smPageId(ids.templateId);
@@ -24,7 +27,11 @@ export default async function RunWorkspacePage({ params }: { params: Promise<{ p
   ]);
   const list = executions.kind === 'ok' ? executions.data.executions : [];
   const newest = [...list].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
-  const detail = newest ? await fetchBffJson<SmExecutionDetail>(`/api/account/sourcing-map/executions/${newest.execution_id}`) : null;
+  // "Open map" (spec §12.1): ?execution= picks the result to open when this run lists it; a foreign or unknown id opens the newest.
+  const asked = (await searchParams)?.execution;
+  const wanted = Array.isArray(asked) ? asked[0] : asked;
+  const chosen = list.find((x) => x.execution_id === wanted) ?? newest;
+  const detail = chosen ? await fetchBffJson<SmExecutionDetail>(`/api/account/sourcing-map/executions/${chosen.execution_id}`) : null;
   // R1 (the [projectId]/page.tsx precedent): a failed read is shown, never a silent fallback.
   return (
     <Workspace

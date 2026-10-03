@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
 import { OptionCard } from '../option-card';
 
 const drops = vomeroResult.portfolio.drops;
@@ -134,6 +135,82 @@ describe('OptionCard', () => {
     const zephyr2 = multitierDetail.result!.slots[3]!.candidates[0]!;
     rerender(<OptionCard slot={multitierDetail.result!.slots[3]!} candidate={zephyr2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
     expect(screen.getByText('Limit: own capacity')).toBeInTheDocument();
+  });
+
+  const NOT_TRACED = 'not traced below (answers for itself only)';
+  const notTracedSlot = notTracedDetail.result!.slots[0]!;
+  const notTracedDrops = notTracedDetail.result!.portfolio.drops;
+
+  it('says "not traced below (answers for itself only)" in place of the unobserved note on a card that does not traverse (G-5)', () => {
+    render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[0]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText(NOT_TRACED)).toBeInTheDocument();
+    expect(screen.queryByText(/not fully observed/)).toBeNull();
+  });
+
+  it('ends the selecting button’s name with the not-traced copy, never the unobserved clause (G-5)', () => {
+    render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[0]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    const name = screen.getByRole('button', { name: /León Cuero, MX/ }).getAttribute('aria-label')!;
+    expect(name.endsWith(`; ${NOT_TRACED}`)).toBe(true);
+    expect(name).not.toMatch(/not fully observed/);
+  });
+
+  it('leaves every other card alone: Mekong shows no note beside a not-traced León, and SP2’s León still reads "not fully observed below tier 2" (G-5)', () => {
+    const { rerender } = render(<OptionCard slot={notTracedSlot} candidate={notTracedSlot.candidates[1]!} asOfDrop="2027-03-15" drops={notTracedDrops} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByText(NOT_TRACED)).toBeNull();
+    expect(screen.queryByText(/not fully observed/)).toBeNull();
+    rerender(<OptionCard slot={leather2} candidate={leather2.candidates[0]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('not fully observed below tier 2')).toBeInTheDocument();
+    expect(screen.queryByText(NOT_TRACED)).toBeNull();
+  });
+
+  const UTIL_NAME = 'Utilization below tier 1: 1 low · 1 moderate · 0 high · 1 at capacity';
+  const leon2 = leather2.candidates[0]!;
+
+  it('summarises what is beneath on the card face: the responders and median, a utilization bar of the non-zero bands, and the "Select to trace" cue (A4)', () => {
+    render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    const bar = screen.getByRole('img', { name: UTIL_NAME });
+    const segments = [...bar.children] as HTMLElement[];
+    expect(segments.map((el) => el.getAttribute('data-util'))).toEqual(['low', 'moderate', 'at_capacity']);
+    expect(segments.map((el) => el.style.flexGrow)).toEqual(['1', '1', '1']);
+    expect(segments[2]!.style.background).toBe('var(--sm-pill-problem-fg)');
+    expect(screen.getByText('Select to trace')).toBeInTheDocument();
+  });
+
+  it('drops the cue once the card is selected and traced (A4)', () => {
+    render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected traced onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByText('Select to trace')).toBeNull();
+  });
+
+  it('shows the summary but no cue on a card with nothing to trace (A4)', () => {
+    const mekong2 = leather2.candidates[1]!;
+    expect(mekong2.trace).toBeNull();
+    render(<OptionCard slot={leather2} candidate={mekong2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByText('Select to trace')).toBeNull();
+  });
+
+  it('draws no bar when every utilization count is 0, and none on a gap card (A4)', () => {
+    const zero = { ...leon2, aggregates: { ...leon2.aggregates!, utilization: { low: 0, moderate: 0, high: 0, at_capacity: 0 } } };
+    const { rerender } = render(<OptionCard slot={leather2} candidate={zero} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    rerender(<OptionCard slot={leather2} candidate={leather2.candidates[2]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    expect(screen.queryByText(/responder/)).toBeNull();
+    // a gap card that still carries aggregates shows neither the summary nor the bar
+    rerender(<OptionCard slot={leather2} candidate={{ ...leon2, status: 'timeout' }} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    expect(screen.queryByText(/responder/)).toBeNull();
+  });
+
+  it("keeps the chevron a flex item in the footer row, on an SP1 card and on an SP2 card, so the row stays the chevron's 24 px (A4 review)", () => {
+    const { rerender } = render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    const wrapper = () => screen.getByRole('button', { name: /León Cuero, MX/ }).closest('article')!.querySelector('.ml-auto')!;
+    expect(wrapper().className).toBe('ml-auto flex');
+    rerender(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(wrapper().className).toBe('ml-auto flex');
   });
 
   it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {
