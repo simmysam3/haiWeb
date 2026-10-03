@@ -163,6 +163,44 @@ describe('OptionCard', () => {
     expect(screen.queryByText(NOT_TRACED)).toBeNull();
   });
 
+  const UTIL_NAME = 'Utilization below tier 1: 1 low · 1 moderate · 0 high · 1 at capacity';
+  const leon2 = leather2.candidates[0]!;
+
+  it('summarises what is beneath on the card face: the responders and median, a utilization bar of the non-zero bands, and the "Select to trace" cue (A4)', () => {
+    render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    const bar = screen.getByRole('img', { name: UTIL_NAME });
+    const segments = [...bar.children] as HTMLElement[];
+    expect(segments.map((el) => el.getAttribute('data-util'))).toEqual(['low', 'moderate', 'at_capacity']);
+    expect(segments.map((el) => el.style.flexGrow)).toEqual(['1', '1', '1']);
+    expect(segments[2]!.style.background).toBe('var(--sm-pill-problem-fg)');
+    expect(screen.getByText('Select to trace')).toBeInTheDocument();
+  });
+
+  it('drops the cue once the card is selected and traced (A4)', () => {
+    render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected traced onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByText('Select to trace')).toBeNull();
+  });
+
+  it('shows the summary but no cue on a card with nothing to trace (A4)', () => {
+    const mekong2 = leather2.candidates[1]!;
+    expect(mekong2.trace).toBeNull();
+    render(<OptionCard slot={leather2} candidate={mekong2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByText('Select to trace')).toBeNull();
+  });
+
+  it('draws no bar when every utilization count is 0, and none on a gap card (A4)', () => {
+    const zero = { ...leon2, aggregates: { ...leon2.aggregates!, utilization: { low: 0, moderate: 0, high: 0, at_capacity: 0 } } };
+    const { rerender } = render(<OptionCard slot={leather2} candidate={zero} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.getByText('3 responders · median 14 d')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    rerender(<OptionCard slot={leather2} candidate={leather2.candidates[2]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    expect(screen.queryByText(/responder/)).toBeNull();
+  });
+
   it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();

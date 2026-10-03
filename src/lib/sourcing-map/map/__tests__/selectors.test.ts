@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
+import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
@@ -302,6 +302,20 @@ describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec 
     expect(mayWaitNames(mayWaitEstimate)).toEqual(['Arno Pelli']);
     expect(mayWaitNames(vomeroEstimate)).toEqual([]);
     expect(mayWaitNames({ ...vomeroEstimate, responders_short: [{ participant_id: '5a1e0000-0000-4000-8000-000000000103', legal_name: 'Arno Pelli', probes_planned: 1, remaining_allowance: 1 }] })).toEqual([]);
+  });
+
+  it("summarises what is beneath a card in one line: the responders and, when served, the median lead time; nothing for a gap card or an SP1 card (A4, AR-8)", () => {
+    expect(cardSummaryText(leon2!)).toBe('3 responders · median 14 d');
+    // FlowKnit: one responder, median null, so the clause drops (no "median null d", no dash)
+    expect(cardSummaryText(mt.slots[1]!.candidates[0]!)).toBe('1 responder');
+    // Arno timed out: a gap card has no beneath, whatever its aggregates carry
+    expect(arno2!.aggregates).toBeDefined();
+    expect(cardSummaryText(arno2!)).toBeNull();
+    expect(cardSummaryText(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
+  });
+
+  it("reads the aggregates' utilization counts as words, every band always present, even at 0 (A4)", () => {
+    expect(utilizationText({ low: 1, moderate: 1, high: 0, at_capacity: 1 })).toBe('1 low · 1 moderate · 0 high · 1 at capacity');
   });
 
   it('summarises the path: observed and not-observed inputs, and the binding tier when there is one; nothing for an SP1 candidate, nor for one that never answered (M-3)', () => {

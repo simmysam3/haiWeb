@@ -2,7 +2,7 @@
 import type { SmCandidateStatus, SmEstimateResponse } from '@haiwave/protocol';
 import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
-  SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
+  SmOptionAggregates, SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
@@ -417,6 +417,20 @@ export function pathSummary(c: SmCandidateResult): string | null {
   const tier = bindingTier(c);
   const base = `Inputs: ${c.nodes.length} observed, ${c.aggregates?.not_observed ?? 0} not observed`;
   return tier === null ? base : `${base} ${String.fromCharCode(0xb7)} binding at tier ${tier}`;
+}
+
+/** The card face's line for what is beneath (DECISIONS §1.3): null for a gap card or one with no aggregates. */
+export function cardSummaryText(c: SmCandidateResult): string | null {
+  if (c.aggregates == null || gapText(c.status) !== null) return null;
+  const { responders, median_lead_time_days: median } = c.aggregates;
+  const base = `${responders} ${responders === 1 ? 'responder' : 'responders'}`;
+  return median === null ? base : `${base} ${String.fromCharCode(0xb7)} median ${median} d`;
+}
+
+/** The aggregates' utilization counts as words: the details panel's string, shared with the card's bar name. */
+export function utilizationText(u: SmOptionAggregates['utilization']): string {
+  const dot = String.fromCharCode(0xb7);
+  return `${u.low} low ${dot} ${u.moderate} moderate ${dot} ${u.high} high ${dot} ${u.at_capacity} at capacity`;
 }
 
 /** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */

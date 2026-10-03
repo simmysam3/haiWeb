@@ -1,5 +1,5 @@
 import type { SmSlotResult2 as SmSlotResult, SmSubtierNode } from '../types';
-import { gapText, unobservedTier } from './selectors';
+import { cardSummaryText, gapText, unobservedTier } from './selectors';
 
 /** The prototype's canvas geometry (docs/haiwave-sourcing-map.html:1325 `L`, :1329-1340). */
 export const MAP_L = {
@@ -16,6 +16,8 @@ export const MAP_L = {
    * (answers for itself only)" is 42 characters, so it wraps in the card: two 16 px lines plus the 4 px margin.
    */
   limitWrapH: 16, noteLineH: 20, notTracedH: 36,
+  /** The card face's summary line (A4): the 16 px text-xs line plus its 4 px margin above the footer row (PREDICTED; Task 12 measures). */
+  summaryLineH: 20,
 } as const;
 
 /**
@@ -33,7 +35,7 @@ export interface MapLayout {
     slotIndex: number; y: number; h: number; collapsed: boolean;
     /** the height of the rail's text; the links and the cards stay below it */
     textH: number;
-    /** the card box for this lane: MAP_L.cardH plus its tier rows and its SP2 card lines */
+    /** the card box for this lane: MAP_L.cardH plus its tier rows, its SP2 card lines and its summary line */
     cardH: number;
     cards: Array<{ candidateIndex: number; x: number; y: number }>;
   }>;
@@ -93,6 +95,11 @@ export function sp2LinesHeight(slot: SmSlotResult): number {
   return (wraps ? MAP_L.limitWrapH : 0) + noteH;
 }
 
+/** The summary line a lane reserves when any answered shown card has one (A4); kept apart from sp2LinesHeight. 0 for an SP1 slot. */
+export function summaryLineHeight(slot: SmSlotResult): number {
+  return shownOf(slot).some(({ c }) => cardSummaryText(c) !== null) ? MAP_L.summaryLineH : 0;
+}
+
 /** Lane and card positions. Cards are the probed candidates; cap_reached rows are "+N not probed". */
 export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>): MapLayout {
   const lanesX = MAP_L.seatX + MAP_L.seatW + MAP_L.lanesGapX;
@@ -104,7 +111,7 @@ export function layoutMap(slots: SmSlotResult[], collapsed: ReadonlySet<number>)
     const shown = shownOf(slot);
     const textH = railTextHeight(slot, laneW);
     const headH = textH + RAIL_L.linkGutter;
-    const cardH = MAP_L.cardH + tierRowsHeight(slot) + sp2LinesHeight(slot);
+    const cardH = MAP_L.cardH + tierRowsHeight(slot) + sp2LinesHeight(slot) + summaryLineHeight(slot);
     const h = isCollapsed || shown.length === 0 ? headH : headH + cardH;
     const cards = isCollapsed ? [] : shown.map(({ i }, k) => ({ candidateIndex: i, x: lanesX + k * (MAP_L.cardW + MAP_L.gap), y: y + headH }));
     const lane = { slotIndex, y, h, collapsed: isCollapsed, textH, cardH, cards };

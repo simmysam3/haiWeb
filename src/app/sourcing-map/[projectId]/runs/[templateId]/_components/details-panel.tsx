@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
-import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable, utilizationText } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { OptionPanel } from './option-panel';
 
@@ -62,7 +62,7 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
               <dt className="sm-muted">Responders</dt><dd>{c.aggregates.responders}</dd>
               <dt className="sm-muted">Median lead time</dt><dd>{c.aggregates.median_lead_time_days !== null ? `${c.aggregates.median_lead_time_days} d` : EM_DASH}</dd>
               <dt className="sm-muted">Utilization</dt>
-              <dd>{`${c.aggregates.utilization.low} low · ${c.aggregates.utilization.moderate} moderate · ${c.aggregates.utilization.high} high · ${c.aggregates.utilization.at_capacity} at capacity`}</dd>
+              <dd>{utilizationText(c.aggregates.utilization)}</dd>
               <dt className="sm-muted">Countries</dt><dd>{c.aggregates.countries.length > 0 ? c.aggregates.countries.join(', ') : EM_DASH}</dd>
               <dt className="sm-muted">Classes</dt><dd>{c.aggregates.classes.length > 0 ? c.aggregates.classes.join(', ') : EM_DASH}</dd>
               <dt className="sm-muted">Not observed</dt><dd>{c.aggregates.not_observed}</dd>
