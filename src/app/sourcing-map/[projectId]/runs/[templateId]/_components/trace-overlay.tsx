@@ -64,14 +64,16 @@ export function gapPlacement(anchor: AnchorRect, card: AnchorRect | undefined, l
  * Every gap's placement, in trace order, with no two labels sharing a box (Task 13 fix rounds B and 1). Labels are
  * right-aligned to the card and sit below their anchor, so gaps on one anchor, and gaps on sibling handles of one tier
  * row, would all land on the same line; a label whose back would intersect an earlier label's moves down, a label line
- * at a time, until it intersects none. A gap whose anchor is not measured has no placement (null).
+ * at a time, until it intersects none. A gap whose anchor is not measured has no placement (null). A stub-only gap
+ * (the card's own, F-2) draws no label, so it holds no label box and moves no other label.
  */
-export function gapLabels(gaps: Array<{ anchor: AnchorRect | undefined; label: string }>, card: AnchorRect | undefined): Array<GapPlacement | null> {
+export function gapLabels(gaps: Array<{ anchor: AnchorRect | undefined; label: string; stubOnly?: boolean }>, card: AnchorRect | undefined): Array<GapPlacement | null> {
   const placed: GapPlacement['back'][] = [];
   const hits = (a: GapPlacement['back'], b: GapPlacement['back']) =>
     Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 0 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 0;
-  return gaps.map(({ anchor, label }) => {
+  return gaps.map(({ anchor, label, stubOnly }) => {
     if (!anchor) return null;
+    if (stubOnly) return gapPlacement(anchor, card, label);
     let stack = 0;
     let p = gapPlacement(anchor, card, label, stack);
     while (placed.some((b) => hits(p.back, b))) p = gapPlacement(anchor, card, label, ++stack);
@@ -88,9 +90,11 @@ function cardKeyOf(trace: SmTrace): string | undefined {
 
 /**
  * The shortfall trace (spec §12.3): one line per edge from the card to the binding node, each in its band's colour
- * with the band word in its description; a dashed stub with the status word at each gap. Mounted over the cards
- * (after them in the DOM), pointer-events none. An edge or gap whose anchor is not measured is skipped, never drawn
- * to (0, 0) and never thrown on (Review Focus 2).
+ * with the band word in its description; a dashed stub with the status word at each gap. A gap on the traced card
+ * itself draws its stub only (F-2): the card's anchor is its header button, so the line below it is the class-path
+ * subtitle, and a label there covered it; the svg's name still tells that gap. Mounted over the cards (after them in
+ * the DOM), pointer-events none. An edge or gap whose anchor is not measured is skipped, never drawn to (0, 0) and
+ * never thrown on (Review Focus 2).
  */
 export function TraceOverlay({ trace, anchors, names, width, height }: {
   trace: SmTrace; anchors: Record<string, AnchorRect>; names: Record<string, string>; width: number; height: number;
@@ -105,7 +109,7 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
   const nameOf = (k: string) => names[k] ?? k;
   const cardKey = cardKeyOf(trace);
   const card = cardKey === undefined ? undefined : anchors[cardKey];
-  const labels = gapLabels(trace.gaps.map((g) => ({ anchor: anchors[g.at], label: gapStubText(g.status) })), card);
+  const labels = gapLabels(trace.gaps.map((g) => ({ anchor: anchors[g.at], label: gapStubText(g.status), stubOnly: g.at === cardKey })), card);
   return (
     <svg data-trace role="img" aria-label={`Shortfall trace: ${traceSentence(trace, names)}`} width={width} height={height} className="pointer-events-none absolute inset-0">
       {trace.edges.map((e, i) => {
@@ -126,8 +130,12 @@ export function TraceOverlay({ trace, anchors, names, width, height }: {
         return (
           <g key={`g${i}`} data-trace-gap data-status={g.status}>
             <path d={p.stub} fill="none" strokeWidth={2} strokeDasharray="4 4" style={{ stroke: 'var(--sm-line-control)' }} />
-            <rect x={p.back.x} y={p.back.y} width={p.back.width} height={p.back.height} style={{ fill: 'var(--sm-card)' }} />
-            <text x={p.text.x} y={p.text.y} textAnchor="end" textLength={p.text.width} fontSize={LABEL.font} style={{ fill: 'var(--sm-ink-2)' }}>{label}</text>
+            {g.at !== cardKey && (
+              <>
+                <rect x={p.back.x} y={p.back.y} width={p.back.width} height={p.back.height} style={{ fill: 'var(--sm-card)' }} />
+                <text x={p.text.x} y={p.text.y} textAnchor="end" textLength={p.text.width} fontSize={LABEL.font} style={{ fill: 'var(--sm-ink-2)' }}>{label}</text>
+              </>
+            )}
           </g>
         );
       })}

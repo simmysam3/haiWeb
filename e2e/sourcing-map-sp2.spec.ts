@@ -106,6 +106,15 @@ function gapLabels(page: Page, tracedKey: string): Promise<GapLabel[]> {
   }, tracedKey);
 }
 
+/** F-2: the trace svg's labels whose box intersects the traced card's class-path subtitle (the line under its header). */
+function labelsOverSubtitle(page: Page, tracedKey: string): Promise<string[]> {
+  return page.evaluate((traced) => {
+    const sub = document.querySelector(`[data-anchor="${traced}"]`)!.nextElementSibling!.getBoundingClientRect();
+    const hits = (a: DOMRect, b: DOMRect) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0;
+    return Array.from(document.querySelectorAll<SVGTextElement>('svg[data-trace] text')).filter((t) => hits(t.getBoundingClientRect(), sub)).map((t) => t.textContent ?? '');
+  }, tracedKey);
+}
+
 test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
   test.skip(!HARNESS, 'Needs SM_HARNESS_URL: a worktree dev server started with SM_HARNESS=1 (plan Task 13 Step 6)');
 
@@ -137,13 +146,18 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
         header: rel(document.querySelector('[data-anchor="leon"]')!),
         handle: rel(document.querySelector('[data-anchor="leon/A"]')!),
         d: svg.querySelector('path[data-trace-edge]')!.getAttribute('d')!,
-        gap: svg.querySelector('g[data-trace-gap] text')!.textContent,
+        gap: (() => {
+          const gp = svg.querySelector('g[data-trace-gap]')!;
+          return { status: gp.getAttribute('data-status'), dash: gp.querySelector('path')?.getAttribute('stroke-dasharray') ?? null, texts: gp.querySelectorAll('text').length, backs: gp.querySelectorAll('rect').length };
+        })(),
       };
     });
 
-    // R3: with León's trace selected, its gap label is inside the svg and paints over no other card
+    // R3: with León's trace selected, no gap label is clipped or paints over another card. León's one gap is the card's
+    // own, so it draws its stub only (F-2): a label there sat on the class-path subtitle
     const labels = await gapLabels(page, 'leon');
     console.log(`SM_SP2_GAP_LABELS=${JSON.stringify(labels)}`);
+    const overSubtitleDark = await labelsOverSubtitle(page, 'leon');
 
     // R2 and axe, dark (the default), then light; León stays selected (its 2 px border is the tightest box)
     const cardsDark = await cardBoxes(page);
@@ -154,9 +168,11 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
     await expect(page.getByTestId('sm-root')).toHaveAttribute('data-theme', 'light');
     const cardsLight = await cardBoxes(page);
     const handlesLight = await handleBoxes(page);
+    const overSubtitleLight = await labelsOverSubtitle(page, 'leon');
     const light = await axe(page);
     console.log(`SM_SP2_AXE light=${axeLine(light)}`);
     console.log(`SM_SP2_CARD_OVERFLOW dark=${JSON.stringify(overflowing(cardsDark))} light=${JSON.stringify(overflowing(cardsLight))}`);
+    console.log(`SM_SP2_LABELS_OVER_SUBTITLE dark=${JSON.stringify(overSubtitleDark)} light=${JSON.stringify(overSubtitleLight)}`);
     console.log(`SM_SP2_HANDLES dark=${JSON.stringify(badHandles(handlesDark))} light=${JSON.stringify(badHandles(handlesLight))}`);
     console.log(`SM_SP2_MEASURES_ALL (information) map=${JSON.stringify(await observed(page, 'sm-map-render'))} trace=${JSON.stringify(await observed(page, 'sm-trace-draw'))}`);
 
@@ -172,11 +188,10 @@ test.describe('Sourcing Map SP2 harness (fixtures, real browser)', () => {
     expect(nums[6]).toBeCloseTo(g.handle.x, 0);
     expect(nums[7]).toBeCloseTo(g.handle.y + g.handle.h / 2, 0);
     expect(g.handle.y).toBeGreaterThan(g.header.y + g.header.h);
-    expect(g.gap).toBe('not observed below: not connected');
-    expect(labels).toHaveLength(1);
-    expect(labels.map((l) => ({ text: l.text, clipped: l.clipped, overpaints: l.overpaints, overlapsLabels: l.overlapsLabels }))).toEqual([
-      { text: 'not observed below: not connected', clipped: false, overpaints: [], overlapsLabels: [] },
-    ]);
+    expect(g.gap).toEqual({ status: 'not_connected', dash: '4 4', texts: 0, backs: 0 });
+    expect(labels).toEqual([]);
+    expect(overSubtitleDark).toEqual([]);
+    expect(overSubtitleLight).toEqual([]);
     expect(cardsDark).toHaveLength(MULTITIER_CARDS);
     expect(cardsLight).toHaveLength(MULTITIER_CARDS);
     expect(overflowing(cardsDark)).toEqual([]);
