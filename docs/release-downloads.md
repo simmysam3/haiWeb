@@ -39,6 +39,9 @@ SDK download.
      (a first pass is in place).
    - **Assemble + render:** `npm run build:guide-pdf` injects title/date/body into
      the template and prints to `configuration-guide.pdf` via Playwright.
+   - **Source binding:** the body's first page section must carry `data-edition`, `data-source` and
+     `data-source-sha256` (see `design/configuration-guide/README.md` § Source binding); the build refuses
+     otherwise, and writes `private/agent-downloads/configuration-guide.json` on success.
    ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT make the platform
    As-Built spec (`haiCore/docs/<date>_as_built.md`) the `{{body}}`: it is
    HAIWAVE-internal (DB schema, central services, prod deploy revisions, the
