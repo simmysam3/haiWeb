@@ -78,13 +78,13 @@ describe('SupplyRisksTable', () => {
   it('the auto-cleared row has no Open map link: its supplier cell is the name alone', () => {
     renderTable();
     const row = rowOf('Mekong Tannery');
-    expect(within(row).queryByRole('link', { name: 'Open map' })).toBeNull();
+    expect(within(row).queryByRole('link', { name: /^Open map/ })).toBeNull();
     expect(within(row).getAllByRole('cell')[0]!.textContent).toBe('Mekong Tannery');
   });
 
   it('Open map sits in the Supplier cell under the name, with no column of its own (F-1: a last column was clipped at 1707 px)', () => {
     renderTable();
-    expect(within(within(rowOf('León Cuero')).getAllByRole('cell')[0]!).getByRole('link', { name: 'Open map' })).toBeInTheDocument();
+    expect(within(within(rowOf('León Cuero')).getAllByRole('cell')[0]!).getByRole('link', { name: /^Open map/ })).toBeInTheDocument();
     const headers = screen.getAllByRole('columnheader');
     expect(headers).toHaveLength(8);
     expect(headers.every((h) => h.textContent!.trim() !== '')).toBe(true);
@@ -92,7 +92,14 @@ describe('SupplyRisksTable', () => {
 
   it("León's Open map link is the run with its query", () => {
     renderTable();
-    expect(within(rowOf('León Cuero')).getByRole('link', { name: 'Open map' })).toHaveAttribute('href', openMapHref(LEON.open_map!));
+    expect(within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ })).toHaveAttribute('href', openMapHref(LEON.open_map!));
+  });
+
+  it('names Open map by its supplier, starting with its visible text (WCAG 2.5.3)', () => {
+    renderTable();
+    const link = within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ });
+    expect(link.textContent).toBe('Open map');
+    expect(link).toHaveAccessibleName('Open map for León Cuero');
   });
 
   it('shows no internal identifier', () => {
@@ -107,7 +114,7 @@ describe('SupplyRisksTable', () => {
 
   it('its teal links use the dark teal, which clears 4.5:1 on white (axe color-contrast, SP3-d Task 12)', () => {
     renderTable({ nextHref: '/account/sonar/supply-risks?status=open&cursor=c2' });
-    for (const el of [within(rowOf('León Cuero')).getByRole('link', { name: 'Open map' }), screen.getByRole('link', { name: 'Show older' })]) {
+    for (const el of [within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ }), screen.getByRole('link', { name: 'Show older' })]) {
       expect(el).toHaveClass('text-teal-dark');
       expect(el).not.toHaveClass('text-teal');
     }

@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { formatRelative } from '@/components/sonar/observations/format';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { CAUSE_PILLS, figureText, requestStatusText, windowText } from '@/lib/sourcing-map/backlogs';
-import { EM_DASH, formatQty } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, formatDay, formatQty } from '@/lib/sourcing-map/map/selectors';
 import type { SmDemandException, SmDemandExceptionListResponse } from '@/lib/sourcing-map/types';
 import { DataTable, type Column } from '@/components/data-table';
 import { useRenderMeasure } from '../../_components/use-render-measure';
+
+const causeLabel = (r: SmDemandException) => CAUSE_PILLS.find((p) => p.value === r.cause)?.label ?? r.cause;
 
 const IGNORE_FAILED = `Couldn't ignore ${EM_DASH} the row is unchanged.`;
 
@@ -56,7 +58,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
       label: 'Cause',
       render: (r) => (
         <>
-          <div>{CAUSE_PILLS.find((p) => p.value === r.cause)?.label ?? r.cause}</div>
+          <div>{causeLabel(r)}</div>
           {r.cause === 'chain' && <div className="text-xs text-slate">an input of yours ran short</div>}
           {r.cause === 'posture' && (
             <Link href="/account/settings/trust-posture" className="text-xs font-medium text-teal-dark hover:text-navy">Trust posture</Link>
@@ -72,6 +74,7 @@ export function DemandExceptionsTable({ initial, nextHref }: {
       render: (r) => (
         <button
           type="button"
+          aria-label={`Ignore ${r.requestor.name}, ${r.sku}, ${causeLabel(r)}, filed ${formatDay(r.first_filed_at)}`}
           className="text-xs font-medium text-teal-dark hover:text-navy disabled:opacity-50"
           disabled={ignoring.has(r.exception_id)}
           onClick={() => void ignore(r.exception_id)}

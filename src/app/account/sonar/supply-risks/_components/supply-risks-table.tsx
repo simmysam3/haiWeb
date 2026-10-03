@@ -57,7 +57,7 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
       render: (r) => (
         <>
           <div>{r.supplier_name}</div>
-          {r.open_map !== null && <Link href={openMapHref(r.open_map)} className="text-xs font-medium text-teal-dark hover:text-navy">Open map</Link>}
+          {r.open_map !== null && <Link href={openMapHref(r.open_map)} aria-label={`Open map for ${r.supplier_name}`} className="text-xs font-medium text-teal-dark hover:text-navy">Open map</Link>}
         </>
       ),
     },

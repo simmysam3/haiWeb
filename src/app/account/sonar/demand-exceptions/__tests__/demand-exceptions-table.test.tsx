@@ -112,7 +112,7 @@ describe('DemandExceptionsTable', () => {
     renderTable({ nextHref: '/account/sonar/demand-exceptions?cursor=c1' });
     const controls = [
       within(rows()[1]!).getByRole('link', { name: 'Trust posture' }),
-      screen.getAllByRole('button', { name: 'Ignore' })[0]!,
+      screen.getAllByRole('button', { name: /^Ignore/ })[0]!,
       screen.getByRole('link', { name: 'Show older' }),
     ];
     for (const el of controls) {
@@ -142,7 +142,7 @@ describe('DemandExceptionsTable', () => {
   it('Ignore posts once and a 204 removes that row only', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     renderTable();
-    fireEvent.click(within(rows()[0]!).getByRole('button', { name: 'Ignore' }));
+    fireEvent.click(within(rows()[0]!).getByRole('button', { name: /^Ignore/ }));
     await waitFor(() => expect(rows()).toHaveLength(2));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -156,10 +156,10 @@ describe('DemandExceptionsTable', () => {
     let release: (r: Response) => void = () => undefined;
     fetchMock.mockReturnValue(new Promise<Response>((r) => { release = r; }));
     renderTable();
-    const button = within(rows()[1]!).getByRole('button', { name: 'Ignore' });
+    const button = within(rows()[1]!).getByRole('button', { name: /^Ignore/ });
     fireEvent.click(button);
     await waitFor(() => expect(button).toBeDisabled());
-    expect(within(rows()[0]!).getByRole('button', { name: 'Ignore' })).toBeEnabled();
+    expect(within(rows()[0]!).getByRole('button', { name: /^Ignore/ })).toBeEnabled();
     release(new Response(null, { status: 204 }));
     await waitFor(() => expect(rows()).toHaveLength(2));
   });
@@ -167,10 +167,19 @@ describe('DemandExceptionsTable', () => {
   it('a failed Ignore keeps the row and says so', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: 'boom' }), { status: 500 }));
     renderTable();
-    fireEvent.click(within(rows()[2]!).getByRole('button', { name: 'Ignore' }));
+    fireEvent.click(within(rows()[2]!).getByRole('button', { name: /^Ignore/ }));
     expect((await screen.findByRole('alert')).textContent).toBe("Couldn't ignore — the row is unchanged.");
     expect(rows()).toHaveLength(3);
-    expect(within(rows()[2]!).getByRole('button', { name: 'Ignore' })).toBeEnabled();
+    expect(within(rows()[2]!).getByRole('button', { name: /^Ignore/ })).toBeEnabled();
+  });
+
+  it('names each Ignore by its row: requestor, SKU, cause and filed day, so no two rows share a name (group key; WCAG 2.5.3)', () => {
+    const fourth = { ...CHAIN, exception_id: '5a1e0000-0000-4000-8000-000000000699', first_filed_at: '2026-10-04T10:43:10.000Z' };
+    renderTable({ initial: { ...leonExceptions, exceptions: [...leonExceptions.exceptions, fourth] } });
+    const names = screen.getAllByRole('button').filter((b) => b.textContent === 'Ignore').map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(new Set(names).size).toBe(4);
+    expect(names.every((n) => n!.startsWith('Ignore '))).toBe(true);
+    expect(names[0]).toBe('Ignore CSG Footwear Vietnam, LC-BOV-UP-01, Chain, filed Oct 5, 2026');
   });
 
   it('records one render measure (R-9)', () => {
