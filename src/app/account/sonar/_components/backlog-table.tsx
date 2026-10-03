@@ -20,7 +20,7 @@ export function BacklogTable<T>({ columns, data, keyFn, emptyMessage }: {
 }) {
   const cell = (c: BacklogColumn<T>) => `${c.align === 'right' ? 'text-right' : 'text-left'} ${c.nowrap ? 'whitespace-nowrap' : ''}`;
   return (
-    <div className="overflow-x-auto rounded border border-slate/15">
+    <div className="overflow-x-auto rounded border border-slate/15 bg-white">
       <table className="w-full text-sm">
         <thead className="bg-light-gray">
           <tr>

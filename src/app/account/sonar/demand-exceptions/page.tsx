@@ -22,7 +22,7 @@ export default async function DemandExceptionsPage({ searchParams }: {
   return (
     <div>
       <PageHeader title="Demand Exceptions" />
-      <p className="mb-3 text-sm text-slate">{STANDING_LINE}</p>
+      <p className="mb-3 text-sm text-charcoal">{STANDING_LINE}</p>
       <BacklogPills param="cause" pills={CAUSE_PILLS} active={causes} />
       {result.kind === 'error' ? (
         <p role="alert" className="text-red-900">{loadErrorText(result.status, 'demand exceptions')}</p>

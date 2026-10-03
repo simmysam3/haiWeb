@@ -38,6 +38,11 @@ describe('SupplyRisksTable', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('sits on a white card: the account page is grey (#ECF0F4), where the slate secondary text is 4.16:1, short of 4.5:1 (I-2)', () => {
+    renderTable();
+    expect(screen.getByRole('table').parentElement).toHaveClass('bg-white');
+  });
+
   it("reads León's row: supplier, requested / covered, origin, status select", () => {
     renderTable();
     const row = rowOf('León Cuero');

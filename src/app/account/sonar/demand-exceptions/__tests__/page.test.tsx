@@ -48,7 +48,8 @@ describe('Demand Exceptions page', () => {
   it('renders the header, the standing line and the table', async () => {
     render(await DemandExceptionsPage({ searchParams: Promise.resolve({}) }));
     expect(screen.getByRole('heading', { name: 'Demand Exceptions' })).toBeInTheDocument();
-    expect(screen.getByText('Planning probes — answers are not commitments.')).toBeInTheDocument();
+    // I-2: the line sits on the account page's grey, where text-slate is 4.16:1; charcoal clears 4.5:1.
+    expect(screen.getByText('Planning probes — answers are not commitments.')).toHaveClass('text-charcoal');
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Chain' })).toHaveAttribute('aria-pressed', 'true');
   });

@@ -27,6 +27,11 @@ describe('DemandExceptionsTable', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('sits on a white card: the account page is grey (#ECF0F4), where the slate secondary text is 4.16:1, short of 4.5:1 (I-2)', () => {
+    renderTable();
+    expect(screen.getByRole('table').parentElement).toHaveClass('bg-white');
+  });
+
   it('reads the Chain row: requestor, asked, answered and gap', () => {
     renderTable();
     const row = rows()[0]!;

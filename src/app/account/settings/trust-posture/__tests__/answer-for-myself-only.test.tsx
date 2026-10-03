@@ -60,6 +60,11 @@ describe('AnswerForMyselfOnly', () => {
     render(<AnswerForMyselfOnly initial={null} />);
     expect(screen.getByRole('switch', { name: LABEL })).toBeDisabled();
     expect(screen.getByText("Couldn't load the setting.").tagName).toBe('P');
+    // I-2: the line sits on the account page's grey (#ECF0F4), where text-slate is 4.16:1; charcoal clears 4.5:1. The switch names it.
+    const line = screen.getByText("Couldn't load the setting.");
+    expect(line).toHaveClass('text-charcoal');
+    expect(line.id).not.toBe('');
+    expect(screen.getByRole('switch', { name: LABEL })).toHaveAttribute('aria-describedby', line.id);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

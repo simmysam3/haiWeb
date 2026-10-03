@@ -15,12 +15,18 @@ export type HarnessFixture = 'multitier' | 'throttled' | 'not-traced' | 'supply-
  * The SP1 Vomero template and library carry the same product ids as the fixtures, so the seat card and the product
  * filter read as on the live seed. BFF calls the workspace makes are the harness driver's to answer (page.route).
  */
+// I-2: the account <main> is bg-light-gray, so the backlog tables are measured on that ground, as the real pages give it.
+const SEAT_USERS = [
+  { user_id: '5a1e0000-0000-4000-8000-000000000a01', name: 'Ana Ruiz' },
+  { user_id: '5a1e0000-0000-4000-8000-000000000a02', name: 'Ben Okoro' },
+];
+
 export function Harness({ fixture }: { fixture: HarnessFixture }) {
   if (fixture === 'supply-risks') {
-    return <main data-testid="sp3-harness"><SupplyRisksTable initial={supplyRisksList} nextHref={null} /></main>;
+    return <main data-testid="sp3-harness" className="bg-light-gray p-8"><SupplyRisksTable initial={supplyRisksList} nextHref={null} seatUsers={SEAT_USERS} /></main>;
   }
   if (fixture === 'demand-exceptions') {
-    return <main data-testid="sp3-harness"><DemandExceptionsTable initial={leonExceptions} nextHref={null} /></main>;
+    return <main data-testid="sp3-harness" className="bg-light-gray p-8"><DemandExceptionsTable initial={leonExceptions} nextHref={null} /></main>;
   }
   const detail = fixture === 'multitier' ? multitierDetail : fixture === 'not-traced' ? notTracedDetail : throttledDetail;
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { EM_DASH } from '@/lib/sourcing-map/map/selectors';
 
@@ -13,6 +13,7 @@ export function AnswerForMyselfOnly({ initial }: { initial: boolean | null }) {
   const [value, setValue] = useState(initial === true);
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const loadFailedId = useId();
 
   async function onChange(next: boolean) {
     setValue(next);
@@ -40,12 +41,13 @@ export function AnswerForMyselfOnly({ initial }: { initial: boolean | null }) {
           role="switch"
           checked={value}
           disabled={saving || initial === null}
+          aria-describedby={initial === null ? loadFailedId : undefined}
           onChange={(e) => void onChange(e.target.checked)}
           className="mt-1"
         />
         <span>{LABEL}</span>
       </label>
-      {initial === null && <p className="text-sm text-slate">{LOAD_FAILED}</p>}
+      {initial === null && <p id={loadFailedId} className="text-sm text-charcoal">{LOAD_FAILED}</p>}
       {failed && (
         <p role="alert" className="text-sm text-problem">
           {SAVE_FAILED}
