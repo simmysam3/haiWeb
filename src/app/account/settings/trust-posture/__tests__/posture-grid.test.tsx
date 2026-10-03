@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { PostureGrid } from '../_components/posture-grid';
 import type { ParticipantModalityPosture } from '@haiwave/protocol';
+import { groundToken, ratioOn } from '@/test/contrast';
 
 const seed: ParticipantModalityPosture[] = (() => {
   const TC = ['unknown', 'behavioral_only', 'trading_pair', 'premier_partner'] as const;
@@ -71,5 +72,21 @@ describe('PostureGrid', () => {
     expect(await screen.findByLabelText(/lead time distribution/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/capacity utilization band/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/latest delivery event/i)).toBeInTheDocument();
+  });
+
+  it('the drawer\'s opt-out hint sits on the drawer\'s white and clears 4.5:1 (posture-grid.tsx:217, drawer.tsx:41)', async () => {
+    render(<PostureGrid initialPostures={seed} />);
+    fireEvent.click(screen.getByLabelText(/watcher posture for unknown/i));
+    fireEvent.click(await screen.findByLabelText('permissive'));
+    const p = screen.getByText(/^Permissive watcher shares all signals by default/);
+    expect(groundToken(p)).toBe('white');
+    expect(ratioOn(p)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the manual chip clears 4.5:1 on its own grey (was slate, 4.16:1)', () => {
+    render(<PostureGrid initialPostures={seed} />);
+    const chip = within(screen.getByLabelText(/audit posture for unknown/i)).getByText('manual');
+    expect(groundToken(chip)).toBe('light-gray');
+    expect(ratioOn(chip)).toBeGreaterThanOrEqual(4.5);
   });
 });
