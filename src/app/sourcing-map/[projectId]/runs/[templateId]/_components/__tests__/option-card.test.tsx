@@ -199,6 +199,18 @@ describe('OptionCard', () => {
     rerender(<OptionCard slot={leather2} candidate={leather2.candidates[2]!} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
     expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
     expect(screen.queryByText(/responder/)).toBeNull();
+    // a gap card that still carries aggregates shows neither the summary nor the bar
+    rerender(<OptionCard slot={leather2} candidate={{ ...leon2, status: 'timeout' }} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(screen.queryByRole('img', { name: /^Utilization below tier 1/ })).toBeNull();
+    expect(screen.queryByText(/responder/)).toBeNull();
+  });
+
+  it("keeps the chevron a flex item in the footer row, on an SP1 card and on an SP2 card, so the row stays the chevron's 24 px (A4 review)", () => {
+    const { rerender } = render(<OptionCard slot={leather} candidate={leather.candidates[0]!} asOfDrop="2027-03-15" drops={drops} selected={false} onSelect={vi.fn()} />);
+    const wrapper = () => screen.getByRole('button', { name: /León Cuero, MX/ }).closest('article')!.querySelector('.ml-auto')!;
+    expect(wrapper().className).toBe('ml-auto flex');
+    rerender(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
+    expect(wrapper().className).toBe('ml-auto flex');
   });
 
   it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {

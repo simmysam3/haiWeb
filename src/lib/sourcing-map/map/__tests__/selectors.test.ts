@@ -308,9 +308,11 @@ describe('SP2 selectors: the wait sentence, may_wait and the path summary (spec 
     expect(cardSummaryText(leon2!)).toBe('3 responders · median 14 d');
     // FlowKnit: one responder, median null, so the clause drops (no "median null d", no dash)
     expect(cardSummaryText(mt.slots[1]!.candidates[0]!)).toBe('1 responder');
-    // Arno timed out: a gap card has no beneath, whatever its aggregates carry
-    expect(arno2!.aggregates).toBeDefined();
+    // Arno timed out and carries aggregates: null, so there is nothing to count
+    expect(arno2!.aggregates).toBeNull();
     expect(cardSummaryText(arno2!)).toBeNull();
+    // a gap card that still carries aggregates has no beneath either
+    expect(cardSummaryText({ ...leon2!, status: 'timeout' })).toBeNull();
     expect(cardSummaryText(vomeroResult.slots[0]!.candidates[0]!)).toBeNull();
   });
 

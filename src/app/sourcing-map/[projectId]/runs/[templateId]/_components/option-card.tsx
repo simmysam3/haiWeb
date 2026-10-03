@@ -104,7 +104,7 @@ export function OptionCard({
             </span>
           )}
           {traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
-          <span className="ml-auto"><DetailChevron /></span>
+          <span className="ml-auto flex"><DetailChevron /></span>
         </span>
       </span>
     </article>
