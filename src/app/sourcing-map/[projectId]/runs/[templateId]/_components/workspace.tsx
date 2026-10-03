@@ -106,6 +106,14 @@ export function Workspace({
       return false;
     }
     setLoaded(out.data);
+    // I-1: an "Open map" link's ?execution=&option= named the result just replaced; a reload or a copied link would reopen it.
+    if (params.has('execution') || params.has('option')) {
+      const q = new URLSearchParams(params.toString());
+      q.delete('execution');
+      q.delete('option');
+      const rest = q.toString();
+      window.history.replaceState(null, '', rest ? `${pathname}?${rest}` : pathname);
+    }
     // R3: the pick and the collapsed rails are by slot (and candidate) index, so they named the result just replaced.
     setSelected(null);
     setHandle(null);

@@ -866,6 +866,21 @@ describe('Workspace', () => {
       expect(leonCard()).toHaveAttribute('aria-pressed', 'false');
     });
 
+    it('a switch of result drops ?execution= and ?option= from the URL, keeping the other parameters, so a reload or a copied link opens what the screen shows (I-1)', async () => {
+      const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
+      const old = earlier(VOMERO_IDS.executionOld, '2026-09-20T10:00:00.000Z');
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+        if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, old);
+        return reply(404, {});
+      });
+      search.value = new URLSearchParams({ execution: real.execution.execution_id, option, drop: '2027-04-15' }).toString();
+      mount(real, [real.execution, old.execution]);
+      pick(VOMERO_IDS.executionOld);
+      await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+      expect(replaceState).toHaveBeenCalledWith(null, '', '/sourcing-map/p/runs/t?drop=2027-04-15');
+    });
+
     it('leaves the URL alone on mount: ?drop= alone selects nothing and rewrites nothing', () => {
       const replaceState = vi.spyOn(window.history, 'replaceState').mockImplementation(() => undefined);
       search.value = 'drop=2027-04-15';
