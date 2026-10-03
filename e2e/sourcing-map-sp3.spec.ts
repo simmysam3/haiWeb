@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { login } from './sourcing-map-login';
 import { axe, axeLine, cardBoxes, durations, overflowing } from './sourcing-map-harness';
 
 /**
@@ -80,5 +81,31 @@ test.describe('Sourcing Map SP3 harness (fixtures, real browser)', () => {
     console.log(`SM_SP3_NOT_TRACED_OVERFLOW dark=${JSON.stringify(dark)} light=${JSON.stringify(light)}`);
     expect(dark).toEqual([]);
     expect(light).toEqual([]);
+  });
+});
+
+test.describe('Sourcing Map SP3 live option panel (CSG, live seed: run only in the SP3-e walk, on the owner word)', () => {
+  const HAIWEB = process.env.HAIWEB_BASE_URL ?? 'http://localhost:3001';
+  const EMAIL = process.env.SM_CSG_EMAIL;
+  const PASSWORD = process.env.SM_CSG_PASSWORD;
+  const RUN_PATH = process.env.SM_SP3_RUN_PATH;
+  test.skip(process.env.SM_SP3_LIVE !== '1' || !EMAIL || !PASSWORD || !RUN_PATH, 'Needs SM_SP3_LIVE=1, SM_CSG_EMAIL, SM_CSG_PASSWORD and SM_SP3_RUN_PATH; runs only in the SP3-e walk');
+
+  test("León's option panel through the real BFF: the scorecard, the calibrated median and the delivery events all answer (candidateKey encode and decode)", async ({ page }) => {
+    test.setTimeout(2 * 60_000);
+    await login(page, EMAIL!, PASSWORD!);
+    await page.goto(`${HAIWEB}${RUN_PATH}`);
+    await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: /^León Cuero, MX: / }).click();
+    const panel = page.getByRole('complementary', { name: 'Details for León Cuero' });
+    await expect(panel.getByRole('heading', { name: 'Network-wide scorecard (not specific to you)' })).toBeVisible({ timeout: 60_000 });
+    await expect(panel.getByText('Calibrated median: 42 d (4 orders)')).toBeVisible({ timeout: 60_000 });
+    const dimensions = await panel.getByRole('list', { name: 'Scorecard dimensions' }).getByRole('listitem').count();
+    expect(dimensions).toBeGreaterThanOrEqual(1);
+    expect(dimensions).toBeLessThanOrEqual(4);
+    const events = panel.getByRole('region', { name: 'Delivery history' }).getByRole('listitem');
+    expect(await events.count()).toBeGreaterThanOrEqual(1);
+    await expect(panel.getByText('Unavailable')).toHaveCount(0);
+    console.log(`SM_SP3_PANEL_OPEN_MS live=${JSON.stringify(await durations(page, 'sm-panel-open'))}`);
   });
 });
