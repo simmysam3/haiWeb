@@ -50,7 +50,17 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
   const busy = (r: SmSupplyRisk, field: Field) => saving.has(`${r.risk_id}:${field}`);
 
   const columns: BacklogColumn<SmSupplyRisk>[] = [
-    { key: 'supplier', label: 'Supplier', render: (r) => r.supplier_name },
+    {
+      key: 'supplier',
+      label: 'Supplier',
+      // Open map sits under the name, not in a column of its own: as the last column it was the one clipped (F-1).
+      render: (r) => (
+        <>
+          <div>{r.supplier_name}</div>
+          {r.open_map !== null && <Link href={openMapHref(r.open_map)} className="text-xs font-medium text-teal-dark hover:text-navy">Open map</Link>}
+        </>
+      ),
+    },
     {
       key: 'slot',
       label: 'Slot and products',
@@ -145,13 +155,6 @@ export function SupplyRisksTable({ initial, nextHref, seatUsers = null }: {
             }}
           />
         ),
-    },
-    {
-      key: 'open_map',
-      label: '',
-      render: (r) => r.open_map === null
-        ? EM_DASH
-        : <Link href={openMapHref(r.open_map)} className="text-xs font-medium text-teal-dark hover:text-navy">Open map</Link>,
     },
   ];
 

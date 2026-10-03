@@ -80,6 +80,15 @@ describe('DemandExceptionsTable', () => {
     expect(within(rows()[0]!).getByText('×2')).toBeInTheDocument();
   });
 
+  it("says the Asked figures are the latest run's when the row repeats; a row from one run says nothing more (haiCore backlog-deriver overwrites them)", () => {
+    renderTable();
+    const note = within(rows()[0]!).getByText('latest of 2 runs');
+    expect(note).toHaveClass('text-xs', 'text-slate');
+    expect(within(note.closest('td')!).getByText('13,000')).toBeInTheDocument();
+    expect(within(rows()[1]!).queryByText(/^latest of/)).toBeNull();
+    expect(within(rows()[2]!).queryByText(/^latest of/)).toBeNull();
+  });
+
   it('links the Posture row to Trust posture, and no anchor goes to Query Guard', () => {
     renderTable();
     expect(within(rows()[1]!).getByRole('link', { name: 'Trust posture' })).toHaveAttribute('href', '/account/settings/trust-posture');

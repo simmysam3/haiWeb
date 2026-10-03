@@ -74,11 +74,19 @@ describe('SupplyRisksTable', () => {
     expect(within(row).getByText('Nov 2, 2026')).toBeInTheDocument();
   });
 
-  it('the auto-cleared row has no Open map link and shows a dash', () => {
+  it('the auto-cleared row has no Open map link: its supplier cell is the name alone', () => {
     renderTable();
     const row = rowOf('Mekong Tannery');
     expect(within(row).queryByRole('link', { name: 'Open map' })).toBeNull();
-    expect(within(row).getAllByRole('cell').at(-1)!.textContent).toBe('—');
+    expect(within(row).getAllByRole('cell')[0]!.textContent).toBe('Mekong Tannery');
+  });
+
+  it('Open map sits in the Supplier cell under the name, with no column of its own (F-1: a last column was clipped at 1707 px)', () => {
+    renderTable();
+    expect(within(within(rowOf('León Cuero')).getAllByRole('cell')[0]!).getByRole('link', { name: 'Open map' })).toBeInTheDocument();
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers).toHaveLength(8);
+    expect(headers.every((h) => h.textContent!.trim() !== '')).toBe(true);
   });
 
   it("León's Open map link is the run with its query", () => {

@@ -45,6 +45,8 @@ export function DemandExceptionsTable({ initial, nextHref }: {
         <>
           <div>{formatQty(r.asked)}</div>
           <div className="text-xs text-slate">{windowText(r.window)}</div>
+          {/* A repeat carries the newest run's figures, window and short week (haiCore backlog-deriver overwrites them). */}
+          {r.count > 1 && <div className="text-xs text-slate">{`latest of ${r.count} runs`}</div>}
         </>
       ),
     },

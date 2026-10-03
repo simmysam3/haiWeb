@@ -39,26 +39,43 @@ describe('TraceOverlay', () => {
     expect(Number.isFinite(measures[0]!.duration)).toBe(true);
   });
 
-  it('draws a dashed stub with the status word at each gap (contract §10 copy)', () => {
-    render(<TraceOverlay trace={leon.trace!} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
+  it('draws a dashed stub with the status word at a handle gap (contract §10 copy)', () => {
+    render(<TraceOverlay trace={{ ...DEEP, gaps: [{ at: 'C', status: 'not_connected' }] }} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
     const gap = document.querySelector<SVGGElement>('g[data-trace-gap][data-status="not_connected"]')!;
-    expect(gap.querySelector('path')!.getAttribute('d')).toBe('M560 122 L 574 122');
+    expect(gap.querySelector('path')!.getAttribute('d')).toBe('M462 367 L 476 367');
     expect(gap.querySelector('path')!.getAttribute('stroke-dasharray')).toBe('4 4');
     expect(gap.querySelector('path')!.style.stroke).toBe('var(--sm-line-control)');
     expect(gap.querySelector('text')!.textContent).toBe('not observed below: not connected');
     // Task 13 R3: the label is on the line below the anchor, right-aligned to the card, over a card-coloured back
     const text = gap.querySelector('text')!;
     expect(text.getAttribute('text-anchor')).toBe('end');
-    expect([text.getAttribute('x'), text.getAttribute('y'), text.getAttribute('textLength')]).toEqual(['560', '148', '185']);
+    expect([text.getAttribute('x'), text.getAttribute('y'), text.getAttribute('textLength')]).toEqual(['560', '394', '185']);
     const back = gap.querySelector('rect')!;
-    expect([back.getAttribute('x'), back.getAttribute('y'), back.getAttribute('width'), back.getAttribute('height')]).toEqual(['373', '136', '187', '16']);
+    expect([back.getAttribute('x'), back.getAttribute('y'), back.getAttribute('width'), back.getAttribute('height')]).toEqual(['373', '382', '187', '16']);
     expect(back.style.fill).toBe('var(--sm-card)');
     expect(back.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('draws a card-level gap as its dashed stub only: no back, no label, no label line held; a handle gap keeps its label; the svg still names both (F-2: the card anchor is its header, so the label landed on the class-path subtitle)', () => {
+    // A on the header's row, so its label would land on the line the card's own label held (back y 136)
+    const anchors = { ...ANCHORS, A: { x: 372, y: 112, width: 90, height: 20 } };
+    const trace: SmTrace = { ...DEEP, gaps: [{ at: 'leon', status: 'not_connected' }, { at: 'A', status: 'declined' }] };
+    render(<TraceOverlay trace={trace} anchors={anchors} names={CANDIDATE_NAMES} width={800} height={600} />);
+    const own = document.querySelector<SVGGElement>('g[data-trace-gap][data-status="not_connected"]')!;
+    expect(own.querySelector('path')!.getAttribute('d')).toBe('M560 122 L 574 122');
+    expect(own.querySelector('path')!.getAttribute('stroke-dasharray')).toBe('4 4');
+    expect(own.querySelector('rect')).toBeNull();
+    expect(own.querySelector('text')).toBeNull();
+    const handle = document.querySelector<SVGGElement>('g[data-trace-gap][data-status="declined"]')!;
+    expect(handle.querySelector('text')!.textContent).toBe('not observed below: declined');
+    // unstacked: the card-level gap holds no label box for it to move below
+    expect([handle.querySelector('text')!.getAttribute('y'), handle.querySelector('rect')!.getAttribute('y')]).toEqual(['148', '136']);
+    expect(screen.getByRole('img', { name: /not observed below León Cuero: not connected; not observed below A: declined$/ })).toBeInTheDocument();
+  });
+
   it('places a gap label inside the traced card: one line below its anchor, right-aligned to the card, so it never paints into the next card or past the svg (Task 13 R3, measured in chromium)', () => {
     const label = 'not observed below: not connected';
-    // the card's own gap: the stub still leaves the header's right-mid into the card gap; the label ends at the card's content edge
+    // the card's own gap: the stub leaves the header's right-mid into the card gap (the overlay draws only the stub, F-2)
     const own = gapPlacement(ANCHORS.leon!, ANCHORS.leon!, label);
     expect(own.stub).toBe('M560 122 L 574 122');
     // 33 characters at 11 px (chromium measured 185.5 px); fixed through textLength, so the back needs no measuring
@@ -80,7 +97,7 @@ describe('TraceOverlay', () => {
   });
 
   it('stacks several gap labels on one anchor one line apart, so none overlaps or hides another; another anchor starts its own stack (Task 13 fix round B)', () => {
-    const trace: SmTrace = { ...leon.trace!, gaps: [{ at: 'leon', status: 'not_connected' }, { at: 'leon', status: 'declined' }, { at: 'C', status: 'timeout' }] };
+    const trace: SmTrace = { ...DEEP, gaps: [{ at: 'C', status: 'not_connected' }, { at: 'C', status: 'declined' }, { at: 'A', status: 'timeout' }] };
     render(<TraceOverlay trace={trace} anchors={ANCHORS} names={CANDIDATE_NAMES} width={800} height={600} />);
     const gaps = Array.from(document.querySelectorAll<SVGGElement>('g[data-trace-gap]')).map((g) => ({
       status: g.getAttribute('data-status'),
@@ -90,14 +107,14 @@ describe('TraceOverlay', () => {
       backH: Number(g.querySelector('rect')!.getAttribute('height')),
     }));
     expect(gaps.map(({ status, stub, textY, backY }) => ({ status, stub, textY, backY }))).toEqual([
-      { status: 'not_connected', stub: 'M560 122 L 574 122', textY: 148, backY: 136 },
-      { status: 'declined', stub: 'M560 122 L 574 122', textY: 164, backY: 152 },
-      { status: 'timeout', stub: 'M462 367 L 476 367', textY: 394, backY: 382 },
+      { status: 'not_connected', stub: 'M462 367 L 476 367', textY: 394, backY: 382 },
+      { status: 'declined', stub: 'M462 367 L 476 367', textY: 410, backY: 398 },
+      { status: 'timeout', stub: 'M462 341 L 476 341', textY: 368, backY: 356 },
     ]);
     // the backs on one anchor abut and never overlap, so the second label hides nothing of the first
     expect(gaps[0]!.backY + gaps[0]!.backH).toBeLessThanOrEqual(gaps[1]!.backY);
-    expect(gapPlacement(ANCHORS.leon!, ANCHORS.leon!, 'not observed below: declined', 1).text.y).toBe(148 + 16);
-    expect(gapPlacement(ANCHORS.leon!, ANCHORS.leon!, 'not observed below: declined', 1).back.y).toBe(136 + 16);
+    expect(gapPlacement(ANCHORS.C!, ANCHORS.leon!, 'not observed below: declined', 1).text.y).toBe(394 + 16);
+    expect(gapPlacement(ANCHORS.C!, ANCHORS.leon!, 'not observed below: declined', 1).back.y).toBe(382 + 16);
   });
 
   it('stacks gap labels by the row they land on, not by their anchor: sibling handles in one tier row never share a label box (Task 13 fix round 1)', () => {
