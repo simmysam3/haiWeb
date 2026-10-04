@@ -579,17 +579,18 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   const UNREVIEWED = BRIEF.replace('reviewed_by: Owner', 'reviewed_by:');
   /**
    * A fake `fetch` to preload into the child, with fake values for the two variables: the child can send nothing.
-   * The fake prints nothing. It appends one line per call to a file that the preload itself creates, so `requests()`
-   * is what the fake saw, and it throws when the preload never ran. Like the real fetch, it throws on a header value
-   * that cannot be sent. `answer` is the statement that ends the fake: by default it returns a 201.
+   * The fake prints nothing. It appends one line per call to a file that the preload itself creates and never
+   * empties, so `requests()` is what the fake saw in every child that loaded it, and it throws when none did. Like
+   * the real fetch, it throws on a header value that cannot be sent. `answer` is the statement that ends the fake:
+   * by default it returns a 201.
    */
   function fakeFetch(answer = 'return { status: 201, text: async () => \'{"pack_id":"11111111-1111-4111-8111-111111111111","version":"2026-10-07.1"}\' };') {
     const dir = tmp('helppack-preload-');
     const seen = join(dir, 'requests.txt');
     writeFileSync(join(dir, 'fake-fetch.mjs'), [
-      "import { appendFileSync, writeFileSync } from 'node:fs';",
+      "import { appendFileSync } from 'node:fs';",
       `const seen = ${JSON.stringify(seen)};`,
-      "writeFileSync(seen, '');",
+      "appendFileSync(seen, '');",
       'globalThis.fetch = async (url, init) => {',
       '  appendFileSync(seen, `${init.method} ${url}\\n`);',
       '  new Headers(init.headers);',
