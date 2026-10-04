@@ -82,7 +82,9 @@ describe('buildGuidePdf writes configuration-guide.json beside the PDF', () => {
   }
 
   it('renders, then records bodySha256, edition, source file, source sha and builtAt', async () => {
-    const body = bound() + '<section class="page">§1</section>';
+    // Like the real body, this one has comments. Only the binding lookup ignores them: the renderer gets the body as it is on
+    // disk, and bodySha256 is the hash of that same file (publish:help-pack re-hashes body.html and refuses on a difference).
+    const body = `<!-- authoring note -->\n${bound()}\n<!-- ===== §1 ===== -->\n<section class="page">§1</section>`;
     const t = tree(body);
     const rendered: { html: string; outPath: string }[] = [];
     const now = new Date('2026-10-07T11:00:00.000Z');
