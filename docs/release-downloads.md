@@ -54,6 +54,9 @@ SDK download.
    - **The only argument is `--dry-run`, and it goes after npm's `--`.** Any other argument is refused: exit 1,
      nothing sent. `npm run publish:help-pack --dry-run` without the `--` is refused too: npm keeps that flag for
      itself and passes no argument. A run with no argument publishes, and a successful publish makes the pack active.
+     ⚠ npm keeps **every** flag typed before the `--`, not only `--dry-run` (measured with npm 11.12.1: `--dryrun`,
+     `--eval`, `-n`). The command receives no argument and cannot see such a flag, so with both variables set that
+     run **publishes**. Always type the `--`.
    - **`HAICORE_DIR`** (default `../haiCore`) is the haiCore checkout the command reads: the guide source and the
      as-built editions in `docs/`, the support brief in `docs/help/`, and the protocol version.
    - **The target Central must run with `HELP_AGENT_ENABLED=true`.** With the flag off,

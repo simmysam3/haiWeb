@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
  *   HAICORE_URL=https://… HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack
  *
  * The only argument is --dry-run, given after npm's `--`. Any other argument is refused, and so is a run with no
- * argument while npm_config_dry_run is set (npm keeps a --dry-run typed before the `--` for itself).
+ * argument while npm_config_dry_run is set (npm keeps a --dry-run typed before the `--` for itself). npm keeps every
+ * other flag typed before the `--` too (a misspelt --dryrun, -n): the command cannot see one, so that run is a run
+ * with no argument, and it publishes.
  *
  * The target Central must run with HELP_AGENT_ENABLED=true: with the flag off, PUT /api/v1/admin/help/packs is not
  * registered and the publish answers 404. The console's own HELP_AGENT_ENABLED can stay off until the pack is active.
@@ -250,10 +252,12 @@ function isEntryPoint() {
 }
 
 if (isEntryPoint()) {
-  // Only --dry-run is an argument, and the live path is taken only when no argument came and npm kept none back.
-  // Anything else is refused here, before anything is assembled or sent. A misspelt flag must never publish. Nor
-  // must a --dry-run typed before npm's `--` separator: npm keeps it for itself, passes no argument and sets
-  // npm_config_dry_run. That case is refused rather than run as a dry run, so exit 0 never means "did nothing".
+  // Only --dry-run is an argument, and the live path is taken only when no argument came and npm_config_dry_run is
+  // not set. Anything else is refused here, before anything is assembled or sent. A misspelt flag that reaches the
+  // command must never publish. Nor must a --dry-run typed before npm's `--` separator: npm keeps it for itself,
+  // passes no argument and sets npm_config_dry_run. That case is refused rather than run as a dry run, so exit 0
+  // never means "did nothing". Any OTHER flag typed before the `--` cannot be seen here: npm keeps it and sets only
+  // npm_config_<that flag>, so such a run arrives as a run with no argument (docs/release-downloads.md, step 4).
   const args = process.argv.slice(2);
   const unknown = args.find((arg) => arg !== '--dry-run');
   const refusal =
