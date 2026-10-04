@@ -110,6 +110,11 @@ describe('help panel strings', () => {
     expect(t('en', 'footerEdition', { edition: '{date}', date: 'X' })).toBe('Guide {date} · help pack X');
   });
 
+  it('t() fills from the own properties of vars only, never from what vars inherits', () => {
+    const inherited = Object.create({ contact: 'inherited@example.com' }) as Record<string, string>;
+    expect(t('en', 'contact', inherited)).toBe('Contact {contact}');
+  });
+
   it('labels each language in its own name', () => {
     expect(HELP_LANGUAGE_LABELS).toEqual({ en: 'English', es: 'Español', ko: '한국어', 'pt-BR': 'Português (Brasil)' });
   });
