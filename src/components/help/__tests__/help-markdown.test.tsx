@@ -136,6 +136,44 @@ describe('parseHelpMarkdown', () => {
   });
 });
 
+// `\s` takes U+2028 and U+2029 and `.` does not, so a block pattern with a `.` tail retried every split of a
+// long run of spaces before one of them (quadratic), and the answer is parsed again on every streamed delta.
+// Each pin times one whole parse at 64,000 spaces: over 4 s with the `.` tails, under 1 ms without them; the
+// bound leaves room for a loaded machine.
+describe('parseHelpMarkdown in linear time on a run of spaces before U+2028 or U+2029', () => {
+  const spaces = ' '.repeat(64_000);
+  const BOUND_MS = 250;
+  const parseTimed = (source: string) => {
+    const start = performance.now();
+    const blocks = parseHelpMarkdown(source);
+    return { ms: performance.now() - start, blocks };
+  };
+
+  it('reads a heading line', () => {
+    for (const separator of ['\u2028', '\u2029']) {
+      const { ms, blocks } = parseTimed(`#${spaces}a${separator}`);
+      expect(ms).toBeLessThan(BOUND_MS);
+      expect(blocks).toEqual([{ kind: 'heading', level: 1, text: 'a' }]);
+    }
+  }, 30_000);
+
+  it('reads a bullet line', () => {
+    for (const separator of ['\u2028', '\u2029']) {
+      const { ms, blocks } = parseTimed(`-${spaces}a${separator}`);
+      expect(ms).toBeLessThan(BOUND_MS);
+      expect(blocks).toEqual([{ kind: 'ul', items: [`a${separator}`] }]);
+    }
+  }, 30_000);
+
+  it('reads an ordered item line', () => {
+    for (const separator of ['\u2028', '\u2029']) {
+      const { ms, blocks } = parseTimed(`1.${spaces}a${separator}`);
+      expect(ms).toBeLessThan(BOUND_MS);
+      expect(blocks).toEqual([{ kind: 'ol', start: 1, items: [`a${separator}`] }]);
+    }
+  }, 30_000);
+});
+
 describe('HelpMarkdown', () => {
   it('renders headings, list items and paragraph line breaks', () => {
     const { container } = md('## Fix it\n- one\n- two\n\nline a\nline b');

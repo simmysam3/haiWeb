@@ -17,9 +17,12 @@ export type HelpBlock =
 // 1 indent · 2 info string (any text without a backtick; its first word is the language).
 const FENCE_OPEN = /^([ \t]*)```([^`]*)$/;
 const FENCE_CLOSE = /^\s*```\s*$/;
-const HEADING = /^(#{1,6})\s+(.+)$/;
-const UL_ITEM = /^\s*[-*+]\s+(.*)$/;
-const OL_ITEM = /^\s*(\d+)[.)]\s+(.*)$/;
+// A block's text is [^\n], never `.`: `.` stops at U+2028 and U+2029, which `\s` takes, and the failing `$`
+// then retried every split of a run of spaces before one (quadratic). A line holds no \n, so [^\n] is any
+// character of it (the ES2017 target has no `s` flag).
+const HEADING = /^(#{1,6})\s+([^\n]+)$/;
+const UL_ITEM = /^\s*[-*+]\s+([^\n]*)$/;
+const OL_ITEM = /^\s*(\d+)[.)]\s+([^\n]*)$/;
 
 /** CommonMark: the content of a fence indented `n` characters loses up to `n` leading spaces or tabs, never more than it has. */
 function dropIndent(line: string, n: number): string {
