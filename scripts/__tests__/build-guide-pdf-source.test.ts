@@ -58,6 +58,9 @@ describe('extractSourceBinding (README § Source binding)', () => {
     expect(() => extractSourceBinding(page(` data-edition="1.8" data-source="client-implementation-guidelines-v1.7.md" data-source-sha256="${sha(SOURCE)}"`))).toThrow(/does not match/);
     expect(() => extractSourceBinding(bound(sha(SOURCE).toUpperCase()))).toThrow(/64 lowercase hex/); // 64 characters, upper case
     expect(() => extractSourceBinding(bound(sha(SOURCE).slice(0, 63)))).toThrow(/64 lowercase hex/); // lower case, 63 characters
+    // The file name is anchored at both ends, so data-source is always a bare file name inside haiCore docs/.
+    expect(() => extractSourceBinding(page(` data-edition="1.7" data-source="../x/client-implementation-guidelines-v1.7.md" data-source-sha256="${sha(SOURCE)}"`))).toThrow(/is not a client-implementation-guidelines-v/);
+    expect(() => extractSourceBinding(page(` data-edition="1.7" data-source="client-implementation-guidelines-v1.7.md.bak" data-source-sha256="${sha(SOURCE)}"`))).toThrow(/is not a client-implementation-guidelines-v/);
   });
   it('refuses a body with no page section', () => {
     expect(() => extractSourceBinding('<div>nothing</div>')).toThrow(/no <section class="page">/);
