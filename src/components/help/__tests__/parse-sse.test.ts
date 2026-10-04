@@ -110,7 +110,25 @@ describe('createSseParser', () => {
       [{ event: 'delta', data: '{"text":"a\u2028b\u2029c\u0085d\fe\vf"}' }],
     ],
     ['empty data lines are kept in the join, in the middle and at the end', 'data: a\ndata:\ndata: b\ndata\n\n', [{ event: 'message', data: 'a\n\nb\n' }]],
+    ['an empty event line puts the name back to the default', 'event: delta\nevent:\ndata: x\n\n', [{ event: 'message', data: 'x' }]],
+    ['a space before the colon is part of the field name, so "data " is not data', 'data : x\n\n', []],
+    ['a field name that only ends in event is not event', 'xevent: a\ndata: x\n\n', [{ event: 'message', data: 'x' }]],
+    ['the event name keeps its case', 'event: Delta\ndata: x\n\n', [{ event: 'Delta', data: 'x' }]],
+    [
+      'LF then CR are two line endings, so the CR is a blank line',
+      'data: a\n\rdata: b\n\n',
+      [
+        { event: 'message', data: 'a' },
+        { event: 'message', data: 'b' },
+      ],
+    ],
+    ['an event line between data lines keeps the data read so far', 'data: a\nevent: delta\ndata: b\n\n', [{ event: 'delta', data: 'a\nb' }]],
+    ['only one space is stripped from an event value', 'event:  delta\ndata: x\n\n', [{ event: ' delta', data: 'x' }]],
   ])('%s', (_rule, stream, expected) => {
     expect(collect([stream])).toEqual(expected);
+  });
+
+  it('holds back only a CR that ends the chunk: the lines before it are read at once', () => {
+    expect(collect(['data: a\n\ndata: b\r'], false)).toEqual([{ event: 'message', data: 'a' }]);
   });
 });
