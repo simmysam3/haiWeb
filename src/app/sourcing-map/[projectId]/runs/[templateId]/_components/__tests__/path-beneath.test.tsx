@@ -28,9 +28,11 @@ describe('PathBeneath', () => {
     expect(within(tier2).queryByText(/null/)).toBeNull();
     const rowA = within(tier2).getByRole('button', { name: /^A · IT/ });
     expect(within(rowA).getByText('moderate')).toBeInTheDocument();
+    expect(within(rowA).getByRole('img', { name: 'moderate' })).toBeInTheDocument();
     expect(within(rowA).getByText('binding')).toBeInTheDocument();
     expect(within(rowA).getByText('also under 1')).toBeInTheDocument();
     expect(within(rowA).queryByText(/^Binding for/)).toBeNull();
+    expect(within(rowA).queryByText('not observed below')).toBeNull();
     const rowB = within(tier2).getByRole('button', { name: /^B · US/ });
     expect(within(rowB).getByText('not observed below')).toBeInTheDocument();
     expect(within(rowB).queryByText(/^(binding|inherited)$/)).toBeNull();
@@ -76,6 +78,12 @@ describe('PathBeneath', () => {
     const rowG = screen.getByRole('button', { name: /^G · DE/ });
     expect(within(rowG).getByText('not traced below (answers for itself only)')).toBeInTheDocument();
     expect(within(rowG).queryByText('not observed below')).toBeNull();
+
+    // clause: a node with no country reads a dash on its row
+    const countryless = { ...leon, nodes: [...leon.nodes!, { alias: 'H', tier: 2, country: null, class: null, band: null, observed_below: true }] };
+    cleanup();
+    render(<PathBeneath result={result} candidate={countryless} onOpenRow={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /^H · —/ })).toBeInTheDocument();
   });
 
   it('keeps clear of the map’s handles and of the disclosure rules (§7, LF-R2)', () => {

@@ -496,7 +496,7 @@ export function nodeTallies(c: SmCandidateResult): { countries: Array<[string, n
 }
 
 export interface PathTier { tier: number; groups: Array<{ label: string | null; level: number | null; nodes: SmSubtierNode[] }> }
-/** Tiers ascending; in a tier one group per class label and level, by label, the no-class group last; in a group, nodes by alias. */
+/** Tiers ascending; in a tier one group per class label and level, by label then level ascending, the no-class group last; in a group, nodes by alias. */
 export function pathGroups(c: SmCandidateResult): PathTier[] {
   const nodes = c.nodes ?? [];
   const tiers = [...new Set(nodes.map((n) => n.tier))].sort((a, b) => a - b);
@@ -510,7 +510,7 @@ export function pathGroups(c: SmCandidateResult): PathTier[] {
       else groups.push({ label, level, nodes: [n] });
     }
     for (const g of groups) g.nodes.sort((a, b) => a.alias.localeCompare(b.alias));
-    groups.sort((a, b) => (a.label === null ? 1 : 0) - (b.label === null ? 1 : 0) || (a.label ?? '').localeCompare(b.label ?? ''));
+    groups.sort((a, b) => (a.label === null ? 1 : 0) - (b.label === null ? 1 : 0) || (a.label ?? '').localeCompare(b.label ?? '') || (a.level ?? 0) - (b.level ?? 0));
     return { tier, groups };
   });
 }

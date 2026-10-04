@@ -426,6 +426,9 @@ describe('what is beneath an option: the selectors (LF step 5)', () => {
   it('tallies countries and classes over the option’s own nodes, by count then by name, never from the served lists (§8.1)', () => {
     expect(nodeTallies(mekong)).toEqual({ countries: [['IT', 2], ['IN', 1]], classes: [['Dyes', 2], ['Colorants', 1]] });
     expect(nodeTallies(leon)).toEqual({ countries: [['IN', 1], ['IT', 1], ['US', 1]], classes: [['Colorants', 1], ['Dyes', 1]] });
+    // a node with no country is left out of the country tally, and one with no class out of the class tally
+    const nameless = { ...mekong, nodes: [...mekong.nodes!, { alias: 'H', tier: 2, country: null, class: null, band: null, observed_below: true }] };
+    expect(nodeTallies(nameless)).toEqual(nodeTallies(mekong));
   });
 
   const shape = (c: SmCandidateResult2) => pathGroups(c).map((t) => ({ tier: t.tier, groups: t.groups.map((g) => ({ label: g.label, level: g.level, aliases: g.nodes.map((n) => n.alias) })) }));
@@ -440,5 +443,13 @@ describe('what is beneath an option: the selectors (LF step 5)', () => {
     ]);
     // an inline option whose nodes arrive out of order comes back sorted
     expect(shape({ ...mekong, nodes: [...mekong.nodes!].reverse() })).toEqual(shape(mekong));
+    // tiers ascending whatever the served order: León's nodes reversed arrive tier 3 first
+    expect(shape({ ...leon, nodes: [...leon.nodes!].reverse() })).toEqual(shape(leon));
+    // one group per label AND level: the same label at two levels is two groups, the shallower level first (the deeper one is served first)
+    const dyesL2 = { slug: 'cpt_leather_finish_dyes', label: 'Dyes', level: 2, of_levels: 4 };
+    const twoLevels = { ...mekong, nodes: [...mekong.nodes!, { alias: 'X', tier: 2, country: 'IT', class: dyesL2, band: null, observed_below: true }] };
+    expect(shape(twoLevels)).toEqual([
+      { tier: 2, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }, { label: 'Dyes', level: 2, aliases: ['X'] }, { label: 'Dyes', level: 4, aliases: ['A', 'F'] }] },
+    ]);
   });
 });
