@@ -7,6 +7,14 @@ import { join } from 'node:path';
 import { buildAgentZip, assertConformanceShipped } from '../build-agent-zip.mjs';
 import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
+/** Owner ruling A (2026-10-03): haiClient operator docs ship FILE BY FILE after a customer-safety read
+ *  (~/dev/hw/reports/REPORT-2026-10-04-agent-docs-customer-safety.md). A new doc needs its own read, the owner's
+ *  approval, and a line here AND in ALLOWLIST. */
+const APPROVED_DOCS = [
+  'docs/identity-provider.md',
+  'docs/typed-memory.md',
+];
+
 const created: string[] = [];
 function tmp(prefix: string): string {
   const d = mkdtempSync(join(tmpdir(), prefix));
@@ -159,7 +167,9 @@ function initStructuredRepo(): string {
     'packages/client-sdk/src/__tests__/conformance/** -export-ignore\n');
   write('kill-agents.ps1', '# kill\n');
   write('deploy-agent.sh', '#!/bin/sh\n');
-  write('docs/typed-memory.md', '# doc\n');
+  for (const doc of APPROVED_DOCS) write(doc, '# operator doc\n');
+  write('docs/unreviewed-notes.md', '# not reviewed\n');
+  write('docs/audit/internal.md', '# internal\n');
   write('scripts/sync-protocol.mjs', '// internal\n');
   write('src/chat/__tests__/query-router.test.ts', '// non-conformance test\n');
   git('add', '-A');
@@ -184,6 +194,7 @@ describe('agent archive allowlist invariants', () => {
       'scripts/seed-config.mjs',
       'scripts/hash-chat-password.mjs',
       'package.json',
+      ...APPROVED_DOCS,
     ]) {
       expect(entries, `expected ${p} to ship`).toContain(p);
     }
@@ -194,7 +205,7 @@ describe('agent archive allowlist invariants', () => {
       '.gitattributes',
       'kill-agents.ps1',
       'deploy-agent.sh',
-      'docs/typed-memory.md',
+      'docs/unreviewed-notes.md', 'docs/audit/internal.md',
       'scripts/sync-protocol.mjs',
       'src/chat/__tests__/query-router.test.ts',
     ]) {
@@ -202,10 +213,15 @@ describe('agent archive allowlist invariants', () => {
     }
   });
 
-  it('the allowlist has no obviously-internal entries', () => {
+  it('the allowlist has no obviously-internal entries, and docs ship only file by file, each one owner-approved', () => {
     for (const p of ALLOWLIST) {
-      expect(p).not.toMatch(/^(CLAUDE\.md|deploy-agent\.sh|kill-|docs\/|\.gitattributes)/);
+      expect(p).not.toMatch(/^(CLAUDE\.md|deploy-agent\.sh|kill-|\.gitattributes)/);
+      if (p === 'docs' || p.startsWith('docs/')) {
+        expect(p, 'a docs/ entry must name one file, never the directory').toMatch(/^docs\/[a-z0-9-]+\.md$/);
+        expect(APPROVED_DOCS, `${p} is not an owner-approved doc`).toContain(p);
+      }
     }
+    expect(ALLOWLIST).toEqual(expect.arrayContaining(APPROVED_DOCS));
   });
 });
 
