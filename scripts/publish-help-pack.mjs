@@ -209,6 +209,11 @@ export async function main({ dryRun, haiwebDir, haicoreDir, env, fetchImpl = fet
   if (!env.HAICORE_URL || !env.HELP_PUBLISH_TOKEN) {
     throw new Error('publish:help-pack needs HAICORE_URL and HELP_PUBLISH_TOKEN (a haiwave_admin portal token)');
   }
+  // The token travels in a header, and fetch's own error for a value it cannot send quotes the whole value. So a
+  // token that is not one line of visible ASCII is refused here, by a message that does not hold it.
+  if (!/^[\x21-\x7e]+$/.test(env.HELP_PUBLISH_TOKEN)) {
+    throw new Error('publish:help-pack: HELP_PUBLISH_TOKEN must be one line of visible ASCII, with no space or line break in it (the value is not printed)');
+  }
   const protocolVersion = JSON.parse(readFileSync(join(haicoreDir, 'packages', 'protocol', 'package.json'), 'utf8')).version;
   const { status, body } = await publishPack({ haicoreUrl: env.HAICORE_URL, token: env.HELP_PUBLISH_TOKEN, protocolVersion, payload, fetchImpl });
   if (status === 201) {
@@ -263,7 +268,9 @@ if (isEntryPoint()) {
   }).then(
     (code) => process.exit(code),
     (err) => {
-      console.error(String(err instanceof Error ? err.message : err));
+      // A request that could not be made rejects with only "fetch failed"; the reason is in the error's cause.
+      const cause = err instanceof Error && err.cause instanceof Error && err.cause.message ? `: ${err.cause.message}` : '';
+      console.error(String(err instanceof Error ? err.message : err) + cause);
       process.exit(1);
     },
   );

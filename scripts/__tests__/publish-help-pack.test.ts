@@ -573,9 +573,10 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   /**
    * A fake `fetch` to preload into the child, with fake values for the two variables: the child can send nothing.
    * The fake prints nothing. It appends one line per call to a file that the preload itself creates, so `requests()`
-   * is what the fake saw, and it throws when the preload never ran.
+   * is what the fake saw, and it throws when the preload never ran. Like the real fetch, it throws on a header value
+   * that cannot be sent. `answer` is the statement that ends the fake: by default it returns a 201.
    */
-  function fakeFetch() {
+  function fakeFetch(answer = 'return { status: 201, text: async () => \'{"pack_id":"11111111-1111-4111-8111-111111111111","version":"2026-10-07.1"}\' };') {
     const dir = tmp('helppack-preload-');
     const seen = join(dir, 'requests.txt');
     writeFileSync(join(dir, 'fake-fetch.mjs'), [
@@ -584,7 +585,8 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
       "writeFileSync(seen, '');",
       'globalThis.fetch = async (url, init) => {',
       '  appendFileSync(seen, `${init.method} ${url}\\n`);',
-      '  return { status: 201, text: async () => \'{"pack_id":"11111111-1111-4111-8111-111111111111","version":"2026-10-07.1"}\' };',
+      '  new Headers(init.headers);',
+      `  ${answer}`,
       '};',
       '',
     ].join('\n'));
@@ -688,5 +690,34 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(r.stdout).toContain('Dry run: wrote');
     expect(existsSync(join(t.web, PREVIEW))).toBe(true);
     expect(fake.requests()).toEqual([]);
+  });
+
+  // The token travels in a header. With a line break in it the real fetch throws `Headers.append: "Bearer <token>" is
+  // an invalid header value`, and the command printed that message: the whole token, on stderr. A token that is not
+  // one line of visible ASCII is refused before any request, by a message that holds no part of it.
+  it.each([
+    ['a line break', 'sekret-bearer\ntoken-tail'],
+    ['a space', 'sekret-bearer token-tail'],
+    ['a non-ASCII character', 'sekret-bearer\u00e9token-tail'],
+    ['a control character', 'sekret-bearer\x7ftoken-tail'],
+  ])('refuses a HELP_PUBLISH_TOKEN that holds %s before any request, and prints no part of it', (_name, token) => {
+    const fake = fakeFetch();
+    const r = cli(gitTrees(), [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: token } });
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('HELP_PUBLISH_TOKEN');
+    for (const part of ['sekret-bearer', 'token-tail']) expect(r.stderr).not.toContain(part);
+    expect(fake.requests()).toEqual([]);
+  });
+
+  // When Central cannot be reached, fetch rejects with `fetch failed` and nothing more: the reason (the host that does
+  // not resolve, the refused connection) is in the error's `cause`. The command prints both.
+  it('prints the cause of a request that failed, beside the error', () => {
+    const fake = fakeFetch("throw new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND help-pack.invalid') });");
+    const r = cli(gitTrees(), [], fake);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('fetch failed');
+    expect(r.stderr).toContain('getaddrinfo ENOTFOUND help-pack.invalid');
+    expect(r.stderr).not.toContain(FAKE_ENV.HELP_PUBLISH_TOKEN);
+    expect(fake.requests()).toHaveLength(1);
   });
 });
