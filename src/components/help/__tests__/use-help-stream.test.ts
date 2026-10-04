@@ -356,6 +356,33 @@ describe('postHelpMessage', () => {
     ac.abort();
     expect(await pending).toEqual({ kind: 'aborted' });
   });
+
+  it('abort while an error body is still arriving → aborted, not an http_error with its fields lost', async () => {
+    const enc = new TextEncoder();
+    let bodyRead = false;
+    fetchMock.mockImplementation((_u: string, init: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(c) {
+              c.enqueue(enc.encode('{"error":{"code":"RATE_LIMIT_'));
+              // As a browser's fetch body does: an abort after the headers fails the body that is still readable.
+              init.signal?.addEventListener('abort', () => c.error(new DOMException('aborted', 'AbortError')));
+            },
+            pull() {
+              bodyRead = true; // the first chunk has been taken by the reader
+            },
+          }),
+          { status: 429, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+    const ac = new AbortController();
+    const pending = postHelpMessage(REQ, callbacks(), ac.signal);
+    await vi.waitFor(() => expect(bodyRead).toBe(true));
+    ac.abort();
+    expect(await pending).toEqual({ kind: 'aborted' });
+  });
 });
 
 describe('useHelpStream', () => {

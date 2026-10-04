@@ -77,7 +77,9 @@ export async function postHelpMessage(body: HelpMessageRequest, cb: HelpStreamCa
   if (res.status === 401) return { kind: 'session_expired' };
   const contentType = res.headers.get('content-type') ?? '';
   if (!res.ok || !contentType.startsWith('text/event-stream') || !res.body) {
-    return { kind: 'http_error', status: res.status, ...(await readErrorFields(res)) };
+    const fields = await readErrorFields(res);
+    // An abort while the error body was still arriving fails that read: the caller stopped, so it is not an HTTP error.
+    return signal.aborted ? { kind: 'aborted' } : { kind: 'http_error', status: res.status, ...fields };
   }
 
   const result: { terminal: HelpSendOutcome | null } = { terminal: null };
