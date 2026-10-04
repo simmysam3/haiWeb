@@ -11,6 +11,7 @@ import {
   newerAsBuiltWarning, assemblePack, main, DEPLOY_DOC_PATHS,
 } from '../publish-help-pack.mjs';
 import { sha256Hex as guideSha256Hex, verifySourceUnchanged } from '../build-guide-pdf.mjs';
+import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
 const sha = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex');
 const created: string[] = [];
@@ -21,6 +22,12 @@ const write = (root: string, rel: string, text: string) => { mkdirSync(dirname(j
 describe('DEPLOY_DOC_PATHS', () => {
   it('is the six deployment files of spec §5.1, in the spec\'s order', () => {
     expect(DEPLOY_DOC_PATHS).toEqual(['.env.example', 'Dockerfile', '.dockerignore', 'scripts/docker-entrypoint.sh', 'README.md', 'UPGRADING.md']);
+  });
+  // The pack reads these six files from the served zip, and the zip is a `git archive` of the allowlist. An allowlist
+  // that drops one of them still builds the archive; publish:help-pack then refuses ("the served agent zip lacks …")
+  // at the runbook's last step, after the image that carries the zip is deployed.
+  it('names only files the agent archive ships: every entry is on the archive allowlist', () => {
+    expect(DEPLOY_DOC_PATHS.filter((p: string) => !ALLOWLIST.includes(p))).toEqual([]);
   });
 });
 
