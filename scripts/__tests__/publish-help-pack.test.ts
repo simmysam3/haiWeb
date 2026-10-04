@@ -778,14 +778,37 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(fake.requests()).toEqual([]);
   });
 
-  // When Central cannot be reached, fetch rejects with `fetch failed` and nothing more: the reason (the host that does
-  // not resolve, the refused connection) is in the error's `cause`. The command prints both.
+  // When Central cannot be reached, fetch rejects with `fetch failed` and nothing more: the reason is in the error's
+  // `cause`. Here the cause has a message of its own (a host that does not resolve; a refused connection to a host
+  // with one address). The command prints both messages.
   it('prints the cause of a request that failed, beside the error', () => {
     const fake = fakeFetch("throw new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND help-pack.invalid') });");
     const r = cli(gitTrees(), [], fake);
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain('fetch failed');
     expect(r.stderr).toContain('getaddrinfo ENOTFOUND help-pack.invalid');
+    expect(r.stderr).not.toContain(FAKE_ENV.HELP_PUBLISH_TOKEN);
+    expect(fake.requests()).toHaveLength(1);
+  });
+
+  // The cause does not always have a message of its own. For a host with more than one address (`localhost` is ::1
+  // and 127.0.0.1) with nothing listening, it is an AggregateError whose message is empty: the reason is in the
+  // messages of its `errors`, and in its `code`. The command prints the inner messages, or the code when there are
+  // none. Before, it printed only `fetch failed` for both.
+  it.each([
+    [
+      'the inner errors of an AggregateError (a host with two addresses, nothing listening)',
+      "Object.assign(new AggregateError([new Error('connect ECONNREFUSED ::1:3000'), new Error('connect ECONNREFUSED 127.0.0.1:3000')], ''), { code: 'ECONNREFUSED' })",
+      ['connect ECONNREFUSED ::1:3000', 'connect ECONNREFUSED 127.0.0.1:3000'],
+    ],
+    ['its code, when it has no inner errors either', "Object.assign(new Error(''), { code: 'ECONNREFUSED' })", ['ECONNREFUSED']],
+  ])('prints why a request failed when the cause has no message of its own: %s', (_name, cause, reasons) => {
+    const fake = fakeFetch(`throw new TypeError('fetch failed', { cause: ${cause} });`);
+    const r = cli(gitTrees(), [], fake);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('fetch failed');
+    expect(r.stderr).toContain('ECONNREFUSED');
+    for (const reason of reasons) expect(r.stderr).toContain(reason);
     expect(r.stderr).not.toContain(FAKE_ENV.HELP_PUBLISH_TOKEN);
     expect(fake.requests()).toHaveLength(1);
   });

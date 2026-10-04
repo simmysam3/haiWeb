@@ -278,9 +278,14 @@ if (isEntryPoint()) {
   }).then(
     (code) => process.exit(code),
     (err) => {
-      // A request that could not be made rejects with only "fetch failed"; the reason is in the error's cause.
-      const cause = err instanceof Error && err.cause instanceof Error && err.cause.message ? `: ${err.cause.message}` : '';
-      console.error(String(err instanceof Error ? err.message : err) + cause);
+      // A request that could not be made rejects with only "fetch failed"; the reason is in the error's cause. The
+      // cause's own message can be empty: for a host with more than one address (localhost) and nothing listening it
+      // is an AggregateError, and the reason is in the messages of its `errors`, or failing those in its `code`. Only
+      // the cause is read: nothing of the request or its headers is printed.
+      const cause = err instanceof Error && err.cause instanceof Error ? err.cause : null;
+      const inner = Array.isArray(cause?.errors) ? cause.errors.map((e) => (e instanceof Error ? e.message : '')).filter(Boolean).join('; ') : '';
+      const reason = cause ? cause.message || inner || (typeof cause.code === 'string' ? cause.code : '') : '';
+      console.error(String(err instanceof Error ? err.message : err) + (reason ? `: ${reason}` : ''));
       process.exit(1);
     },
   );
