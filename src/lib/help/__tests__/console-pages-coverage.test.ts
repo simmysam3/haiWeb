@@ -145,9 +145,18 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
     expect(dangling).toEqual([]);
   });
 
+  // The Sourcing Map routes come from a walk of the file system, so they are pinned by name: a walk that loses a page
+  // would let its entry go missing unseen. The nav routes are taken from navSections, as the coverage test takes them.
+  // A new page under src/app/sourcing-map adds a line here and an entry in the guide.
   it('requires the nav pages and the Sourcing Map sub-pages, so the coverage check is not vacuous', () => {
+    expect(sourcingMapRoutes()).toEqual([
+      '/sourcing-map',
+      '/sourcing-map/[projectId]',
+      '/sourcing-map/[projectId]/products/[productId]',
+      '/sourcing-map/[projectId]/runs/[templateId]',
+    ]);
     const routes = new Set(required());
-    const expected = ['/account/agents', '/sourcing-map/[projectId]/runs/[templateId]'];
+    const expected = [...navSections.flatMap((s) => s.items.map((i) => i.href)), ...sourcingMapRoutes()];
     expect(expected.filter((route) => !routes.has(route))).toEqual([]);
   });
 
