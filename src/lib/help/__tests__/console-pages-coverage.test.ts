@@ -169,6 +169,8 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
     const routes = new Set(required());
     const expected = [...navSections.flatMap((s) => s.items.map((i) => i.href)), ...sourcingMapRoutes()];
     expect(expected.filter((route) => !routes.has(route))).toEqual([]);
+    // A floor that does not come from navSections: an empty or reshaped nav list would otherwise pass unseen.
+    expect(required()).toContain('/account/agents');
   });
 
   it('defines each glossary term once', () => {
