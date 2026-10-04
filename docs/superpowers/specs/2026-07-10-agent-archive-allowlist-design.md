@@ -27,13 +27,14 @@ Determined by tracing what the build (`tsc -b`), the Docker image (`Dockerfile`)
 - Code/build: `src/`, `packages/`, `haicore-protocol/`, `frontend/`, `public/`, `config/`
 - Manifests/build config: `package.json`, `package-lock.json`, `tsconfig.json`, `tsconfig.typecheck.json`, `vitest.config.ts`
 - Container: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, and the three Dockerfile-required scripts `scripts/docker-entrypoint.sh`, `scripts/seed-config.mjs`, `scripts/hash-chat-password.mjs` (entrypoint runs seed-config, which imports hash-chat-password)
-- Adopter docs/meta: `README.md`, `UPGRADING.md`, `CHANGELOG.md`, `LICENSE`, `.env.example`, `.gitignore`
+- Adopter docs/meta: `README.md`, `UPGRADING.md`, `LICENSE`, `.env.example`, `.gitignore`
+  - `CHANGELOG.md` was on this list until 2026-10-04, when the owner took it out of the archive: it is internal release history (register ids, PR numbers, demo names), and `UPGRADING.md` is the adopter's upgrade document.
 
 `.gitattributes` is deliberately **not** shipped — it enumerates our excluded internal paths (a roadmap of what we hold back). `git archive` reads `.gitattributes` from the tree to *apply* the `export-ignore` rules regardless of the pathspec, so omitting it from the allowlist drops the file from the output while its rules still function.
 
 ### Excluded by default (not in the allowlist)
 
-`CLAUDE.md`, `.gitattributes` (excluded-paths roadmap), `kill-agents.ps1`, `kill-all.ps1`, `deploy-agent.sh`, `docs/`, all other `scripts/*`, `seed-data/`, `test-environment/`, `e2e/`, `seed-products.mjs`, and (gitignored anyway) `data/`, `dist/`, `node_modules/`.
+`CLAUDE.md`, `CHANGELOG.md` (since 2026-10-04), `.gitattributes` (excluded-paths roadmap), `kill-agents.ps1`, `kill-all.ps1`, `deploy-agent.sh`, `docs/`, all other `scripts/*`, `seed-data/`, `test-environment/`, `e2e/`, `seed-products.mjs`, and (gitignored anyway) `data/`, `dist/`, `node_modules/`.
 
 ### Tests — conformance kit only
 

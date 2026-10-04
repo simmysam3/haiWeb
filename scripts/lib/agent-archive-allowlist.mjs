@@ -23,5 +23,5 @@ export const ALLOWLIST = [
   'Dockerfile', 'docker-compose.yml', '.dockerignore',
   'scripts/docker-entrypoint.sh', 'scripts/seed-config.mjs', 'scripts/hash-chat-password.mjs',
   // adopter docs & meta
-  'README.md', 'UPGRADING.md', 'CHANGELOG.md', 'LICENSE', '.env.example', '.gitignore',
+  'README.md', 'UPGRADING.md', 'LICENSE', '.env.example', '.gitignore',
 ];
