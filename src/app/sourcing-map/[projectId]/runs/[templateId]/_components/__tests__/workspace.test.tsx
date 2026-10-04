@@ -921,6 +921,14 @@ describe('Workspace', () => {
     // the dialog still gets its key: the page's listener takes nothing from it
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    // review I-1: the modal owns Escape even while focus is outside it (a click on its backdrop leaves focus on <body>)
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Upload schedule' }));
+    (document.activeElement as HTMLElement).blur();
+    // present control: the press lands on <body>
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Upload schedule' })).toBeInTheDocument();
   });
 
   it('ignores an Escape whose target is outside what the workspace renders (the help panel, w9)', () => {
