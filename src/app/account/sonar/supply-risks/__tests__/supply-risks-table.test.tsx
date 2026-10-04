@@ -4,6 +4,9 @@ import { render, screen, within, fireEvent, waitFor } from '@testing-library/rea
 import { supplyRisksList, riskOf } from '@/app/sourcing-map/__fixtures__/sp3';
 import { openMapHref } from '@/lib/sourcing-map/backlogs';
 import type { SmSupplyRiskListResponse } from '@/lib/sourcing-map/types';
+import { groundToken } from '@/test/contrast';
+import { VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
+import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 
 import { SupplyRisksTable } from '../_components/supply-risks-table';
 
@@ -40,7 +43,7 @@ describe('SupplyRisksTable', () => {
 
   it('sits on a white card: the account page is grey (#ECF0F4), where the slate secondary text is 4.16:1, short of 4.5:1 (I-2)', () => {
     renderTable();
-    expect(screen.getByRole('table').parentElement).toHaveClass('bg-white');
+    expect(groundToken(screen.getByRole('table'))).toBe('white');
   });
 
   it("reads León's row: supplier, requested / covered, origin, status select", () => {
@@ -64,6 +67,15 @@ describe('SupplyRisksTable', () => {
     expect(within(row).getByText('Pegasus Trail, Court Classic')).toBeInTheDocument();
   });
 
+  it('titles an unclassified slot "Unclassified · <component>", as the map rail does (SP3-d m-2)', () => {
+    const unclassified = riskOf({
+      slot: { ...LEON.slot, class_id: `${SM_UNCLASSIFIED_CLASS_PREFIX}${VOMERO_IDS.bowline}:BW-EYE-8` },
+      slot_label: 'Eyelets, antique brass',
+    });
+    renderTable({ initial: { ...supplyRisksList, risks: [unclassified] } });
+    expect(within(rowOf('León Cuero')).getByText('Unclassified · Eyelets, antique brass')).toBeInTheDocument();
+  });
+
   it('a closed row has no controls: the accepted row reads as text', () => {
     renderTable();
     const row = rowOf('FlowKnit Mills');
@@ -77,13 +89,13 @@ describe('SupplyRisksTable', () => {
   it('the auto-cleared row has no Open map link: its supplier cell is the name alone', () => {
     renderTable();
     const row = rowOf('Mekong Tannery');
-    expect(within(row).queryByRole('link', { name: 'Open map' })).toBeNull();
+    expect(within(row).queryByRole('link', { name: /^Open map/ })).toBeNull();
     expect(within(row).getAllByRole('cell')[0]!.textContent).toBe('Mekong Tannery');
   });
 
   it('Open map sits in the Supplier cell under the name, with no column of its own (F-1: a last column was clipped at 1707 px)', () => {
     renderTable();
-    expect(within(within(rowOf('León Cuero')).getAllByRole('cell')[0]!).getByRole('link', { name: 'Open map' })).toBeInTheDocument();
+    expect(within(within(rowOf('León Cuero')).getAllByRole('cell')[0]!).getByRole('link', { name: /^Open map/ })).toBeInTheDocument();
     const headers = screen.getAllByRole('columnheader');
     expect(headers).toHaveLength(8);
     expect(headers.every((h) => h.textContent!.trim() !== '')).toBe(true);
@@ -91,7 +103,14 @@ describe('SupplyRisksTable', () => {
 
   it("León's Open map link is the run with its query", () => {
     renderTable();
-    expect(within(rowOf('León Cuero')).getByRole('link', { name: 'Open map' })).toHaveAttribute('href', openMapHref(LEON.open_map!));
+    expect(within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ })).toHaveAttribute('href', openMapHref(LEON.open_map!));
+  });
+
+  it('names Open map by its supplier, starting with its visible text (WCAG 2.5.3)', () => {
+    renderTable();
+    const link = within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ });
+    expect(link.textContent).toBe('Open map');
+    expect(link).toHaveAccessibleName('Open map for León Cuero');
   });
 
   it('shows no internal identifier', () => {
@@ -106,13 +125,13 @@ describe('SupplyRisksTable', () => {
 
   it('its teal links use the dark teal, which clears 4.5:1 on white (axe color-contrast, SP3-d Task 12)', () => {
     renderTable({ nextHref: '/account/sonar/supply-risks?status=open&cursor=c2' });
-    for (const el of [within(rowOf('León Cuero')).getByRole('link', { name: 'Open map' }), screen.getByRole('link', { name: 'Show older' })]) {
+    for (const el of [within(rowOf('León Cuero')).getByRole('link', { name: /^Open map/ }), screen.getByRole('link', { name: 'Show older' })]) {
       expect(el).toHaveClass('text-teal-dark');
       expect(el).not.toHaveClass('text-teal');
     }
   });
 
-  it('its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (axe color-contrast, ruling C-11)', () => {
+  it("its header cells use charcoal, which clears 4.5:1 on the header grey, never slate (DataTable's header token)", () => {
     renderTable();
     const heads = screen.getAllByRole('columnheader');
     expect(heads.length).toBeGreaterThan(0);

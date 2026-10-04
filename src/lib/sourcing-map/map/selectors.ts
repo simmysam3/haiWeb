@@ -4,7 +4,7 @@ import type {
   SmBand, SmCandidateLiveStatus2 as SmCandidateLiveStatus, SmCandidateResult2 as SmCandidateResult, SmCandidateWeek, SmCoverageWeek, SmExecutionStatusResponse2 as SmExecutionStatusResponse,
   SmOptionAggregates, SmOptionLimit2, SmPortfolioDrop, SmPortfolioResult, SmSlotResult2 as SmSlotResult, SmSubtierNode, SmTrace, SmWaitingOn, SourcingMapExecutionResult2 as SourcingMapExecutionResult,
 } from '../types';
-import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
+import { SM_UNCLASSIFIED_CLASS_PREFIX, type SmSlotKey } from '@haiwave/protocol';
 
 /** Spec §9.3 / O-2: links ≥ 90% teal, 70–90% orange, < 70% red. */
 export const HEAT_GOOD = 0.9;
@@ -182,14 +182,24 @@ export function sortedVariantEntries<T>(record: Record<string, T>): Array<[strin
     : entries;
 }
 
+/** Contract §10: a slot key with no Network Index class is probed through its pin, in a slot of its own. */
+function isUnclassifiedKey(key: SmSlotKey): boolean {
+  return key.class_id.startsWith(SM_UNCLASSIFIED_CLASS_PREFIX);
+}
+
 /** Contract §10: an agent line with no Network Index class is probed through its pin, in a slot of its own. */
 export function isUnclassifiedSlot(slot: SmSlotResult): boolean {
-  return slot.slot_key.class_id.startsWith(SM_UNCLASSIFIED_CLASS_PREFIX);
+  return isUnclassifiedKey(slot.slot_key);
+}
+
+/** One slot-title rule for the rail and the backlog: "Unclassified · <component>" for such a slot key, otherwise the label. */
+export function slotKeyTitle(key: SmSlotKey, label: string): string {
+  return isUnclassifiedKey(key) ? `Unclassified · ${label}` : label;
 }
 
 /** The rail's title: "Unclassified · <component>" for such a slot, otherwise the class label. */
 export function slotTitle(slot: SmSlotResult): string {
-  return isUnclassifiedSlot(slot) ? `Unclassified · ${slot.class_label}` : slot.class_label;
+  return slotKeyTitle(slot.slot_key, slot.class_label);
 }
 
 export interface DropGroup {

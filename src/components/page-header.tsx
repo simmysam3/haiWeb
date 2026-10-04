@@ -30,15 +30,15 @@ export function PageHeader({
     <header className="flex items-start justify-between gap-4 mb-6">
       <div className="min-w-0">
         {eyebrow && (
-          <p className="text-xs uppercase tracking-wider text-slate mb-1.5 font-medium">
+          <p className="text-xs uppercase tracking-wider text-charcoal mb-1.5 font-medium">
             {eyebrow}
           </p>
         )}
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal-dark">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm text-slate">{description}</p>
+          <p className="mt-1 text-sm text-charcoal">{description}</p>
         )}
       </div>
       {actions && <div className="flex flex-shrink-0 gap-3">{actions}</div>}
