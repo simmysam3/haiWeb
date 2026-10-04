@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync, copyFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -516,7 +516,8 @@ describe('main', () => {
 });
 
 describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
-  // The script beside this file, by its real path: the CLI block runs only when import.meta.url is file://<argv[1]>.
+  // The script beside this file. Its CLI block runs when argv[1] and the module are one file by their real paths
+  // (isEntryPoint): the tests at the end start a copy from a directory with a space, and the script through a link.
   const SCRIPT = realpathSync(fileURLToPath(new URL('../publish-help-pack.mjs', import.meta.url)));
   const PREVIEW = 'private/help-pack/help-pack.preview.json';
   /** Both trees as git repositories (the CLI reads the real HEADs and commit times), with each HEAD. */
@@ -564,5 +565,81 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     const r = cli(t, ['--dry-run']);
     expect(r.status).toBe(0);
     expect(r.stderr).toMatch(/the brief's 9-22_as_built\.md: 10-14_as_built\.md —/);
+  });
+
+  const FAKE_ENV = { HAICORE_URL: 'http://help-pack.invalid', HELP_PUBLISH_TOKEN: 'sekret-bearer-token' };
+  const UNREVIEWED = BRIEF.replace('reviewed_by: Owner', 'reviewed_by:');
+  /**
+   * A fake `fetch` to preload into the child, with fake values for the two variables: the child can send nothing.
+   * The fake prints nothing. It appends one line per call to a file that the preload itself creates, so `requests()`
+   * is what the fake saw, and it throws when the preload never ran.
+   */
+  function fakeFetch() {
+    const dir = tmp('helppack-preload-');
+    const seen = join(dir, 'requests.txt');
+    writeFileSync(join(dir, 'fake-fetch.mjs'), [
+      "import { appendFileSync, writeFileSync } from 'node:fs';",
+      `const seen = ${JSON.stringify(seen)};`,
+      "writeFileSync(seen, '');",
+      'globalThis.fetch = async (url, init) => {',
+      '  appendFileSync(seen, `${init.method} ${url}\\n`);',
+      '  return { status: 201, text: async () => \'{"pack_id":"11111111-1111-4111-8111-111111111111","version":"2026-10-07.1"}\' };',
+      '};',
+      '',
+    ].join('\n'));
+    return {
+      nodeArgs: ['--import', pathToFileURL(join(dir, 'fake-fetch.mjs')).href],
+      env: FAKE_ENV,
+      requests: () => readFileSync(seen, 'utf8').split('\n').filter(Boolean),
+    };
+  }
+  /** `node <argv…>` in the temp haiWeb tree with a fake fetch preloaded: for a copy of the script, a link to it, or code that imports it. */
+  function node(t: { web: string; core: string }, fake: ReturnType<typeof fakeFetch>, argv: string[]) {
+    return spawnSync(process.execPath, [...fake.nodeArgs, ...argv], { cwd: t.web, env: { ...process.env, HAICORE_DIR: t.core, ...fake.env }, encoding: 'utf8' });
+  }
+
+  // The entry check must hold wherever the checkout is. A file URL encodes a space, `#`, `%` and every non-ASCII
+  // character, so a check that compares import.meta.url with a hand-built `file://<argv[1]>` is false in such a path:
+  // the command prints nothing, sends nothing and exits 0. The directory is taken by its real path (macOS reaches the
+  // temp directory through the /var link), so the space is the only thing this test adds.
+  it('runs from a copy in a directory whose name holds a space', () => {
+    const dir = realpathSync(tmp('helppack check out-'));
+    expect(dir).toContain(' ');
+    const copy = join(dir, 'publish-help-pack.mjs');
+    copyFileSync(SCRIPT, copy);
+    const fake = fakeFetch();
+    const refused = node(gitTrees({ brief: UNREVIEWED }), fake, [copy, '--dry-run']);
+    expect([refused.status, refused.stdout]).toEqual([1, '']);
+    expect(refused.stderr).toContain('owner review is required before publishing');
+    const reviewed = gitTrees();
+    const ran = node(reviewed, fake, [copy, '--dry-run']);
+    expect(ran.status).toBe(0);
+    expect(ran.stdout).toContain('Dry run: wrote');
+    expect(existsSync(join(reviewed.web, PREVIEW))).toBe(true);
+    expect(fake.requests()).toEqual([]);
+  });
+
+  // Started through a symlink, argv[1] is the link while import.meta.url is the file the link points to. Compared as
+  // given the two never match. The brief is unreviewed, so only a run gives exit 1.
+  it('runs when it is started through a symlink to the script', () => {
+    const link = join(realpathSync(tmp('helppack-link-')), 'publish-help-pack.mjs');
+    symlinkSync(SCRIPT, link);
+    const fake = fakeFetch();
+    const r = node(gitTrees({ brief: UNREVIEWED }), fake, [link, '--dry-run']);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('owner review is required before publishing');
+    expect(fake.requests()).toEqual([]);
+  });
+
+  // The entry check takes real paths, and a path that names no file has none (ENOENT). A process whose argv[1] is such
+  // a path is importing the module: the import must not throw, and it must not start the command. The brief here is
+  // unreviewed, so a command that did start would exit 1 with the refusal, before any request.
+  it('stays importable, and does not run, in a process whose argv[1] names no file', () => {
+    const t = gitTrees({ brief: UNREVIEWED });
+    const fake = fakeFetch();
+    const code = `process.argv[1] = ${JSON.stringify(join(t.web, 'no-such-entry.mjs'))}; const help = await import(${JSON.stringify(pathToFileURL(SCRIPT).href)}); console.log(typeof help.main);`;
+    const r = node(t, fake, ['--input-type=module', '-e', code]);
+    expect([r.status, r.stdout]).toEqual([0, 'function\n']);
+    expect(fake.requests()).toEqual([]);
   });
 });

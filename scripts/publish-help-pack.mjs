@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Assemble the HAIWAVE Help knowledge pack from exactly what the console serves, and publish it to Central
@@ -222,7 +223,22 @@ export async function main({ dryRun, haiwebDir, haicoreDir, env, fetchImpl = fet
   return 1;
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * True when this file is the process's entry point, false when it is imported (the tests import its functions).
+ * Real paths on both sides. A file URL encodes a space, `#`, `%` and every non-ASCII character, and through a symlink
+ * argv[1] is the link while import.meta.url is the file it points to: compared as text the two can differ, and the
+ * command would then print nothing, send nothing and exit 0. An argv[1] that is absent or names no file has no real
+ * path (realpathSync throws): it is not this file, and importing the module must not throw.
+ */
+function isEntryPoint() {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   main({
     dryRun: process.argv.includes('--dry-run'),
     haiwebDir: resolve('.'),
