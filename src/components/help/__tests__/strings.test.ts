@@ -303,12 +303,17 @@ describe('resolveDefaultLanguage', () => {
     expect(resolveDefaultLanguage(preferred)).toBe(expected);
   });
 
-  // A tag is matched on its language subtag, not on its first two letters: 'kok' is Konkani, not Korean.
+  // A tag is matched on its whole language subtag, not on its first two letters ('kok' is Konkani, not Korean) nor
+  // on its last two ('men' is Mende, not English).
   it.each([
     [['kok-IN', 'es'], 'es'],
     [['esu', 'ko'], 'ko'],
     [['enm', 'es'], 'es'],
     [['ptp', 'ko'], 'ko'],
+    [['men', 'es'], 'es'],
+    [['yes', 'ko'], 'ko'],
+    [['nko', 'es'], 'es'],
+    [['apt', 'ko'], 'ko'],
   ] as const)('does not take a longer language subtag for one of the four: %j → %s', (preferred, expected) => {
     expect(resolveDefaultLanguage(preferred)).toBe(expected);
   });
@@ -348,10 +353,14 @@ describe('resolveDefaultLanguage', () => {
     expect(resolveDefaultLanguage(['fr', 'de', 'it', 'es'])).toBe('es');
   });
 
-  // Spec §7.3: "the first match of navigator.languages". A Portuguese tag further down the list does not win.
+  // Spec §7.3: "the first match of navigator.languages". A tag further down the list does not win, whichever of the
+  // four it names.
   it.each([
     [['es-ES', 'pt-BR'], 'es'],
     [['en-US', 'pt-PT'], 'en'],
+    [['en-US', 'ko-KR'], 'en'],
+    [['pt-BR', 'ko'], 'pt-BR'],
+    [['ko-KR', 'pt-BR'], 'ko'],
   ] as const)('takes the first match in the list, whatever follows it: %j → %s', (preferred, expected) => {
     expect(resolveDefaultLanguage(preferred)).toBe(expected);
   });
