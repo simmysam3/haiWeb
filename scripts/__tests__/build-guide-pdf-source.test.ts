@@ -31,13 +31,14 @@ describe('extractSourceBinding (README § Source binding)', () => {
   });
   it('names each missing attribute', () => {
     expect(() => extractSourceBinding(page(''))).toThrow(/data-edition/);
-    expect(() => extractSourceBinding(page(' data-edition="1.7"'))).toThrow(/data-source\b/);
+    expect(() => extractSourceBinding(page(' data-edition="1.7"'))).toThrow(/data-source(?!-)/); // not data-source-sha256
     expect(() => extractSourceBinding(page(' data-edition="1.7" data-source="client-implementation-guidelines-v1.7.md"'))).toThrow(/data-source-sha256/);
   });
   it('refuses a bad file name, an edition that is not the file\'s, and a malformed sha', () => {
     expect(() => extractSourceBinding(page(` data-edition="1.7" data-source="guide.md" data-source-sha256="${sha(SOURCE)}"`))).toThrow(/client-implementation-guidelines-v/);
     expect(() => extractSourceBinding(page(` data-edition="1.8" data-source="client-implementation-guidelines-v1.7.md" data-source-sha256="${sha(SOURCE)}"`))).toThrow(/does not match/);
-    expect(() => extractSourceBinding(page(' data-edition="1.7" data-source="client-implementation-guidelines-v1.7.md" data-source-sha256="ABC"'))).toThrow(/64 lowercase hex/);
+    expect(() => extractSourceBinding(bound(sha(SOURCE).toUpperCase()))).toThrow(/64 lowercase hex/); // 64 characters, upper case
+    expect(() => extractSourceBinding(bound(sha(SOURCE).slice(0, 63)))).toThrow(/64 lowercase hex/); // lower case, 63 characters
   });
   it('refuses a body with no page section', () => {
     expect(() => extractSourceBinding('<div>nothing</div>')).toThrow(/no <section class="page">/);
@@ -54,7 +55,9 @@ describe('verifySourceUnchanged', () => {
     await expect(verifySourceUnchanged(binding, docs)).rejects.toThrow(/changed since body\.html was authored/);
   });
   it('names the missing file and HAICORE_DIR when the source cannot be read', async () => {
-    await expect(verifySourceUnchanged(extractSourceBinding(bound()), tmp('empty-docs-'))).rejects.toThrow(/HAICORE_DIR/);
+    const unreadable = verifySourceUnchanged(extractSourceBinding(bound()), tmp('empty-docs-'));
+    await expect(unreadable).rejects.toThrow(/client-implementation-guidelines-v1\.7\.md/);
+    await expect(unreadable).rejects.toThrow(/HAICORE_DIR/);
   });
 });
 
@@ -72,16 +75,26 @@ describe('buildGuidePdf writes configuration-guide.json beside the PDF', () => {
   it('renders, then records bodySha256, edition, source file, source sha and builtAt', async () => {
     const body = bound() + '<section class="page">§1</section>';
     const t = tree(body);
-    const rendered: string[] = [];
+    const rendered: { html: string; outPath: string }[] = [];
     const now = new Date('2026-10-07T11:00:00.000Z');
     const r = await buildGuidePdf({
       bodyHtmlPath: join(t.root, 'body.html'), templatePath: join(t.root, 'template.html'), outPath: t.out,
-      title: 'T', date: 'D', haicoreDocsDir: t.docs, now, render: async (_html: string, outPath: string) => { rendered.push(outPath); },
+      title: 'T', date: 'D', haicoreDocsDir: t.docs, now, render: async (html: string, outPath: string) => { rendered.push({ html, outPath }); },
     });
-    expect(rendered).toEqual([t.out]);
+    // The document handed to the renderer is the template with the title, the date and the whole body injected.
+    expect(rendered).toEqual([{ html: `<html>T D ${body}</html>`, outPath: t.out }]);
     const written = JSON.parse(readFileSync(join(t.root, 'out', GUIDE_MANIFEST_FILE), 'utf8'));
     expect(written).toEqual({ bodySha256: sha(body), edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE), builtAt: now.toISOString() });
     expect(r.manifest).toEqual(written);
+  });
+
+  it('rejects with the render error and writes no manifest when the render fails', async () => {
+    const t = tree(bound());
+    await expect(buildGuidePdf({
+      bodyHtmlPath: join(t.root, 'body.html'), templatePath: join(t.root, 'template.html'), outPath: t.out,
+      title: 'T', date: 'D', haicoreDocsDir: t.docs, render: async () => { throw new Error('chromium did not launch'); },
+    })).rejects.toThrow('chromium did not launch');
+    expect(existsSync(join(t.root, 'out', GUIDE_MANIFEST_FILE))).toBe(false);
   });
 
   it('neither renders nor writes the manifest when the source changed after authoring', async () => {
