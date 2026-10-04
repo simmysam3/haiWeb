@@ -14,6 +14,21 @@ describe('toRoutePattern', () => {
     ['/account/sonar/inquiries/01hzx8q3w5v2k9m7n4p6r8t0yb', '/account/sonar/inquiries/[id]'],
     ['/account/sonar/posture/changes/chg_9f8e7d6c5b4a3210', '/account/sonar/posture/changes/[id]'],
     ['/sourcing-map/3f2b8c1e-9d4a-4c7b-8e2f-1a2b3c4d5e6f/runs/7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d', '/sourcing-map/[id]/runs/[id]'],
+    // Numeric: one digit is already an id; a short segment that merely holds a digit is a page, not an id.
+    ['/account/sonar/audit/7', '/account/sonar/audit/[id]'],
+    ['/account/sonar/v2', '/account/sonar/v2'],
+    ['/account/2fa', '/account/2fa'],
+    // Long opaque: 16 characters with a digit is the threshold; hyphens and upper-case letters are id characters.
+    ['/account/x/abc1234567890de', '/account/x/abc1234567890de'],
+    ['/account/x/abc1234567890def', '/account/x/[id]'],
+    ['/account/sonar/posture/changes/chg_9f8e7d6c5b4a', '/account/sonar/posture/changes/[id]'],
+    ['/account/sonar/audit/run-9f8e7d6c-5b4a3210', '/account/sonar/audit/[id]'],
+    ['/account/sonar/audit/Run_9F8E7D6C5B4A3210xyz', '/account/sonar/audit/[id]'],
+    // No digit, so the long-opaque rule does not match: here the UUID rule and the ULID rule decide alone.
+    ['/account/partners/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', '/account/partners/[id]'],
+    ['/account/partners/AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE', '/account/partners/[id]'],
+    ['/account/sonar/inquiries/ABCDEFGHJKMNPQRSTVWXYZABCD', '/account/sonar/inquiries/[id]'],
+    ['/account/sonar/inquiries/abcdefghjkmnpqrstvwxyzabcd', '/account/sonar/inquiries/[id]'],
   ])('%s → %s', (input, expected) => {
     expect(toRoutePattern(input)).toBe(expected);
   });
@@ -34,6 +49,16 @@ describe('toRoutePattern', () => {
   it('caps the pattern at 200 characters', () => {
     const long = `/account/${'a'.repeat(300)}`;
     expect(toRoutePattern(long)).toHaveLength(200);
+  });
+
+  it('the cap keeps the first 200 characters', () => {
+    expect(toRoutePattern(`/account/${'a'.repeat(300)}`)).toBe(`/account/${'a'.repeat(191)}`);
+  });
+
+  it('caps after the ids are replaced, so an id cut at character 200 leaves no fragment of itself', () => {
+    const raw = `/account/sonar/grounded-forecasts/detail${'/3f2b8c1e-9d4a-4c7b-8e2f-1a2b3c4d5e6f'.repeat(5)}`;
+    expect(raw.slice(0, 200).endsWith('/3f2b8c1e-9d')).toBe(true); // the construction: a raw cut lands inside the fifth id
+    expect(toRoutePattern(raw)).toBe('/account/sonar/grounded-forecasts/detail/[id]/[id]/[id]/[id]/[id]');
   });
 
   it('judges a segment by its decoded form, so an id with an encoded hyphen is still an id', () => {
