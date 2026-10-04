@@ -498,6 +498,21 @@ describe('main', () => {
     expect(p.logs[0]).toContain(PACK.version);
     expect(p.logs[0]).toContain(PACK.pack_id);
   });
+
+  it('stamps built_at with the time of the run, in the PUT body and in the dry-run preview', async () => {
+    const t = trees();
+    const p = publisher();
+    const before = Date.now();
+    expect(await p.run(t)).toBe(0);
+    expect(await p.run(t, { dryRun: true, env: {} })).toBe(0);
+    const after = Date.now();
+    const sent = JSON.parse(String(p.calls[0]!.init.body));
+    const preview = JSON.parse(readFileSync(join(t.web, 'private/help-pack/help-pack.preview.json'), 'utf8'));
+    for (const builtAt of [sent.manifest.built_at, preview.manifest.built_at]) {
+      expect(Date.parse(builtAt)).toBeGreaterThanOrEqual(before);
+      expect(Date.parse(builtAt)).toBeLessThanOrEqual(after);
+    }
+  });
 });
 
 describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
@@ -540,5 +555,14 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     const r = cli(t, [], { nodeArgs: ['--import', pathToFileURL(preload).href], env: { HAICORE_URL: 'http://help-pack.invalid', HELP_PUBLISH_TOKEN: 'sekret-bearer-token' } });
     expect(r.stderr).toContain('Publish failed: HTTP 401');
     expect(r.status).toBe(1);
+  });
+
+  it('--dry-run warns on stderr about an as-built edition committed after the brief\'s, by the trees\' real commit times', () => {
+    const t = gitTrees();
+    write(t.core, 'docs/10-14_as_built.md', 'x');
+    commitAll(t.core, '2026-10-14T00:00:00Z');
+    const r = cli(t, ['--dry-run']);
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/the brief's 9-22_as_built\.md: 10-14_as_built\.md —/);
   });
 });
