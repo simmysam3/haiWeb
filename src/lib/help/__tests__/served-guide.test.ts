@@ -56,6 +56,7 @@ describe('readServedGuide', () => {
     // Not a legal header value: fetch would throw building the request, and every question would answer 502.
     ['a line feed inside it', '1.102.0\n-rc1'],
     ['a character outside ASCII', '1.102.0‑rc1'],
+    ['a DEL character inside it', '1.102.0\x7F'],
     // fetch would trim it, so haiCore would see another value than the manifest's.
     ['a leading space', ' 1.102.0'],
     ["201 characters, over haiCore's bound", '1.102.0-' + 'a'.repeat(193)],
