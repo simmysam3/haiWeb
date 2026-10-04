@@ -337,6 +337,13 @@ describe('resolveDefaultLanguage', () => {
     expect(resolveDefaultLanguage(['ES-mx', 'ko'])).toBe('es');
   });
 
+  it('reads an underscore tag in every language, and folds the case of an English one', () => {
+    expect(resolveDefaultLanguage(['es_MX', 'ko'])).toBe('es');
+    expect(resolveDefaultLanguage(['ko_KR', 'es'])).toBe('ko');
+    expect(resolveDefaultLanguage(['en_US', 'es'])).toBe('en');
+    expect(resolveDefaultLanguage(['EN-us', 'es'])).toBe('en');
+  });
+
   it('takes a bare language tag', () => {
     expect(resolveDefaultLanguage(['pt', 'es'])).toBe('pt-BR');
     expect(resolveDefaultLanguage(['es', 'ko'])).toBe('es');
