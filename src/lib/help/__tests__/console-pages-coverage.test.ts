@@ -46,7 +46,9 @@ const required = (): string[] =>
 
 /**
  * Every app route, spelled as its folder path: one per page.tsx under src/app.
- * The app has no (group), _private or @slot folder today; a page under one would be listed by its folder path.
+ * src/app has many `_`-prefixed folders today (`_components`, `__tests__`, `__fixtures__` and others), and none of them
+ * holds a page.tsx; it has no (group) folder and no @slot folder. A page under any of these would be listed by its
+ * folder path.
  */
 function appRoutes(): string[] {
   const base = join(ROOT, 'src/app');

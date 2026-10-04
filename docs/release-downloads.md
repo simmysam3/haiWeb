@@ -17,7 +17,7 @@ So: **put the finished files there, then rebuild + redeploy the haiWeb prod imag
 | Download key | File | Produced by |
 |---|---|---|
 | `agent` | `haiwave-agent-v<version>.zip` (+ `manifest.json`) | `npm run build:agent-zip` |
-| `guide` | `configuration-guide.pdf` | `npm run build:guide-pdf` (or a manual Claude Design export) |
+| `guide` | `configuration-guide.pdf` | `npm run build:guide-pdf` |
 
 The agent zip is a `git archive` of the haiClient `HEAD` (tracked files only;
 secrets stay gitignored). The SDK ships **inside** that zip — there is no separate
