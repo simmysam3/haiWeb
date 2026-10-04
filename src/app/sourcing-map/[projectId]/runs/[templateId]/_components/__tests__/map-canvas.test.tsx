@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StrictMode } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@haiwave/protocol';
@@ -274,6 +274,30 @@ describe('MapCanvas', () => {
     expect(screen.queryByRole('region', { name: 'Supply-chain limits' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Shared exposure' })).toBeNull();
     expect(screen.queryByRole('group', { name: /^Tier \d/ })).toBeNull();
+  });
+
+  it('puts the toolbar at the top of the map section, after the caption and above Supply-chain limits, and offers Hide all paths only while a card is selected', () => {
+    const { rerender, unmount } = mount2();
+    const map = screen.getByRole('region', { name: 'Sourcing map' });
+    const toolbar = within(map).getByRole('group', { name: 'Map tools' });
+    const caption = within(map).getByText('Identity, quantities and names below tier 1 are not disclosed.');
+    expect(caption.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toolbar.compareDocumentPosition(within(map).getByRole('region', { name: 'Supply-chain limits' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // no card selected: nothing is open, so Hide all paths is unavailable
+    expect(within(toolbar).getByRole('button', { name: 'Hide all paths' })).toHaveAttribute('aria-disabled', 'true');
+    // a card selected: a path is open, and a press reports it
+    const onHideAll = vi.fn();
+    rerender(
+      <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
+        onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} onHideAll={onHideAll} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    expect(onHideAll).toHaveBeenCalledTimes(1);
+    unmount();
+    // a result with no slots has no paths: no toolbar
+    mount(zeroSlotResult(), { asOfDrop: null });
+    expect(screen.getByRole('region', { name: 'Sourcing map' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Map tools' })).toBeNull();
   });
 
   it('selecting a traced card mounts the overlay above the cards with its edge and gap and marks that card’s binding handle; an untraced card, no card, or a collapsed traced lane mounts nothing (spec §12.3, Review Focus 2)', () => {

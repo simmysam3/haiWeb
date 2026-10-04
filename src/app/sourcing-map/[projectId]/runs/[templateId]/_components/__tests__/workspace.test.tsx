@@ -823,6 +823,30 @@ describe('Workspace', () => {
     expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
     expect(document.activeElement).toBe(rail);
   });
+
+  it('Hide all paths closes the details and the trace, leaves an open handle panel as it is, and keeps focus on itself (§6.4)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // control: León's trace is drawn
+    expect(document.querySelector('svg[data-trace]')).not.toBeNull();
+    // Mekong's copy of A: its panel takes the column, and León's details stay mounted, hidden under it
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(document.querySelector('aside[aria-label="Details for León Cuero"]')).toHaveAttribute('hidden');
+    // a press focuses the button it presses; fireEvent does not
+    const hide = screen.getByRole('button', { name: 'Hide all paths' });
+    hide.focus();
+    fireEvent.click(hide);
+    expect(document.querySelector('svg[data-trace]')).toBeNull();
+    // unmounted, not merely hidden under the handle panel: a role query never sees a hidden panel, and with
+    // `hidden: true` it still misses it, because a hidden element has no accessible name
+    expect(document.querySelector('aside[aria-label="Details for León Cuero"]')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // Review Focus 5: the pressed button turns unavailable under the viewer's focus, and keeps it
+    expect(hide).toHaveFocus();
+    expect(hide).toHaveAttribute('aria-disabled', 'true');
+  });
+
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
     const real = withRealKeys(multitierDetail);
     const leon = real.result!.slots[0]!.candidates[0]!;

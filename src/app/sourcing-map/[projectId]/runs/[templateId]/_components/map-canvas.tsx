@@ -7,6 +7,7 @@ import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
 import { TraceOverlay, type AnchorRect } from './trace-overlay';
+import { MapToolbar } from './map-toolbar';
 import { SupplyChainLimits } from './supply-chain-limits';
 import { SharedExposure } from './shared-exposure';
 
@@ -57,12 +58,14 @@ export interface MapCanvasProps {
    */
   selectedHandle?: { alias: string; origin: string } | null;
   onSelectAlias?(alias: string | null, origin: string): void;
+  /** LF (spec §6.4): Hide all paths, offered while a path is open, which is the canvas's own to say (a card is selected) */
+  onHideAll?(): void;
 }
 
 /** The map (spec §9.3): the prototype's canvas as DOM cards over one SVG link overlay. */
 export function MapCanvas({
   result, asOfDrop, productFilter, productNames, seat, selected, onSelect, collapsed, onToggle,
-  selectedHandle = null, onSelectAlias = () => undefined,
+  selectedHandle = null, onSelectAlias = () => undefined, onHideAll = () => undefined,
 }: MapCanvasProps) {
   // R-9: time render → commit; the SP1-e walk reads this in a real browser. Hooks come first, before any early return.
   // The start is a timeline mark, not a value read during render, so nothing time-dependent reaches the output (ruling F03).
@@ -150,6 +153,7 @@ export function MapCanvas({
   return (
     <section aria-label="Sourcing map" className="relative overflow-auto">
       <p className="sm-muted px-6 pt-4 text-xs">{caption}</p>
+      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={null} />
       <SupplyChainLimits result={result} onSelect={onSelect} />
       <SharedExposure result={result} />
       <div ref={frameRef} className="relative" style={{ width: lay.width, height: lay.height }}>

@@ -217,6 +217,11 @@ export function Workspace({
     if (alias === null) closeHandle();
     else setHandle({ alias, origin });
   }
+  // LF (spec §6.4): Hide all paths clears the active card, so its details close with its trace: the two are one
+  // selection. A handle panel is left as it is. Focus stays on the pressed button, which turns unavailable (w3).
+  function hideAll() {
+    setSelected(null);
+  }
 
   // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
   // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle. So does a handle
@@ -343,6 +348,7 @@ export function Workspace({
                 onToggle={toggleLane}
                 selectedHandle={handle}
                 onSelectAlias={selectHandle}
+                onHideAll={hideAll}
               />
             </div>
           )}
