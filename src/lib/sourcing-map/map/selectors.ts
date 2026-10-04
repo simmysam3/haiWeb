@@ -472,6 +472,49 @@ export function utilizationText(u: SmOptionAggregates['utilization']): string {
   return `${u.low} low ${dot} ${u.moderate} moderate ${dot} ${u.high} high ${dot} ${u.at_capacity} at capacity`;
 }
 
+export type SmUtilBand = keyof SmOptionAggregates['utilization'];
+const UTIL_BAND_ORDER: SmUtilBand[] = ['low', 'moderate', 'high', 'at_capacity'];
+/** The largest count; on a tie the first of low, moderate, high, at_capacity (§6.7, OQ-7); null when the counts sum to 0 (w10). */
+export function modalBand(u: SmOptionAggregates['utilization']): SmUtilBand | null {
+  let best: SmUtilBand | null = null;
+  for (const b of UTIL_BAND_ORDER) if (u[b] > 0 && (best === null || u[b] > u[best])) best = b;
+  return best;
+}
+export function utilBandWord(b: SmUtilBand): string {
+  return b === 'at_capacity' ? 'at capacity' : b;
+}
+
+/** One count per node, by country and by class label; a node with no country, or no class, is not counted in that list. By count, then by name. */
+export function nodeTallies(c: SmCandidateResult): { countries: Array<[string, number]>; classes: Array<[string, number]> } {
+  const tally = (names: Array<string | undefined>): Array<[string, number]> => {
+    const counts = new Map<string, number>();
+    for (const name of names) if (name !== undefined) counts.set(name, (counts.get(name) ?? 0) + 1);
+    return [...counts].sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
+  };
+  const nodes = c.nodes ?? [];
+  return { countries: tally(nodes.map((n) => n.country ?? undefined)), classes: tally(nodes.map((n) => n.class?.label)) };
+}
+
+export interface PathTier { tier: number; groups: Array<{ label: string | null; level: number | null; nodes: SmSubtierNode[] }> }
+/** Tiers ascending; in a tier one group per class label and level, by label, the no-class group last; in a group, nodes by alias. */
+export function pathGroups(c: SmCandidateResult): PathTier[] {
+  const nodes = c.nodes ?? [];
+  const tiers = [...new Set(nodes.map((n) => n.tier))].sort((a, b) => a - b);
+  return tiers.map((tier) => {
+    const groups: PathTier['groups'] = [];
+    for (const n of nodes.filter((x) => x.tier === tier)) {
+      const label = n.class?.label ?? null;
+      const level = n.class?.level ?? null;
+      const group = groups.find((g) => g.label === label && g.level === level);
+      if (group) group.nodes.push(n);
+      else groups.push({ label, level, nodes: [n] });
+    }
+    for (const g of groups) g.nodes.sort((a, b) => a.alias.localeCompare(b.alias));
+    groups.sort((a, b) => (a.label === null ? 1 : 0) - (b.label === null ? 1 : 0) || (a.label ?? '').localeCompare(b.label ?? ''));
+    return { tier, groups };
+  });
+}
+
 /** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */
 export function candidateNamesOf(result: SourcingMapExecutionResult): Record<string, string> {
   return Object.fromEntries(result.slots.flatMap((s) => s.candidates.map((c) => [candidateKeyOf(c), c.supplier_name] as const)));

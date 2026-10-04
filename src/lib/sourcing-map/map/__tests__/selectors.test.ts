@@ -6,6 +6,7 @@ import { bandVar, bandWord, bindingNodes, bindingRows, formatHourUtc, mayWaitNam
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID, otherTiers } from '../selectors';
 import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
+import { modalBand, nodeTallies, pathGroups, utilBandWord } from '../selectors';
 
 describe('map selectors', () => {
   it('formats a date or an instant with the year (UTC)', () => {
@@ -406,5 +407,38 @@ describe('availabilityReason: the pill tip says why the pill is in its state (ow
       const threshold = formatPct(heat === 'bad' ? HEAT_MID : HEAT_GOOD);
       expect(availabilityReason(at(stated, 10000), week, 10000)).toBe(`Covers ${formatPct(ratio)} of the ask, ${heat === 'good' ? 'which meets' : 'below'} the ${threshold} threshold.`);
     }
+  });
+});
+
+describe('what is beneath an option: the selectors (LF step 5)', () => {
+  const leon = compareDetail.result!.slots[0]!.candidates.find((c) => c.candidate_key === 'leon')!;
+
+  it('names the modal utilization band: the largest count, the first of low, moderate, high, at capacity on a tie, and none when every count is 0 (§6.7, w10)', () => {
+    expect(modalBand({ low: 0, moderate: 2, high: 1, at_capacity: 0 })).toBe('moderate');
+    expect(modalBand(leon.aggregates!.utilization)).toBe('low');
+    expect(modalBand({ low: 0, moderate: 0, high: 1, at_capacity: 1 })).toBe('high');
+    expect(modalBand({ low: 0, moderate: 0, high: 0, at_capacity: 0 })).toBeNull();
+    expect(utilBandWord('at_capacity')).toBe('at capacity');
+  });
+
+  const mekong = compareDetail.result!.slots[0]!.candidates.find((c) => c.candidate_key === 'mekong')!;
+
+  it('tallies countries and classes over the option’s own nodes, by count then by name, never from the served lists (§8.1)', () => {
+    expect(nodeTallies(mekong)).toEqual({ countries: [['IT', 2], ['IN', 1]], classes: [['Dyes', 2], ['Colorants', 1]] });
+    expect(nodeTallies(leon)).toEqual({ countries: [['IN', 1], ['IT', 1], ['US', 1]], classes: [['Colorants', 1], ['Dyes', 1]] });
+  });
+
+  const shape = (c: SmCandidateResult2) => pathGroups(c).map((t) => ({ tier: t.tier, groups: t.groups.map((g) => ({ label: g.label, level: g.level, aliases: g.nodes.map((n) => n.alias) })) }));
+
+  it('groups an option’s nodes by tier, then by class label and level, the no-class group last, nodes by alias (§7)', () => {
+    expect(shape(leon)).toEqual([
+      { tier: 2, groups: [{ label: 'Dyes', level: 4, aliases: ['A'] }, { label: null, level: null, aliases: ['B'] }] },
+      { tier: 3, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }] },
+    ]);
+    expect(shape(mekong)).toEqual([
+      { tier: 2, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }, { label: 'Dyes', level: 4, aliases: ['A', 'F'] }] },
+    ]);
+    // an inline option whose nodes arrive out of order comes back sorted
+    expect(shape({ ...mekong, nodes: [...mekong.nodes!].reverse() })).toEqual(shape(mekong));
   });
 });
