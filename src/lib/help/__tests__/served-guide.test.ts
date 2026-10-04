@@ -53,6 +53,8 @@ describe('readServedGuide', () => {
   it.each([
     ['an empty string', ''],
     ['a number', 1102],
+    // Not a legal header value: fetch would throw building the request, and every question would answer 502.
+    ['a line feed inside it', '1.102.0\n-rc1'],
   ])('yields a null agent version when manifest.json holds %s as its version', async (_what, version) => {
     await writeFile(join(dir, 'manifest.json'), JSON.stringify({ version, zipFile: 'haiwave-agent.zip', zipBytes: 1, builtAt: '2026-10-07T12:00:00.000Z' }));
     expect((await readServedGuide(dir)).agentVersion).toBeNull();
