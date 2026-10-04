@@ -12,7 +12,8 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "build:agent-zip": "node scripts/build-agent-zip.mjs",
-    "build:guide-pdf": "node scripts/build-guide-pdf.mjs"
+    "build:guide-pdf": "node scripts/build-guide-pdf.mjs",
+    "publish:help-pack": "node scripts/publish-help-pack.mjs"
   },
   "dependencies": {
     "@haiwave/protocol": "file:../haiCore/packages/protocol",

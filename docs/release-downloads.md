@@ -48,6 +48,12 @@ SDK download.
    security register) and would leak internal architecture to external adopters.
 3. **Publish:** rebuild + redeploy the haiWeb prod image. The new
    `private/agent-downloads/` contents are baked in and served.
+4. **Help pack (HAIWAVE Help, DESIGN-2026-10-03 §5.4):** after the deploy in step 3 is live, in the **same tree**:
+   `npm run publish:help-pack -- --dry-run` (inspect `private/help-pack/help-pack.preview.json`), then
+   `HAICORE_URL=<Central> HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack`.
+   It refuses unless `body.html` is the body the served PDF was built from and the guide source is unchanged
+   since; the brief must carry the owner's `reviewed_by`. Publish and evaluate on the rig first
+   (`npm run help:eval` in haiCore apps/core); production receives only a pack whose manifest passed there.
 
 ### Dependencies for step 2
 
