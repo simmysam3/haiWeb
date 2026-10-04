@@ -84,6 +84,27 @@ describe('parseHelpMarkdown', () => {
       '1. Run:\n\t```sh\n\tnpm ci\n\t```',
       [{ kind: 'ol', start: 1, items: ['Run:'] }, { kind: 'code', lang: 'sh', code: 'npm ci' }],
     ],
+    [
+      "a nested fence's lines keeping the indent beyond the fence's own",
+      '1. Add:\n\n   ```yaml\n   services:\n     agent:\n       image: x\n   ```',
+      [{ kind: 'ol', start: 1, items: ['Add:'] }, { kind: 'code', lang: 'yaml', code: 'services:\n  agent:\n    image: x' }],
+    ],
+    ['a code line indented less than its fence without the indent it has', '   ```\n   a\n b\n   ```', [{ kind: 'code', lang: '', code: 'a\nb' }]],
+    ['a fence language ended by a tab', '```bash\ttitle="x"\nls\n```', [{ kind: 'code', lang: 'bash', code: 'ls' }]],
+    ['the indentation inside a code block', '```yaml\nservices:\n  agent:\n    image: x\n```', [{ kind: 'code', lang: 'yaml', code: 'services:\n  agent:\n    image: x' }]],
+    ['a two-digit ordered item number', '10. ten\n11. eleven', [{ kind: 'ol', start: 10, items: ['ten', 'eleven'] }]],
+    ['a number and a dot inside a line as text', 'Use version 2. Then restart.', [{ kind: 'p', text: 'Use version 2. Then restart.' }]],
+    ['a line that starts with three backticks and holds more as text', '```npm ci``` runs it', [{ kind: 'p', text: '```npm ci``` runs it' }]],
+    ['three backticks at the end of a line as text', 'see ```', [{ kind: 'p', text: 'see ```' }]],
+    ['three backticks at the end of a code line as code', '```\necho ```\nx\n```', [{ kind: 'code', lang: '', code: 'echo ```\nx' }]],
+    [
+      'a fence with a language right after a paragraph line as a code block',
+      'Run:\n```bash\nnpm ci\n```',
+      [{ kind: 'p', text: 'Run:' }, { kind: 'code', lang: 'bash', code: 'npm ci' }],
+    ],
+    ['a heading marker with no title yet (streaming) as text', '## ', [{ kind: 'p', text: '## ' }]],
+    ['an ordered marker with no text yet (streaming) as an empty item', '1. ', [{ kind: 'ol', start: 1, items: [''] }]],
+    ['a bullet with no text yet (streaming) as an empty item', '- ', [{ kind: 'ul', items: [''] }]],
   ])('reads %s', (_name, source, expected) => {
     expect(parseHelpMarkdown(source)).toEqual(expected);
   });
@@ -115,6 +136,17 @@ describe('HelpMarkdown', () => {
     expect(container.querySelector('code')).toHaveTextContent('NODE_ENV');
     expect(container.querySelector('strong')).toHaveTextContent('production');
     expect([...container.querySelectorAll('em')].map((e) => e.textContent)).toEqual(['not', 'dev']);
+  });
+
+  it('shows exactly the text between the backticks of each inline code span', () => {
+    const { container } = md('Set `NODE_ENV` and `PORT` now');
+    expect([...container.querySelectorAll('code')].map((c) => c.textContent)).toEqual(['NODE_ENV', 'PORT']);
+  });
+
+  it('shows exactly the text between the ** of bold', () => {
+    const { container } = md('to **production** now');
+    expect(container.querySelector('strong')?.textContent).toBe('production');
+    expect(container.querySelector('p')?.textContent).toBe('to production now');
   });
 
   it('puts one line break between the lines of a paragraph and none before the first', () => {
@@ -162,6 +194,9 @@ describe('HelpMarkdown', () => {
     ['a link with an empty label', 'see [](https://haiwave.ai) here'],
     ['a link whose address holds a space', 'see [a](https://haiwave.ai/x y) here'],
     ['a link whose address holds a ]', 'see [a](https://x]y) here'],
+    ['a link whose address holds a [', 'see [a](https://x[y) here'],
+    ['a link whose label holds a ]', 'see [a]b](https://x) here'],
+    ['a link with an empty address', 'see [a]() here'],
   ])('leaves %s as plain text', (_name, text) => {
     const { container } = md(text);
     const p = container.querySelector('p');
@@ -252,6 +287,16 @@ describe('HelpMarkdown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await act(async () => {});
     expect(writeText).toHaveBeenCalledWith(code);
+  });
+
+  it('shows and copies the indentation inside a code block as written', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { container } = md('```\n  indented\n```');
+    expect(container.querySelector('pre code')?.textContent).toBe('  indented');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith('  indented');
   });
 
   it("tags a code block with its fence's language, and a bare fence with none", () => {
