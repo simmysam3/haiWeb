@@ -62,12 +62,16 @@ export interface MapCanvasProps {
   onHideAll?(): void;
   /** LF (spec §9.5): why the map's tools are unavailable (a running execution), or null when they work */
   unavailable?: string | null;
+  /** LF (spec §6.6): the links' heat, on by default; the workspace owns it and its storage */
+  heat?: boolean;
+  onHeat?(next: boolean): void;
 }
 
 /** The map (spec §9.3): the prototype's canvas as DOM cards over one SVG link overlay. */
 export function MapCanvas({
   result, asOfDrop, productFilter, productNames, seat, selected, onSelect, collapsed, onToggle,
   selectedHandle = null, onSelectAlias = () => undefined, onHideAll = () => undefined, unavailable = null,
+  heat = true, onHeat = () => undefined,
 }: MapCanvasProps) {
   // R-9: time render → commit; the SP1-e walk reads this in a real browser. Hooks come first, before any early return.
   // The start is a timeline mark, not a value read during render, so nothing time-dependent reaches the output (ruling F03).
@@ -109,9 +113,10 @@ export function MapCanvas({
     const slot = result.slots[lane.slotIndex]!;
     const week = slotWeekFor(slot, asOfDrop);
     // Owner's walk rulings (2026-09-29): a lane's main line, the seat link and the bus, is one colour, the lane's
-    // state at this drop (laneState). Only a card's drop shows that card's own 90 / 70 heat.
+    // state at this drop (laneState). Only a card's drop shows that card's own 90 / 70 heat. With the heat switched
+    // off (LF §6.6) every link is neutral; the pips and the trace line keep their colours.
     const state = laneState(slot, week);
-    const main = state === null ? NEUTRAL_STROKE : MAIN_STROKE[state];
+    const main = !heat || state === null ? NEUTRAL_STROKE : MAIN_STROKE[state];
     // The bus runs in the gutter between the rail's text and the cards, so no link crosses a header line.
     const busY = lane.y + lane.textH + RAIL_L.linkGutter / 2;
     paths.push({
@@ -131,7 +136,7 @@ export function MapCanvas({
       const cx = card.x + MAP_L.cardW / 2;
       paths.push({
         key: `s${lane.slotIndex}c${card.candidateIndex}`, kind: 'drop', slot: lane.slotIndex,
-        stroke: w ? heatVar(w.option_coverage) : NEUTRAL_STROKE,
+        stroke: heat && w ? heatVar(w.option_coverage) : NEUTRAL_STROKE,
         d: `M${cx} ${busY} L ${cx} ${card.y}`,
       });
     }
@@ -155,7 +160,7 @@ export function MapCanvas({
   return (
     <section aria-label="Sourcing map" className="relative overflow-auto">
       <p className="sm-muted px-6 pt-4 text-xs">{caption}</p>
-      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={unavailable} />
+      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={unavailable} heat={heat} onHeat={onHeat} />
       <SupplyChainLimits result={result} onSelect={onSelect} />
       <SharedExposure result={result} />
       <div ref={frameRef} className="relative" style={{ width: lay.width, height: lay.height }}>

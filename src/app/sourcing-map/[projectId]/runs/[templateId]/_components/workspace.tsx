@@ -1,11 +1,12 @@
 'use client';
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmProduct } from '@haiwave/protocol';
 import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 as SmExecutionSummary } from '@/lib/sourcing-map/types';
 import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
+import { readStoredHeat, writeStoredHeat } from '@/lib/sourcing-map/heat-storage';
 import { RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
 import { SmHeader } from '@/app/sourcing-map/_components/sm-header';
 import { useExecutionPoll } from './use-execution-poll';
@@ -49,6 +50,9 @@ function seedSelection(execution: string | null, option: string | null, detail: 
   return null;
 }
 
+const noSubscription = () => () => {};
+const serverStoredHeat = () => true;
+
 /** The run workspace (spec §9.3): seat bar, map, details, Configure tray, Run. */
 export function Workspace({
   projectName, template: initialTemplate, library, executions: initialExecutions, initialDetail,
@@ -75,6 +79,16 @@ export function Workspace({
   // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
   const [handle, setHandle] = useState<{ alias: string; origin: string } | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  // LF (spec §6.6): the links' heat. The server snapshot is on; after hydration the stored choice is read, and the
+  // viewer's press (null until they press) wins for this page view. The stored value changes only through setHeat,
+  // which re-renders through state, so there is nothing to subscribe to (as theme-root.tsx reads the theme).
+  const storedHeat = useSyncExternalStore(noSubscription, readStoredHeat, serverStoredHeat);
+  const [heatChosen, setHeatChosen] = useState<boolean | null>(null);
+  const heat = heatChosen ?? storedHeat;
+  function setHeat(next: boolean) {
+    writeStoredHeat(next);
+    setHeatChosen(next);
+  }
   const [error, setError] = useState<string | null>(detailError);
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -179,14 +193,16 @@ export function Workspace({
     }
   }
 
-  // R2: closing the details returns focus to the card that opened them, found as the map's pressed button (SeatBar's
-  // pressed chips sit outside this wrapper). Tier-row handles carry aria-pressed too; the lookup still lands on the
-  // card because no handle reads pressed while Close details can be reached: DetailsPanel is hidden whenever the
-  // handle panel renders, and when that panel does not render no handle button is pressed (no handle, or its alias
-  // is on no card, M-4). The card outlives the close, so it is focused before the panel unmounts.
+  // R2: closing the details returns focus to the card that opened them, found as closeHandle finds a handle: the
+  // `[data-anchor]` whose value equals the selected card's key, compared by value. It is never "the map's pressed
+  // button": the heat switch (LF §6.6) is a pressed button too, and it comes first. The card outlives the close, so it
+  // is focused before the panel unmounts.
   const mapRef = useRef<HTMLDivElement | null>(null);
+  function focusAnchor(anchor: string) {
+    Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor]') ?? []).find((el) => el.dataset.anchor === anchor)?.focus();
+  }
   function closeDetails() {
-    mapRef.current?.querySelector<HTMLElement>('button[aria-pressed="true"]')?.focus();
+    if (selectedCandidate) focusAnchor(candidateKeyOf(selectedCandidate));
     setSelected(null);
   }
 
@@ -196,10 +212,7 @@ export function Workspace({
   // C-1: the handle is found by comparing each anchor's value, as measureAnchors does, never by a CSS selector built
   // from it: a real candidate_key is JSON.stringify([participant, sku]), whose quotes make such a selector throw.
   function closeHandle() {
-    if (handle) {
-      const anchor = `${handle.origin}/${handle.alias}`;
-      Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor]') ?? []).find((el) => el.dataset.anchor === anchor)?.focus();
-    }
+    if (handle) focusAnchor(`${handle.origin}/${handle.alias}`);
     setHandle(null);
   }
   // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
@@ -410,6 +423,8 @@ export function Workspace({
                 onSelectAlias={selectHandle}
                 onHideAll={hideAll}
                 unavailable={running ? RUN_NOT_COMPLETE : null}
+                heat={heat}
+                onHeat={setHeat}
               />
             </div>
           )}

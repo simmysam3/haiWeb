@@ -39,6 +39,8 @@ beforeEach(() => {
   fetchMock.mockReset();
   replace.mockReset();
   search.value = '';
+  // the heat choice is stored (LF §6.6): one test's press never reaches the next test's first paint
+  window.localStorage.clear();
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockImplementation(async (url: string) => (url.endsWith('/estimate') ? reply(200, vomeroEstimate) : reply(404, { error: `unexpected ${url}` })));
 });
@@ -1003,6 +1005,46 @@ describe('Workspace', () => {
     // Escape is not disabled (§9.5): it closes the details
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
+
+  it('the switch turns the link heat off and on, stores the choice, and a stored off is honoured on mount', async () => {
+    const linkStrokes = () => Array.from(document.querySelectorAll<SVGPathElement>('svg[data-map-links] path[data-link]')).map((p) => p.style.stroke);
+    const first = mount(multitierDetail, [multitierDetail.execution]);
+    // control: the heat is on at first paint, so some link carries a heat colour
+    const heatSwitch = await screen.findByRole('button', { name: 'Heat on links: on' });
+    expect(linkStrokes().some((s) => s.startsWith('var(--sm-heat-'))).toBe(true);
+    fireEvent.click(heatSwitch);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Heat on links: off' })).toHaveAttribute('aria-pressed', 'false');
+    expect(window.localStorage.getItem('sm.heat')).toBe('off');
+    // a second press: the heat is back, and stored as on
+    fireEvent.click(screen.getByRole('button', { name: 'Heat on links: off' }));
+    expect(screen.getByRole('button', { name: 'Heat on links: on' })).toBeInTheDocument();
+    expect(linkStrokes().some((s) => s.startsWith('var(--sm-heat-'))).toBe(true);
+    expect(window.localStorage.getItem('sm.heat')).toBe('on');
+    // a stored off is honoured by a fresh mount
+    first.unmount();
+    window.localStorage.setItem('sm.heat', 'off');
+    mount(multitierDetail, [multitierDetail.execution]);
+    expect(await screen.findByRole('button', { name: 'Heat on links: off' })).toHaveAttribute('aria-pressed', 'false');
+    expect(linkStrokes().length).toBeGreaterThan(0);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+  });
+
+  it('on a running execution the heat switch is unavailable and says why, and the links keep the stored setting (§9.5)', async () => {
+    window.localStorage.setItem('sm.heat', 'off');
+    const linkStrokes = () => Array.from(document.querySelectorAll<SVGPathElement>('svg[data-map-links] path[data-link]')).map((p) => p.style.stroke);
+    mount(throttledDetail, [throttledDetail.execution]);
+    const heatSwitch = await screen.findByRole('button', { name: 'Heat on links: off' });
+    expect(linkStrokes().length).toBeGreaterThan(0);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(heatSwitch).toHaveAttribute('aria-disabled', 'true');
+    expect(heatSwitch).toHaveAccessibleDescription('Available when the run completes.');
+    // a press changes neither the links nor the stored value
+    fireEvent.click(heatSwitch);
+    expect(screen.getByRole('button', { name: 'Heat on links: off' })).toBeInTheDocument();
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(window.localStorage.getItem('sm.heat')).toBe('off');
   });
 
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {

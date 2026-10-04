@@ -9,7 +9,13 @@ import { SmButton } from '@/app/sourcing-map/_components/sm-button';
  * the press that closes the last path leaves focus on it. With nothing open it has its title only; a reason
  * (`unavailable`, a running execution, spec §9.5) is one visible line that describes every control in the row.
  */
-export function MapToolbar({ pathsOpen, onHideAll, unavailable }: { pathsOpen: boolean; onHideAll(): void; unavailable: string | null }) {
+export function MapToolbar({ pathsOpen, onHideAll, unavailable, heat, onHeat }: {
+  pathsOpen: boolean;
+  onHideAll(): void;
+  unavailable: string | null;
+  heat: boolean;
+  onHeat(next: boolean): void;
+}) {
   const reasonId = useId();
   return (
     <div role="group" aria-label="Map tools" className="flex flex-wrap items-center gap-2 px-6 pt-3">
@@ -21,6 +27,15 @@ export function MapToolbar({ pathsOpen, onHideAll, unavailable }: { pathsOpen: b
         onClick={onHideAll}
       >
         Hide all paths
+      </SmButton>
+      <SmButton
+        aria-pressed={heat}
+        aria-disabled={unavailable !== null}
+        aria-describedby={unavailable !== null ? reasonId : undefined}
+        className="sm-btn sm-btn-ghost text-xs"
+        onClick={() => onHeat(!heat)}
+      >
+        {heat ? 'Heat on links: on' : 'Heat on links: off'}
       </SmButton>
       {unavailable !== null && <span id={reasonId} className="sm-muted text-xs">{unavailable}</span>}
     </div>

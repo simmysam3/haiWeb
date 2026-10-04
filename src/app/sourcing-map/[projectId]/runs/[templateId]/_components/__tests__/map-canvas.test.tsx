@@ -285,6 +285,8 @@ describe('MapCanvas', () => {
     expect(toolbar.compareDocumentPosition(within(map).getByRole('region', { name: 'Supply-chain limits' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // no card selected: nothing is open, so Hide all paths is unavailable
     expect(within(toolbar).getByRole('button', { name: 'Hide all paths' })).toHaveAttribute('aria-disabled', 'true');
+    // no heat prop: the heat is on, and the switch says so (§6.6)
+    expect(within(toolbar).getByRole('button', { name: 'Heat on links: on' })).toHaveAttribute('aria-pressed', 'true');
     // a card selected: a path is open, and a press reports it
     const onHideAll = vi.fn();
     rerender(
@@ -298,6 +300,24 @@ describe('MapCanvas', () => {
     mount(zeroSlotResult(), { asOfDrop: null });
     expect(screen.getByRole('region', { name: 'Sourcing map' })).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Map tools' })).toBeNull();
+  });
+
+  it('heat off draws every trunk, bus and drop neutral; pips and the trace line keep their colours (§6.6)', () => {
+    const strokes = (kind: string) => Array.from(document.querySelectorAll<SVGPathElement>(`svg[data-map-links] path[data-link="${kind}"]`)).map((p) => p.style.stroke);
+    const pips = () => Array.from(document.querySelectorAll<HTMLElement>('ol[aria-label="Coverage by drop"] [role="img"]')).map((el) => el.style.background);
+    const on = mount2({ selected: { slot: 0, candidate: 0 } });
+    const pipsOn = pips();
+    // the comparison means something only while the pips carry heat colours
+    expect(pipsOn.some((b) => b.startsWith('var(--sm-heat-'))).toBe(true);
+    on.unmount();
+    mount2({ selected: { slot: 0, candidate: 0 }, heat: false });
+    for (const kind of ['trunk', 'bus', 'drop']) {
+      expect(strokes(kind).length).toBeGreaterThan(0);
+      expect(strokes(kind).filter((s) => s !== 'var(--sm-line-2)'), `${kind} links still drawn in heat colours`).toEqual([]);
+    }
+    expect(pips()).toEqual(pipsOn);
+    const edge = document.querySelector<SVGPathElement>('svg path[data-trace-edge]');
+    expect(edge?.style.stroke).toBe('var(--sm-heat-mid)');
   });
 
   it('selecting a traced card mounts the overlay above the cards with its edge and gap and marks that card’s binding handle; an untraced card, no card, or a collapsed traced lane mounts nothing (spec §12.3, Review Focus 2)', () => {
