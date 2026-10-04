@@ -16,12 +16,16 @@ import { dirname, join, resolve } from 'node:path';
  * (.sec-open / .h3 / .p / .tbl / .code / .note / .planned / .cfg …). That body
  * is produced by a Claude authoring pass from the source guide
  * (`haiCore/docs/client-implementation-guidelines-v1.6.md`) — so this build step does
- * NO markdown conversion; it only assembles + renders.
+ * NO markdown conversion. It checks the body's source binding (the first page
+ * section names the edition, the source file and that file's SHA-256, and the file
+ * under HAICORE_DIR must still hash to it), assembles + renders, and then writes
+ * `configuration-guide.json` beside the PDF.
  *
- * Only `injectTemplate` runs without an external dependency (and is unit-tested,
- * including against the real committed template). `renderPdf` needs Playwright +
- * an installed Chromium; it fails with an actionable message when absent, so the
- * build degrades loudly (never silently produces an empty/stale PDF).
+ * `renderPdf` needs Playwright + an installed Chromium; it fails with an actionable
+ * message when absent, so the build degrades loudly (never silently produces an
+ * empty/stale PDF). The other steps need no browser and are unit-tested:
+ * `injectTemplate` (including against the real committed template), the source
+ * binding check and the write of `configuration-guide.json`.
  */
 
 const PLACEHOLDERS = { title: 'title', date: 'date', bodyHtml: 'body' };

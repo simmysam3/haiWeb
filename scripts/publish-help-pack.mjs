@@ -12,6 +12,12 @@ import { fileURLToPath } from 'node:url';
  *   npm run publish:help-pack -- --dry-run          # writes private/help-pack/help-pack.preview.json, publishes nothing
  *   HAICORE_URL=https://… HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack
  *
+ * The only argument is --dry-run, given after npm's `--`. Any other argument is refused, and so is a run with no
+ * argument while npm_config_dry_run is set (npm keeps a --dry-run typed before the `--` for itself).
+ *
+ * The target Central must run with HELP_AGENT_ENABLED=true: with the flag off, PUT /api/v1/admin/help/packs is not
+ * registered and the publish answers 404. The console's own HELP_AGENT_ENABLED can stay off until the pack is active.
+ *
  * HAICORE_DIR (default ../haiCore) is the haiCore checkout holding docs/ and docs/help/. The brief lint runs on the
  * server only (plan R1); a 422 prints its violations. Exit 0 = published (or dry run); 1 = refused or failed.
  */
