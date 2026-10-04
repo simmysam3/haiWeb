@@ -1,0 +1,244 @@
+// src/components/help/__tests__/help-markdown.test.tsx
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { HelpMarkdown, parseHelpMarkdown } from '../help-markdown';
+
+const md = (text: string) => render(<HelpMarkdown text={text} copyLabel="Copy" copiedLabel="Copied" />);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('parseHelpMarkdown', () => {
+  it('splits headings, paragraphs, lists and fenced code', () => {
+    expect(parseHelpMarkdown('# Fix\nFirst line\nsecond line\n\n- a\n- b\n\n2. two\n3. three\n\n```bash\ndocker build .\n```')).toEqual([
+      { kind: 'heading', level: 1, text: 'Fix' },
+      { kind: 'p', text: 'First line\nsecond line' },
+      { kind: 'ul', items: ['a', 'b'] },
+      { kind: 'ol', start: 2, items: ['two', 'three'] },
+      { kind: 'code', lang: 'bash', code: 'docker build .' },
+    ]);
+  });
+
+  it('treats an unclosed fence (answer still streaming) as code to the end', () => {
+    expect(parseHelpMarkdown('Run:\n```\nnpm ci\nnpm run')).toEqual([
+      { kind: 'p', text: 'Run:' },
+      { kind: 'code', lang: '', code: 'npm ci\nnpm run' },
+    ]);
+  });
+
+  it('caps heading depth at 3', () => {
+    expect(parseHelpMarkdown('##### deep')).toEqual([{ kind: 'heading', level: 3, text: 'deep' }]);
+  });
+
+  it('reads CRLF and lone CR line endings as line breaks', () => {
+    expect(parseHelpMarkdown('First\r\nsecond\rthird')).toEqual([{ kind: 'p', text: 'First\nsecond\nthird' }]);
+  });
+
+  it('ends a paragraph at a heading or a list item with no blank line between', () => {
+    expect(parseHelpMarkdown('a\n# h\nb\n- c\nd\n1. e')).toEqual([
+      { kind: 'p', text: 'a' },
+      { kind: 'heading', level: 1, text: 'h' },
+      { kind: 'p', text: 'b' },
+      { kind: 'ul', items: ['c'] },
+      { kind: 'p', text: 'd' },
+      { kind: 'ol', start: 1, items: ['e'] },
+    ]);
+  });
+
+  it.each<[string, string, ReturnType<typeof parseHelpMarkdown>]>([
+    ['seven hashes as text, not a heading', '####### seven', [{ kind: 'p', text: '####### seven' }]],
+    ['a hash with no space after it as text', '#tag', [{ kind: 'p', text: '#tag' }]],
+    ['a heading without its trailing spaces', '## Title  ', [{ kind: 'heading', level: 2, text: 'Title' }]],
+    ['* and + bullets as list items', '* a\n+ b', [{ kind: 'ul', items: ['a', 'b'] }]],
+    ['an indented bullet as a list item', '  - a', [{ kind: 'ul', items: ['a'] }]],
+    ['a dash with no space after it as text', '-a', [{ kind: 'p', text: '-a' }]],
+    ['a number and a parenthesis as an ordered item', '1) a', [{ kind: 'ol', start: 1, items: ['a'] }]],
+    ['an indented ordered item', '  2. b', [{ kind: 'ol', start: 2, items: ['b'] }]],
+    ['a number with no space after the dot as text', '3.14 is pi', [{ kind: 'p', text: '3.14 is pi' }]],
+    ['an indented fence with spaces after it', '  ```js  \nx\n  ```  ', [{ kind: 'code', lang: 'js', code: 'x' }]],
+    ['a space between the fence and its language', '``` bash\nls\n```', [{ kind: 'code', lang: 'bash', code: 'ls' }]],
+    ['a + in the fence language', '```c++\nx\n```', [{ kind: 'code', lang: 'c++', code: 'x' }]],
+    ['a - in the fence language', '```shell-session\n$ ls\n```', [{ kind: 'code', lang: 'shell-session', code: '$ ls' }]],
+    ['a . in the fence language', '```nginx.conf\nlisten 80;\n```', [{ kind: 'code', lang: 'nginx.conf', code: 'listen 80;' }]],
+    ['a fence line with a language inside a code block as code', '```\n```js\n```', [{ kind: 'code', lang: '', code: '```js' }]],
+    ['a line of spaces as the end of a paragraph', 'a\n   \nb', [{ kind: 'p', text: 'a' }, { kind: 'p', text: 'b' }]],
+  ])('reads %s', (_name, source, expected) => {
+    expect(parseHelpMarkdown(source)).toEqual(expected);
+  });
+});
+
+describe('HelpMarkdown', () => {
+  it('renders headings, list items and paragraph line breaks', () => {
+    const { container } = md('## Fix it\n- one\n- two\n\nline a\nline b');
+    expect(screen.getByRole('heading', { name: 'Fix it' })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['one', 'two']);
+    expect(container.querySelector('p br')).not.toBeNull();
+  });
+
+  it('renders heading levels 1 to 3 as h3 to h5, below the panel title', () => {
+    md('# One\n## Two\n### Three');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('One');
+    expect(screen.getByRole('heading', { level: 4 })).toHaveTextContent('Two');
+    expect(screen.getByRole('heading', { level: 5 })).toHaveTextContent('Three');
+  });
+
+  it('renders an ordered list from its first number', () => {
+    const { container } = md('3. three\n4. four');
+    expect(container.querySelector('ol')).toHaveAttribute('start', '3');
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['three', 'four']);
+  });
+
+  it('renders inline code, bold and italics', () => {
+    const { container } = md('Set `NODE_ENV` to **production**, *not* _dev_.');
+    expect(container.querySelector('code')).toHaveTextContent('NODE_ENV');
+    expect(container.querySelector('strong')).toHaveTextContent('production');
+    expect([...container.querySelectorAll('em')].map((e) => e.textContent)).toEqual(['not', 'dev']);
+  });
+
+  it('puts one line break between the lines of a paragraph and none before the first', () => {
+    const { container } = md('line a\nline b');
+    expect(container.querySelector('p')?.innerHTML).toBe('line a<br>line b');
+  });
+
+  it('shows markup inside inline code as written', () => {
+    const { container } = md('Type `**not bold**` here.');
+    expect(container.querySelector('code')).toHaveTextContent('**not bold**');
+    expect(container.querySelector('strong')).toBeNull();
+  });
+
+  it('renders inline markup inside headings and list items', () => {
+    const { container } = md('## **Bold** head\n- `code` item\n1. *em* item');
+    expect(container.querySelector('h4 strong')).toHaveTextContent('Bold');
+    expect(container.querySelector('ul li code')).toHaveTextContent('code');
+    expect(container.querySelector('ol li em')).toHaveTextContent('em');
+  });
+
+  it('leaves snake_case identifiers and arithmetic alone', () => {
+    const { container } = md('Set HAIWAVE_CENTRAL_CLIENT_ID and KEYCLOAK_CLIENT_SECRET; 2 * 3 * 4.');
+    expect(container.querySelector('em')).toBeNull();
+    expect(container).toHaveTextContent('Set HAIWAVE_CENTRAL_CLIENT_ID and KEYCLOAK_CLIENT_SECRET; 2 * 3 * 4.');
+  });
+
+  it.each([
+    ['a * after a letter', 'x*y* z'],
+    ['a * after another *', '**a*'],
+    ['a closing * before a letter', 'x *b*c'],
+    ['a closing * before another *', 'x *a** y'],
+    ['a * followed by a space', 'x * a* y'],
+    ['a closing * after a space', 'x *a * y'],
+    ['** after a letter', 'x**b** y'],
+    ['** after a *', '***b**'],
+    ['** followed by a space', 'x ** b** y'],
+    ['a closing ** after a space', 'x **b ** y'],
+    ['a closing ** before a letter', '**b**c'],
+    ['a closing ** before a *', '**b***'],
+    ['an _ after a letter', 'file_name_ here'],
+    ['a closing _ before a letter', 'see _config_file'],
+    ['an _ followed by a space', 'x _ a_ y'],
+    ['a closing _ after a space', 'x _a _ y'],
+    ['an empty pair of backticks', 'run `` here'],
+    ['a link with an empty label', 'see [](https://haiwave.ai) here'],
+    ['a link whose address holds a space', 'see [a](https://haiwave.ai/x y) here'],
+  ])('leaves %s as plain text', (_name, text) => {
+    const { container } = md(text);
+    const p = container.querySelector('p');
+    expect(p?.children).toHaveLength(0);
+    expect(p?.textContent).toBe(text);
+  });
+
+  it('links http(s) only, opening safely in a new tab', () => {
+    md('See [the guide](https://haiwave.ai/guide).');
+    const a = screen.getByRole('link', { name: 'the guide' });
+    expect(a).toHaveAttribute('href', 'https://haiwave.ai/guide');
+    expect(a).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(a).toHaveAttribute('target', '_blank');
+  });
+
+  it('never links other schemes', () => {
+    const { container } = md('[click](javascript:alert(1)) [mail](mailto:x@y.z) [data](data:text/html,hi)');
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(container).toHaveTextContent('click');
+    expect(container.innerHTML).not.toContain('javascript:');
+  });
+
+  it.each([
+    ['http', 'http://haiwave.ai/guide'],
+    ['an upper-case scheme', 'HTTPS://HAIWAVE.AI/GUIDE'],
+  ])('links an address with %s', (_name, href) => {
+    md(`See [the guide](${href}).`);
+    expect(screen.getByRole('link', { name: 'the guide' })).toHaveAttribute('href', href);
+  });
+
+  it.each([
+    ['a protocol-relative address', '//evil.example/x'],
+    ['a relative path', '/account/agents'],
+    ['a javascript: address that holds https:// later', 'javascript://https://haiwave.ai'],
+    ['a scheme with no host', 'https://'],
+  ])('never links %s', (_name, href) => {
+    const { container } = md(`See [the guide](${href}).`);
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(container).toHaveTextContent('See the guide.');
+    expect(container.innerHTML).not.toContain(href);
+  });
+
+  it('shows raw HTML as text and creates no elements from it', () => {
+    const { container } = md('<script>alert(1)</script><img src=x onerror=alert(1)>');
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container).toHaveTextContent('<script>alert(1)</script>');
+  });
+
+  it('copies a code block verbatim and confirms', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    md('```env\nHAIWAVE_CENTRAL_CLIENT_ID=abc\nAGENT_ID=agent-1\n```');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith('HAIWAVE_CENTRAL_CLIENT_ID=abc\nAGENT_ID=agent-1');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
+  });
+
+  it("tags a code block with its fence's language, and a bare fence with none", () => {
+    const { container } = md('```env\nAGENT_ID=agent-1\n```\n\n```\nplain\n```');
+    const codes = [...container.querySelectorAll('pre code')];
+    expect(codes.map((c) => c.textContent)).toEqual(['AGENT_ID=agent-1', 'plain']);
+    expect(codes[0]).toHaveAttribute('data-lang', 'env');
+    expect(codes[1]).not.toHaveAttribute('data-lang');
+  });
+
+  it('returns to the copy label 1.5 s after a copy', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    vi.useFakeTimers();
+    try {
+      md('```\nnpm ci\n```');
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+      await act(async () => {});
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1499));
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stays on the copy label, with no unhandled rejection, when the clipboard refuses', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    md('```\nnpm ci\n```');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith('npm ci');
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+  });
+
+  it('does nothing, and throws nothing, when the browser has no clipboard', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    md('```\nnpm ci\n```');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+  });
+});
