@@ -6,7 +6,7 @@ import { candidateKeyOf, candidateNamesOf, candidateWeekAt, heatVar, laneState, 
 import { OptionCard } from './option-card';
 import { SlotRail } from './slot-rail';
 import { SeatCard, type SeatInfo } from './seat-card';
-import { TraceOverlay, type AnchorRect } from './trace-overlay';
+import { TraceOverlay, TRACE_MEASURE, TRACE_START, type AnchorRect } from './trace-overlay';
 import { MapToolbar } from './map-toolbar';
 import { SupplyChainLimits } from './supply-chain-limits';
 import { SharedExposure } from './shared-exposure';
@@ -24,20 +24,27 @@ const MAIN_STROKE: Record<LaneState, string> = {
 };
 /** R-9's render-start mark: each render replaces it, and the layout effect measures from it to commit. */
 const RENDER_START = 'sm-map-render:start';
+/** A traced card whose anchors are not measured yet: its overlay skips every edge and gap until they are. */
+const NO_ANCHORS: Record<string, AnchorRect> = {};
 
 /**
- * Every [data-anchor] inside the frame, in the frame's coordinates, for one traced card: its own key, and its
- * `key/alias` handles by alias.
+ * Every [data-anchor] inside the frame, in the frame's coordinates, by traced card: under each card's key, its own key
+ * and its `key/alias` handles by alias. Each card has a record of its own because two traced cards can share an alias
+ * (one source binding both), and each trace must end at its own card's handle (LF §6.3, Review Focus 3).
  */
-function measureAnchors(frame: HTMLElement, tracedKey: string): Record<string, AnchorRect> {
+function measureAnchors(frame: HTMLElement, tracedKeys: readonly string[]): Record<string, Record<string, AnchorRect>> {
   const base = frame.getBoundingClientRect();
-  const out: Record<string, AnchorRect> = {};
-  for (const el of Array.from(frame.querySelectorAll<HTMLElement>('[data-anchor]'))) {
-    const anchor = el.dataset.anchor ?? '';
-    const r = el.getBoundingClientRect();
-    const rect = { x: r.left - base.left, y: r.top - base.top, width: r.width, height: r.height };
-    if (anchor === tracedKey) out[anchor] = rect;
-    else if (anchor.startsWith(`${tracedKey}/`)) out[anchor.slice(tracedKey.length + 1)] = rect;
+  const els = Array.from(frame.querySelectorAll<HTMLElement>('[data-anchor]'));
+  const out: Record<string, Record<string, AnchorRect>> = {};
+  for (const key of tracedKeys) {
+    const own: Record<string, AnchorRect> = {};
+    for (const el of els) {
+      const anchor = el.dataset.anchor ?? '';
+      if (anchor !== key && !anchor.startsWith(`${key}/`)) continue;
+      const r = el.getBoundingClientRect();
+      own[anchor === key ? anchor : anchor.slice(key.length + 1)] = { x: r.left - base.left, y: r.top - base.top, width: r.width, height: r.height };
+    }
+    out[key] = own;
   }
   return out;
 }
@@ -87,24 +94,48 @@ export function MapCanvas({
   });
   // SP2: hover and anchors are the canvas's own; the selected handle is the workspace's (it drives the side column).
   const [hoveredAlias, setHoveredAlias] = useState<string | null>(null);
-  const [anchors, setAnchors] = useState<Record<string, AnchorRect>>({});
+  const [anchors, setAnchors] = useState<Record<string, Record<string, AnchorRect>>>({});
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const tracedCandidate = selected !== null && !collapsed.has(selected.slot) ? result.slots[selected.slot]?.candidates[selected.candidate] ?? null : null;
-  const trace = tracedCandidate?.trace ?? null;
-  const tracedKey = tracedCandidate ? candidateKeyOf(tracedCandidate) : null;
-  // Measured after commit, in the frame's coordinates (the svg's). A trace whose handles are not in the DOM yet
-  // gets no anchor for them and the overlay skips those edges (Review Focus 2). Deps, not every render: setting
-  // state here re-renders once, and the effect does not run again for that render. With no trace the overlay is
-  // unmounted, so anchors left from an earlier trace are never drawn (ruling R4: no reset, only the ref-derived set).
-  // The measurement is a function of the frame because react-hooks/set-state-in-effect allows a setState only when its
-  // argument is computed from a ref; an object filled in by mutation never counts as ref-derived, so keep it a call.
+  // LF (§6.3): the traced cards are the active card and the pinned card, each once and only while its lane is open; a
+  // card that is both is the active one. Each with a trace gets its own overlay over its own anchors, by its card's key.
+  const tracedAt = (at: { slot: number; candidate: number } | null) => {
+    const c = at !== null && !collapsed.has(at.slot) ? result.slots[at.slot]?.candidates[at.candidate] : undefined;
+    return c?.trace ? { key: candidateKeyOf(c), trace: c.trace } : null;
+  };
+  const activePinned = pinned !== null && selected !== null && pinned.slot === selected.slot && pinned.candidate === selected.candidate;
+  const activeTrace = tracedAt(selected);
+  const pinnedTrace = activePinned ? null : tracedAt(pinned);
+  const activeKey = activeTrace?.key ?? null;
+  const pinnedKey = pinnedTrace?.key ?? null;
+  // LF (§9.3, conflict row 11): the traces' one measure is the canvas's, however many it draws. As R-9's: a mark in render
+  // when a trace is drawn, and a measure in a layout effect of its own, below, which ends after every overlay's (React
+  // runs a child's layout effects before its parent's). With no trace it makes neither, so no measure is left without
+  // its mark. The name stays sm-trace-draw for the harness; its figure now starts with the canvas's render.
+  const drawsTrace = activeTrace !== null || pinnedTrace !== null;
+  if (drawsTrace) {
+    performance.clearMarks(TRACE_START);
+    performance.mark(TRACE_START);
+  }
+  // Measured after commit, per traced card, in the frame's coordinates (the svg's). A trace whose handles are not in the
+  // DOM yet gets no anchor for them and the overlay skips those edges (Review Focus 2). Deps, not every render, and the
+  // traced cards by their keys, never a fresh array: setting state here re-renders once, and the effect does not run
+  // again for that render. A card that draws no trace is not measured and has no overlay, so a record left from an
+  // earlier trace is never drawn (ruling R4: no reset, only the ref-derived set). The measurement is a function of the
+  // frame because react-hooks/set-state-in-effect allows a setState only when its argument is computed from a ref; an
+  // object filled in by mutation never counts as ref-derived, so keep it one call.
   // #38: a pressed handle's 2 px border and bold weight (sourcing-map.css) move the handles after it in its row, so
   // the pressed handle is a dep too.
   useLayoutEffect(() => {
     const frame = frameRef.current;
-    if (trace === null || tracedKey === null || frame === null) return;
-    setAnchors(measureAnchors(frame, tracedKey));
-  }, [trace, tracedKey, result, collapsed, asOfDrop, selectedHandle]);
+    const keys = [activeKey, pinnedKey].filter((k): k is string => k !== null);
+    if (keys.length === 0 || frame === null) return;
+    setAnchors(measureAnchors(frame, keys));
+  }, [activeKey, pinnedKey, result, collapsed, asOfDrop, selectedHandle]);
+  useLayoutEffect(() => {
+    if (!drawsTrace) return;
+    performance.clearMeasures(TRACE_MEASURE);
+    performance.measure(TRACE_MEASURE, TRACE_START);
+  });
   const caption = result.projection_k !== undefined && result.projection_k !== null ? SP2_CAPTION : SP1_CAPTION;
   const names = candidateNamesOf(result);
   const lay = layoutMap(result.slots, collapsed);
@@ -193,7 +224,7 @@ export function MapCanvas({
                       drops={result.portfolio.drops}
                       selected={isSelected}
                       onSelect={() => onSelect({ slot: lane.slotIndex, candidate: card.candidateIndex })}
-                      traced={isSelected}
+                      traced={isSelected || isPinned}
                       selectedAlias={selectedHandle !== null && selectedHandle.origin === candidateKeyOf(c) ? selectedHandle.alias : null}
                       onSelectAlias={onSelectAlias}
                       hoveredAlias={hoveredAlias}
@@ -211,7 +242,8 @@ export function MapCanvas({
             </div>
           );
         })}
-        {trace !== null && <TraceOverlay trace={trace} anchors={anchors} names={names} width={lay.width} height={lay.height} />}
+        {activeTrace !== null && <TraceOverlay trace={activeTrace.trace} anchors={anchors[activeTrace.key] ?? NO_ANCHORS} names={names} width={lay.width} height={lay.height} />}
+        {pinnedTrace !== null && <TraceOverlay pinned trace={pinnedTrace.trace} anchors={anchors[pinnedTrace.key] ?? NO_ANCHORS} names={names} width={lay.width} height={lay.height} />}
       </div>
     </section>
   );

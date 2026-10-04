@@ -7,6 +7,7 @@ import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@
 import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
 import { layoutMap } from '@/lib/sourcing-map/map/layout';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { MapCanvas } from '../map-canvas';
 
 const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athletic footwear', productCount: 3, slotCount: 5, assemblyDays: '21', capacity: 18000 };
@@ -399,6 +400,72 @@ describe('MapCanvas', () => {
     expect(onSelect).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
     expect(onSelect).toHaveBeenCalledWith({ slot: 0, candidate: 0 });
+  });
+
+  // LF (§6.3): the compare fixture, where D binds both FlowKnit (lane 1) and Bowline (lane 2); one collapsed set for every render
+  const cd = compareDetail.result!;
+  const BOWLINE = { slot: 2, candidate: 0 };
+  const FLOWKNIT = { slot: 1, candidate: 0 };
+  const OPEN = new Set<number>();
+  const held = (selected: { slot: number; candidate: number } | null, pinned: { slot: number; candidate: number } | null) => (
+    <MapCanvas result={cd} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={selected}
+      onSelect={vi.fn()} collapsed={OPEN} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} pinned={pinned} />
+  );
+  const traces = () => document.querySelectorAll('svg[data-trace]');
+
+  it('draws the pinned card’s trace beside the active card’s, each named for itself; an untraced or doubly-held card draws one (§6.3)', () => {
+    const { rerender } = render(held(BOWLINE, FLOWKNIT));
+    expect(traces()).toHaveLength(2);
+    expect(screen.getByRole('img', { name: /^Shortfall trace \(pinned\): FlowKnit Mills → D \(severe\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Shortfall trace: Bowline Trim → D \(severe\)/ })).toBeInTheDocument();
+    const dUnder = (supplier: string) => within(screen.getByRole('group', { name: `Tier 2 under ${supplier}` })).getByRole('button', { name: /^D · TW/ });
+    expect(within(dUnder('FlowKnit Mills')).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    expect(within(dUnder('Bowline Trim')).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    // León active, Mekong pinned: Mekong has no trace of its own, so one
+    rerender(held({ slot: 0, candidate: 0 }, { slot: 0, candidate: 1 }));
+    expect(traces()).toHaveLength(1);
+    // the pinned card is the active card: one
+    rerender(held(BOWLINE, { ...BOWLINE }));
+    expect(traces()).toHaveLength(1);
+    expect(screen.getByRole('img', { name: /^Shortfall trace: Bowline Trim → D \(severe\)/ })).toBeInTheDocument();
+  });
+
+  it('measures each traced card’s own anchors: two cards that share alias D end their edges at their own handles', () => {
+    const rect = (x: number, y: number, width: number, height: number) =>
+      ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) }) as DOMRect;
+    // each card's header and its D, the two cards apart; the frame and every other element at (0, 0)
+    const rects: Record<string, DOMRect> = {
+      flowknit: rect(100, 100, 200, 20), 'flowknit/D': rect(150, 300, 60, 22),
+      bowline: rect(400, 500, 200, 20), 'bowline/D': rect(450, 700, 60, 22),
+    };
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return rects[this.dataset.anchor ?? ''] ?? rect(0, 0, 0, 0);
+    });
+    try {
+      render(held(BOWLINE, FLOWKNIT));
+      const edges = (name: RegExp) => Array.from(screen.getByRole('img', { name }).querySelectorAll('path[data-trace-edge]')).map((p) => p.getAttribute('d'));
+      expect(edges(/^Shortfall trace \(pinned\): FlowKnit Mills/)).toEqual([expect.stringMatching(/ L 150 311$/)]);
+      expect(edges(/^Shortfall trace: Bowline Trim/)).toEqual([expect.stringMatching(/ L 450 711$/)]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('records one sm-trace-draw measure for the canvas, from one start mark a render, however many traces it draws; none when it draws none', () => {
+    performance.clearMeasures('sm-trace-draw');
+    const mark = vi.spyOn(performance, 'mark');
+    try {
+      const { rerender } = render(held(BOWLINE, FLOWKNIT));
+      const marks = (name: string) => mark.mock.calls.filter(([n]) => n === name).length;
+      expect(marks('sm-trace-draw:start')).toBe(marks('sm-map-render:start'));
+      expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(1);
+      // no card active or pinned: no trace drawn, so no measure
+      performance.clearMeasures('sm-trace-draw');
+      rerender(held(null, null));
+      expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(0);
+    } finally {
+      mark.mockRestore();
+    }
   });
 });
 
