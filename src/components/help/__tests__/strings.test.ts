@@ -66,6 +66,20 @@ describe('resolveDefaultLanguage', () => {
   ] as const)('%j → %s', (preferred, expected) => {
     expect(resolveDefaultLanguage(preferred)).toBe(expected);
   });
+
+  // A tag is matched on its language subtag, not on its first two letters: 'kok' is Konkani, not Korean.
+  it.each([
+    [['kok-IN', 'es'], 'es'],
+    [['esu', 'ko'], 'ko'],
+    [['enm', 'es'], 'es'],
+    [['ptp', 'ko'], 'ko'],
+  ] as const)('does not take a longer language subtag for one of the four: %j → %s', (preferred, expected) => {
+    expect(resolveDefaultLanguage(preferred)).toBe(expected);
+  });
+
+  it('reads the language of an underscore tag (pt_BR) as it does of a hyphen one', () => {
+    expect(resolveDefaultLanguage(['pt_BR', 'es'])).toBe('pt-BR');
+  });
 });
 
 describe('isHelpLanguage', () => {

@@ -216,11 +216,12 @@ export function t(lang: HelpLanguage, key: HelpStringKey, vars: Record<string, s
 /** First of the browser's preferred languages that maps onto one of the four; English otherwise (spec §7.3). */
 export function resolveDefaultLanguage(preferred: readonly string[]): HelpLanguage {
   for (const raw of preferred) {
-    const tag = raw.toLowerCase();
-    if (tag.startsWith('pt')) return 'pt-BR';
-    if (tag.startsWith('es')) return 'es';
-    if (tag.startsWith('ko')) return 'ko';
-    if (tag.startsWith('en')) return 'en';
+    // The language subtag, not the first two letters: 'kok-IN' is Konkani, not Korean.
+    const language = raw.toLowerCase().split(/[-_]/)[0];
+    if (language === 'pt') return 'pt-BR';
+    if (language === 'es') return 'es';
+    if (language === 'ko') return 'ko';
+    if (language === 'en') return 'en';
   }
   return 'en';
 }
