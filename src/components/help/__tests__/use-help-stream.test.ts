@@ -219,6 +219,28 @@ describe('postHelpMessage', () => {
     });
   });
 
+  it('a 200 with no content type → http_error, its body not read as events', async () => {
+    const enc = new TextEncoder();
+    fetchMock.mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(c) {
+            c.enqueue(enc.encode(ev('meta', META) + ev('done', DONE)));
+            c.close();
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    expect(await postHelpMessage(REQ, callbacks(), new AbortController().signal)).toEqual({
+      kind: 'http_error',
+      status: 200,
+      code: null,
+      resetAt: null,
+      contact: null,
+    });
+  });
+
   it('an error status labelled as an event stream → http_error carrying the code', async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: { code: 'MODEL_ERROR', message: 'x' } }), { status: 502, headers: { 'content-type': 'text/event-stream; charset=utf-8' } }),
@@ -396,5 +418,20 @@ describe('useHelpStream', () => {
     expect(result.current).toBe(first);
     expect(result.current.send).toBe(first.send);
     expect(result.current.stop).toBe(first.stop);
+  });
+
+  it('a re-render while a request runs leaves it running, and stop() still reaches it', async () => {
+    let seen: AbortSignal | undefined;
+    fetchMock.mockImplementation((_u: string, init: RequestInit) => {
+      seen = init.signal ?? undefined;
+      return new Promise(() => undefined);
+    });
+    const { result, rerender } = renderHook(() => useHelpStream());
+    void result.current.send(REQ, callbacks());
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    rerender();
+    expect(seen?.aborted).toBe(false);
+    result.current.stop();
+    expect(seen?.aborted).toBe(true);
   });
 });
