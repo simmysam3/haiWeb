@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { loadEnv } from '../env';
 
 describe('haiWeb server env', () => {
@@ -65,5 +65,27 @@ describe('loadEnv — KEYCLOAK_ADMIN_CLIENT_SECRET prod guard', () => {
     } finally {
       process.env = prev as NodeJS.ProcessEnv;
     }
+  });
+});
+
+describe('loadEnv — HELP_AGENT_ENABLED', () => {
+  afterEach(() => {
+    delete process.env.HELP_AGENT_ENABLED;
+  });
+
+  it('is off by default', () => {
+    expect(loadEnv().HELP_AGENT_ENABLED).toBe(false);
+  });
+
+  it('is on only for the literal "true"', () => {
+    process.env.HELP_AGENT_ENABLED = 'true';
+    expect(loadEnv().HELP_AGENT_ENABLED).toBe(true);
+    process.env.HELP_AGENT_ENABLED = 'false';
+    expect(loadEnv().HELP_AGENT_ENABLED).toBe(false);
+  });
+
+  it('rejects any other value', () => {
+    process.env.HELP_AGENT_ENABLED = 'yes';
+    expect(() => loadEnv()).toThrow(/HELP_AGENT_ENABLED/);
   });
 });

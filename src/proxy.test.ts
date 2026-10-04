@@ -359,4 +359,8 @@ describe('sliding-refresh matcher covers every mutating BFF surface', () => {
     expect(config.matcher).toContain('/sourcing-map/:path*');
     expect(config.matcher).toContain('/api/account/:path*');
   });
+
+  it('slides the session for the help BFF, so a long help conversation never 401s mid-answer', () => {
+    expect(config.matcher).toContain('/api/help/:path*');
+  });
 });
