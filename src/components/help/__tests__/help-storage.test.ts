@@ -43,6 +43,22 @@ function blockWindowStorage(name: 'sessionStorage' | 'localStorage'): () => void
   };
 }
 
+// STATE with one field of its first message replaced. An undefined value drops the field from the stored JSON.
+function firstMessageWith(patch: Record<string, unknown>): unknown {
+  return { ...STATE, messages: [{ ...STATE.messages[0], ...patch }, STATE.messages[1]] };
+}
+
+// A working in-memory store: shows that each function uses the store it is given.
+function memoryStore(): StorageLike & { map: Map<string, string> } {
+  const map = new Map<string, string>();
+  return {
+    map,
+    getItem: (key) => map.get(key) ?? null,
+    setItem: (key, value) => { map.set(key, value); },
+    removeItem: (key) => { map.delete(key); },
+  };
+}
+
 afterEach(() => {
   window.sessionStorage.clear();
   window.localStorage.clear();
@@ -97,6 +113,90 @@ describe('widget state storage', () => {
       restore();
     }
   });
+
+  it('stores the state under the contract key, the literal hw-help:v1 (C.6)', () => {
+    expect(HELP_STATE_KEY).toBe('hw-help:v1');
+    saveWidgetState(STATE);
+    expect(window.sessionStorage.getItem('hw-help:v1')).not.toBeNull();
+  });
+
+  // States the panel really stores (spec §7.3). Each one must come back from storage exactly as it was saved.
+  it.each<[string, HelpWidgetState]>([
+    ['no conversation yet', { ...STATE, conversationId: null, messages: [] }],
+    ['no pack yet', { view: 'open', conversationId: STATE.conversationId, messages: STATE.messages, unread: false }],
+    ['a minimized panel', { ...STATE, view: 'minimized' }],
+    ['a closed panel', { ...STATE, view: 'closed' }],
+    ['a streaming answer', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: 'x', status: 'streaming' }] }],
+    ['an interrupted answer', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: 'x', status: 'interrupted' }] }],
+    ['a withheld answer', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: 'x', status: 'withheld' }] }],
+    ['a failed answer', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: 'x', status: 'error' }] }],
+    ['the empty answer before its first delta', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: '', status: 'streaming' }] }],
+    ['a thumbs-down', { ...STATE, messages: [{ id: 'a9', role: 'assistant', text: 'x', status: 'complete', feedback: 'down' }] }],
+    ['a message with nothing redacted (redactionCount 0)', { ...STATE, messages: [{ id: 'u9', role: 'user', text: 'x', status: 'complete', redactionCount: 0 }] }],
+    ['an unread answer', { ...STATE, unread: true }],
+  ])('round-trips %s', (name, state) => {
+    saveWidgetState(state);
+    expect(loadWidgetState(), name).toEqual(state);
+  });
+
+  it('round-trips a minimized state that holds every message status, and a closed state with no conversation and no pack', () => {
+    const minimized: HelpWidgetState = {
+      view: 'minimized',
+      conversationId: '0b8a5a52-58b6-4a8e-9a39-9a1d4c7f1f10',
+      messages: [
+        { id: 'a1', role: 'assistant', text: 'one', status: 'complete', feedback: 'down' },
+        { id: 'a2', role: 'assistant', text: 'two', status: 'streaming' },
+        { id: 'a3', role: 'assistant', text: 'three', status: 'interrupted' },
+        { id: 'a4', role: 'assistant', text: 'four', status: 'withheld' },
+        { id: 'a5', role: 'assistant', text: 'five', status: 'error' },
+      ],
+      pack: { guideEdition: '1.7', packDate: '2026-10-07', servedMatches: false },
+      unread: true,
+    };
+    saveWidgetState(minimized);
+    expect(loadWidgetState()).toEqual(minimized);
+
+    const closed: HelpWidgetState = { view: 'closed', conversationId: null, messages: [], unread: false };
+    saveWidgetState(closed);
+    expect(loadWidgetState()).toEqual(closed);
+  });
+
+  // One wrong field is enough. The stored value is right everywhere else: the first assertion is the control.
+  it.each<[string, unknown]>([
+    ['view', { ...STATE, view: 'sideways' }],
+    ['unread', { ...STATE, unread: 'no' }],
+    ['conversationId', { ...STATE, conversationId: 42 }],
+    ['pack', { ...STATE, pack: { guideEdition: '1.7' } }],
+    ['the status of a message', firstMessageWith({ status: 'pending' })],
+    ['the role of a message', firstMessageWith({ role: 'system' })],
+    ['the text of a message (missing)', firstMessageWith({ text: undefined })],
+    ['the feedback of a message', firstMessageWith({ feedback: 'meh' })],
+  ])('refuses a stored state that is wrong only in %s', (field, wrong) => {
+    window.sessionStorage.setItem('hw-help:v1', JSON.stringify(STATE));
+    expect(loadWidgetState(), 'control').toEqual(STATE);
+    window.sessionStorage.setItem('hw-help:v1', JSON.stringify(wrong));
+    expect(loadWidgetState(), field).toBeNull();
+  });
+
+  it('saveWidgetState writes to the store it is given, not to sessionStorage', () => {
+    const store = memoryStore();
+    saveWidgetState(STATE, store);
+    expect(store.map.has('hw-help:v1')).toBe(true);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it('loadWidgetState reads the store it is given', () => {
+    const store = memoryStore();
+    store.map.set('hw-help:v1', JSON.stringify(STATE));
+    expect(loadWidgetState(store)).toEqual(STATE);
+  });
+
+  it('clearWidgetState clears the store it is given', () => {
+    const store = memoryStore();
+    store.map.set('hw-help:v1', JSON.stringify(STATE));
+    clearWidgetState(store);
+    expect(store.map.has('hw-help:v1')).toBe(false);
+  });
 });
 
 describe('language storage', () => {
@@ -120,5 +220,24 @@ describe('language storage', () => {
     } finally {
       restore();
     }
+  });
+
+  it('stores the language under the contract key, the literal hw-help:lang (C.6)', () => {
+    expect(HELP_LANG_KEY).toBe('hw-help:lang');
+    saveLanguage('es');
+    expect(window.localStorage.getItem('hw-help:lang')).toBe('es');
+  });
+
+  it('saveLanguage writes to the store it is given, not to localStorage', () => {
+    const store = memoryStore();
+    saveLanguage('ko', store);
+    expect(store.map.get('hw-help:lang')).toBe('ko');
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('loadLanguage reads the store it is given', () => {
+    const store = memoryStore();
+    store.map.set('hw-help:lang', 'es');
+    expect(loadLanguage(store)).toBe('es');
   });
 });
