@@ -7,7 +7,7 @@ import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
 import { readStoredHeat, writeStoredHeat } from '@/lib/sourcing-map/heat-storage';
-import { RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
+import { RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, otherTiers, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
 import { SmHeader } from '@/app/sourcing-map/_components/sm-header';
 import { useExecutionPoll } from './use-execution-poll';
 import { ExecutionPicker } from './execution-picker';
@@ -303,6 +303,7 @@ export function Workspace({
       origin={handle.origin}
       candidateNames={candidateNames}
       trace={handleTraceNode ? { role: handleTraceNode.role, binds_for: handleTraceNode.binds_for } : null}
+      otherTiers={otherTiers(result, handle.alias, handle.origin)}
       onClose={closeHandle}
     />
   ) : null;

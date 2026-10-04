@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { CANDIDATE_NAMES, multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { smWorstRatio } from '@/test/contrast';
 import { HandlePanel } from '../handle-panel';
 
 const leon = multitierDetail.result!.slots[0]!.candidates[0]!;
@@ -60,5 +61,32 @@ describe('HandlePanel', () => {
     expect(within(screen.getByRole('complementary')).getByText(copy)).toBeInTheDocument();
     rerender(<HandlePanel node={{ ...A, under: ['leon'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} onClose={vi.fn()} />);
     expect(screen.queryByText(copy)).toBeNull();
+  });
+
+  it('says "Also at tier M under <options>" after its facts, once per other tier, and nothing without one', () => {
+    const props = { node: { ...C, under: ['leon', 'mekong'] }, origin: 'leon', candidateNames: CANDIDATE_NAMES, trace: null, onClose: vi.fn() };
+    const { rerender } = render(<HandlePanel {...props} otherTiers={[{ tier: 2, names: ['Mekong Tannery'] }]} />);
+    let panel = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    const line = within(panel).getByText('Also at tier 2 under Mekong Tannery');
+    expect(line.tagName).toBe('P');
+    // after the facts
+    // (exactly FOLLOWING: a line inside the list would also be CONTAINED_BY)
+    expect(panel.querySelector('dl')!.compareDocumentPosition(line)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    // every option at that tier, then one line per tier
+    rerender(<HandlePanel {...props} otherTiers={[{ tier: 2, names: ['Mekong Tannery', 'Bowline Trim'] }, { tier: 4, names: ['Arno Pelli'] }]} />);
+    panel = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    expect(within(panel).getByText('Also at tier 2 under Mekong Tannery, Bowline Trim')).toBeInTheDocument();
+    expect(within(panel).getByText('Also at tier 4 under Arno Pelli')).toBeInTheDocument();
+    // no other tier: no line, given an empty list or none at all
+    rerender(<HandlePanel {...props} otherTiers={[]} />);
+    expect(screen.queryByText(/^Also at tier/)).toBeNull();
+    rerender(<HandlePanel {...props} />);
+    expect(screen.queryByText(/^Also at tier/)).toBeNull();
+  });
+
+  it('the "Also at tier" line clears 4.5:1 on the panel surface in both themes', () => {
+    // AA pairs (F18): inherited ink on the surface (the panel brings its own sm-surface)
+    render(<div className="sm-root"><HandlePanel node={{ ...C, under: ['leon', 'mekong'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} otherTiers={[{ tier: 2, names: ['Mekong Tannery'] }]} onClose={vi.fn()} /></div>);
+    expect(smWorstRatio(screen.getByText('Also at tier 2 under Mekong Tannery'))).toBeGreaterThanOrEqual(4.5);
   });
 });

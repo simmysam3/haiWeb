@@ -342,6 +342,23 @@ export function nodeOf(result: SourcingMapExecutionResult, alias: string, prefer
   return first;
 }
 
+export interface OtherTier { tier: number; names: string[] }
+
+/** Where else this alias sits: for each tier other than the one `origin` sees (nodes[].tier), the names of the OTHER options that see it there. Tiers ascending; names in display order. */
+export function otherTiers(result: SourcingMapExecutionResult, alias: string, origin: string): OtherTier[] {
+  const sees = result.slots.flatMap((s) => s.candidates).flatMap((c) => {
+    const n = (c.nodes ?? []).find((x) => x.alias === alias);
+    return n ? [{ key: candidateKeyOf(c), name: c.supplier_name, tier: n.tier }] : [];
+  });
+  const here = sees.find((x) => x.key === origin)?.tier;
+  const byTier = new Map<number, string[]>();
+  for (const x of sees) {
+    if (x.key === origin || x.tier === here) continue;
+    byTier.set(x.tier, [...(byTier.get(x.tier) ?? []), x.name]);
+  }
+  return [...byTier].sort(([a], [b]) => a - b).map(([tier, names]) => ({ tier, names }));
+}
+
 export interface BindingNode {
   alias: string;
   tier: number;

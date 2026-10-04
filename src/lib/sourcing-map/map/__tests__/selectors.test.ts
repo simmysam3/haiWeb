@@ -4,7 +4,8 @@ import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
 import { bandVar, bandWord, bindingNodes, bindingRows, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
-import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
+import { availabilityReason, HEAT_GOOD, HEAT_MID, otherTiers } from '../selectors';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 
 describe('map selectors', () => {
   it('formats a date or an instant with the year (UTC)', () => {
@@ -298,6 +299,14 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: [] } })).toBe(false);
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: leon2!.trace!.gaps } })).toBe(true);
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: leon2!.trace!.edges, gaps: [] } })).toBe(true);
+  });
+
+  it('says where else an alias sits, from either side, and nothing when its tier is the same everywhere (§8.3)', () => {
+    const r = compareDetail.result!;
+    expect(otherTiers(r, 'C', 'leon')).toEqual([{ tier: 2, names: ['Mekong Tannery'] }]);
+    expect(otherTiers(r, 'C', 'mekong')).toEqual([{ tier: 3, names: ['León Cuero'] }]);
+    expect(otherTiers(r, 'A', 'leon')).toEqual([]);
+    expect(otherTiers(r, 'D', 'flowknit')).toEqual([]);
   });
 });
 

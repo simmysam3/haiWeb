@@ -5,6 +5,7 @@ import {
 } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmCandidateResult2, SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
 import { multitierDetail, throttledDetail, throttledStatus, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
@@ -711,6 +712,18 @@ describe('Workspace', () => {
     // Close returns focus to Mekong's handle, the one pressed, not León's copy of the same alias
     fireEvent.click(within(fromMekong).getByRole('button', { name: 'Close handle details' }));
     expect(document.activeElement).toBe(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+  });
+
+  it('C pressed under León says it is also at tier 2 under Mekong Tannery; pressed under Mekong, at tier 3 under León Cuero', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    const alsoAt = (panel: HTMLElement) => within(panel).queryAllByText(/^Also at tier/).map((el) => el.textContent);
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Tier 3 under León Cuero' })).getByRole('button', { name: /^C · IN/ }));
+    const fromLeon = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    expect(alsoAt(fromLeon)).toEqual(['Also at tier 2 under Mekong Tannery']);
+    fireEvent.click(within(fromLeon).getByRole('button', { name: 'Close handle details' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^C · IN/ }));
+    const fromMekong = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    expect(alsoAt(fromMekong)).toEqual(['Also at tier 3 under León Cuero']);
   });
 
   it('SP2: a throttled execution keeps polling, names the responder from the summary and then from each frame (or falls back when the name is null), keeps Cancel live, and Run says an execution is running (spec §12.5, G-41, G-52, Review Focus 4)', async () => {
