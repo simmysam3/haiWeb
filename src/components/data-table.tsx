@@ -46,7 +46,7 @@ export function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`${alignClass(col.align)} text-xs font-medium uppercase tracking-wider text-slate py-2.5 px-4 ${col.nowrap ? "whitespace-nowrap" : ""} ${col.className || ""}`}
+                  className={`${alignClass(col.align)} text-xs font-medium uppercase tracking-wider text-charcoal py-2.5 px-4 ${col.nowrap ? "whitespace-nowrap" : ""} ${col.className || ""}`}
                 >
                   {col.label}
                 </th>

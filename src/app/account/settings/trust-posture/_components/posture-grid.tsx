@@ -165,7 +165,7 @@ function PostureRow({
 function chipClass(posture: Posture): string {
   if (posture === 'permissive') return 'bg-success/15 text-success';
   if (posture === 'opt_out') return 'bg-problem/15 text-problem';
-  return 'bg-light-gray text-slate';
+  return 'bg-light-gray text-charcoal';
 }
 
 function PostureDrawerBody({

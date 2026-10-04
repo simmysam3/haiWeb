@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AuditRun } from '@haiwave/protocol';
 import { RunHeader } from '../run-header';
+import { groundToken, ratioOn } from '@/test/contrast';
 
 const baseRun = {
   run_id: 'b36c77de-9751-4802-a4cb-5f3bd5144176',
@@ -33,5 +34,16 @@ describe('<RunHeader>', () => {
     expect(
       screen.getByRole('heading', { name: /jerrys first/ }),
     ).toBeInTheDocument();
+  });
+
+  it('the run title clears 4.5:1 on the console ground (account/layout.tsx:26; was teal, 2.27:1)', () => {
+    render(
+      <main className="bg-light-gray">
+        <RunHeader run={baseRun} />
+      </main>,
+    );
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(groundToken(h1)).toBe('light-gray');
+    expect(ratioOn(h1)).toBeGreaterThanOrEqual(4.5);
   });
 });

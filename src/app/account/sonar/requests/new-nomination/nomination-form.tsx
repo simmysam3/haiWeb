@@ -98,13 +98,13 @@ export function NominationForm({ initialState }: { initialState: InitialState })
 
   return (
     <div className="max-w-2xl mx-auto">
-      <p className="text-xs uppercase tracking-wider text-slate mb-1.5 font-medium">
+      <p className="text-xs uppercase tracking-wider text-charcoal mb-1.5 font-medium">
         Requests
       </p>
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal">
+      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-teal-dark">
         New nomination
       </h1>
-      <p className="mt-1 text-sm text-slate mb-6">
+      <p className="mt-1 text-sm text-charcoal mb-6">
         Pick a vendor, choose what to audit, then confirm. You&apos;ll land back on My Nomination Requests.
       </p>
 
