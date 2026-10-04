@@ -1158,6 +1158,14 @@ describe('Workspace', () => {
     // the details are the active card's, and Mekong is not the pinned card
     expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('button', { name: 'Pin' })).toBeInTheDocument();
     expect(heights()).toEqual(before);
+    // selecting the pinned card makes it the active card too, and it stays pinned (§6.2: the prototype's toggle would unpin it)
+    fireEvent.click(leon);
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
+    expect(leon).toHaveAttribute('aria-pressed', 'true');
+    // Close details closes the active card's details only; the pin stays
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
     await panelsSettled();
   });
 
@@ -1206,6 +1214,12 @@ describe('Workspace', () => {
     expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
     // collapsing the pinned card's lane clears the pin, as it clears a selection there; another lane's active card stays
     pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: /^Zephyr Compounds, DE/ }));
+    // only the pinned card's lane: collapsing another lane (Zephyr's) leaves the pin; Zephyr, closed with it, is selected again
+    const zephyrRail = within(screen.getByRole('group', { name: 'Rubber outsoles' })).getByRole('button', { name: 'Rubber outsoles' });
+    fireEvent.click(zephyrRail);
+    fireEvent.click(zephyrRail);
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Zephyr Compounds, DE/ }));
     const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
     fireEvent.click(rail);
@@ -1273,6 +1287,9 @@ describe('Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ }));
     expect(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByText('binding')).toBeInTheDocument();
+    // Close returns focus to the handle it was pressed on, under the pinned card, never the active card's copy of A
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('button', { name: 'Close handle details' }));
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ })).toHaveFocus();
     await panelsSettled();
   });
 
