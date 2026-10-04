@@ -188,4 +188,10 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
   it('holds no HTML comment, because the file reaches the help model as it is', () => {
     expect(read()).not.toContain('<!--');
   });
+
+  // Nothing sits between the title and the first page: a maintainer note written there as plain text, or as a
+  // markdown comment, would reach the help model just as an HTML comment would.
+  it('opens with its title line and one blank line, then the first page', () => {
+    expect(read().split(/^## /m)[0]).toMatch(/^# [^\n]+\n\n$/);
+  });
 });
