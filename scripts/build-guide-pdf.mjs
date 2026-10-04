@@ -42,7 +42,8 @@ export function sha256Hex(text) {
  * @returns {{ edition: string, sourceFile: string, sourceSha256: string }}
  */
 export function extractSourceBinding(bodyHtml) {
-  const first = bodyHtml.match(/<section\b[^>]*\bclass="page"[^>]*>/);
+  // CN-1: comments are not markup. A quoted or commented-out <section class="page"> must never be read as the first page.
+  const first = bodyHtml.replace(/<!--[\s\S]*?-->/g, '').match(/<section\b[^>]*\bclass="page"[^>]*>/);
   if (!first) throw new Error('extractSourceBinding: body.html has no <section class="page"> to carry the source binding');
   const attr = (name) => first[0].match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? '';
   const edition = attr('data-edition');

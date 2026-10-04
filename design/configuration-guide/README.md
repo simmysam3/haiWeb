@@ -28,7 +28,8 @@ the authoring pass to refresh it whenever the guide changes.
 
 The help agent answers from the **full source markdown of the edition the PDF
 was rendered from**, so the body must say exactly which source it came from.
-The **first** `<section class="page">` in `body.html` carries three attributes:
+The **first** `<section class="page">` in `body.html` carries three attributes
+(HTML comments are ignored when finding it, so a commented-out section never counts):
 
 - `data-edition="1.7"`: the guide edition (it must equal the version in the file name);
 - `data-source="client-implementation-guidelines-v1.7.md"`: the haiCore `docs/` file authored from;

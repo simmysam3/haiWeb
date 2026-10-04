@@ -21,6 +21,14 @@ describe('extractSourceBinding (README § Source binding)', () => {
       edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
     });
   });
+  it('ignores HTML comments when finding the first page section (CN-1)', () => {
+    const quoted = '<!-- One <section class="page"> per printed page. -->\n';
+    expect(extractSourceBinding(quoted + bound()).edition).toBe('1.7');
+    const previous = page(` data-edition="1.6" data-source="client-implementation-guidelines-v1.6.md" data-source-sha256="${sha('the 1.6 source')}"`);
+    expect(extractSourceBinding(`<!-- previous edition:\n${previous}\n-->\n` + bound())).toEqual({
+      edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
+    });
+  });
   it('names each missing attribute', () => {
     expect(() => extractSourceBinding(page(''))).toThrow(/data-edition/);
     expect(() => extractSourceBinding(page(' data-edition="1.7"'))).toThrow(/data-source\b/);
