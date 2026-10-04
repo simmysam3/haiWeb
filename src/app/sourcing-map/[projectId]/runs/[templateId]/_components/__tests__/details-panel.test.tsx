@@ -367,6 +367,35 @@ describe('DetailsPanel', () => {
     expect(smWorstRatio(screen.getByRole('tab', { name: 'Details' }))).toBeGreaterThanOrEqual(4.5);
     expect(smWorstRatio(screen.getByRole('tab', { name: 'Path beneath' }))).toBeGreaterThanOrEqual(4.5);
   });
+
+  it('offers Pin before Close, reads Unpin on the pinned card, and is unavailable with its reason', () => {
+    // AA pairs (F18): sm-btn-ghost on the surface (the button). Its reason line is sm-muted on the surface, the pair
+    // Pin 7.5 asserts for this component, so it has no assertion of its own.
+    const cd = compareDetail.result!;
+    const leather = cd.slots[0]!;
+    const onToggle = vi.fn();
+    const view = (pin: { pinned: boolean; reason: string | null }) => (
+      <div className="sm-root"><DetailsPanel executionId={EXEC} result={cd} slot={leather} candidate={leather.candidates[0]!} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} pin={{ ...pin, onToggle }} /></div>
+    );
+    const { rerender } = render(view({ pinned: false, reason: null }));
+    // in the header, before Close: the panel's first two buttons
+    expect(screen.getAllByRole('button').slice(0, 2).map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(['Pin', 'Close details']);
+    const pin = screen.getByRole('button', { name: 'Pin' });
+    fireEvent.click(pin);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    // on the pinned card the same button reads Unpin
+    rerender(view({ pinned: true, reason: null }));
+    expect(screen.getByRole('button', { name: 'Unpin' })).toBe(pin);
+    // unavailable with a reason (w3): it stays focusable, says why, and a press does nothing
+    rerender(view({ pinned: false, reason: RUN_NOT_COMPLETE }));
+    expect(pin).toHaveAttribute('aria-disabled', 'true');
+    expect(pin).toHaveAccessibleDescription('Available when the run completes.');
+    fireEvent.click(pin);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    // AA: the button's ink on the details surface, in both themes
+    rerender(view({ pinned: false, reason: null }));
+    expect(smWorstRatio(pin)).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 function structuredCloneSafe<T>(v: T): T {

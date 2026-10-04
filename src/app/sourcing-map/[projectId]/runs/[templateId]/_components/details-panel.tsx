@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from
 import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
 import { EM_DASH, bandVar, bandWord, bindingRows, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, hasPath, NOTHING_BENEATH, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable, utilizationText } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
+import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 import { OptionPanel } from './option-panel';
 import { PathBeneath } from './path-beneath';
 
@@ -21,7 +22,7 @@ const TAB = 'sm-muted px-3 py-2 text-sm aria-disabled:opacity-55';
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ ref, executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false, unavailable = null, onOpenRow }: {
+export function DetailsPanel({ ref, executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false, unavailable = null, onOpenRow, pin }: {
   /** LF (spec §7): the workspace finds a Path beneath row in this panel, to return focus to it */
   ref?: Ref<HTMLElement>;
   executionId: string; result: SourcingMapExecutionResult2; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
@@ -32,6 +33,8 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
   unavailable?: string | null;
   /** LF (spec §7): a Path beneath row was pressed; the workspace opens that alias's handle panel on this card */
   onOpenRow?(alias: string): void;
+  /** LF (spec §6.2, §9.5): Pin / Unpin; the workspace owns the pin, and says why it is unavailable, or null */
+  pin?: { pinned: boolean; onToggle(): void; reason: string | null };
 }) {
   const asOfWeek = slotWeekFor(slot, asOfDrop);
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
@@ -43,6 +46,9 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+  // LF (spec §6.2, w3): an unavailable Pin stays focusable and ignores a press (SmButton), and is described by its reason,
+  // a line of its own under the header
+  const pinReasonId = useId();
   // LF (spec §7): two tabs over two panels, both always mounted and the unselected one hidden, so a switch never remounts
   // the option panel (it would refetch). The tab is this panel's state, and the workspace keys the panel by the pick, so
   // a new pick opens on Details. With two tabs either arrow moves to the other (APG); the press is taken with
@@ -69,8 +75,16 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
     <aside ref={ref} hidden={hidden} aria-label={`Details for ${c.supplier_name}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
-        <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
+        <div className="flex items-center gap-2">
+          {pin && (
+            <SmButton aria-disabled={pin.reason !== null} aria-describedby={pin.reason !== null ? pinReasonId : undefined} className="sm-btn sm-btn-ghost text-xs" onClick={pin.onToggle}>
+              {pin.pinned ? 'Unpin' : 'Pin'}
+            </SmButton>
+          )}
+          <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
+        </div>
       </div>
+      {pin && pin.reason !== null && <p id={pinReasonId} className="sm-muted mt-1 text-xs">{pin.reason}</p>}
       <div role="tablist" aria-label="Option details" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">
         <button ref={detailsTabRef} role="tab" type="button" id={detailsTabId} aria-selected={tab === 'details'} onClick={() => setTab('details')} onKeyDown={(e) => onArrow(e, 'path')} className={tab === 'details' ? TAB_SELECTED : TAB}>Details</button>
         <button ref={pathTabRef} role="tab" type="button" id={pathTabId} aria-selected={tab === 'path'} aria-disabled={reason !== null || undefined} aria-describedby={reason !== null ? reasonId : undefined} onClick={() => choose('path')} onKeyDown={(e) => onArrow(e, 'details')} className={tab === 'path' ? TAB_SELECTED : TAB}>Path beneath</button>

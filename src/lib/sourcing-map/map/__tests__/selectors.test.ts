@@ -7,6 +7,8 @@ import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID, otherTiers } from '../selectors';
 import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { modalBand, nodeTallies, pathGroups, utilBandWord } from '../selectors';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
+import { pinnable } from '../selectors';
 
 describe('map selectors', () => {
   it('formats a date or an instant with the year (UTC)', () => {
@@ -451,5 +453,20 @@ describe('what is beneath an option: the selectors (LF step 5)', () => {
     expect(shape(twoLevels)).toEqual([
       { tier: 2, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }, { label: 'Dyes', level: 2, aliases: ['X'] }, { label: 'Dyes', level: 4, aliases: ['A', 'F'] }] },
     ]);
+  });
+});
+
+describe('what can be pinned (LF step 6)', () => {
+  it('a card can be pinned when it answered and carries a projection, traced or not (§6.2)', () => {
+    // León answered and is traced
+    expect(pinnable(leon2)).toBe(true);
+    // Mekong answered and has no trace: pinnable all the same (the León against Mekong comparison)
+    expect(pinnable(mekong2)).toBe(true);
+    // Arno timed out: it carries an empty projection, but it never answered
+    expect(pinnable(arno2)).toBe(false);
+    // the SP1 León answered, but no projection was served (no `nodes`)
+    expect(pinnable(vomeroResult.slots[0]!.candidates[0]!)).toBe(false);
+    // a León that answers for itself only: its projection is served and empty, so it can be pinned (unlike hasPath)
+    expect(pinnable(notTracedDetail.result!.slots[0]!.candidates[0]!)).toBe(true);
   });
 });

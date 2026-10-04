@@ -7,7 +7,7 @@ import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
 import { readStoredHeat, writeStoredHeat } from '@/lib/sourcing-map/heat-storage';
-import { RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, otherTiers, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
+import { NOTHING_BENEATH, RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, otherTiers, pinnable, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
 import { SmHeader } from '@/app/sourcing-map/_components/sm-header';
 import { useExecutionPoll } from './use-execution-poll';
 import { ExecutionPicker } from './execution-picker';
@@ -81,6 +81,8 @@ export function Workspace({
   const [trayBusy, setTrayBusy] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(() => seedSelection(params.get('execution'), params.get('option'), initialDetail));
+  // LF (spec §6.1, §6.2): at most one pinned card, beside the active one; a card by its indexes, as `selected` is
+  const [pinned, setPinned] = useState<{ slot: number; candidate: number } | null>(null);
   // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
   // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
   const [handle, setHandle] = useState<Handle | null>(null);
@@ -136,8 +138,10 @@ export function Workspace({
       const rest = q.toString();
       window.history.replaceState(null, '', rest ? `${pathname}?${rest}` : pathname);
     }
-    // R3: the pick and the collapsed rails are by slot (and candidate) index, so they named the result just replaced.
+    // R3: the pick, the pin (LF §6.2) and the collapsed rails are by slot (and candidate) index, so they named the result
+    // just replaced.
     setSelected(null);
+    setPinned(null);
     setHandle(null);
     setCollapsed(new Set());
     // The loaded execution's summary replaces (or joins) its picker entry, so a new run needs no list refetch.
@@ -263,15 +267,24 @@ export function Workspace({
   function openRow(alias: string) {
     if (selectedCandidate) setHandle({ alias, origin: candidateKeyOf(selectedCandidate), from: 'tab' });
   }
-  // LF (spec §6.4): Hide all paths clears the active card, so its details close with its trace: the two are one
-  // selection. A handle panel is left as it is. Focus stays on the pressed button, which turns unavailable (w3).
+  // LF (spec §6.4): Hide all paths clears the active card and the pinned card, so the details close with the active
+  // card's trace: the two are one selection. A handle panel is left as it is. Focus stays on the pressed button, which
+  // turns unavailable (w3). Escape's last step is the same call (§6.5).
   function hideAll() {
     setSelected(null);
+    setPinned(null);
+  }
+  // LF (spec §6.2): Pin makes the active card the pinned one, replacing any earlier pin; Unpin, on the pinned card,
+  // clears the pin only
+  const activePinned = pinned !== null && selected !== null && pinned.slot === selected.slot && pinned.candidate === selected.candidate;
+  function togglePin() {
+    setPinned(activePinned ? null : selected);
   }
 
   // M1: collapsing a lane unmounts its cards (layout.ts: a collapsed lane has no cards). The details of a card in it
   // close with it, so Close never has a card to return focus to; focus stays on the lane's toggle. So does a handle
   // pressed on a card in it that is not the selected card (fix round 1): its panel would describe a card no longer shown.
+  // A card pinned in it is unpinned (LF §6.2), whichever card is active.
   function toggleLane(i: number) {
     if (!collapsed.has(i)) {
       if (selected?.slot === i) {
@@ -280,6 +293,7 @@ export function Workspace({
       } else if (handle && detail?.result?.slots[i]?.candidates.some((c) => candidateKeyOf(c) === handle.origin)) {
         setHandle(null);
       }
+      if (pinned?.slot === i) setPinned(null);
     }
     setCollapsed((c) => {
       const n = new Set(c);
@@ -318,11 +332,12 @@ export function Workspace({
   const asOfDrop = result ? resolveAsOfDrop(params.get('drop'), result.portfolio) : null;
   const productNames = Object.fromEntries(library.map((p) => [p.product_id, p.name]));
   const selectedCandidate = result && selected ? result.slots[selected.slot]?.candidates[selected.candidate] ?? null : null;
+  const pinnedCandidate = result && pinned ? result.slots[pinned.slot]?.candidates[pinned.candidate] ?? null : null;
   const handleNode = result && handle ? nodeOf(result, handle.alias, handle.origin) : null;
-  // the handle's role on the trace is the selected card's, and only when the handle was pressed on that card
-  const handleTraceNode = handle && selectedCandidate && candidateKeyOf(selectedCandidate) === handle.origin
-    ? selectedCandidate.trace?.nodes.find((n) => n.alias === handle.alias) ?? null
-    : null;
+  // the handle's role on the trace is that of the traced card it was pressed on, the active card or the pinned one
+  // (LF §6.2), and only when it was pressed on one of them
+  const handleCard = handle ? [selectedCandidate, pinnedCandidate].find((c) => c !== null && candidateKeyOf(c) === handle.origin) : undefined;
+  const handleTraceNode = handle && handleCard ? handleCard.trace?.nodes.find((n) => n.alias === handle.alias) ?? null : null;
   const candidateNames = result ? candidateNamesOf(result) : {};
   const inRun = library.filter((p) => template.scope.products.some((x) => x.product_id === p.product_id));
   const units = [...new Set(inRun.map((p) => p.unit_label))];
@@ -359,12 +374,15 @@ export function Workspace({
       // LF (spec §9.5, ruling F1): a running execution has no projection to drill into yet
       unavailable={running ? RUN_NOT_COMPLETE : null}
       onOpenRow={openRow}
+      // LF (spec §6.2, §9.5): nothing to pin while the run is live, nor on a card that never answered or has no projection
+      pin={{ pinned: activePinned, onToggle: togglePin, reason: running ? RUN_NOT_COMPLETE : pinnable(selectedCandidate) ? null : NOTHING_BENEATH }}
     />
   ) : null;
 
   // LF (spec §6.5): Escape is the page's, and this one listener owns it; the panels have no handler of their own, so a
   // press closes exactly one layer, the first that shows (what renders above, not the raw state: a card picked while
-  // the tray is open has `selected` set and no panel). It ignores a press another handler took; one from another
+  // the tray is open has `selected` set and no panel); with nothing else open, a pin is the last layer, cleared as Hide
+  // all paths clears it (a busy tray still takes the press). It ignores a press another handler took; one from another
   // surface (w9: only <body>, <html> and this root are the page's); one inside a dialog, the rule for a non-modal one
   // such as the help panel; any press while a modal is open (w1, review I-1: a modal owns the key wherever focus is;
   // this is what covers the upload wizard); and one on a <select>, whose list uses the key (w4). It listens in the
@@ -383,7 +401,7 @@ export function Workspace({
     else if (trayOpen) {
       // w5: an Apply or Duplicate in flight answers in the tray, whose Close waits for it; so does Escape
       if (!trayBusy) closeTray();
-    }
+    } else if (pinned !== null) hideAll();
   });
   useEffect(() => {
     const listener = (e: KeyboardEvent) => onKeyDown(e);
@@ -461,6 +479,7 @@ export function Workspace({
                 unavailable={running ? RUN_NOT_COMPLETE : null}
                 heat={heat}
                 onHeat={setHeat}
+                pinned={pinned}
               />
             </div>
           )}

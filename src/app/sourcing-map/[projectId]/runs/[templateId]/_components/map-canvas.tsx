@@ -58,20 +58,22 @@ export interface MapCanvasProps {
    */
   selectedHandle?: { alias: string; origin: string } | null;
   onSelectAlias?(alias: string | null, origin: string): void;
-  /** LF (spec §6.4): Hide all paths, offered while a path is open, which is the canvas's own to say (a card is selected) */
+  /** LF (spec §6.4): Hide all paths, offered while a path is open, which is the canvas's own to say (a card is active or pinned) */
   onHideAll?(): void;
   /** LF (spec §9.5): why the map's tools are unavailable (a running execution), or null when they work */
   unavailable?: string | null;
   /** LF (spec §6.6): the links' heat, on by default; the workspace owns it and its storage */
   heat?: boolean;
   onHeat?(next: boolean): void;
+  /** LF (spec §6.2): the pinned card, beside the active one; the workspace owns it */
+  pinned?: { slot: number; candidate: number } | null;
 }
 
 /** The map (spec §9.3): the prototype's canvas as DOM cards over one SVG link overlay. */
 export function MapCanvas({
   result, asOfDrop, productFilter, productNames, seat, selected, onSelect, collapsed, onToggle,
   selectedHandle = null, onSelectAlias = () => undefined, onHideAll = () => undefined, unavailable = null,
-  heat = true, onHeat = () => undefined,
+  heat = true, onHeat = () => undefined, pinned = null,
 }: MapCanvasProps) {
   // R-9: time render → commit; the SP1-e walk reads this in a real browser. Hooks come first, before any early return.
   // The start is a timeline mark, not a value read during render, so nothing time-dependent reaches the output (ruling F03).
@@ -160,7 +162,7 @@ export function MapCanvas({
   return (
     <section aria-label="Sourcing map" className="relative overflow-auto">
       <p className="sm-muted px-6 pt-4 text-xs">{caption}</p>
-      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={unavailable} heat={heat} onHeat={onHeat} />
+      <MapToolbar pathsOpen={selected !== null || pinned !== null} onHideAll={onHideAll} unavailable={unavailable} heat={heat} onHeat={onHeat} />
       <SupplyChainLimits result={result} onSelect={onSelect} />
       <SharedExposure result={result} />
       <div ref={frameRef} className="relative" style={{ width: lay.width, height: lay.height }}>
@@ -181,6 +183,7 @@ export function MapCanvas({
               {lane.cards.map((card) => {
                 const c = slot.candidates[card.candidateIndex]!;
                 const isSelected = selected?.slot === lane.slotIndex && selected.candidate === card.candidateIndex;
+                const isPinned = pinned?.slot === lane.slotIndex && pinned.candidate === card.candidateIndex;
                 return (
                   <div key={card.candidateIndex} className="absolute" style={{ left: card.x, top: card.y, width: MAP_L.cardW, height: lane.cardH }}>
                     <OptionCard
@@ -195,6 +198,7 @@ export function MapCanvas({
                       onSelectAlias={onSelectAlias}
                       hoveredAlias={hoveredAlias}
                       onHoverAlias={setHoveredAlias}
+                      pinned={isPinned}
                     />
                   </div>
                 );

@@ -441,6 +441,11 @@ export function hasPath(c: SmCandidateResult): boolean {
   return (c.nodes ?? []).length > 0;
 }
 
+/** LF (spec §6.2): an option can be pinned when it answered and carries a projection (`nodes` served, even empty), traced or not. */
+export function pinnable(c: SmCandidateResult): boolean {
+  return gapText(c.status) === null && c.nodes !== undefined;
+}
+
 /**
  * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
  * first status frame) or the waiting responder is below tier 1 and so not named (G-52).

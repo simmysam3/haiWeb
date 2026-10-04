@@ -85,6 +85,14 @@ async function settle(release: () => void) {
   });
 }
 
+/**
+ * A wait, not an assertion: every mounted option panel (one hidden under a handle panel too, as text queries see hidden
+ * elements) has had its read answered, so the update lands inside the test and adds no act(...) warning.
+ */
+async function panelsSettled() {
+  await waitFor(() => expect(screen.queryAllByText('Loading…')).toEqual([]));
+}
+
 function picked(): string {
   return (screen.getByLabelText('Result') as HTMLSelectElement).value;
 }
@@ -1126,6 +1134,146 @@ describe('Workspace', () => {
     fireEvent.click(mapA());
     expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
     expect(mapA()).toHaveFocus();
+  });
+
+  it('Pin keeps the details open and marks the card; selecting another card keeps the pin, and only the active card reads pressed (§6.2)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    // LF-R9: a card's wrapper takes its lane's height from layoutMap, and the pin adds no line to any card
+    const heights = () => Array.from(document.querySelectorAll('article')).map((a) => a.parentElement!.style.height);
+    const before = heights();
+    fireEvent.click(leon);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    // the details stay open: the card is now both active and pinned
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // another card becomes the active one; the pin stays
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    fireEvent.click(mekong);
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // aria-pressed is the active card's alone
+    expect(leon).toHaveAttribute('aria-pressed', 'false');
+    expect(mekong).toHaveAttribute('aria-pressed', 'true');
+    // the details are the active card's, and Mekong is not the pinned card
+    expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('button', { name: 'Pin' })).toBeInTheDocument();
+    expect(heights()).toEqual(before);
+    await panelsSettled();
+  });
+
+  it('a second Pin replaces the first, and Unpin clears the pin only', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    const details = (name: string) => screen.getByRole('complementary', { name: `Details for ${name}` });
+    // Step 4's state: León pinned, Mekong active
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(mekong);
+    // Pin on Mekong: it replaces León's pin
+    fireEvent.click(within(details('Mekong Tannery')).getByRole('button', { name: 'Pin' }));
+    expect(within(mekong.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    expect(within(leon.closest('article')!).queryByText('Pinned')).toBeNull();
+    // Unpin, on the pinned card's details
+    fireEvent.click(within(details('Mekong Tannery')).getByRole('button', { name: 'Unpin' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // the pin only: Mekong stays the active card, its details open
+    expect(details('Mekong Tannery')).toBeInTheDocument();
+    await panelsSettled();
+  });
+
+  it('the pin is cleared by Hide all paths, by collapsing its lane and by a switch of result; Configure leaves it (§6.2)', async () => {
+    // another result of the run: the multitier result again under another id (the stub of the R3 switch pin, with a
+    // result whose León can be pinned, so the lines after the switch run on it)
+    const other: SmExecutionDetail = { ...multitierDetail, execution: { ...multitierDetail.execution, execution_id: VOMERO_IDS.executionOld, created_at: '2026-09-20T10:00:00.000Z', started_at: '2026-09-20T10:00:00.000Z' } };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, other);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount(multitierDetail, [multitierDetail.execution, other.execution]);
+    const leon = () => screen.getByRole('button', { name: /^León Cuero, MX/ });
+    const pinLeon = () => {
+      fireEvent.click(leon());
+      fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    };
+    await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    // Hide all paths clears the active card and the pinned card
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    // collapsing the pinned card's lane clears the pin, as it clears a selection there; another lane's active card stays
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: /^Zephyr Compounds, DE/ }));
+    const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    fireEvent.click(rail);
+    fireEvent.click(rail);
+    expect(within(leon().closest('article')!).queryByText('Pinned')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for Zephyr Compounds' })).toBeInTheDocument();
+    // a switch of result: the pin named a card of the result just replaced
+    pinLeon();
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // Configure opened and closed leaves the pin (it closes the details only)
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Close' }));
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // and so does an Apply
+    applyDepthCap4();
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // a wait: the new scope's readiness has answered (Run leaves "Checking…")
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).not.toHaveAttribute('aria-disabled'));
+  });
+
+  it('with a pin and nothing else open, Escape clears it; before that it closes the details and leaves the pin (§6.5)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const escape = () => fireEvent.keyDown(document.body, { key: 'Escape' });
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    fireEvent.click(leon);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    // the first press closes the details (step 2) and leaves the pin
+    escape();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // a path remains, so Hide all paths is still available
+    expect(screen.getByRole('button', { name: 'Hide all paths' })).not.toHaveAttribute('aria-disabled');
+    // the second press clears the pin (step 4: Hide all paths)
+    escape();
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // the third: nothing is open, so it changes nothing and throws nothing (jsdom reports a listener's throw as an
+    // error event on the window, never to the caller)
+    const thrown = vi.fn();
+    window.addEventListener('error', thrown);
+    escape();
+    window.removeEventListener('error', thrown);
+    expect(thrown).not.toHaveBeenCalled();
+    await panelsSettled();
+  });
+
+  it('Pin is unavailable with its reason on a running execution and on a card that cannot be pinned; a handle on the pinned card shows its trace role', async () => {
+    const throttled = mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // a running execution has no projection yet (§9.5)
+    const pin = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' });
+    expect(pin).toHaveAttribute('aria-disabled', 'true');
+    expect(pin).toHaveAccessibleDescription('Available when the run completes.');
+    throttled.unmount();
+    // a complete result: Arno timed out, so it never answered and cannot be pinned
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^Arno Pelli, IT/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for Arno Pelli' })).getByRole('button', { name: 'Pin' })).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    // a handle pressed on the pinned card, while another card is active, shows its role on the pinned card's trace
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByText('binding')).toBeInTheDocument();
+    await panelsSettled();
   });
 
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {

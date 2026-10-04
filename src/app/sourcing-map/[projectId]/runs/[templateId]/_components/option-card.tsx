@@ -26,10 +26,13 @@ const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
 export function OptionCard({
   slot, candidate: c, asOfDrop, drops, selected, onSelect,
   traced = false, selectedAlias = null, onSelectAlias = () => undefined, hoveredAlias = null, onHoverAlias = () => undefined,
+  pinned = false,
 }: {
   slot: SmSlotResult; candidate: SmCandidateResult; asOfDrop: string | null; drops: SmPortfolioDrop[]; selected: boolean; onSelect(): void;
   /** SP2 (spec §12.1, §12.3): the tier rows' state, owned by the map; every SP1 call site can omit them */
   traced?: boolean; selectedAlias?: string | null; onSelectAlias?(alias: string | null, origin: string): void; hoveredAlias?: string | null; onHoverAlias?(alias: string | null): void;
+  /** LF (spec §6.2): the pinned card says so in its footer row; aria-pressed stays the active card's */
+  pinned?: boolean;
 }) {
   const week = slotWeekFor(slot, asOfDrop);
   const demand = slotDemandAt(slot, week);
@@ -43,6 +46,7 @@ export function OptionCard({
   const summary = cardSummaryText(c);
   const util = summary !== null && c.aggregates != null ? c.aggregates.utilization : null;
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
+  const label = gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${note !== null ? `; ${note}` : ''}`;
   return (
     <article
       // A mouse click anywhere else on the card also selects; the button handles its own clicks and keys.
@@ -63,7 +67,7 @@ export function OptionCard({
         data-anchor={candidateKeyOf(c)}
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${note !== null ? `; ${note}` : ''}`}
+        aria-label={pinned ? `${label}; pinned` : label}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="truncate text-sm font-semibold" title={c.supplier_name}>{c.supplier_name}</span>
@@ -95,7 +99,7 @@ export function OptionCard({
         {summary !== null && <span className="truncate" title={summary}>{summary}</span>}
         <span className={`flex items-center gap-2 ${summary !== null ? 'mt-1' : ''}`}>
           {util !== null && <UtilizationBar utilization={util} />}
-          {traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
+          {pinned ? <span className="sm-muted">Pinned</span> : traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
           <span className="ml-auto flex"><DetailChevron /></span>
         </span>
       </span>
