@@ -461,4 +461,15 @@ describe('useHelpStream', () => {
     result.current.stop();
     expect(seen?.aborted).toBe(true);
   });
+
+  it('send streams to the caller’s callbacks and resolves with the outcome, posting the body it was given', async () => {
+    fetchMock.mockResolvedValue(sse([ev('meta', META), ev('delta', { text: 'Hello ' }), ev('delta', { text: 'there' }), ev('done', DONE)]));
+    const { result } = renderHook(() => useHelpStream());
+    const cb = callbacks();
+    const body = { ...REQ, conversation_id: CONV, language: 'ko' as const };
+    expect(await result.current.send(body, cb)).toEqual({ kind: 'done', done: DONE });
+    expect(cb.onMeta).toHaveBeenCalledWith(META);
+    expect(cb.onDelta.mock.calls.map((c) => c[0])).toEqual(['Hello ', 'there']);
+    expect(JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string)).toEqual(body);
+  });
 });
