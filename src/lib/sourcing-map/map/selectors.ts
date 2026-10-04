@@ -365,6 +365,15 @@ export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] 
   return out;
 }
 
+export interface BindingRow { alias: string; tier: number; band: SmBand; binds_for: number; country: string | null; classLabel: string | null }
+/** The option's binding nodes, in trace order: tier, band and binds_for from trace.nodes; country and class from the SAME option's nodes[] by alias, null when it has none. */
+export function bindingRows(c: SmCandidateResult): BindingRow[] {
+  return (c.trace?.nodes ?? []).filter((t) => t.role === 'binding').map((t) => {
+    const n = (c.nodes ?? []).find((x) => x.alias === t.alias);
+    return { alias: t.alias, tier: t.tier, band: t.band, binds_for: t.binds_for, country: n?.country ?? null, classLabel: n?.class?.label ?? null };
+  });
+}
+
 const PEER_LIST = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
 /** DECISIONS §1.2: the binding source also limits other options, so splitting between them does not help. Null when nothing is shared or no peer resolves. */
 export function sharedBindingText(result: SourcingMapExecutionResult, c: SmCandidateResult): string | null {

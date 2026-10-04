@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { SmBand, SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult, SourcingMapExecutionResult2 } from '@/lib/sourcing-map/types';
-import { EM_DASH, bandVar, bandWord, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable, utilizationText } from '@/lib/sourcing-map/map/selectors';
+import { EM_DASH, bandVar, bandWord, bindingRows, candidateNamesOf, candidateWeekAt, formatDropDate, formatPct, formatQty, noCoverageText, pathSummary, slotDemandAt, slotTitle, sharedBindingText, slotWeekFor, sortedVariantEntries, traceSentence, traceable, utilizationText } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { OptionPanel } from './option-panel';
 
@@ -25,6 +25,7 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
   const answerWeek = candidateWeekAt(c, asOfWeek);
   const summary = pathSummary(c);
   const shared = sharedBindingText(result, c);
+  const rows = bindingRows(c);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -56,6 +57,28 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
                 ))}
               </ul>
             </div>
+          )}
+          {rows.length > 0 && (
+            <table aria-label="Binding sources" className="sm-table mt-2">
+              <thead><tr><th>Binding source</th><th>Tier</th><th>Band</th></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.alias}>
+                    <td>
+                      {`${r.alias} · ${r.classLabel ?? EM_DASH} · ${r.country ?? EM_DASH}`}
+                      {r.binds_for > 1 && <div className="sm-warn text-xs">{`Binding for ${r.binds_for} options`}</div>}
+                    </td>
+                    <td>{r.tier}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span role="img" aria-label={bandWord(r.band)} title={bandWord(r.band)} className="inline-block h-2 w-2 rounded-full" style={{ background: bandVar(r.band) }} />
+                        <span>{bandWord(r.band)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
           {shared !== null && <p className="sm-warn mt-2">{shared}</p>}
           {c.aggregates && (

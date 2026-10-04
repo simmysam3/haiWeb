@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
+import { bandVar, bandWord, bindingNodes, bindingRows, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
 import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
 
@@ -241,6 +241,19 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     const twice = buildTwice();
     expect(bindingNodes(twice)[0]!.options.map((o) => o.key)).toEqual(['leon', 'mekong']);
     expect(bindingNodes(vomeroResult)).toEqual([]);
+  });
+
+  it('lists an option’s binding nodes with tier, band and binds_for from the trace, and country and class from its own nodes (§8.2)', () => {
+    expect(bindingRows(leon2!)).toEqual([{ alias: 'A', tier: 2, band: 'moderate', binds_for: 1, country: 'IT', classLabel: 'Dyes' }]);
+    expect(bindingRows(mekong2!)).toEqual([]);
+    // the trace's tier is the row's tier; an inherited node is not a binding source
+    const inline = structuredClone(leon2!);
+    inline.trace = { nodes: [{ alias: 'C', tier: 3, role: 'inherited', band: 'slight', binds_for: 1 }, { alias: 'B', tier: 3, role: 'binding', band: 'severe', binds_for: 1 }], edges: [], gaps: [] };
+    expect(bindingRows(inline)).toEqual([{ alias: 'B', tier: 3, band: 'severe', binds_for: 1, country: 'US', classLabel: 'Wet-blue' }]);
+    // a binding alias this option's nodes do not hold has no country and no class
+    const absent = structuredClone(leon2!);
+    absent.trace = { nodes: [{ alias: 'Z', tier: 4, role: 'binding', band: 'slight', binds_for: 1 }], edges: [], gaps: [] };
+    expect(bindingRows(absent)).toEqual([{ alias: 'Z', tier: 4, band: 'slight', binds_for: 1, country: null, classLabel: null }]);
   });
 
   it('names the other options a shared binding source limits, each from its own side (A3)', () => {

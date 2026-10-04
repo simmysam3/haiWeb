@@ -3,12 +3,22 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vomeroResult, runningDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 import { multitierDetail, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
+import { smWorstRatio } from '@/test/contrast';
 import { DetailsPanel } from '../details-panel';
 
 const NAMES = { [VOMERO_IDS.pegasus]: 'Pegasus Trail', [VOMERO_IDS.court]: 'Court Classic', [VOMERO_IDS.metcon]: 'Metcon Iron' };
 
 const EXEC = 'e1000000-0000-4000-8000-000000000001';
 const fetchMock = vi.fn();
+
+/** A copy of the multitier result where alias A binds León and Mekong (binds_for 2 on both traces). */
+function bindsTwice(mt: NonNullable<typeof multitierDetail.result>) {
+  const twice = structuredCloneSafe(mt);
+  twice.slots[0]!.candidates[1]!.limit = 'inputs';
+  twice.slots[0]!.candidates[1]!.trace = { nodes: [{ alias: 'A', tier: 2, role: 'binding', band: 'slight', binds_for: 2 }], edges: [{ parent: 'mekong', child: 'A', band: 'slight' }], gaps: [] };
+  twice.slots[0]!.candidates[0]!.trace!.nodes[0]!.binds_for = 2;
+  return twice;
+}
 
 describe('DetailsPanel', () => {
   // The option panel reads on mount; nothing here asserts on its answer.
@@ -208,6 +218,49 @@ describe('DetailsPanel', () => {
     rerender(mount(mt));
     expect(screen.queryByText(/^The same source limits/)).toBeNull();
     expect(screen.getByRole('region', { name: 'Below tier 1' }).querySelector('.sm-warn')).toBeNull();
+  });
+
+  it('lists the binding sources in Below tier 1, after the trace legend and before the shared warning, with a band and never a percentage', () => {
+    const mt = multitierDetail.result!;
+    const mount = (result: typeof mt, candidate: (typeof mt)['slots'][number]['candidates'][number]) => (
+      <DetailsPanel executionId={EXEC} result={result} slot={result.slots[0]!} candidate={candidate} drops={result.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />
+    );
+    const { rerender } = render(mount(mt, mt.slots[0]!.candidates[0]!));
+    const below = screen.getByRole('region', { name: 'Below tier 1' });
+    const table = within(below).getByRole('table', { name: 'Binding sources' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Binding source', 'Tier', 'Band']);
+    const body = within(table).getAllByRole('row').slice(1);
+    expect(body).toHaveLength(1);
+    const cells = Array.from((body[0] as HTMLTableRowElement).cells);
+    expect(cells[0]?.textContent).toBe('A · Dyes · IT');
+    expect(cells[1]?.textContent).toBe('2');
+    expect(cells[2]?.textContent).toBe('moderate');
+    const dot = within(cells[2]!).getByRole('img', { name: 'moderate' });
+    expect(dot.style.background).toBe('var(--sm-heat-mid)');
+    expect(table.textContent).not.toContain('%');
+    const legend = within(below).getByRole('list', { name: 'Trace line bands' });
+    expect(legend.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // A binds León and Mekong: the row says so, and the table comes before the shared-binding warning
+    const twice = bindsTwice(mt);
+    rerender(mount(twice, twice.slots[0]!.candidates[0]!));
+    const shared = within(screen.getByRole('table', { name: 'Binding sources' }));
+    expect(shared.getByText('Binding for 2 options')).toHaveClass('sm-warn');
+    const warning = within(below).getByText('The same source limits Mekong Tannery; splitting between these options will not relieve the constraint.');
+    expect(screen.getByRole('table', { name: 'Binding sources' }).compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Mekong binds nothing: no table
+    rerender(mount(mt, mt.slots[0]!.candidates[1]!));
+    expect(screen.queryByRole('table', { name: 'Binding sources' })).toBeNull();
+  });
+
+  it('the binding table text clears 4.5:1 on the details surface in both themes', () => {
+    // AA pairs (F18): inherited ink on the surface (a header cell and a body cell), and sm-warn on the surface
+    const mt = multitierDetail.result!;
+    const twice = bindsTwice(mt);
+    render(<div className="sm-root"><DetailsPanel executionId={EXEC} result={twice} slot={twice.slots[0]!} candidate={twice.slots[0]!.candidates[0]!} drops={twice.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} /></div>);
+    const table = within(screen.getByRole('table', { name: 'Binding sources' }));
+    expect(smWorstRatio(table.getByRole('columnheader', { name: 'Tier' }))).toBeGreaterThanOrEqual(4.5);
+    expect(smWorstRatio(table.getByRole('cell', { name: '2' }))).toBeGreaterThanOrEqual(4.5);
+    expect(smWorstRatio(table.getByText('Binding for 2 options'))).toBeGreaterThanOrEqual(4.5);
   });
 
   it('replaces the later-releases sentence with the panel and the price-terms footer (spec §12.3)', () => {
