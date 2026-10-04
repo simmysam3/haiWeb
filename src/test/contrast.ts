@@ -1,4 +1,12 @@
 // Test-only WCAG 2.x contrast instrument for the console's brand tokens; nothing under src/ outside tests imports it.
+//
+// Its limits. It reads class names, not rendered pixels:
+// - it sees only a `text-<token>` or `bg-<token>` class that is exactly a brand token of globals.css;
+// - a colour class that is not a brand token (for example a Tailwind default such as `text-red-900`) is skipped,
+//   and the walk then reports an ancestor's token;
+// - on one element the first matching class in the class list wins;
+// - variant classes (`hover:`, `focus:`), opacity, inline styles and any colour set outside the class list are not seen.
+// So a pin proves the tokens a component asks for; a real-browser check (axe on the page) is the proof of what a user sees.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
