@@ -1,12 +1,12 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { SmEstimateResponse, SmProduct } from '@haiwave/protocol';
 import type { SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 as SmExecutionSummary } from '@/lib/sourcing-map/types';
 import type { SmRunTemplate } from '@/lib/sourcing-map/local-shapes';
 import { smFetch } from '@/lib/sourcing-map/client';
 import { SM_HOME, smProjectHref } from '@/lib/sourcing-map/routes';
-import { candidateKeyOf, candidateNamesOf, nodeOf, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
+import { RUN_NOT_COMPLETE, candidateKeyOf, candidateNamesOf, nodeOf, resolveAsOfDrop, underOf } from '@/lib/sourcing-map/map/selectors';
 import { SmHeader } from '@/app/sourcing-map/_components/sm-header';
 import { useExecutionPoll } from './use-execution-poll';
 import { ExecutionPicker } from './execution-picker';
@@ -67,6 +67,8 @@ export function Workspace({
   // R5: a failed readiness read blocks Run with its reason; RunButton would otherwise say "Checking…" for ever.
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [trayOpen, setTrayOpen] = useState(false);
+  // LF (w5): the tray's Apply or Duplicate is in flight, as the tray reports it; Escape leaves the tray open meanwhile.
+  const [trayBusy, setTrayBusy] = useState(false);
   const [productFilter, setProductFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(() => seedSelection(params.get('execution'), params.get('option'), initialDetail));
   // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
@@ -281,9 +283,65 @@ export function Workspace({
   const inRun = library.filter((p) => template.scope.products.some((x) => x.product_id === p.product_id));
   const units = [...new Set(inRun.map((p) => p.unit_label))];
   const days = [...new Set(inRun.map((p) => p.assembly_days))].sort((a, b) => a - b);
+  const handlePanel = !trayOpen && result && handle && handleNode ? (
+    <HandlePanel
+      key={`${handle.origin}/${handle.alias}`}
+      node={{ ...handleNode, under: underOf(result, handle.alias) }}
+      origin={handle.origin}
+      candidateNames={candidateNames}
+      trace={handleTraceNode ? { role: handleTraceNode.role, binds_for: handleTraceNode.binds_for } : null}
+      onClose={closeHandle}
+    />
+  ) : null;
+  const detailsPanel = !trayOpen && detail && result && selected && selectedCandidate ? (
+    <DetailsPanel
+      // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
+      // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
+      // panel without moving focus.
+      key={`${selected.slot}:${selected.candidate}`}
+      // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
+      // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
+      hidden={handle !== null && handleNode !== null}
+      executionId={detail.execution.execution_id}
+      result={result}
+      slot={result.slots[selected.slot]!}
+      candidate={selectedCandidate}
+      drops={result.portfolio.drops}
+      asOfDrop={asOfDrop}
+      productNames={productNames}
+      onClose={closeDetails}
+    />
+  ) : null;
+
+  // LF (spec §6.5): Escape is the page's, and this one listener owns it; the panels have no handler of their own, so a
+  // press closes exactly one layer, the first that shows (what renders above, not the raw state: a card picked while
+  // the tray is open has `selected` set and no panel). It ignores a press another handler took; one from another
+  // surface (w9: only <body>, <html> and this root are the page's); one inside a dialog (w1: the upload wizard; the
+  // help panel is one too); and one on a <select>, whose list uses the key (w4). It listens in the bubble phase: a
+  // capture listener without the dialog rule would close a layer AND minimise the help panel on one press.
+  // useEffectEvent gives the listener, attached once, this render's state.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    const t = e.target;
+    if (t !== document.body && t !== document.documentElement && !(t instanceof Node && rootRef.current?.contains(t))) return;
+    if (t instanceof Element && t.closest('[role="dialog"]')) return;
+    if (t instanceof HTMLSelectElement) return;
+    if (handlePanel !== null) closeHandle();
+    else if (detailsPanel !== null) closeDetails();
+    else if (trayOpen) {
+      // w5: an Apply or Duplicate in flight answers in the tray, whose Close waits for it; so does Escape
+      if (!trayBusy) closeTray();
+    }
+  });
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => onKeyDown(e);
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, []);
 
   return (
-    <>
+    <div ref={rootRef} className="contents">
       <SmHeader
         crumbs={[{ label: 'Projects', href: SM_HOME }, { label: projectName, href: smProjectHref(template.scope.project_id) }, { label: template.template_name }]}
         actions={
@@ -349,41 +407,15 @@ export function Workspace({
                 selectedHandle={handle}
                 onSelectAlias={selectHandle}
                 onHideAll={hideAll}
+                unavailable={running ? RUN_NOT_COMPLETE : null}
               />
             </div>
           )}
         </div>
         {/* P2: while the tray is open it holds the side column; a card picked meanwhile shows once the tray closes. */}
         {/* SP2 (spec §12.4): a pressed handle's panel takes the column; the card's details return when it closes. */}
-        {!trayOpen && result && handle && handleNode && (
-          <HandlePanel
-            key={`${handle.origin}/${handle.alias}`}
-            node={{ ...handleNode, under: underOf(result, handle.alias) }}
-            origin={handle.origin}
-            candidateNames={candidateNames}
-            trace={handleTraceNode ? { role: handleTraceNode.role, binds_for: handleTraceNode.binds_for } : null}
-            onClose={closeHandle}
-          />
-        )}
-        {!trayOpen && detail && result && selected && result.slots[selected.slot]?.candidates[selected.candidate] && (
-          <DetailsPanel
-            // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
-            // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
-            // panel without moving focus.
-            key={`${selected.slot}:${selected.candidate}`}
-            // P2: one panel at a time; hidden (not unmounted) under a handle panel, so closing that never remounts it.
-            // M-4: only while the handle panel actually renders (its node is on the map); never an empty side column.
-            hidden={handle !== null && handleNode !== null}
-            executionId={detail.execution.execution_id}
-            result={result}
-            slot={result.slots[selected.slot]!}
-            candidate={result.slots[selected.slot]!.candidates[selected.candidate]!}
-            drops={result.portfolio.drops}
-            asOfDrop={asOfDrop}
-            productNames={productNames}
-            onClose={closeDetails}
-          />
-        )}
+        {handlePanel}
+        {detailsPanel}
         {trayOpen && (
           <ConfigureTray
             template={template}
@@ -399,9 +431,10 @@ export function Workspace({
               closeTray();
             }}
             onClose={closeTray}
+            onBusy={setTrayBusy}
           />
         )}
       </div>
-    </>
+    </div>
   );
 }

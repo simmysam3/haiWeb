@@ -52,15 +52,15 @@ describe('DetailsPanel', () => {
     expect(document.activeElement).toBe(within(panel).getByRole('heading', { name: 'León Cuero · MX' }));
   });
 
-  it('closes on Escape from inside the panel; another key does not close it', () => {
+  it('leaves Escape to the workspace: a press inside the panel calls nothing (§6.5)', () => {
     const onClose = vi.fn();
     const leather = vomeroResult.slots[0]!;
     render(<DetailsPanel executionId={EXEC} result={vomeroResult} slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={onClose} />);
-    // focus is on the heading once the panel opens (R1), so the key lands inside it
-    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    // present control: focus is on the heading once the panel opens (R1), so the key lands inside the panel
+    const heading = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('heading', { name: 'León Cuero · MX' });
+    expect(heading).toHaveFocus();
+    fireEvent.keyDown(heading, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('titles an unclassified slot as its rail does, "Unclassified · <component>" (ruling R4, contract §10)', () => {

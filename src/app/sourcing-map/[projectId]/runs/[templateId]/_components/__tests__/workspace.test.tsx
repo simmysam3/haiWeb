@@ -847,6 +847,139 @@ describe('Workspace', () => {
     expect(hide).toHaveAttribute('aria-disabled', 'true');
   });
 
+  it('Escape closes one layer per press, from anywhere: the handle panel, then the details, then Configure; each returns focus as its Close does (§6.5)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    // (a) to (d) press on <body>: the key works with focus anywhere on the page
+    const escape = () => fireEvent.keyDown(document.body, { key: 'Escape' });
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    fireEvent.click(leon);
+    const leonA = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(leonA);
+    // control: the handle panel holds the column
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // another key closes nothing
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // a press inside the handle panel, on its focused heading: no panel answers Escape itself, so that panel goes
+    const heading = within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('heading', { name: 'Supplier A · tier 2' });
+    expect(heading).toHaveFocus();
+    fireEvent.keyDown(heading, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    // and nothing else: León's details come back
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the handle panel again, for the presses on <body>
+    fireEvent.click(leonA);
+    // (a) the handle panel goes first
+    escape();
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    expect(leonA).toHaveFocus();
+    // (b) then the details
+    escape();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(leon).toHaveFocus();
+    // (c) then Configure
+    const configure = screen.getByRole('button', { name: 'Configure' });
+    fireEvent.click(configure);
+    // control: the tray holds the column
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    escape();
+    expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+    expect(configure).toHaveFocus();
+    // (d) nothing open: a press changes nothing and throws nothing. jsdom reports a listener's throw as an error
+    // event on the window, never to the caller, so that is where it is looked for.
+    const thrown = vi.fn();
+    window.addEventListener('error', thrown);
+    leon.focus();
+    escape();
+    window.removeEventListener('error', thrown);
+    expect(thrown).not.toHaveBeenCalled();
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(leon).toHaveFocus();
+  });
+
+  // Review Focus 2: Escape pressed where something else owns it closes no Sourcing Map layer.
+  it('ignores an Escape another handler already took (defaultPrevented)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const take = (e: KeyboardEvent) => e.preventDefault();
+    document.body.addEventListener('keydown', take, true);
+    try {
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+    } finally {
+      document.body.removeEventListener('keydown', take, true);
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('an Escape inside the upload wizard closes the wizard and leaves Configure open (w1)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Upload schedule' }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Upload schedule' }), { key: 'Escape' });
+    // the dialog still gets its key: the page's listener takes nothing from it
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+  });
+
+  it('ignores an Escape whose target is outside what the workspace renders (the help panel, w9)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // another surface of the page, beside the container the workspace is rendered into
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    try {
+      fireEvent.keyDown(outside, { key: 'Escape' });
+    } finally {
+      outside.remove();
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the page itself is no other surface: a press on <html> closes a layer, as one on <body> does
+    fireEvent.keyDown(document.documentElement, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
+
+  it('ignores an Escape on a <select>, whose list uses it (w4)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText('Result'), { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('does not close Configure while its Apply is in flight (w5)', async () => {
+    const slowApply = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return slowApply.promise;
+      return reply(404, {});
+    });
+    mount();
+    applyDepthCap4();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    await settle(() => slowApply.resolve(reply(200, { template: DEPTH_4 })));
+    // the answer closed the tray; opened again it closes on Escape, because the tray also reports that nothing is in flight
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+  });
+
+  it('on a running execution Hide all paths is unavailable and says why; Escape still closes the details (§9.5)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // control: León's details are open, so a path is open
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const hide = screen.getByRole('button', { name: 'Hide all paths' });
+    expect(hide).toHaveAttribute('aria-disabled', 'true');
+    expect(hide).toHaveAccessibleDescription('Available when the run completes.');
+    // Escape is not disabled (§9.5): it closes the details
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
+
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
     const real = withRealKeys(multitierDetail);
     const leon = real.result!.slots[0]!.candidates[0]!;

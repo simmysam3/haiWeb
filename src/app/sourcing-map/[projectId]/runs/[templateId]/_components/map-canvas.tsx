@@ -60,12 +60,14 @@ export interface MapCanvasProps {
   onSelectAlias?(alias: string | null, origin: string): void;
   /** LF (spec §6.4): Hide all paths, offered while a path is open, which is the canvas's own to say (a card is selected) */
   onHideAll?(): void;
+  /** LF (spec §9.5): why the map's tools are unavailable (a running execution), or null when they work */
+  unavailable?: string | null;
 }
 
 /** The map (spec §9.3): the prototype's canvas as DOM cards over one SVG link overlay. */
 export function MapCanvas({
   result, asOfDrop, productFilter, productNames, seat, selected, onSelect, collapsed, onToggle,
-  selectedHandle = null, onSelectAlias = () => undefined, onHideAll = () => undefined,
+  selectedHandle = null, onSelectAlias = () => undefined, onHideAll = () => undefined, unavailable = null,
 }: MapCanvasProps) {
   // R-9: time render → commit; the SP1-e walk reads this in a real browser. Hooks come first, before any early return.
   // The start is a timeline mark, not a value read during render, so nothing time-dependent reaches the output (ruling F03).
@@ -153,7 +155,7 @@ export function MapCanvas({
   return (
     <section aria-label="Sourcing map" className="relative overflow-auto">
       <p className="sm-muted px-6 pt-4 text-xs">{caption}</p>
-      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={null} />
+      <MapToolbar pathsOpen={selected !== null} onHideAll={onHideAll} unavailable={unavailable} />
       <SupplyChainLimits result={result} onSelect={onSelect} />
       <SharedExposure result={result} />
       <div ref={frameRef} className="relative" style={{ width: lay.width, height: lay.height }}>

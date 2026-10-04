@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
+import { smWorstRatio } from '@/test/contrast';
 import { MapToolbar } from '../map-toolbar';
 
 describe('MapToolbar', () => {
@@ -20,5 +21,13 @@ describe('MapToolbar', () => {
     rerender(<MapToolbar pathsOpen onHideAll={onHideAll} unavailable={null} />);
     fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
     expect(onHideAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('the toolbar text clears 4.5:1 on the canvas in both themes', () => {
+    // AA pairs (F18): sm-btn-ghost on the canvas, and the reason line's sm-muted on the canvas
+    render(<div className="sm-root"><MapToolbar pathsOpen onHideAll={vi.fn()} unavailable="Available when the run completes." /></div>);
+    const group = screen.getByRole('group', { name: 'Map tools' });
+    expect(smWorstRatio(within(group).getByRole('button', { name: 'Hide all paths' }))).toBeGreaterThanOrEqual(4.5);
+    expect(smWorstRatio(within(group).getByText('Available when the run completes.'))).toBeGreaterThanOrEqual(4.5);
   });
 });

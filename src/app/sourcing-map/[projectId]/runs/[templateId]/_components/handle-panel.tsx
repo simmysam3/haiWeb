@@ -8,7 +8,8 @@ import { bandVar, bandWord, EM_DASH } from '@/lib/sourcing-map/map/selectors';
  * The details panel's sub-tier form (spec §12.4): what the seat may know of a node under its suppliers — alias,
  * tier, country, class at its floored level, band, trace role — and which of its options it also supplies. Never
  * an identity, a quantity or a name (requirements §7.3). Focus moves to the heading on open (ruling R1); returning
- * it to the handle on close is the workspace's job. Escape from inside the panel closes it, as Close does.
+ * it to the handle on close is the workspace's job. Escape is the workspace's too: its one page-wide listener closes
+ * one layer per press (LF spec §6.5).
  */
 export function HandlePanel({ node, origin, candidateNames, trace, onClose }: {
   node: SmSubtierNode & { under: string[] };
@@ -23,7 +24,7 @@ export function HandlePanel({ node, origin, candidateNames, trace, onClose }: {
   }, []);
   const others = node.under.filter((k) => k !== origin).map((k) => candidateNames[k] ?? k);
   return (
-    <aside aria-label={`Details for supplier ${node.alias}`} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
+    <aside aria-label={`Details for supplier ${node.alias}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{`Supplier ${node.alias} · tier ${node.tier}`}</h2>
         <button type="button" aria-label="Close handle details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>

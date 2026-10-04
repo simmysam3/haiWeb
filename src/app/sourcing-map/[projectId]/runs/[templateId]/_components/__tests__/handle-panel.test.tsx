@@ -26,14 +26,14 @@ describe('HandlePanel', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('closes on Escape from inside the panel; another key does not close it', () => {
+  it('leaves Escape to the workspace: a press inside the panel calls nothing (§6.5)', () => {
     const onClose = vi.fn();
     render(<HandlePanel node={{ ...A, under: ['leon'] }} origin="leon" candidateNames={CANDIDATE_NAMES} trace={null} onClose={onClose} />);
-    // focus is on the heading once the panel opens (R1), so the key lands inside it
-    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    // present control: focus is on the heading once the panel opens (R1), so the key lands inside the panel
+    const heading = within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('heading', { name: 'Supplier A · tier 2' });
+    expect(heading).toHaveFocus();
+    fireEvent.keyDown(heading, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('omits the band and trace rows when the node is not short or not on the trace, names every option when opened from the limits list, and says "Binding for N options"', () => {

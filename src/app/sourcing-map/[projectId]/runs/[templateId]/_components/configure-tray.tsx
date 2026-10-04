@@ -23,8 +23,10 @@ function nextFirstDue(scope: SourcingMapScope): string {
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's
  * controls. z-40 stays: a sticky box is a stacking context, and the upload wizard's z-50 dialog inside ranks within it.
  */
-export function ConfigureTray({ template, library, onApplied, onClose }: {
+export function ConfigureTray({ template, library, onApplied, onClose, onBusy }: {
   template: SmRunTemplate; library: SmProduct[]; onApplied(t: SmRunTemplate): void; onClose(): void;
+  /** LF (w5): told whenever a request goes in flight or settles, so the page's Escape leaves a busy tray open, as Close does */
+  onBusy?(busy: boolean): void;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState<SourcingMapScope>(template.scope);
@@ -35,6 +37,9 @@ export function ConfigureTray({ template, library, onApplied, onClose }: {
   // Which request is in flight: its button stays focusable and busy (LW-a); the other one is disabled meanwhile.
   const [pending, setPending] = useState<'apply' | 'duplicate' | null>(null);
   const busy = pending !== null;
+  useEffect(() => {
+    onBusy?.(busy);
+  }, [busy, onBusy]);
   const [uploading, setUploading] = useState(false);
   // R1: a DemandEditor seeds its generator inputs from its schedule once, so an upload that replaces a schedule
   // wholesale bumps that product's revision, and the editor's key, to remount it. Edits never bump it (focus stays).

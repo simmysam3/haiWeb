@@ -404,6 +404,9 @@ export function formatHourUtc(iso: string): string {
 /** The em dash of the contract's copy; the one definition, imported by every later user. */
 export const EM_DASH = String.fromCharCode(0x2014);
 
+/** LF (spec §9.5): why a map control is unavailable while the execution is queued, running or throttled. */
+export const RUN_NOT_COMPLETE = 'Available when the run completes.';
+
 /**
  * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
  * first status frame) or the waiting responder is below tier 1 and so not named (G-52).

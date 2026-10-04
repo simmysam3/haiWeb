@@ -10,7 +10,7 @@ const TRACE_BANDS: SmBand[] = ['slight', 'moderate', 'severe'];
 /**
  * Card details (spec §9.3). Price terms arrive with SP4.
  * Focus moves to the heading when the panel opens (controller ruling R1); returning it on close is the workspace's job.
- * Escape from inside the panel closes it, as Close does.
+ * Escape is the workspace's: its one page-wide listener closes one layer per press (LF spec §6.5).
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
@@ -30,7 +30,7 @@ export function DetailsPanel({ executionId, result, slot, candidate: c, drops, a
     headingRef.current?.focus();
   }, []);
   return (
-    <aside hidden={hidden} aria-label={`Details for ${c.supplier_name}`} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
+    <aside hidden={hidden} aria-label={`Details for ${c.supplier_name}`} className="sm-surface sticky top-0 z-30 max-h-screen w-full max-w-xl shrink-0 self-start overflow-y-auto border-l border-[var(--sm-line)] p-6 text-sm">
       <div className="flex items-center justify-between">
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <button type="button" aria-label="Close details" className="sm-btn sm-btn-ghost text-xs" onClick={onClose}>Close</button>
