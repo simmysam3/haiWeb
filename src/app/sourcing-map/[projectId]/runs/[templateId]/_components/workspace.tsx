@@ -316,11 +316,11 @@ export function Workspace({
   // LF (spec §6.5): Escape is the page's, and this one listener owns it; the panels have no handler of their own, so a
   // press closes exactly one layer, the first that shows (what renders above, not the raw state: a card picked while
   // the tray is open has `selected` set and no panel). It ignores a press another handler took; one from another
-  // surface (w9: only <body>, <html> and this root are the page's); one inside a dialog (w1: the upload wizard; the
-  // help panel is one too); any press while a modal is open (w1, review I-1: it owns the key wherever focus is; the
-  // help panel is not modal); and one on a <select>, whose list uses the key (w4). It listens in the bubble phase: a
-  // capture listener without the dialog rule would close a layer AND minimise the help panel on one press.
-  // useEffectEvent gives the listener, attached once, this render's state.
+  // surface (w9: only <body>, <html> and this root are the page's); one inside a dialog, the rule for a non-modal one
+  // such as the help panel; any press while a modal is open (w1, review I-1: a modal owns the key wherever focus is;
+  // this is what covers the upload wizard); and one on a <select>, whose list uses the key (w4). It listens in the
+  // bubble phase: a capture listener without the dialog rule would close a layer AND minimise the help panel on one
+  // press. useEffectEvent gives the listener, attached once, this render's state.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
     if (e.key !== 'Escape' || e.defaultPrevented) return;

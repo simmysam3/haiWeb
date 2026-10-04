@@ -944,6 +944,23 @@ describe('Workspace', () => {
       outside.remove();
     }
     expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the help panel's shape, a NON-modal dialog, were it ever mounted inside the root: the dialog rule keeps its
+    // Escape from the page (the modal rule does not match it)
+    const panel = document.createElement('div');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'false');
+    const composer = document.createElement('button');
+    panel.appendChild(composer);
+    screen.getByRole('region', { name: 'Sourcing map' }).appendChild(panel);
+    try {
+      composer.focus();
+      // present control: the press lands inside the dialog
+      expect(composer).toHaveFocus();
+      fireEvent.keyDown(composer, { key: 'Escape' });
+    } finally {
+      panel.remove();
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
     // the page itself is no other surface: a press on <html> closes a layer, as one on <body> does
     fireEvent.keyDown(document.documentElement, { key: 'Escape' });
     expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
