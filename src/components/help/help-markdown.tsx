@@ -14,11 +14,19 @@ export type HelpBlock =
   | { kind: 'ol'; start: number; items: string[] }
   | { kind: 'p'; text: string };
 
-const FENCE_OPEN = /^\s*```\s*([\w+.-]*)\s*$/;
+// 1 indent · 2 info string (any text without a backtick; its first word is the language).
+const FENCE_OPEN = /^([ \t]*)```([^`]*)$/;
 const FENCE_CLOSE = /^\s*```\s*$/;
 const HEADING = /^(#{1,6})\s+(.+)$/;
 const UL_ITEM = /^\s*[-*+]\s+(.*)$/;
 const OL_ITEM = /^\s*(\d+)[.)]\s+(.*)$/;
+
+/** CommonMark: the content of a fence indented `n` characters loses up to `n` leading spaces or tabs, never more than it has. */
+function dropIndent(line: string, n: number): string {
+  let k = 0;
+  while (k < n && (line[k] === ' ' || line[k] === '\t')) k += 1;
+  return line.slice(k);
+}
 
 function startsBlock(line: string): boolean {
   return FENCE_OPEN.test(line) || HEADING.test(line) || UL_ITEM.test(line) || OL_ITEM.test(line);
@@ -35,11 +43,11 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
       const body: string[] = [];
       i += 1;
       while (i < lines.length && !FENCE_CLOSE.test(lines[i])) {
-        body.push(lines[i]);
+        body.push(dropIndent(lines[i], fence[1].length));
         i += 1;
       }
       i += 1; // the closing fence — absent while the answer is still streaming
-      blocks.push({ kind: 'code', lang: fence[1], code: body.join('\n') });
+      blocks.push({ kind: 'code', lang: fence[2].trim().split(/\s+/)[0], code: body.join('\n') });
       continue;
     }
     if (line.trim() === '') {
@@ -85,8 +93,9 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
 
 // 1 code span · 2 link · 3 bold · 4 *italic* · 5 _italic_. Emphasis markers must not
 // touch word characters, so `HAIWAVE_CENTRAL_CLIENT_ID` and `2 * 3 * 4` stay literal.
+// A link holds no [ or ] in its label or address, so no scan runs past the next [ (linear time).
 const INLINE =
-  /(`[^`\n]+`)|(\[[^\]\n]+\]\([^)\s]+\))|(?<![\w*])\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*(?![\w*])|(?<![\w*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![\w*])|(?<!\w)_(?!\s)([^_\n]+?)(?<!\s)_(?!\w)/g;
+  /(`[^`\n]+`)|(\[[^[\]\n]+\]\([^)\s[\]]+\))|(?<![\w*])\*\*(?!\s)([^*\n]+?)(?<!\s)\*\*(?![\w*])|(?<![\w*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![\w*])|(?<!\w)_(?!\s)([^_\n]+?)(?<!\s)_(?!\w)/g;
 const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
 const SAFE_HREF = /^https?:\/\/\S+$/i;
 

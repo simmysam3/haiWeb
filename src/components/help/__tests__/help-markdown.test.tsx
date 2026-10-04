@@ -46,6 +46,22 @@ describe('parseHelpMarkdown', () => {
     ]);
   });
 
+  it('reads a fence whose language holds other characters, such as c#, as code', () => {
+    expect(parseHelpMarkdown('```c#\nvar x = 1;\n# not a heading\n```\nThen restart the agent.')).toEqual([
+      { kind: 'code', lang: 'c#', code: 'var x = 1;\n# not a heading' },
+      { kind: 'p', text: 'Then restart the agent.' },
+    ]);
+  });
+
+  it("takes the first word of a fence's info string as its language", () => {
+    expect(
+      parseHelpMarkdown('```bash title="setup.sh"\n# install\nnpm ci\n```\n\nThen open **Agents** and check the status.'),
+    ).toEqual([
+      { kind: 'code', lang: 'bash', code: '# install\nnpm ci' },
+      { kind: 'p', text: 'Then open **Agents** and check the status.' },
+    ]);
+  });
+
   it.each<[string, string, ReturnType<typeof parseHelpMarkdown>]>([
     ['seven hashes as text, not a heading', '####### seven', [{ kind: 'p', text: '####### seven' }]],
     ['a hash with no space after it as text', '#tag', [{ kind: 'p', text: '#tag' }]],
@@ -63,6 +79,11 @@ describe('parseHelpMarkdown', () => {
     ['a . in the fence language', '```nginx.conf\nlisten 80;\n```', [{ kind: 'code', lang: 'nginx.conf', code: 'listen 80;' }]],
     ['a fence line with a language inside a code block as code', '```\n```js\n```', [{ kind: 'code', lang: '', code: '```js' }]],
     ['a line of spaces as the end of a paragraph', 'a\n   \nb', [{ kind: 'p', text: 'a' }, { kind: 'p', text: 'b' }]],
+    [
+      "a tab-indented fence's lines without the tab",
+      '1. Run:\n\t```sh\n\tnpm ci\n\t```',
+      [{ kind: 'ol', start: 1, items: ['Run:'] }, { kind: 'code', lang: 'sh', code: 'npm ci' }],
+    ],
   ])('reads %s', (_name, source, expected) => {
     expect(parseHelpMarkdown(source)).toEqual(expected);
   });
@@ -140,6 +161,7 @@ describe('HelpMarkdown', () => {
     ['an empty pair of backticks', 'run `` here'],
     ['a link with an empty label', 'see [](https://haiwave.ai) here'],
     ['a link whose address holds a space', 'see [a](https://haiwave.ai/x y) here'],
+    ['a link whose address holds a ]', 'see [a](https://x]y) here'],
   ])('leaves %s as plain text', (_name, text) => {
     const { container } = md(text);
     const p = container.querySelector('p');
@@ -160,6 +182,23 @@ describe('HelpMarkdown', () => {
     expect(screen.queryAllByRole('link')).toHaveLength(0);
     expect(container).toHaveTextContent('click');
     expect(container.innerHTML).not.toContain('javascript:');
+  });
+
+  it('links from the last [ of a run, and shows the earlier ones as text', () => {
+    const { container } = md('[[a](https://x)');
+    const p = container.querySelector('p');
+    expect(p?.childNodes).toHaveLength(2);
+    expect(p?.firstChild?.textContent).toBe('[');
+    expect(screen.getByRole('link', { name: 'a' })).toHaveAttribute('href', 'https://x');
+  });
+
+  it('ends a link address at a [, so an unclosed link before a good one stays text', () => {
+    const { container } = md('[a](https://x[b](https://y)');
+    const p = container.querySelector('p');
+    expect(p?.childNodes).toHaveLength(2);
+    expect(p?.firstChild?.textContent).toBe('[a](https://x');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'b' })).toHaveAttribute('href', 'https://y');
   });
 
   it.each([
@@ -196,6 +235,23 @@ describe('HelpMarkdown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     expect(writeText).toHaveBeenCalledWith('HAIWAVE_CENTRAL_CLIENT_ID=abc\nAGENT_ID=agent-1');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
+  });
+
+  it("drops the fence's own indent from a block nested under a numbered step, on screen and in Copy", async () => {
+    const source = "1. Create the file:\n\n   ```bash\n   cat > .env <<'EOF'\n   AGENT_ID=agent-1\n   EOF\n   ```\n2. Restart the agent.";
+    const code = "cat > .env <<'EOF'\nAGENT_ID=agent-1\nEOF";
+    expect(parseHelpMarkdown(source)).toEqual([
+      { kind: 'ol', start: 1, items: ['Create the file:'] },
+      { kind: 'code', lang: 'bash', code },
+      { kind: 'ol', start: 2, items: ['Restart the agent.'] },
+    ]);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { container } = md(source);
+    expect(container.querySelector('pre code')?.textContent).toBe(code);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith(code);
   });
 
   it("tags a code block with its fence's language, and a bare fence with none", () => {
