@@ -121,6 +121,16 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
     expect(others).toEqual([]);
   });
 
+  // A heading typed with two spaces, `##  /account/agents`, is skipped by the helpers above, so no other test
+  // reads its body, while a reader that splits the file on `## ` and trims the heading, as haiCore does, takes it
+  // as a second entry for that route.
+  it('writes every level-2 heading as `## /route` or `## Glossary`, one space and nothing else on the line', () => {
+    const wrong = read()
+      .split('\n')
+      .filter((line) => /^##\s/.test(line) && !/^## (Glossary|\/\S*)$/.test(line));
+    expect(wrong).toEqual([]);
+  });
+
   it('points every **Related:** line at page headings of this file', () => {
     const md = read();
     const pages = new Set(pageHeadings(md));
