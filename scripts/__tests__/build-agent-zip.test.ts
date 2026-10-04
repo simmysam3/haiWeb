@@ -223,6 +223,25 @@ describe('agent archive allowlist invariants', () => {
     }
     expect(ALLOWLIST).toEqual(expect.arrayContaining(APPROVED_DOCS));
   });
+
+  // `git archive HEAD -- <ALLOWLIST>` reads each entry as a PATHSPEC, and a pathspec `*` crosses `/`. A pattern that
+  // does not begin with the literal `docs/` (say 'do*/[ct]*.md') is not a docs entry to the test above, yet it ships
+  // docs nobody reviewed. So every entry is a literal path.
+  it('every allowlist entry is a literal repo-relative path, never a pathspec pattern', () => {
+    for (const p of ALLOWLIST) {
+      expect(p, `${p} must be a literal path: no wildcard, no pathspec magic`).toMatch(/^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/);
+      for (const segment of p.split('/')) {
+        expect(['.', '..'], `${p} must not have a . or .. segment`).not.toContain(segment);
+      }
+    }
+  });
+
+  it('the docs entries of the allowlist are exactly the owner-approved docs, each one once and in the same order', () => {
+    expect(
+      ALLOWLIST.filter((p) => /^docs(\/|$)/i.test(p)),
+      'the docs entries of ALLOWLIST must equal APPROVED_DOCS: same paths, no duplicate, same order',
+    ).toEqual(APPROVED_DOCS);
+  });
 });
 
 function initRepoWithConformanceKit(opts: { kitFiles?: number; strayTest?: boolean } = {}): string {
