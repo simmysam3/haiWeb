@@ -90,4 +90,16 @@ describe('createSseParser', () => {
   it('ignores a field that is neither event nor data', () => {
     expect(collect(['id: 7\nretry: 3000\nevent: delta\ndata: x\n\n'])).toEqual([{ event: 'delta', data: 'x' }]);
   });
+
+  it.each<[string, string, SseEvent[]]>([
+    ['a line of spaces is a field line, not a blank line', 'data: a\n \ndata: b\n\n', [{ event: 'message', data: 'a\nb' }]],
+    ['the event name is kept as written, a trailing space included', 'event: delta \ndata: x\n\n', [{ event: 'delta ', data: 'x' }]],
+    ['the last event line of a block wins', 'event: a\nevent: b\ndata: x\n\n', [{ event: 'b', data: 'x' }]],
+    ['a data value keeps its trailing space', 'data: x \n\n', [{ event: 'message', data: 'x ' }]],
+    ['a field name is not trimmed, so " data" is not data', ' data: x\n\n', []],
+    ['field names are matched whole and in lower case', 'Event: a\nevents: b\nData: 1\ndatax: 2\ndata: x\n\n', [{ event: 'message', data: 'x' }]],
+    ['a tab after the colon is part of the value: only a space is stripped', 'data:\tx\n\n', [{ event: 'message', data: '\tx' }]],
+  ])('%s', (_rule, stream, expected) => {
+    expect(collect([stream])).toEqual(expected);
+  });
 });
