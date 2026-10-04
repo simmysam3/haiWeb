@@ -1060,6 +1060,74 @@ describe('Workspace', () => {
     expect(window.localStorage.getItem('sm.heat')).toBe('off');
   });
 
+  it('on a running execution the Path beneath tab is unavailable and says why (§9.5)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    const tab = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('tab', { name: 'Path beneath' });
+    expect(tab).toHaveAttribute('aria-disabled', 'true');
+    expect(tab).toHaveAccessibleDescription('Available when the run completes.');
+  });
+
+  it('a Path beneath row opens that alias’s handle panel on this card; Close returns focus to the row and the details come back on Path beneath (§7)', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    const leon = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+    const pathTab = within(leon).getByRole('tab', { name: 'Path beneath' });
+    fireEvent.click(pathTab);
+    const rowA = within(within(leon).getByRole('tabpanel', { name: 'Path beneath' })).getByRole('button', { name: /^A · IT/ });
+    fireEvent.click(rowA);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    // the handle is León's own copy of A: the trace role is León's
+    expect(within(panel).getByText('binding')).toBeInTheDocument();
+    // ruling F3: where row A stood when focus() was called on it. jsdom focuses inside a hidden subtree; a browser does not.
+    let hiddenAt: Element | null | undefined;
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (this === rowA) hiddenAt = this.closest('[hidden]');
+      focus.call(this, options);
+    });
+    try {
+      fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(rowA).toHaveFocus();
+    // the details were hidden under the handle panel, never unmounted: they come back on Path beneath
+    expect(pathTab).toHaveAttribute('aria-selected', 'true');
+    // F3: focused only once the details are shown again, never while they were still hidden under the handle panel
+    expect(hiddenAt).toBeNull();
+    // Escape closes the panel as Close does: back to the row (§6.5)
+    fireEvent.click(rowA);
+    fireEvent.keyDown(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('heading', { name: 'Supplier A · tier 2' }), { key: 'Escape' });
+    expect(rowA).toHaveFocus();
+    // a new pick opens on Details: the panel is keyed by the pick, and the tab is the panel's own
+    fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('a handle panel whose opening row has gone closes back to the map handle, never <body>; a pressed map handle pressed again keeps the focus (R7)', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    const leonCard = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mapA = () => within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    const openFromRowA = () => {
+      const leon = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+      fireEvent.click(within(leon).getByRole('tab', { name: 'Path beneath' }));
+      fireEvent.click(within(within(leon).getByRole('tabpanel', { name: 'Path beneath' })).getByRole('button', { name: /^A · IT/ }));
+    };
+    fireEvent.click(leonCard);
+    openFromRowA();
+    // Hide all paths closes the details, and the row with them; the handle panel stays (§6.4)
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('button', { name: 'Close handle details' }));
+    expect(mapA()).toHaveFocus();
+    // opened from the row again; the map's handle, pressed while its panel shows, closes it and keeps the focus, whatever opened it
+    fireEvent.click(leonCard);
+    openFromRowA();
+    fireEvent.click(mapA());
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(mapA()).toHaveFocus();
+  });
+
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
     const real = withRealKeys(multitierDetail);
     const leon = real.result!.slots[0]!.candidates[0]!;

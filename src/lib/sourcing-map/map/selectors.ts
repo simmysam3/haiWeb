@@ -433,6 +433,14 @@ export const EM_DASH = String.fromCharCode(0x2014);
 /** LF (spec §9.5): why a map control is unavailable while the execution is queued, running or throttled. */
 export const RUN_NOT_COMPLETE = 'Available when the run completes.';
 
+/** LF (spec §7, w7): why the Path beneath tab is unavailable on an option with no node beneath it. */
+export const NOTHING_BENEATH = 'Nothing was traced beneath this option.';
+
+/** LF (spec §7, w7): the option has something to drill into, at least one node beneath it (a gap card's list is empty). */
+export function hasPath(c: SmCandidateResult): boolean {
+  return (c.nodes ?? []).length > 0;
+}
+
 /**
  * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
  * first status frame) or the waiting responder is below tier 1 and so not named (G-52).

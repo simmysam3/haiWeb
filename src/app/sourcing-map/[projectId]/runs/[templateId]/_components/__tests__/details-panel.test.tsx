@@ -3,6 +3,8 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vomeroResult, runningDetail, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX } from '@haiwave/protocol';
 import { multitierDetail, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
+import { RUN_NOT_COMPLETE } from '@/lib/sourcing-map/map/selectors';
 import { smWorstRatio } from '@/test/contrast';
 import { DetailsPanel } from '../details-panel';
 
@@ -285,6 +287,85 @@ describe('DetailsPanel', () => {
     render(<DetailsPanel executionId={EXEC} result={vomeroResult} slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getAllByText('Unavailable')).toHaveLength(2);
+  });
+
+  it('has two tabs, Details first and selected; both panels stay mounted, so a switch refetches nothing; arrow keys move between them (§7)', () => {
+    const cd = compareDetail.result!;
+    const leather = cd.slots[0]!;
+    render(<DetailsPanel executionId={EXEC} result={cd} slot={leather} candidate={leather.candidates[0]!} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const tabs = within(screen.getByRole('tablist', { name: 'Option details' })).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['Details', 'Path beneath']);
+    const [details, path] = tabs as [HTMLElement, HTMLElement];
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    const detailsPanel = screen.getByRole('tabpanel', { name: 'Details' });
+    expect(within(detailsPanel).getByRole('table', { name: 'Coverage by drop' })).toBeInTheDocument();
+    expect(within(detailsPanel).getByRole('region', { name: 'Below tier 1' })).toBeInTheDocument();
+    // the unselected panel is mounted but hidden, so a role query does not find it
+    expect(screen.queryByRole('tabpanel', { name: 'Path beneath' })).toBeNull();
+    fireEvent.click(path);
+    expect(screen.getByRole('tabpanel', { name: 'Path beneath' })).toContainElement(screen.getByRole('heading', { name: 'Path beneath León Cuero' }));
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+    // the selected tab shows without hue alone (WCAG 1.4.1): a border and a weight, the Configure tray's pair
+    expect(path).toHaveClass('border-b-2', 'font-medium');
+    expect(details).not.toHaveClass('border-b-2');
+    expect(detailsPanel).toHaveAttribute('hidden');
+    fireEvent.click(details);
+    expect(detailsPanel).not.toHaveAttribute('hidden');
+    // the option panel read once, on mount: neither switch remounted it
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // the arrow keys are the tablist's: a press is taken (preventDefault, never stopPropagation; Escape stays the page's)
+    expect(fireEvent.keyDown(details, { key: 'ArrowRight' })).toBe(false);
+    expect(path).toHaveAttribute('aria-selected', 'true');
+    expect(path).toHaveFocus();
+    fireEvent.keyDown(path, { key: 'ArrowLeft' });
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    expect(details).toHaveFocus();
+    // two tabs: each arrow wraps round to the other (APG)
+    fireEvent.keyDown(details, { key: 'ArrowLeft' });
+    expect(path).toHaveFocus();
+    fireEvent.keyDown(path, { key: 'ArrowRight' });
+    expect(details).toHaveFocus();
+  });
+
+  it('Path beneath is unavailable, with its reason, on a card with nothing beneath it and on a running execution (§7, §9.5, w7)', () => {
+    const leather = vomeroResult.slots[0]!;
+    const { rerender } = render(<DetailsPanel executionId={EXEC} result={vomeroResult} slot={leather} candidate={leather.candidates[0]!} drops={vomeroResult.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} />);
+    const details = screen.getByRole('tab', { name: 'Details' });
+    const path = screen.getByRole('tab', { name: 'Path beneath' });
+    // León of the SP1 result has no nodes: nothing was traced beneath it
+    expect(path).toHaveAttribute('aria-disabled', 'true');
+    // it looks unavailable as .sm-btn[aria-disabled] does (opacity 0.55), through a literal class tied to the attribute
+    expect(path).toHaveClass('aria-disabled:opacity-55');
+    expect(path).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    fireEvent.click(path);
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    // an arrow still moves focus onto it, so its reason is read; Details stays selected
+    fireEvent.keyDown(details, { key: 'ArrowRight' });
+    expect(path).toHaveFocus();
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    // Arno timed out: its nodes are an empty list, so nothing was traced beneath it either
+    const cd = compareDetail.result!;
+    const view = (candidate: (typeof cd)['slots'][number]['candidates'][number], unavailable: string | null = null) => (
+      <DetailsPanel executionId={EXEC} result={cd} slot={cd.slots[0]!} candidate={candidate} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} unavailable={unavailable} />
+    );
+    rerender(view(cd.slots[0]!.candidates[2]!));
+    expect(path).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    // a running execution: the run's reason, even on a card with something beneath it
+    rerender(view(cd.slots[0]!.candidates[0]!, RUN_NOT_COMPLETE));
+    expect(path).toHaveAccessibleDescription('Available when the run completes.');
+    // León of the compare result, complete: available
+    rerender(view(cd.slots[0]!.candidates[0]!));
+    expect(path).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('the tab labels clear 4.5:1 on the details surface in both themes (§7, F18)', () => {
+    // AA pairs (F18): inherited ink on the surface (the selected tab) and sm-muted on the surface (the unselected tab;
+    // the unavailable tab's reason line is the same pair, so it has no assertion of its own)
+    const cd = compareDetail.result!;
+    const leather = cd.slots[0]!;
+    render(<div className="sm-root"><DetailsPanel executionId={EXEC} result={cd} slot={leather} candidate={leather.candidates[0]!} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} /></div>);
+    expect(smWorstRatio(screen.getByRole('tab', { name: 'Details' }))).toBeGreaterThanOrEqual(4.5);
+    expect(smWorstRatio(screen.getByRole('tab', { name: 'Path beneath' }))).toBeGreaterThanOrEqual(4.5);
   });
 });
 

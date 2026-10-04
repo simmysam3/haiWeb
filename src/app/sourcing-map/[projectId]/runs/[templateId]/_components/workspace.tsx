@@ -50,6 +50,12 @@ function seedSelection(execution: string | null, option: string | null, detail: 
   return null;
 }
 
+/**
+ * A pressed sub-tier handle (SP2, spec §12.4): the alias, the card it was pressed on, and what opened its panel: the
+ * map's handle, or a Path beneath row in that card's details (LF spec §7). Focus returns to the opener on close.
+ */
+type Handle = { alias: string; origin: string; from: 'map' | 'tab' };
+
 const noSubscription = () => () => {};
 const serverStoredHeat = () => true;
 
@@ -77,7 +83,7 @@ export function Workspace({
   const [selected, setSelected] = useState<{ slot: number; candidate: number } | null>(() => seedSelection(params.get('execution'), params.get('option'), initialDetail));
   // SP2 (spec §12.4): the pressed sub-tier handle and the card it was pressed on; the side column shows its panel
   // instead of the card's (P2, one panel at a time). The origin picks that option's copy of a shared node.
-  const [handle, setHandle] = useState<{ alias: string; origin: string } | null>(null);
+  const [handle, setHandle] = useState<Handle | null>(null);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   // LF (spec §6.6): the links' heat. The server snapshot is on; after hydration the stored choice is read, and the
   // viewer's press (null until they press) wins for this page view. The stored value changes only through setHeat,
@@ -206,13 +212,31 @@ export function Workspace({
     setSelected(null);
   }
 
-  // R2 for handles (fix round 1): closing the handle panel, by Close or by pressing the handle again, returns focus to
-  // the pressed handle, found by its origin and alias. The card's details stay mounted (hidden) under the handle panel,
-  // so nothing remounts and takes focus to its heading afterwards, StrictMode's re-run effects included.
-  // C-1: the handle is found by comparing each anchor's value, as measureAnchors does, never by a CSS selector built
-  // from it: a real candidate_key is JSON.stringify([participant, sku]), whose quotes make such a selector throw.
+  // R2 for handles (fix round 1): closing the handle panel, by Close, by Escape or by pressing the handle again, returns
+  // focus to its opener. The card's details stay mounted (hidden) under the handle panel, so nothing remounts and takes
+  // focus to its heading afterwards, StrictMode's re-run effects included.
+  // - Opened from the map: the pressed handle, found by its origin and alias. C-1: by comparing each anchor's value, as
+  //   measureAnchors does, never by a CSS selector built from it: a real candidate_key is JSON.stringify([participant,
+  //   sku]), whose quotes make such a selector throw.
+  // - Opened from a Path beneath row (LF spec §7): that row in the details panel, compared by value the same way; when
+  //   the details have gone (Hide all paths, w13), the map's handle, never <body>. A press on the map's handle itself
+  //   keeps the focus there whatever opened the panel (R7).
+  // The row sits in the details panel, which is hidden while the handle panel shows, and a browser will not focus into
+  // a hidden subtree; so the focus moves in a layout effect after the commit that clears the handle and shows the
+  // details again, never in closeHandle itself (ruling F3). closedHandle holds a handle only while that handle is being
+  // cleared, so the commit that runs the effect always follows it.
+  const detailsRef = useRef<HTMLElement | null>(null);
+  const closedHandle = useRef<Handle | null>(null);
+  useLayoutEffect(() => {
+    const h = closedHandle.current;
+    if (h === null) return;
+    closedHandle.current = null;
+    const row = h.from === 'tab' ? Array.from(detailsRef.current?.querySelectorAll<HTMLElement>('[data-path-row]') ?? []).find((el) => el.dataset.pathRow === h.alias) : undefined;
+    if (row) row.focus();
+    else focusAnchor(`${h.origin}/${h.alias}`);
+  });
   function closeHandle() {
-    if (handle) focusAnchor(`${handle.origin}/${handle.alias}`);
+    closedHandle.current = handle;
     setHandle(null);
   }
   // A card pick (a click, or the limits list) shows that card's details; a handle pressed before is dropped.
@@ -229,8 +253,15 @@ export function Workspace({
     });
   }
   function selectHandle(alias: string | null, origin: string) {
-    if (alias === null) closeHandle();
-    else setHandle({ alias, origin });
+    // R7: the pressed handle pressed again closes its panel and keeps the focus, whatever opened the panel
+    if (alias === null) {
+      closedHandle.current = handle && { ...handle, from: 'map' };
+      setHandle(null);
+    } else setHandle({ alias, origin, from: 'map' });
+  }
+  // LF (spec §7): a Path beneath row opens its alias's handle panel on the active card, as that card's map handle does.
+  function openRow(alias: string) {
+    if (selectedCandidate) setHandle({ alias, origin: candidateKeyOf(selectedCandidate), from: 'tab' });
   }
   // LF (spec §6.4): Hide all paths clears the active card, so its details close with its trace: the two are one
   // selection. A handle panel is left as it is. Focus stays on the pressed button, which turns unavailable (w3).
@@ -309,6 +340,7 @@ export function Workspace({
   ) : null;
   const detailsPanel = !trayOpen && detail && result && selected && selectedCandidate ? (
     <DetailsPanel
+      ref={detailsRef}
       // R2: keyed by the pick, so a new pick mounts a panel that moves focus to its heading. A re-pick of the same
       // card while a handle panel shows keeps this panel mounted: selectCard drops the handle, which un-hides the
       // panel without moving focus.
@@ -324,6 +356,9 @@ export function Workspace({
       asOfDrop={asOfDrop}
       productNames={productNames}
       onClose={closeDetails}
+      // LF (spec §9.5, ruling F1): a running execution has no projection to drill into yet
+      unavailable={running ? RUN_NOT_COMPLETE : null}
+      onOpenRow={openRow}
     />
   ) : null;
 

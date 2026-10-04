@@ -8,7 +8,7 @@ import { UtilizationBar } from './utilization-bar';
 /** "IT (2), IN (1)"; a dash for an empty tally, as the Details tab shows an empty list. */
 const tallyText = (tally: Array<[string, number]>) => (tally.length > 0 ? tally.map(([name, n]) => `${name} (${n})`).join(', ') : EM_DASH);
 
-/** What is beneath an option, by tier and class group (LF spec §7, §8.1). No production caller until Task 7 mounts it in the details panel. */
+/** What is beneath an option, by tier and class group (LF spec §7, §8.1): the details panel's Path beneath tab. */
 export function PathBeneath({ result, candidate: c, onOpenRow }: { result: SourcingMapExecutionResult2; candidate: SmCandidateResult; onOpenRow(alias: string): void }) {
   const agg = c.aggregates ?? null;
   const band = agg !== null ? modalBand(agg.utilization) : null;
