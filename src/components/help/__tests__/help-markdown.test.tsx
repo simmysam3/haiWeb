@@ -89,6 +89,27 @@ describe('parseHelpMarkdown', () => {
       '1. Add:\n\n   ```yaml\n   services:\n     agent:\n       image: x\n   ```',
       [{ kind: 'ol', start: 1, items: ['Add:'] }, { kind: 'code', lang: 'yaml', code: 'services:\n  agent:\n    image: x' }],
     ],
+    [
+      'a fence nested under a sub-step, six columns in, without those six columns',
+      '1. Step\n   1. Sub:\n\n      ```bash\n      EOF\n      ```',
+      [{ kind: 'ol', start: 1, items: ['Step', 'Sub:'] }, { kind: 'code', lang: 'bash', code: 'EOF' }],
+    ],
+    [
+      'a heredoc nested under step 10, four columns in, ending at its EOF',
+      "10. Create the file:\n\n    ```bash\n    cat > .env <<'EOF'\n    AGENT_ID=agent-1\n    EOF\n    ```\n11. Restart.",
+      [
+        { kind: 'ol', start: 10, items: ['Create the file:'] },
+        { kind: 'code', lang: 'bash', code: "cat > .env <<'EOF'\nAGENT_ID=agent-1\nEOF" },
+        { kind: 'ol', start: 11, items: ['Restart.'] },
+      ],
+    ],
+    [
+      "a fence on a bullet's own line keeping the indent beyond the bullet's text column",
+      '- ```yaml\n  services:\n    agent: x\n  ```',
+      [{ kind: 'ul', items: [''] }, { kind: 'code', lang: 'yaml', code: 'services:\n  agent: x' }],
+    ],
+    ['a number with no dot or parenthesis after it as text', '2 replicas are needed', [{ kind: 'p', text: '2 replicas are needed' }]],
+    ['a tab after the hashes as a heading', '#\tTitle', [{ kind: 'heading', level: 1, text: 'Title' }]],
     ['a code line indented less than its fence without the indent it has', '   ```\n   a\n b\n   ```', [{ kind: 'code', lang: '', code: 'a\nb' }]],
     ['a fence language ended by a tab', '```bash\ttitle="x"\nls\n```', [{ kind: 'code', lang: 'bash', code: 'ls' }]],
     ['the indentation inside a code block', '```yaml\nservices:\n  agent:\n    image: x\n```', [{ kind: 'code', lang: 'yaml', code: 'services:\n  agent:\n    image: x' }]],
@@ -272,6 +293,11 @@ describe('HelpMarkdown', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
   });
 
+  it('makes Copy a plain button, so a click never submits a form around the answer', () => {
+    md('```\nnpm ci\n```');
+    expect(screen.getByRole('button', { name: 'Copy' })).toHaveAttribute('type', 'button');
+  });
+
   it("drops the fence's own indent from a block nested under a numbered step, on screen and in Copy", async () => {
     const source = "1. Create the file:\n\n   ```bash\n   cat > .env <<'EOF'\n   AGENT_ID=agent-1\n   EOF\n   ```\n2. Restart the agent.";
     const code = "cat > .env <<'EOF'\nAGENT_ID=agent-1\nEOF";
@@ -287,6 +313,45 @@ describe('HelpMarkdown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await act(async () => {});
     expect(writeText).toHaveBeenCalledWith(code);
+  });
+
+  it("reads a fence opened on a numbered step's own line as that step's code block, and goes on after it", async () => {
+    const source = '1. ```bash\n   npm ci\n   ```\n2. Restart the agent.\n\n## Next\nMore.';
+    expect(parseHelpMarkdown(source)).toEqual([
+      { kind: 'ol', start: 1, items: [''] },
+      { kind: 'code', lang: 'bash', code: 'npm ci' },
+      { kind: 'ol', start: 2, items: ['Restart the agent.'] },
+      { kind: 'heading', level: 2, text: 'Next' },
+      { kind: 'p', text: 'More.' },
+    ]);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { container } = md(source);
+    expect(container.querySelector('pre code')?.textContent).toBe('npm ci');
+    expect(screen.getByRole('heading', { name: 'Next' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await act(async () => {});
+    expect(writeText).toHaveBeenCalledWith('npm ci');
+  });
+
+  it("reads a fence opened on a bullet's own line as that bullet's code block, and goes on after it", () => {
+    expect(parseHelpMarkdown('- ```bash\n  npm ci\n  ```\n- Restart the agent.\n\nThen open **Agents**.')).toEqual([
+      { kind: 'ul', items: [''] },
+      { kind: 'code', lang: 'bash', code: 'npm ci' },
+      { kind: 'ul', items: ['Restart the agent.'] },
+      { kind: 'p', text: 'Then open **Agents**.' },
+    ]);
+  });
+
+  it("keeps a code line that looks like a list item in the code block a list item's fence opened", () => {
+    expect(parseHelpMarkdown('- ```yaml\n  - name: agent\n  ```')).toEqual([
+      { kind: 'ul', items: [''] },
+      { kind: 'code', lang: 'yaml', code: '- name: agent' },
+    ]);
+    expect(parseHelpMarkdown('1. ```text\n   2. not a step\n   ```')).toEqual([
+      { kind: 'ol', start: 1, items: [''] },
+      { kind: 'code', lang: 'text', code: '2. not a step' },
+    ]);
   });
 
   it('shows and copies the indentation inside a code block as written', async () => {

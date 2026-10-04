@@ -32,6 +32,22 @@ function startsBlock(line: string): boolean {
   return FENCE_OPEN.test(line) || HEADING.test(line) || UL_ITEM.test(line) || OL_ITEM.test(line);
 }
 
+/** A fence opened on a list item's own line ('1. ```bash'), read with the marker as spaces: its indent is the item's content column. */
+function itemFence(line: string, text: string): RegExpExecArray | null {
+  return FENCE_OPEN.exec(' '.repeat(line.length - text.length) + text);
+}
+
+/** Reads a fence's code from line `i` into `blocks`; returns the line after its closing fence. */
+function readCode(lines: string[], i: number, fence: RegExpExecArray, blocks: HelpBlock[]): number {
+  const body: string[] = [];
+  while (i < lines.length && !FENCE_CLOSE.test(lines[i])) {
+    body.push(dropIndent(lines[i], fence[1].length));
+    i += 1;
+  }
+  blocks.push({ kind: 'code', lang: fence[2].trim().split(/\s+/)[0], code: body.join('\n') });
+  return i + 1; // the closing fence — absent while the answer is still streaming
+}
+
 export function parseHelpMarkdown(source: string): HelpBlock[] {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   const blocks: HelpBlock[] = [];
@@ -40,14 +56,7 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
     const line = lines[i];
     const fence = FENCE_OPEN.exec(line);
     if (fence) {
-      const body: string[] = [];
-      i += 1;
-      while (i < lines.length && !FENCE_CLOSE.test(lines[i])) {
-        body.push(dropIndent(lines[i], fence[1].length));
-        i += 1;
-      }
-      i += 1; // the closing fence — absent while the answer is still streaming
-      blocks.push({ kind: 'code', lang: fence[2].trim().split(/\s+/)[0], code: body.join('\n') });
+      i = readCode(lines, i + 1, fence, blocks);
       continue;
     }
     if (line.trim() === '') {
@@ -63,22 +72,28 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
     if (UL_ITEM.test(line)) {
       const items: string[] = [];
       let m: RegExpExecArray | null;
-      while (i < lines.length && (m = UL_ITEM.exec(lines[i])) !== null) {
-        items.push(m[1]);
+      let opened: RegExpExecArray | null = null;
+      while (opened === null && i < lines.length && (m = UL_ITEM.exec(lines[i])) !== null) {
+        opened = itemFence(lines[i], m[1]);
+        items.push(opened ? '' : m[1]);
         i += 1;
       }
       blocks.push({ kind: 'ul', items });
+      if (opened) i = readCode(lines, i, opened, blocks);
       continue;
     }
     const ol = OL_ITEM.exec(line);
     if (ol) {
       const items: string[] = [];
       let m: RegExpExecArray | null;
-      while (i < lines.length && (m = OL_ITEM.exec(lines[i])) !== null) {
-        items.push(m[2]);
+      let opened: RegExpExecArray | null = null;
+      while (opened === null && i < lines.length && (m = OL_ITEM.exec(lines[i])) !== null) {
+        opened = itemFence(lines[i], m[2]);
+        items.push(opened ? '' : m[2]);
         i += 1;
       }
       blocks.push({ kind: 'ol', start: Number(ol[1]), items });
+      if (opened) i = readCode(lines, i, opened, blocks);
       continue;
     }
     const para: string[] = [];
