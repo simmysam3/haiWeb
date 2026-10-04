@@ -21,6 +21,16 @@ describe('extractSourceBinding (README § Source binding)', () => {
       edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
     });
   });
+  it('takes all three attributes from the first class="page" tag and from no other section (plan R7)', () => {
+    // A first page with only the edition is unbound. The attributes of a later page do not complete it.
+    expect(() => extractSourceBinding(page(' data-edition="1.7"') + bound())).toThrow(/must carry data-source(?!-)/);
+    // Only a class="page" section can be the first page. A section of another class that comes before it is not read,
+    // even when it carries a whole binding, so it cannot bind the build to its own edition.
+    const cover = `<section class="cover" data-edition="1.6" data-source="client-implementation-guidelines-v1.6.md" data-source-sha256="${sha('the 1.6 source')}">cover</section>`;
+    expect(extractSourceBinding(cover + bound())).toEqual({
+      edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
+    });
+  });
   it('ignores HTML comments when finding the first page section (CN-1)', () => {
     const quoted = '<!-- One <section class="page"> per printed page. -->\n';
     expect(extractSourceBinding(quoted + bound()).edition).toBe('1.7');
