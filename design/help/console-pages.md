@@ -1,10 +1,5 @@
 # HAIWAVE console — page guide (HAIWAVE Help knowledge pack)
 
-<!-- Hand-maintained (DESIGN-2026-10-03 D10). One `## /route` per page, route patterns with [param]
-     segments, the four fields below on every entry, `**Related:**` optional. The coverage test
-     src/lib/help/__tests__/console-pages-coverage.test.ts fails when a nav item or Sourcing Map page has
-     no entry. Write what a customer sees on the page; never describe how HAIWAVE implements it. -->
-
 ## /account/sonar/dashboard
 **Page:** Sonar Observe › Dashboard
 **For:** One landing view of your supply-chain visibility: compliance coverage, the partners observed across audits, watchers and phantom demand, and recent runs.

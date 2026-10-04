@@ -1,4 +1,13 @@
 // @vitest-environment node
+/**
+ * The checks on the page guide, design/help/console-pages.md, and the notes for whoever maintains it. The notes are
+ * kept here, not in the guide: the guide reaches the help model as it is, so it carries no comment.
+ * - The guide is hand-maintained (DESIGN-2026-10-03 D10).
+ * - One `## /route` per page; the route is a route pattern with [param] segments.
+ * - Every entry has the four fields `**Page:**`, `**For:**`, `**You can:**` and `**Where:**`; `**Related:**` is optional.
+ * - These tests fail when a nav item or a Sourcing Map page has no entry.
+ * - Write what a customer sees on the page; never describe how HAIWAVE implements it.
+ */
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
@@ -168,5 +177,11 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
       .map((line) => /^\*\*([^*]+)\*\* — /.exec(line)?.[1])
       .filter((term): term is string => term !== undefined);
     expect(terms.filter((term, i) => terms.indexOf(term) !== i)).toEqual([]);
+  });
+
+  // scripts/publish-help-pack.mjs puts this file into the knowledge pack as it is, so a comment in it would reach the
+  // help model. The notes for whoever maintains the guide are in this file's header instead.
+  it('holds no HTML comment, because the file reaches the help model as it is', () => {
+    expect(read()).not.toContain('<!--');
   });
 });
