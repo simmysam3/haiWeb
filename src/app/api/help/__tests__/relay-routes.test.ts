@@ -2,6 +2,7 @@
 // src/app/api/help/__tests__/relay-routes.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { PROTOCOL_VERSION } from '@haiwave/protocol';
 
 const { getSession, getToken } = vi.hoisted(() => ({ getSession: vi.fn(), getToken: vi.fn() }));
 vi.mock('@/lib/auth', () => ({ getSession, getToken }));
@@ -71,6 +72,16 @@ describe('POST /api/help/messages/[id]/feedback', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(readServedGuide).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['JSON with its own spacing', '{ "rating" : "up" }'],
+    ['text that is not JSON', '{oops'],
+  ])('forwards %s exactly as sent (haiCore validates it)', async (_what, body) => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const res = await FEEDBACK(req('http://localhost/x', body), ctx(MSG));
+    expect(res.status).toBe(204);
+    expect((fetchMock.mock.calls[0][1] as RequestInit).body).toBe(body);
+  });
 });
 
 describe('POST /api/help/conversations/[id]/case-summary', () => {
@@ -120,5 +131,55 @@ describe('POST /api/help/conversations/[id]/case-summary', () => {
   it('502 when haiCore is unreachable', async () => {
     fetchMock.mockRejectedValue(new TypeError('fetch failed'));
     expect((await CASE_SUMMARY(req('http://localhost/x'), ctx(CONV))).status).toBe(502);
+  });
+});
+
+// Task 3.4 review, round 1: each relay route splices its id into haiCore's URL, so only a
+// whole UUID may get through; helpAuth's 401 stops it before haiCore; and only a help
+// question carries the served-guide headers (contract C.1).
+describe.each([
+  ['feedback', MSG, (id: string) => FEEDBACK(req('http://localhost/x', '{"rating":"up"}'), ctx(id))],
+  ['case summary', CONV, (id: string) => CASE_SUMMARY(req('http://localhost/x'), ctx(id))],
+])('POST %s relay: the id, the auth gate and the headers', (_route, uuid, call) => {
+  beforeEach(() => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+  });
+
+  it.each([
+    ['36 characters that are not a UUID', '../../../admin/help/packs/'.padEnd(36, 'a')],
+    ['a UUID followed by a path', `${uuid}/x`],
+    ['a UUID followed by a traversal', `${uuid}/../../../admin/help/packs`],
+    ['a UUID followed by a query', `${uuid}?x=1`],
+    ['a UUID followed by a line feed', `${uuid}\n`],
+    ['a UUID after a space', ` ${uuid}`],
+    ['a UUID without its hyphens', uuid.replace(/-/g, '')],
+    ['an empty id', ''],
+  ])('400 for %s, without calling haiCore', async (_what, id) => {
+    const res = await call(id);
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('401 without a session, without calling haiCore', async () => {
+    getSession.mockResolvedValue(null);
+    expect((await call(uuid)).status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('401 with a token that is not a JWT, without calling haiCore', async () => {
+    getToken.mockResolvedValue('dev-placeholder');
+    expect((await call(uuid)).status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('sends the Bearer, participant and protocol headers, and no served-guide header', async () => {
+    await call(uuid);
+    const h = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(h.Authorization).toBe('Bearer header.payload.signature');
+    expect(h['x-haiwave-participant-id']).toBe('participant-1');
+    expect(h['X-HaiWave-Protocol-Version']).toBe(PROTOCOL_VERSION);
+    expect(h).not.toHaveProperty('x-help-served-guide-sha');
+    expect(h).not.toHaveProperty('x-help-served-agent-version');
+    expect(readServedGuide).not.toHaveBeenCalled();
   });
 });
