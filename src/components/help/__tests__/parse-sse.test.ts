@@ -99,6 +99,17 @@ describe('createSseParser', () => {
     ['a field name is not trimmed, so " data" is not data', ' data: x\n\n', []],
     ['field names are matched whole and in lower case', 'Event: a\nevents: b\nData: 1\ndatax: 2\ndata: x\n\n', [{ event: 'message', data: 'x' }]],
     ['a tab after the colon is part of the value: only a space is stripped', 'data:\tx\n\n', [{ event: 'message', data: '\tx' }]],
+    [
+      'a comment line inside an event is ignored: it neither dispatches nor clears what the event holds',
+      'event: delta\ndata: a\n: note\ndata: b\n\n',
+      [{ event: 'delta', data: 'a\nb' }],
+    ],
+    [
+      'only CR and LF end a line: U+2028, U+2029, U+0085, form feed and vertical tab stay inside the value',
+      'event: delta\ndata: {"text":"a\u2028b\u2029c\u0085d\fe\vf"}\n\n',
+      [{ event: 'delta', data: '{"text":"a\u2028b\u2029c\u0085d\fe\vf"}' }],
+    ],
+    ['empty data lines are kept in the join, in the middle and at the end', 'data: a\ndata:\ndata: b\ndata\n\n', [{ event: 'message', data: 'a\n\nb\n' }]],
   ])('%s', (_rule, stream, expected) => {
     expect(collect([stream])).toEqual(expected);
   });
