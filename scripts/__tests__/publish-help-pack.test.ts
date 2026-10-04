@@ -530,6 +530,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     const env: NodeJS.ProcessEnv = { ...process.env, HAICORE_DIR: t.core };
     delete env.HAICORE_URL;
     delete env.HELP_PUBLISH_TOKEN;
+    delete env.npm_config_dry_run;
     return spawnSync(process.execPath, [...(extra.nodeArgs ?? []), SCRIPT, ...args], { cwd: t.web, env: { ...env, ...extra.env }, encoding: 'utf8' });
   }
 
@@ -595,7 +596,9 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   }
   /** `node <argv…>` in the temp haiWeb tree with a fake fetch preloaded: for a copy of the script, a link to it, or code that imports it. */
   function node(t: { web: string; core: string }, fake: ReturnType<typeof fakeFetch>, argv: string[]) {
-    return spawnSync(process.execPath, [...fake.nodeArgs, ...argv], { cwd: t.web, env: { ...process.env, HAICORE_DIR: t.core, ...fake.env }, encoding: 'utf8' });
+    const env: NodeJS.ProcessEnv = { ...process.env, HAICORE_DIR: t.core, ...fake.env };
+    delete env.npm_config_dry_run;
+    return spawnSync(process.execPath, [...fake.nodeArgs, ...argv], { cwd: t.web, env, encoding: 'utf8' });
   }
 
   // The entry check must hold wherever the checkout is. A file URL encodes a space, `#`, `%` and every non-ASCII
@@ -640,6 +643,50 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     const code = `process.argv[1] = ${JSON.stringify(join(t.web, 'no-such-entry.mjs'))}; const help = await import(${JSON.stringify(pathToFileURL(SCRIPT).href)}); console.log(typeof help.main);`;
     const r = node(t, fake, ['--input-type=module', '-e', code]);
     expect([r.status, r.stdout]).toEqual([0, 'function\n']);
+    expect(fake.requests()).toEqual([]);
+  });
+
+  // Only `--dry-run` is an argument. Any other one used to take the LIVE path, and a successful publish activates the
+  // pack. Both variables are set here (fake values), so a command that is not refused sends one PUT to the fake.
+  it.each(['--dryrun', '-n', '--dry-run=true'])('refuses the argument %s before any request, naming it and the dry-run command', (arg) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, [arg], fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain(`unknown argument ${JSON.stringify(arg)}`);
+    expect(r.stderr).toContain('npm run publish:help-pack -- --dry-run');
+    expect(r.stderr).not.toMatch(/published/i);
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // `npm run publish:help-pack --dry-run`, typed without npm's `--` separator: npm keeps the flag for itself, passes no
+  // argument and sets npm_config_dry_run=true, and the command used to publish. It is refused, not run as a silent dry
+  // run: exit 0 means "published" or "the dry run wrote its preview", never "did nothing".
+  it.each([
+    ['true, as npm sets it', 'true'],
+    ['empty: the variable being there is enough', ''],
+  ])('refuses when no argument came and npm_config_dry_run is set (%s), naming the dry-run command', (_name, value) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, npm_config_dry_run: value } });
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('npm_config_dry_run is set');
+    expect(r.stderr).toContain('npm keeps a --dry-run');
+    expect(r.stderr).toContain('npm run publish:help-pack -- --dry-run');
+    expect(r.stderr).not.toMatch(/published/i);
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // With `--dry-run` among the arguments the command did receive it: a dry run, whatever npm's variable says.
+  it('--dry-run is a dry run even when npm_config_dry_run is set: the preview, and no request', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, ['--dry-run'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, npm_config_dry_run: 'true' } });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Dry run: wrote');
+    expect(existsSync(join(t.web, PREVIEW))).toBe(true);
     expect(fake.requests()).toEqual([]);
   });
 });

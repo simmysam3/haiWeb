@@ -239,8 +239,24 @@ function isEntryPoint() {
 }
 
 if (isEntryPoint()) {
+  // Only --dry-run is an argument, and the live path is taken only when no argument came and npm kept none back.
+  // Anything else is refused here, before anything is assembled or sent. A misspelt flag must never publish. Nor
+  // must a --dry-run typed before npm's `--` separator: npm keeps it for itself, passes no argument and sets
+  // npm_config_dry_run. That case is refused rather than run as a dry run, so exit 0 never means "did nothing".
+  const args = process.argv.slice(2);
+  const unknown = args.find((arg) => arg !== '--dry-run');
+  const refusal =
+    unknown !== undefined
+      ? `unknown argument ${JSON.stringify(unknown)}: the only argument is --dry-run`
+      : args.length === 0 && process.env.npm_config_dry_run !== undefined
+        ? 'no argument came and npm_config_dry_run is set: npm keeps a --dry-run typed before its "--" separator for itself'
+        : null;
+  if (refusal !== null) {
+    console.error(`publish:help-pack: ${refusal}. Refused: nothing was assembled or sent.\nFor a dry run: npm run publish:help-pack -- --dry-run`);
+    process.exit(1);
+  }
   main({
-    dryRun: process.argv.includes('--dry-run'),
+    dryRun: args.includes('--dry-run'),
     haiwebDir: resolve('.'),
     haicoreDir: resolve(process.env.HAICORE_DIR ?? '../haiCore'),
     env: process.env,
