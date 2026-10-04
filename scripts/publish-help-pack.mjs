@@ -72,8 +72,9 @@ export function listZipEntries(zipPath) {
   return execFileSync('unzip', ['-Z1', zipPath]).toString().split('\n').filter(Boolean);
 }
 
+/** One entry as text. `unzip` reads the name as a wildcard pattern, so `\`, `*`, `?` and `[` are escaped: the entry read is exactly the one named. */
 export function readZipText(zipPath, entry) {
-  return execFileSync('unzip', ['-p', zipPath, entry], { maxBuffer: 64 * 1024 * 1024 }).toString('utf8');
+  return execFileSync('unzip', ['-p', zipPath, entry.replace(/[\\*?[]/g, '\\$&')], { maxBuffer: 64 * 1024 * 1024 }).toString('utf8');
 }
 
 /** The six fixed deployment files plus every top-level docs/*.md the served zip carries (the owner-approved docs Task 1.9 allowlists). */

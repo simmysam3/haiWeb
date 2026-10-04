@@ -171,6 +171,16 @@ describe('collectDeployDocs', () => {
     expect(doc.content.length).toBe(2 * 1024 * 1024);
     expect(doc.content === big).toBe(true);
   });
+  it('reads a doc whose name holds an unzip wildcard character as that file, never as a pattern', () => {
+    const wild: Record<string, string> = {
+      'docs/a*.md': 'STAR\n', 'docs/abc.md': 'ABC\n',
+      'docs/b\\c.md': 'BACKSLASH\n', 'docs/bc.md': 'BC\n',
+      'docs/faq[v2].md': 'REAL\n', 'docs/faqv.md': 'OTHER\n',
+      'docs/what?.md': 'Q\n', 'docs/whats.md': 'S\n',
+    };
+    const docs = collectDeployDocs(makeZip({ ...DOCS, ...wild })).slice(DEPLOY_DOC_PATHS.length);
+    expect(docs).toEqual(Object.entries(wild).map(([path, content]) => ({ path, content })));
+  });
 });
 
 /** `git init` on first use, then commit everything in `dir` at `date`; returns the new HEAD. */
