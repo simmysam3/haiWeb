@@ -91,6 +91,12 @@ describe('buildGuidePdf writes configuration-guide.json beside the PDF', () => {
     return { root, docs, out: join(root, 'out', 'configuration-guide.pdf') };
   }
 
+  it('names the manifest configuration-guide.json, the name its readers open (plan C.6)', () => {
+    // publish:help-pack and the console BFF open the file by this literal name, not through this constant. The cases below
+    // find the manifest through the constant, so on their own they would pass whatever its value is.
+    expect(GUIDE_MANIFEST_FILE).toBe('configuration-guide.json');
+  });
+
   it('renders, then records bodySha256, edition, source file, source sha and builtAt', async () => {
     // Like the real body, this one has comments. Only the binding lookup ignores them: the renderer gets the body as it is on
     // disk, and bodySha256 is the hash of that same file (publish:help-pack re-hashes body.html and refuses on a difference).
