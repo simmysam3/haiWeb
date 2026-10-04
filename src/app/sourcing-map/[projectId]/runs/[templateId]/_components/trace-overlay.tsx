@@ -8,7 +8,7 @@ export interface AnchorRect { x: number; y: number; width: number; height: numbe
 
 /**
  * The traces' draw time (LF §9.3): the canvas records it, not an overlay, as one measure however many traces it draws: a
- * mark in its render and a measure in its layout effect, after every overlay's (map-canvas.tsx).
+ * mark in its render and a measure in its layout effect, which runs once every overlay's DOM is committed (map-canvas.tsx).
  */
 export const TRACE_MEASURE = 'sm-trace-draw';
 export const TRACE_START = 'sm-trace-draw:start';

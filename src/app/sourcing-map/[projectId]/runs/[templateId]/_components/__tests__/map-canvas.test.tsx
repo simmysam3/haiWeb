@@ -337,7 +337,7 @@ describe('MapCanvas', () => {
         onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
     );
     expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
-    // León is not the selected card now: its handles carry no trace role (the marker is the selected card's alone)
+    // León is neither selected nor pinned now: its handles carry no trace role (the marker is a traced card's alone)
     expect(within(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT/ })).queryByRole('img', { name: 'binding' })).toBeNull();
     rerender(
       <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
@@ -402,14 +402,14 @@ describe('MapCanvas', () => {
     expect(onSelect).toHaveBeenCalledWith({ slot: 0, candidate: 0 });
   });
 
-  // LF (§6.3): the compare fixture, where D binds both FlowKnit (lane 1) and Bowline (lane 2); one collapsed set for every render
+  // LF (§6.3): the compare fixture, where D binds both FlowKnit (lane 1) and Bowline (lane 2); one open set unless a test collapses
   const cd = compareDetail.result!;
   const BOWLINE = { slot: 2, candidate: 0 };
   const FLOWKNIT = { slot: 1, candidate: 0 };
   const OPEN = new Set<number>();
-  const held = (selected: { slot: number; candidate: number } | null, pinned: { slot: number; candidate: number } | null) => (
+  const held = (selected: { slot: number; candidate: number } | null, pinned: { slot: number; candidate: number } | null, collapsed: ReadonlySet<number> = OPEN) => (
     <MapCanvas result={cd} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={selected}
-      onSelect={vi.fn()} collapsed={OPEN} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} pinned={pinned} />
+      onSelect={vi.fn()} collapsed={collapsed} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} pinned={pinned} />
   );
   const traces = () => document.querySelectorAll('svg[data-trace]');
 
@@ -428,6 +428,13 @@ describe('MapCanvas', () => {
     rerender(held(BOWLINE, { ...BOWLINE }));
     expect(traces()).toHaveLength(1);
     expect(screen.getByRole('img', { name: /^Shortfall trace: Bowline Trim → D \(severe\)/ })).toBeInTheDocument();
+    // the active card's lane collapsed, the pin kept (the workspace keeps a pin from another lane): the pinned trace alone
+    const named = () => Array.from(traces(), (t) => t.getAttribute('aria-label')!.split(':')[0]);
+    rerender(held(BOWLINE, FLOWKNIT, new Set([BOWLINE.slot])));
+    expect(named()).toEqual(['Shortfall trace (pinned)']);
+    // the pinned card's lane collapsed (the workspace unpins it first; this is the canvas's own guard): the active trace alone
+    rerender(held(BOWLINE, FLOWKNIT, new Set([FLOWKNIT.slot])));
+    expect(named()).toEqual(['Shortfall trace']);
   });
 
   it('measures each traced card’s own anchors: two cards that share alias D end their edges at their own handles', () => {
@@ -459,10 +466,12 @@ describe('MapCanvas', () => {
       const marks = (name: string) => mark.mock.calls.filter(([n]) => n === name).length;
       expect(marks('sm-trace-draw:start')).toBe(marks('sm-map-render:start'));
       expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(1);
-      // no card active or pinned: no trace drawn, so no measure
+      // no card active or pinned: no trace drawn, so no measure, and no start mark either
       performance.clearMeasures('sm-trace-draw');
+      const traceMarks = marks('sm-trace-draw:start');
       rerender(held(null, null));
       expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(0);
+      expect(marks('sm-trace-draw:start')).toBe(traceMarks);
     } finally {
       mark.mockRestore();
     }

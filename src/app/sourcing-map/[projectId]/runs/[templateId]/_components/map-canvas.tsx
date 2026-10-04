@@ -108,9 +108,10 @@ export function MapCanvas({
   const activeKey = activeTrace?.key ?? null;
   const pinnedKey = pinnedTrace?.key ?? null;
   // LF (§9.3, conflict row 11): the traces' one measure is the canvas's, however many it draws. As R-9's: a mark in render
-  // when a trace is drawn, and a measure in a layout effect of its own, below, which ends after every overlay's (React
-  // runs a child's layout effects before its parent's). With no trace it makes neither, so no measure is left without
-  // its mark. The name stays sm-trace-draw for the harness; its figure now starts with the canvas's render.
+  // when a trace is drawn, and a measure in a layout effect of its own, below. Layout effects run once the commit has put
+  // the whole tree's DOM in place, so the measure ends with every overlay drawn. With no trace it makes neither, so no
+  // measure is left without its mark. The name stays sm-trace-draw for the harness; its figure now starts with the
+  // canvas's render.
   const drawsTrace = activeTrace !== null || pinnedTrace !== null;
   if (drawsTrace) {
     performance.clearMarks(TRACE_START);
