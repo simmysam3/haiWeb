@@ -37,15 +37,30 @@ function itemFence(line: string, text: string): RegExpExecArray | null {
   return FENCE_OPEN.exec(' '.repeat(line.length - text.length) + text);
 }
 
-/** Reads a fence's code from line `i` into `blocks`; returns the line after its closing fence. */
-function readCode(lines: string[], i: number, fence: RegExpExecArray, blocks: HelpBlock[]): number {
+/** The leading white space of a line, as UL_ITEM and OL_ITEM count it. */
+function indentOf(line: string): number {
+  return line.length - line.replace(/^\s*/, '').length;
+}
+
+/** A list item whose marker is indented no deeper than `itemIndent`: it ends the item a fence was opened on. */
+function endsItem(line: string, itemIndent: number): boolean {
+  return (UL_ITEM.test(line) || OL_ITEM.test(line)) && indentOf(line) <= itemIndent;
+}
+
+/**
+ * Reads a fence's code from line `i` into `blocks`. Returns the line after its closing fence or, for a
+ * fence opened on the own line of a list item indented `itemIndent`, the sibling item that ends it unclosed.
+ */
+function readCode(lines: string[], i: number, fence: RegExpExecArray, blocks: HelpBlock[], itemIndent = -1): number {
   const body: string[] = [];
-  while (i < lines.length && !FENCE_CLOSE.test(lines[i])) {
+  while (i < lines.length && !FENCE_CLOSE.test(lines[i]) && !endsItem(lines[i], itemIndent)) {
     body.push(dropIndent(lines[i], fence[1].length));
     i += 1;
   }
   blocks.push({ kind: 'code', lang: fence[2].trim().split(/\s+/)[0], code: body.join('\n') });
-  return i + 1; // the closing fence — absent while the answer is still streaming
+  // The closing fence is consumed. A sibling item is not: it is read again, as the next list. And while
+  // the answer is still streaming there is neither.
+  return i < lines.length && FENCE_CLOSE.test(lines[i]) ? i + 1 : i;
 }
 
 export function parseHelpMarkdown(source: string): HelpBlock[] {
@@ -79,7 +94,7 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
         i += 1;
       }
       blocks.push({ kind: 'ul', items });
-      if (opened) i = readCode(lines, i, opened, blocks);
+      if (opened) i = readCode(lines, i, opened, blocks, indentOf(lines[i - 1]));
       continue;
     }
     const ol = OL_ITEM.exec(line);
@@ -93,7 +108,7 @@ export function parseHelpMarkdown(source: string): HelpBlock[] {
         i += 1;
       }
       blocks.push({ kind: 'ol', start: Number(ol[1]), items });
-      if (opened) i = readCode(lines, i, opened, blocks);
+      if (opened) i = readCode(lines, i, opened, blocks, indentOf(lines[i - 1]));
       continue;
     }
     const para: string[] = [];

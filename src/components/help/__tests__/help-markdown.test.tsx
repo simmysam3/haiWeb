@@ -78,6 +78,11 @@ describe('parseHelpMarkdown', () => {
     ['a - in the fence language', '```shell-session\n$ ls\n```', [{ kind: 'code', lang: 'shell-session', code: '$ ls' }]],
     ['a . in the fence language', '```nginx.conf\nlisten 80;\n```', [{ kind: 'code', lang: 'nginx.conf', code: 'listen 80;' }]],
     ['a fence line with a language inside a code block as code', '```\n```js\n```', [{ kind: 'code', lang: '', code: '```js' }]],
+    [
+      'list lines at the left margin inside a code block as code',
+      '```yaml\n- name: a\n1. b\n```\nMore.',
+      [{ kind: 'code', lang: 'yaml', code: '- name: a\n1. b' }, { kind: 'p', text: 'More.' }],
+    ],
     ['a line of spaces as the end of a paragraph', 'a\n   \nb', [{ kind: 'p', text: 'a' }, { kind: 'p', text: 'b' }]],
     [
       "a tab-indented fence's lines without the tab",
@@ -351,6 +356,32 @@ describe('HelpMarkdown', () => {
     expect(parseHelpMarkdown('1. ```text\n   2. not a step\n   ```')).toEqual([
       { kind: 'ol', start: 1, items: [''] },
       { kind: 'code', lang: 'text', code: '2. not a step' },
+    ]);
+  });
+
+  it("ends an unclosed fence opened on a numbered step's own line at the next step, and goes on after it", () => {
+    const source = '1. ```bash\n   npm ci\n2. Restart.\n\n## Next\nMore.';
+    expect(parseHelpMarkdown(source)).toEqual([
+      { kind: 'ol', start: 1, items: [''] },
+      { kind: 'code', lang: 'bash', code: 'npm ci' },
+      { kind: 'ol', start: 2, items: ['Restart.'] },
+      { kind: 'heading', level: 2, text: 'Next' },
+      { kind: 'p', text: 'More.' },
+    ]);
+    const { container } = md(source);
+    expect(container.querySelectorAll('pre')).toHaveLength(1);
+    expect(container.querySelector('pre code')?.textContent).toBe('npm ci');
+    expect([...container.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['', 'Restart.']);
+    expect(screen.getByRole('heading', { name: 'Next' })).toBeInTheDocument();
+    expect(container.querySelector('p')?.textContent).toBe('More.');
+  });
+
+  it("ends an unclosed fence opened on a bullet's own line at the next bullet, and goes on after it", () => {
+    expect(parseHelpMarkdown('- ```bash\n  npm ci\n- Restart the agent.\n\nThen open **Agents**.')).toEqual([
+      { kind: 'ul', items: [''] },
+      { kind: 'code', lang: 'bash', code: 'npm ci' },
+      { kind: 'ul', items: ['Restart the agent.'] },
+      { kind: 'p', text: 'Then open **Agents**.' },
     ]);
   });
 
