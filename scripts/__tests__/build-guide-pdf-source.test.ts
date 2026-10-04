@@ -29,6 +29,15 @@ describe('extractSourceBinding (README § Source binding)', () => {
       edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
     });
   });
+  it('ignores every comment, each one on its own, in a body with several (CN-1)', () => {
+    // The real body has dozens of comments, two of them before its first page. Removing only the first comment would bind
+    // to the commented-out 1.6 section; one match running from the first <!-- to the last --> would swallow the bound section.
+    const previous = page(` data-edition="1.6" data-source="client-implementation-guidelines-v1.6.md" data-source-sha256="${sha('the 1.6 source')}"`);
+    const body = `<!-- provenance header -->\n<!-- previous edition:\n${previous}\n-->\n${bound()}\n<!-- ===== §1 ===== -->\n<section class="page">§1</section>`;
+    expect(extractSourceBinding(body)).toEqual({
+      edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE),
+    });
+  });
   it('names each missing attribute', () => {
     expect(() => extractSourceBinding(page(''))).toThrow(/data-edition/);
     expect(() => extractSourceBinding(page(' data-edition="1.7"'))).toThrow(/data-source(?!-)/); // not data-source-sha256
