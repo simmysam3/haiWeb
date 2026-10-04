@@ -172,11 +172,14 @@ describe('collectDeployDocs', () => {
     expect(doc.content === big).toBe(true);
   });
   it('reads a doc whose name holds an unzip wildcard character as that file, never as a pattern', () => {
+    // In path order. A name with two wildcard characters sits beside the file an escape of only the first would read.
     const wild: Record<string, string> = {
-      'docs/a*.md': 'STAR\n', 'docs/abc.md': 'ABC\n',
+      'docs/a*.md': 'STAR\n', 'docs/a*b*.md': 'TWO-STARS\n', 'docs/a*bZZ.md': 'STAR-ZZ\n', 'docs/abc.md': 'ABC\n',
       'docs/b\\c.md': 'BACKSLASH\n', 'docs/bc.md': 'BC\n',
       'docs/faq[v2].md': 'REAL\n', 'docs/faqv.md': 'OTHER\n',
+      'docs/q?[a].md': 'MIXED\n', 'docs/q?a.md': 'MIXED-OTHER\n',
       'docs/what?.md': 'Q\n', 'docs/whats.md': 'S\n',
+      'docs/x[1]2.md': 'BRACKET-OTHER\n', 'docs/x[1][2].md': 'TWO-BRACKETS\n',
     };
     const docs = collectDeployDocs(makeZip({ ...DOCS, ...wild })).slice(DEPLOY_DOC_PATHS.length);
     expect(docs).toEqual(Object.entries(wild).map(([path, content]) => ({ path, content })));
