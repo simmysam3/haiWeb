@@ -632,6 +632,26 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(fake.requests()).toEqual([]);
   });
 
+  // The same for the other characters a file URL writes differently from the path: `#` becomes `%23`, `%` becomes
+  // `%25`, and a non-ASCII character becomes the escapes of its UTF-8 bytes. A check that undoes only the space's
+  // `%20` is still false in all three directories, and one that runs decodeURI over the URL is still false in the
+  // first (decodeURI leaves `%23` as it is). The brief is unreviewed, so only a run gives exit 1.
+  it.each([
+    ['a hash', 'helppack-my#web-', /#/],
+    ['a percent sign', 'helppack-my%20web-', /%20/],
+    ['a non-ASCII character', 'helppack-caféweb-', /[\u0080-￿]/],
+  ])('runs from a copy in a directory whose name holds %s', (_name, prefix, held) => {
+    const dir = realpathSync(tmp(prefix));
+    expect(dir).toMatch(held);
+    const copy = join(dir, 'publish-help-pack.mjs');
+    copyFileSync(SCRIPT, copy);
+    const fake = fakeFetch();
+    const r = node(gitTrees({ brief: UNREVIEWED }), fake, [copy, '--dry-run']);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('owner review is required before publishing');
+    expect(fake.requests()).toEqual([]);
+  });
+
   // Started through a symlink, argv[1] is the link while import.meta.url is the file the link points to. Compared as
   // given the two never match. The brief is unreviewed, so only a run gives exit 1.
   it('runs when it is started through a symlink to the script', () => {
@@ -666,6 +686,25 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain(`unknown argument ${JSON.stringify(arg)}`);
     expect(r.stderr).toContain('npm run publish:help-pack -- --dry-run');
+    expect(r.stderr).not.toMatch(/published/i);
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // The refusal looks at every argument, whatever its shape and wherever it stands. npm passes an empty string and a
+  // bare word through as they are; an unknown argument can come with a second one, or after `--dry-run`. None of these
+  // may publish, and the last must not run as a dry run either. The message names the first unknown argument.
+  it.each([
+    ['an empty string', [''], ''],
+    ['a bare word', ['dry-run'], 'dry-run'],
+    ['two unknown arguments', ['-n', '--dryrun'], '-n'],
+    ['an unknown argument after --dry-run', ['--dry-run', '-n'], '-n'],
+  ])('refuses %s before any request, and writes no preview', (_name, args, named) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, args, fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain(`unknown argument ${JSON.stringify(named)}`);
     expect(r.stderr).not.toMatch(/published/i);
     expect(existsSync(join(t.web, PREVIEW))).toBe(false);
   });
@@ -717,6 +756,28 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(fake.requests()).toEqual([]);
   });
 
+  // The check refuses only what a header cannot carry. Every visible ASCII character can be in a token, not only
+  // letters, digits, `.`, `_` and `-`: base64 has `+`, `/` and `=`, and `!` and `~` are the two ends of the range.
+  it('accepts a HELP_PUBLISH_TOKEN that holds visible ASCII punctuation: one request, and the pack is published', () => {
+    const fake = fakeFetch();
+    const r = cli(gitTrees(), [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: 'eyJhbGciOi.abc+def/ghi=~!' } });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Published help pack');
+    expect(fake.requests()).toHaveLength(1);
+  });
+
+  // The token is checked on the publish path only, where it is used. A dry run sends nothing, so a token that could
+  // not be sent does not stop it.
+  it('--dry-run is still a dry run with a malformed HELP_PUBLISH_TOKEN in the environment: the preview, and no request', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, ['--dry-run'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: 'sekret-bearer\ntoken-tail' } });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Dry run: wrote');
+    expect(existsSync(join(t.web, PREVIEW))).toBe(true);
+    expect(fake.requests()).toEqual([]);
+  });
+
   // When Central cannot be reached, fetch rejects with `fetch failed` and nothing more: the reason (the host that does
   // not resolve, the refused connection) is in the error's `cause`. The command prints both.
   it('prints the cause of a request that failed, beside the error', () => {
@@ -727,5 +788,17 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(r.stderr).toContain('getaddrinfo ENOTFOUND help-pack.invalid');
     expect(r.stderr).not.toContain(FAKE_ENV.HELP_PUBLISH_TOKEN);
     expect(fake.requests()).toHaveLength(1);
+  });
+
+  // A refusal that is not a failed request has no cause. The command prints its message and nothing after it: every
+  // other check of stderr in this file looks for a part of the text, so none would see a suffix.
+  it('prints a refusal that has no cause as its message alone, with nothing after it', () => {
+    const fake = fakeFetch();
+    const r = cli(gitTrees({ brief: UNREVIEWED }), [], fake);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toContain('owner review is required before publishing');
+    expect(r.stderr).toMatch(/\(spec §5\.3\)\n$/);
+    expect(r.stderr).not.toContain('undefined');
+    expect(fake.requests()).toEqual([]);
   });
 });
