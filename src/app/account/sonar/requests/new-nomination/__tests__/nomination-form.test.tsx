@@ -68,6 +68,7 @@ vi.mock('../confirm-step', () => ({
 }));
 
 import { NominationForm } from '../nomination-form';
+import { groundToken, ratioOn } from '@/test/contrast';
 
 describe('NominationForm', () => {
   it('renders vendor picker for cold start', () => {
@@ -153,5 +154,40 @@ describe('NominationForm', () => {
     expect(screen.getByText('continue')).toBeInTheDocument();
     await userEvent.click(screen.getByText('back'));
     expect(screen.getByText('pick-apex')).toBeInTheDocument();
+  });
+});
+
+describe('NominationForm header contrast on the console ground (account/layout.tsx:26)', () => {
+  it('the title clears 4.5:1 on the console ground (was teal, 2.27:1)', () => {
+    render(
+      <main className="bg-light-gray">
+        <NominationForm initialState={{ kind: 'cold' }} />
+      </main>,
+    );
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(groundToken(h1)).toBe('light-gray');
+    expect(ratioOn(h1)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the description clears 4.5:1 on the console ground (was slate, 4.16:1)', () => {
+    render(
+      <main className="bg-light-gray">
+        <NominationForm initialState={{ kind: 'cold' }} />
+      </main>,
+    );
+    const el = screen.getByText(/^Pick a vendor/);
+    expect(groundToken(el)).toBe('light-gray');
+    expect(ratioOn(el)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('the eyebrow clears 4.5:1 on the console ground (was slate, 4.16:1)', () => {
+    render(
+      <main className="bg-light-gray">
+        <NominationForm initialState={{ kind: 'cold' }} />
+      </main>,
+    );
+    const el = screen.getByText('Requests', { selector: 'p' });
+    expect(groundToken(el)).toBe('light-gray');
+    expect(ratioOn(el)).toBeGreaterThanOrEqual(4.5);
   });
 });
