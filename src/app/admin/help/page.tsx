@@ -30,7 +30,9 @@ export default function AdminHelpPage() {
   const [participantId, setParticipantId] = useState("");
   // null until the first read settles: "Loading…", never a claim that nothing matches.
   const [items, setItems] = useState<HelpAdminConversationSummary[] | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  // The next page's cursor, tagged with the generation of the list read it came from: after the filters change,
+  // the old list's cursor stays on screen until the new read lands, and must never be read with the new filters.
+  const [nextCursor, setNextCursor] = useState<{ cursor: string; gen: number } | null>(null);
   // The read that failed (the list itself, or a Load more that kept the rows already shown) and its HTTP
   // status; 0 = unreachable. A failed read is said, never a silent empty list.
   const [loadError, setLoadError] = useState<{ read: "list" | "more"; status: number } | null>(null);
@@ -57,6 +59,7 @@ export default function AdminHelpPage() {
   useEffect(() => {
     let cancelled = false;
     generation.current += 1;
+    const gen = generation.current;
     fetch(`/api/admin/help/conversations?${query}`)
       .then(async (r) => {
         if (cancelled) return;
@@ -70,7 +73,7 @@ export default function AdminHelpPage() {
         if (cancelled) return;
         setLoadError(null);
         setItems(data.items);
-        setNextCursor(data.next_cursor);
+        setNextCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
       })
       .catch(() => {
         if (!cancelled) {
@@ -86,10 +89,10 @@ export default function AdminHelpPage() {
 
   async function loadMore() {
     const gen = generation.current;
-    if (!nextCursor || moreFor.current === gen) return;
+    if (!nextCursor || nextCursor.gen !== gen || moreFor.current === gen) return;
     moreFor.current = gen;
     const params = new URLSearchParams(query);
-    params.set("cursor", nextCursor);
+    params.set("cursor", nextCursor.cursor);
     try {
       const r = await fetch(`/api/admin/help/conversations?${params}`);
       if (gen !== generation.current) return;
@@ -101,7 +104,7 @@ export default function AdminHelpPage() {
       if (gen !== generation.current) return;
       setLoadError(null);
       setItems((prev) => [...(prev ?? []), ...data.items]);
-      setNextCursor(data.next_cursor);
+      setNextCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
     } catch {
       if (gen === generation.current) setLoadError({ read: "more", status: 0 });
     } finally {
@@ -173,9 +176,10 @@ export default function AdminHelpPage() {
           />
         </div>
 
+        {/* After a failed list read the alert above says why the list is empty; the card makes no claim of its own. */}
         {items === null ? (
           <p className="text-sm text-slate py-8 text-center">Loading…</p>
-        ) : items.length === 0 ? (
+        ) : loadError?.read === "list" ? null : items.length === 0 ? (
           <p className="text-sm text-slate py-8 text-center">No help conversations match the current filters.</p>
         ) : (
           <ul className="divide-y divide-slate/10">
