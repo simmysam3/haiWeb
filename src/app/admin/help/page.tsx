@@ -36,7 +36,8 @@ export default function AdminHelpPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DetailState>>({});
 
-  const filterParams = useMemo(() => {
+  // The query STRING keys the read: a keystroke that leaves it unchanged (a partial id) reads nothing again.
+  const query = useMemo(() => {
     const params = new URLSearchParams();
     if (thumbsDown) params.set("thumbs_down", "true");
     if (flagged) params.set("flagged", "true");
@@ -44,12 +45,12 @@ export default function AdminHelpPage() {
     const pid = participantId.trim();
     if (UUID.test(pid)) params.set("participant_id", pid);
     params.set("page_size", "50");
-    return params;
+    return params.toString();
   }, [thumbsDown, flagged, language, participantId]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/admin/help/conversations?${filterParams}`)
+    fetch(`/api/admin/help/conversations?${query}`)
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) {
@@ -73,11 +74,11 @@ export default function AdminHelpPage() {
     return () => {
       cancelled = true;
     };
-  }, [filterParams]);
+  }, [query]);
 
   async function loadMore() {
     if (!nextCursor) return;
-    const params = new URLSearchParams(filterParams);
+    const params = new URLSearchParams(query);
     params.set("cursor", nextCursor);
     try {
       const r = await fetch(`/api/admin/help/conversations?${params}`);

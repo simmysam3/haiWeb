@@ -94,6 +94,19 @@ describe('AdminHelpPage', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(`/api/admin/help/conversations?participant_id=${PID}&page_size=50`));
   });
 
+  it('typing that leaves the query unchanged neither re-reads the list nor drops loaded pages', async () => {
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await screen.findByText('Beta LLC');
+    const reads = fetchMock.mock.calls.length;
+    const input = screen.getByRole('textbox', { name: 'Participant id' });
+    for (const value of ['1', '11', '111']) fireEvent.change(input, { target: { value } });
+    await act(async () => {});
+    expect(fetchMock.mock.calls.length).toBe(reads);
+    expect(screen.getByText('Beta LLC')).toBeInTheDocument();
+  });
+
   it('expands a conversation into its redacted transcript with tokens, flags, feedback and pack', async () => {
     render(<Page />);
     fireEvent.click(await screen.findByRole('button', { name: `Conversation ${CONV}` }));
