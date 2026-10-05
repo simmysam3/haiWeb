@@ -113,6 +113,22 @@ const helpBodies = () =>
   fetchMock.mock.calls
     .filter(([u]) => u === '/api/help/messages')
     .map(([, init]) => JSON.parse((init as RequestInit).body as string) as Record<string, unknown>);
+const RATE_LIMITED = () => jsonResponse(429, { error: { code: 'RATE_LIMIT_EXCEEDED', message: 'slow down' } });
+const footerSummarize = () => screen.getAllByRole('button', { name: 'Summarize for support' }).at(-1) as HTMLElement;
+
+/** An SSE reply that sends meta and one delta, then stays open until the request's signal aborts it. */
+function replyUntilAborted(text: string) {
+  fetchMock.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+    const enc = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(enc.encode(ev('meta', meta()) + ev('delta', { text })));
+        init.signal?.addEventListener('abort', () => c.error(new DOMException('The operation was aborted.', 'AbortError')));
+      },
+    });
+    return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream; charset=utf-8' } });
+  });
+}
 
 describe('HelpProvider + HelpButton + HelpPanel', () => {
   it('renders no button when the help agent is disabled or outside the provider', () => {
@@ -409,8 +425,6 @@ describe('HelpProvider: the stored panel state belongs to one signed-in user (am
 
 // Implementer's pins (Task 3.8): listing lines that no case above drives, each red first.
 describe('HelpProvider + HelpButton + HelpPanel (implementer pins)', () => {
-  const RATE_LIMITED = () => jsonResponse(429, { error: { code: 'RATE_LIMIT_EXCEEDED', message: 'slow down' } });
-
   it('a second 429 on the automatic retry shows the error with Retry and schedules no further resend', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     replies.push(RATE_LIMITED(), RATE_LIMITED());
@@ -514,8 +528,6 @@ describe('HelpProvider + HelpButton + HelpPanel (implementer pins)', () => {
     expect(helpBodies()).toHaveLength(1);
   });
 
-  const footerSummarize = () => screen.getAllByRole('button', { name: 'Summarize for support' }).at(-1) as HTMLElement;
-
   it("the footer's Summarize waits for a finished answer, then asks for this conversation's summary", async () => {
     const stream = openStream();
     replies.push(stream.response);
@@ -554,20 +566,6 @@ describe('HelpProvider + HelpButton + HelpPanel (implementer pins)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Ajuda/ }));
     expect(await screen.findByRole('dialog', { name: 'Ajuda HAIWAVE' })).toBeInTheDocument();
   });
-
-  /** An SSE reply that sends meta and one delta, then stays open until the request's signal aborts it. */
-  function replyUntilAborted(text: string) {
-    fetchMock.mockImplementationOnce(async (_url: string, init: RequestInit) => {
-      const enc = new TextEncoder();
-      const body = new ReadableStream<Uint8Array>({
-        start(c) {
-          c.enqueue(enc.encode(ev('meta', meta()) + ev('delta', { text })));
-          init.signal?.addEventListener('abort', () => c.error(new DOMException('The operation was aborted.', 'AbortError')));
-        },
-      });
-      return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream; charset=utf-8' } });
-    });
-  }
 
   it('Stop ends the streaming answer: its text stays, marked interrupted with Retry, and Send is back', async () => {
     replyUntilAborted('Partial');
@@ -724,5 +722,48 @@ describe('HelpProvider + HelpButton + HelpPanel (implementer pins)', () => {
     expect(await screen.findByText("I can't help with that one.")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: 'Summarize for support' })[0]);
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the summary — try again.");
+  });
+});
+
+// Task 3.8 review, round 1: defects in the listing's widget (S1/D1, D2, D3, D4) and the missing pins.
+describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
+  const MODEL_ERROR = () => sseResponse(ev('meta', meta()) + ev('error', { code: 'model_error', retryable: true }));
+
+  it('Retry on an older answer while a newer one streams keeps Stop offered for the retried answer', async () => {
+    replies.push(MODEL_ERROR());
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    expect(await screen.findByText('Something went wrong — try again.')).toBeInTheDocument();
+    replyUntilAborted('Streaming two');
+    ask('Second question');
+    await screen.findByText('Streaming two');
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    replyUntilAborted('Retried one');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    // One help request at a time: the retry aborts the second answer, whose call ends after the retry began.
+    expect(await screen.findByText('Interrupted — ask again.')).toBeInTheDocument();
+    await screen.findByText('Retried one');
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('Retry during the 6 s wait cancels the automatic resend, so nothing aborts the retried answer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    replies.push(MODEL_ERROR(), RATE_LIMITED(), sseResponse(answer('Retried answer.')), sseResponse(answer('Automatic resend.')));
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    expect(await screen.findByText('Something went wrong — try again.')).toBeInTheDocument();
+    ask('Second question');
+    expect(await screen.findByText('One moment…')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Retry' })[0]); // the first question's answer
+    expect(await screen.findByText('Retried answer.')).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(12_000);
+    });
+    expect(helpBodies().map((b) => b.message)).toEqual([QUESTION, 'Second question', QUESTION]);
+    expect(screen.getByText('Retried answer.')).toBeInTheDocument();
+    expect(screen.queryByText('Automatic resend.')).toBeNull();
   });
 });

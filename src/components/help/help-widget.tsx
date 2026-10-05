@@ -55,6 +55,9 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   const pathnameRef = useRef(pathname);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendRef = useRef<(text: string, autoRetry?: boolean) => Promise<void>>(async () => undefined);
+  // The latest sendText call. A newer request aborts the one in flight (one help request at a time), and
+  // the aborted call ends after the newer one began: only the latest may clear `streaming`.
+  const latestRequest = useRef(0);
 
   useEffect(() => {
     stateRef.current = state;
@@ -83,6 +86,7 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
       const userId = crypto.randomUUID();
       const assistantId = crypto.randomUUID();
       let answer = '';
+      const request = ++latestRequest.current;
       dispatch({ type: 'send', userId, assistantId, text });
       setStreaming(true);
       const conversationId = stateRef.current.conversationId;
@@ -101,7 +105,7 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
           },
         },
       );
-      setStreaming(false);
+      if (request === latestRequest.current) setStreaming(false);
 
       switch (outcome.kind) {
         case 'done':
@@ -169,10 +173,11 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
       const at = messages.findIndex((m) => m.id === assistantId);
       const question = at > 0 ? messages[at - 1] : undefined;
       if (!question || question.role !== 'user') return;
+      cancelRetry();
       dispatch({ type: 'remove_exchange', assistantId });
       void sendText(question.text);
     },
-    [sendText],
+    [cancelRetry, sendText],
   );
   const feedback = useCallback((message: HelpUiMessage, rating: 'up' | 'down', note?: string) => {
     if (!message.serverId) return;
