@@ -27,8 +27,13 @@ describe('PathBeneath', () => {
     expect(within(tier2).getByText('No class')).toBeInTheDocument();
     expect(within(tier2).queryByText(/null/)).toBeNull();
     const rowA = within(tier2).getByRole('button', { name: /^A · IT/ });
+    // LF final review m-B: the row's name says its band once, by the word
+    expect(rowA).toHaveAccessibleName(/^(?!.*moderate.*moderate).*moderate/);
     expect(within(rowA).getByText('moderate')).toBeInTheDocument();
-    expect(within(rowA).getByRole('img', { name: 'moderate' })).toBeInTheDocument();
+    // the band dot on a banded row (Task 6 ruling (c)), re-pinned for m-B: the row's one empty span, in the band's colour
+    // and hidden from the row's name
+    const dotA = rowA.querySelector<HTMLElement>(':scope > span:empty');
+    expect({ hidden: dotA?.getAttribute('aria-hidden'), background: dotA?.style.background }).toEqual({ hidden: 'true', background: 'var(--sm-heat-mid)' });
     expect(within(rowA).getByText('binding')).toBeInTheDocument();
     expect(within(rowA).getByText('also under 1')).toBeInTheDocument();
     expect(within(rowA).queryByText(/^Binding for/)).toBeNull();
@@ -37,7 +42,8 @@ describe('PathBeneath', () => {
     expect(within(rowB).getByText('not observed below')).toBeInTheDocument();
     expect(within(rowB).queryByText(/^(binding|inherited)$/)).toBeNull();
     expect(within(rowB).queryByText(/^also under/)).toBeNull();
-    expect(within(rowB).queryByRole('img')).toBeNull();
+    // no dot on a row with no band (re-pinned for m-B: a hidden dot has no role to look for)
+    expect(rowB.querySelector(':scope > span:empty')).toBeNull();
     const rowC = screen.getByRole('button', { name: /^C · IN/ });
     expect(within(rowC).getByText('also under 1')).toBeInTheDocument();
     rerender(viewOf('flowknit'));

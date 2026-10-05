@@ -51,7 +51,8 @@ export function PathBeneath({ result, candidate: c, onOpenRow }: { result: Sourc
                         <span>{`${n.alias} · ${n.country ?? EM_DASH}`}</span>
                         {n.band !== null && (
                           <>
-                            <span role="img" aria-label={bandWord(n.band)} title={bandWord(n.band)} className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: bandVar(n.band) }} />
+                            {/* LF final review m-B: the word beside it names the band; a named dot would say it twice in the row's name */}
+                            <span aria-hidden="true" className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: bandVar(n.band) }} />
                             <span>{bandWord(n.band)}</span>
                           </>
                         )}
