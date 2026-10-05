@@ -381,4 +381,15 @@ describe('AdminHelpPage', () => {
     render(<Page />);
     expect(await screen.findByText('No help conversations match the current filters.')).toBeInTheDocument();
   });
+
+  it('says Loading… until the first read lands, never that nothing matches', async () => {
+    const first = deferred<Response>();
+    fetchMock.mockImplementation(() => first.promise);
+    render(<Page />);
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No help conversations match the current filters.')).toBeNull();
+    await act(async () => first.resolve(ok({ items: [], next_cursor: null })));
+    expect(screen.getByText('No help conversations match the current filters.')).toBeInTheDocument();
+    expect(screen.queryByText('Loading…')).toBeNull();
+  });
 });

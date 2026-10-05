@@ -28,7 +28,8 @@ export default function AdminHelpPage() {
   const [flagged, setFlagged] = useState(false);
   const [language, setLanguage] = useState<"" | HelpLanguage>("");
   const [participantId, setParticipantId] = useState("");
-  const [items, setItems] = useState<HelpAdminConversationSummary[]>([]);
+  // null until the first read settles: "Loading…", never a claim that nothing matches.
+  const [items, setItems] = useState<HelpAdminConversationSummary[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   // HTTP status of a refused read; 0 = unreachable. A failed read is said, never a silent empty list.
   const [loadError, setLoadError] = useState<number | null>(null);
@@ -85,7 +86,7 @@ export default function AdminHelpPage() {
         return;
       }
       const data = (await r.json()) as HelpAdminConversationList;
-      setItems((prev) => [...prev, ...data.items]);
+      setItems((prev) => [...(prev ?? []), ...data.items]);
       setNextCursor(data.next_cursor);
     } catch {
       setLoadError(0);
@@ -152,7 +153,9 @@ export default function AdminHelpPage() {
           />
         </div>
 
-        {items.length === 0 ? (
+        {items === null ? (
+          <p className="text-sm text-slate py-8 text-center">Loading…</p>
+        ) : items.length === 0 ? (
           <p className="text-sm text-slate py-8 text-center">No help conversations match the current filters.</p>
         ) : (
           <ul className="divide-y divide-slate/10">
