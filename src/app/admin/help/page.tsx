@@ -168,6 +168,7 @@ export default function AdminHelpPage() {
                     className="group w-full flex items-center gap-4 py-3 text-left"
                   >
                     <span className="text-sm text-slate w-40 shrink-0">{new Date(c.started_at).toLocaleString()}</span>
+                    <span className="text-sm text-slate w-40 shrink-0">{new Date(c.last_message_at).toLocaleString()}</span>
                     <span className="text-sm font-medium w-56 shrink-0 truncate">{c.participant_name ?? c.participant_id}</span>
                     <span className="text-sm text-slate w-40 shrink-0 truncate">{c.user_sub}</span>
                     <span className="text-sm text-slate w-14 shrink-0">{c.language}</span>

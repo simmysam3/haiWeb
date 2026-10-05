@@ -370,6 +370,12 @@ describe('AdminHelpPage', () => {
     expect(screen.getByText(new Date(SUMMARY.started_at).toLocaleString())).toBeInTheDocument();
   });
 
+  it("shows each row's last-message time (spec §7.6)", async () => {
+    render(<Page />);
+    const row = await screen.findByRole('button', { name: `Conversation ${CONV}` });
+    expect(within(row).getByText(new Date(SUMMARY.last_message_at).toLocaleString())).toBeInTheDocument();
+  });
+
   it('says so when no conversation matches the filters', async () => {
     fetchMock.mockImplementation(async () => ok({ items: [], next_cursor: null }));
     render(<Page />);
