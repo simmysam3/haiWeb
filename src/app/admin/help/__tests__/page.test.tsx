@@ -326,11 +326,33 @@ describe('AdminHelpPage', () => {
     render(<Page />);
     await screen.findByText('Acme Corp');
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('haiCore answered 503');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't load more help conversations — haiCore answered 503.");
+    // The rows it kept are on screen, so the alert must not say the list is empty.
+    expect(alert).not.toHaveTextContent('The list below is empty');
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('the server could not be reached'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load more help conversations — the server could not be reached."),
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('The list below is empty');
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+  });
+
+  it('a Load more that works after a failed one clears the failure', async () => {
+    let moreReads = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (!url.includes('cursor=cur-2')) return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+      moreReads += 1;
+      return moreReads === 1 ? refused(503) : ok({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC' }], next_cursor: null });
+    });
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('haiCore answered 503');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('Beta LLC')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('a read that lands after a newer one is ignored', async () => {

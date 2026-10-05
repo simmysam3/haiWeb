@@ -31,8 +31,9 @@ export default function AdminHelpPage() {
   // null until the first read settles: "Loading…", never a claim that nothing matches.
   const [items, setItems] = useState<HelpAdminConversationSummary[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  // HTTP status of a refused read; 0 = unreachable. A failed read is said, never a silent empty list.
-  const [loadError, setLoadError] = useState<number | null>(null);
+  // The read that failed (the list itself, or a Load more that kept the rows already shown) and its HTTP
+  // status; 0 = unreachable. A failed read is said, never a silent empty list.
+  const [loadError, setLoadError] = useState<{ read: "list" | "more"; status: number } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DetailState>>({});
 
@@ -54,7 +55,7 @@ export default function AdminHelpPage() {
       .then(async (r) => {
         if (cancelled) return;
         if (!r.ok) {
-          setLoadError(r.status);
+          setLoadError({ read: "list", status: r.status });
           setItems([]);
           setNextCursor(null);
           return;
@@ -66,7 +67,7 @@ export default function AdminHelpPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setLoadError(0);
+          setLoadError({ read: "list", status: 0 });
           setItems([]);
           setNextCursor(null);
         }
@@ -83,14 +84,15 @@ export default function AdminHelpPage() {
     try {
       const r = await fetch(`/api/admin/help/conversations?${params}`);
       if (!r.ok) {
-        setLoadError(r.status);
+        setLoadError({ read: "more", status: r.status });
         return;
       }
       const data = (await r.json()) as HelpAdminConversationList;
+      setLoadError(null);
       setItems((prev) => [...(prev ?? []), ...data.items]);
       setNextCursor(data.next_cursor);
     } catch {
-      setLoadError(0);
+      setLoadError({ read: "more", status: 0 });
     }
   }
 
@@ -120,7 +122,11 @@ export default function AdminHelpPage() {
       />
       {loadError !== null && (
         <div role="alert" className="bg-problem/5 border border-problem/20 rounded-lg px-4 py-3 text-sm text-problem">
-          Couldn&apos;t load help conversations — {loadError === 0 ? "the server could not be reached" : `haiCore answered ${loadError}`}. The list below is empty because of that, not because there are no conversations.
+          {loadError.read === "list" ? "Couldn't load help conversations" : "Couldn't load more help conversations"} —{" "}
+          {loadError.status === 0 ? "the server could not be reached" : `haiCore answered ${loadError.status}`}.
+          {loadError.read === "list"
+            ? " The list below is empty because of that, not because there are no conversations."
+            : " The list below shows only the conversations loaded before that."}
         </div>
       )}
       <Card>
