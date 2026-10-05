@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StrictMode } from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vomeroResult, zeroSlotResult, VOMERO_IDS } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { SM_UNCLASSIFIED_CLASS_PREFIX, type SourcingMapExecutionResult } from '@haiwave/protocol';
 import { isUnclassifiedSlot, slotTitle } from '@/lib/sourcing-map/map/selectors';
 import { layoutMap } from '@/lib/sourcing-map/map/layout';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { MapCanvas } from '../map-canvas';
 
 const SEAT = { name: 'CSG Footwear Vietnam', country: 'VN', classLabel: 'Athletic footwear', productCount: 3, slotCount: 5, assemblyDays: '21', capacity: 18000 };
@@ -276,6 +277,50 @@ describe('MapCanvas', () => {
     expect(screen.queryByRole('group', { name: /^Tier \d/ })).toBeNull();
   });
 
+  it('puts the toolbar at the top of the map section, after the caption and above Supply-chain limits, and offers Hide all paths only while a card is selected', () => {
+    const { rerender, unmount } = mount2();
+    const map = screen.getByRole('region', { name: 'Sourcing map' });
+    const toolbar = within(map).getByRole('group', { name: 'Map tools' });
+    const caption = within(map).getByText('Identity, quantities and names below tier 1 are not disclosed.');
+    expect(caption.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toolbar.compareDocumentPosition(within(map).getByRole('region', { name: 'Supply-chain limits' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // no card selected: nothing is open, so Hide all paths is unavailable
+    expect(within(toolbar).getByRole('button', { name: 'Hide all paths' })).toHaveAttribute('aria-disabled', 'true');
+    // no heat prop: the heat is on, and the switch says so (§6.6)
+    expect(within(toolbar).getByRole('button', { name: 'Heat on links: on' })).toHaveAttribute('aria-pressed', 'true');
+    // a card selected: a path is open, and a press reports it
+    const onHideAll = vi.fn();
+    rerender(
+      <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
+        onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} onHideAll={onHideAll} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    expect(onHideAll).toHaveBeenCalledTimes(1);
+    unmount();
+    // a result with no slots has no paths: no toolbar
+    mount(zeroSlotResult(), { asOfDrop: null });
+    expect(screen.getByRole('region', { name: 'Sourcing map' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Map tools' })).toBeNull();
+  });
+
+  it('heat off draws every trunk, bus and drop neutral; pips and the trace line keep their colours (§6.6)', () => {
+    const strokes = (kind: string) => Array.from(document.querySelectorAll<SVGPathElement>(`svg[data-map-links] path[data-link="${kind}"]`)).map((p) => p.style.stroke);
+    const pips = () => Array.from(document.querySelectorAll<HTMLElement>('ol[aria-label="Coverage by drop"] [role="img"]')).map((el) => el.style.background);
+    const on = mount2({ selected: { slot: 0, candidate: 0 } });
+    const pipsOn = pips();
+    // the comparison means something only while the pips carry heat colours
+    expect(pipsOn.some((b) => b.startsWith('var(--sm-heat-'))).toBe(true);
+    on.unmount();
+    mount2({ selected: { slot: 0, candidate: 0 }, heat: false });
+    for (const kind of ['trunk', 'bus', 'drop']) {
+      expect(strokes(kind).length).toBeGreaterThan(0);
+      expect(strokes(kind).filter((s) => s !== 'var(--sm-line-2)'), `${kind} links still drawn in heat colours`).toEqual([]);
+    }
+    expect(pips()).toEqual(pipsOn);
+    const edge = document.querySelector<SVGPathElement>('svg path[data-trace-edge]');
+    expect(edge?.style.stroke).toBe('var(--sm-heat-mid)');
+  });
+
   it('selecting a traced card mounts the overlay above the cards with its edge and gap and marks that card’s binding handle; an untraced card, no card, or a collapsed traced lane mounts nothing (spec §12.3, Review Focus 2)', () => {
     const { rerender, unmount } = mount2({ selected: { slot: 0, candidate: 0 } });
     const overlay = screen.getByRole('img', { name: /^Shortfall trace: León Cuero → A \(moderate\)/ });
@@ -292,7 +337,7 @@ describe('MapCanvas', () => {
         onSelect={vi.fn()} collapsed={new Set()} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} />,
     );
     expect(screen.queryByRole('img', { name: /^Shortfall trace/ })).toBeNull();
-    // León is not the selected card now: its handles carry no trace role (the marker is the selected card's alone)
+    // León is neither selected nor pinned now: its handles carry no trace role (the marker is a traced card's alone)
     expect(within(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT/ })).queryByRole('img', { name: 'binding' })).toBeNull();
     rerender(
       <MapCanvas result={mt} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={{ slot: 0, candidate: 0 }}
@@ -355,6 +400,81 @@ describe('MapCanvas', () => {
     expect(onSelect).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'A · tier 2 — binding for León Cuero' }));
     expect(onSelect).toHaveBeenCalledWith({ slot: 0, candidate: 0 });
+  });
+
+  // LF (§6.3): the compare fixture, where D binds both FlowKnit (lane 1) and Bowline (lane 2); one open set unless a test collapses
+  const cd = compareDetail.result!;
+  const BOWLINE = { slot: 2, candidate: 0 };
+  const FLOWKNIT = { slot: 1, candidate: 0 };
+  const OPEN = new Set<number>();
+  const held = (selected: { slot: number; candidate: number } | null, pinned: { slot: number; candidate: number } | null, collapsed: ReadonlySet<number> = OPEN) => (
+    <MapCanvas result={cd} asOfDrop="2027-03-15" productFilter={null} productNames={NAMES} seat={SEAT} selected={selected}
+      onSelect={vi.fn()} collapsed={collapsed} onToggle={vi.fn()} selectedHandle={null} onSelectAlias={vi.fn()} pinned={pinned} />
+  );
+  const traces = () => document.querySelectorAll('svg[data-trace]');
+
+  it('draws the pinned card’s trace beside the active card’s, each named for itself; an untraced or doubly-held card draws one (§6.3)', () => {
+    const { rerender } = render(held(BOWLINE, FLOWKNIT));
+    expect(traces()).toHaveLength(2);
+    expect(screen.getByRole('img', { name: /^Shortfall trace \(pinned\): FlowKnit Mills → D \(severe\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Shortfall trace: Bowline Trim → D \(severe\)/ })).toBeInTheDocument();
+    const dUnder = (supplier: string) => within(screen.getByRole('group', { name: `Tier 2 under ${supplier}` })).getByRole('button', { name: /^D · TW/ });
+    expect(within(dUnder('FlowKnit Mills')).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    expect(within(dUnder('Bowline Trim')).getByRole('img', { name: 'binding' })).toBeInTheDocument();
+    // León active, Mekong pinned: Mekong has no trace of its own, so one
+    rerender(held({ slot: 0, candidate: 0 }, { slot: 0, candidate: 1 }));
+    expect(traces()).toHaveLength(1);
+    // the pinned card is the active card: one
+    rerender(held(BOWLINE, { ...BOWLINE }));
+    expect(traces()).toHaveLength(1);
+    expect(screen.getByRole('img', { name: /^Shortfall trace: Bowline Trim → D \(severe\)/ })).toBeInTheDocument();
+    // the active card's lane collapsed, the pin kept (the workspace keeps a pin from another lane): the pinned trace alone
+    const named = () => Array.from(traces(), (t) => t.getAttribute('aria-label')!.split(':')[0]);
+    rerender(held(BOWLINE, FLOWKNIT, new Set([BOWLINE.slot])));
+    expect(named()).toEqual(['Shortfall trace (pinned)']);
+    // the pinned card's lane collapsed (the workspace unpins it first; this is the canvas's own guard): the active trace alone
+    rerender(held(BOWLINE, FLOWKNIT, new Set([FLOWKNIT.slot])));
+    expect(named()).toEqual(['Shortfall trace']);
+  });
+
+  it('measures each traced card’s own anchors: two cards that share alias D end their edges at their own handles', () => {
+    const rect = (x: number, y: number, width: number, height: number) =>
+      ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) }) as DOMRect;
+    // each card's header and its D, the two cards apart; the frame and every other element at (0, 0)
+    const rects: Record<string, DOMRect> = {
+      flowknit: rect(100, 100, 200, 20), 'flowknit/D': rect(150, 300, 60, 22),
+      bowline: rect(400, 500, 200, 20), 'bowline/D': rect(450, 700, 60, 22),
+    };
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return rects[this.dataset.anchor ?? ''] ?? rect(0, 0, 0, 0);
+    });
+    try {
+      render(held(BOWLINE, FLOWKNIT));
+      const edges = (name: RegExp) => Array.from(screen.getByRole('img', { name }).querySelectorAll('path[data-trace-edge]')).map((p) => p.getAttribute('d'));
+      expect(edges(/^Shortfall trace \(pinned\): FlowKnit Mills/)).toEqual([expect.stringMatching(/ L 150 311$/)]);
+      expect(edges(/^Shortfall trace: Bowline Trim/)).toEqual([expect.stringMatching(/ L 450 711$/)]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('records one sm-trace-draw measure for the canvas, from one start mark a render, however many traces it draws; none when it draws none', () => {
+    performance.clearMeasures('sm-trace-draw');
+    const mark = vi.spyOn(performance, 'mark');
+    try {
+      const { rerender } = render(held(BOWLINE, FLOWKNIT));
+      const marks = (name: string) => mark.mock.calls.filter(([n]) => n === name).length;
+      expect(marks('sm-trace-draw:start')).toBe(marks('sm-map-render:start'));
+      expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(1);
+      // no card active or pinned: no trace drawn, so no measure, and no start mark either
+      performance.clearMeasures('sm-trace-draw');
+      const traceMarks = marks('sm-trace-draw:start');
+      rerender(held(null, null));
+      expect(performance.getEntriesByName('sm-trace-draw', 'measure')).toHaveLength(0);
+      expect(marks('sm-trace-draw:start')).toBe(traceMarks);
+    } finally {
+      mark.mockRestore();
+    }
   });
 });
 

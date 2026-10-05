@@ -774,12 +774,15 @@ test.describe("§15 v1.60 Query Guard", () => {
     await gotoOk(page, "/account/settings/query-guard");
     await expect(page.locator("h1", { hasText: /Query Guard/i })).toBeVisible();
     // 4 rule types × (All counterparties + 4 trust classes) = 20 interactive
-    // cells. Only the clickable cells carry role="gridcell" (headers are plain
-    // divs), so the count is exact.
-    const cells = page.getByRole("gridcell");
+    // cells. The matrix is a table: the column and row headers are th
+    // elements, so only the 20 td cells (each holding one button) have role
+    // "cell" and the count is exact.
+    const cells = page
+      .getByRole("table", { name: "Query Guard rules by rule type and trust class" })
+      .getByRole("cell");
     await expect(cells).toHaveCount(20);
     // Open one rule drawer, verify it presents, close it again.
-    await cells.first().click();
+    await cells.first().getByRole("button").click();
     const drawer = page.getByRole("dialog");
     await expect(drawer).toBeVisible();
     await drawer.getByRole("button", { name: "Close" }).click();

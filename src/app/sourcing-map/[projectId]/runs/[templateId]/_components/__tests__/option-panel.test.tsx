@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { leonPanel, partialPanel, uncoveredPanel } from '@/app/sourcing-map/__fixtures__/sp3';
+import { p90Panel } from '@/app/sourcing-map/__fixtures__/lf';
 import { OptionPanel } from '../option-panel';
 
 const EXEC = 'e1000000-0000-4000-8000-000000000001';
@@ -53,6 +54,13 @@ describe('OptionPanel', () => {
     await settled();
     expect(screen.getByText('Calibrated median: 42 d (4 orders)')).toBeInTheDocument();
     expect(screen.getByText('delivered · Jul 24, 2026 · SHIP-LEON-1000')).toBeInTheDocument();
+  });
+
+  it('Delivery history shows the p90 beside the p50 when the panel serves it', async () => {
+    answer(200, p90Panel);
+    await settled();
+    const history = screen.getByRole('region', { name: 'Delivery history' });
+    expect(within(history).getByText('Calibrated p50: 30 d · p90: 45 d')).toBeInTheDocument();
   });
 
   it('Partial: three rows, no Response time, and Delivery history reads Unavailable', async () => {

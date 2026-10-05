@@ -13,6 +13,11 @@ import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 const APPROVED_DOCS = [
   'docs/identity-provider.md',
   'docs/typed-memory.md',
+  // Fixed upstream (haiClient PR #290, merged 2026-10-05 as d7a69aa3), re-read, and approved by the owner.
+  'docs/counterparty-sync.md',
+  'docs/erp-connector.md',
+  'docs/erp-write-enable.md',
+  'docs/work-queue.md',
 ];
 
 const created: string[] = [];
@@ -152,11 +157,11 @@ function initStructuredRepo(): string {
   write('.dockerignore', 'node_modules\n');
   write('README.md', '# agent\n');
   write('UPGRADING.md', '# upgrading\n');
-  write('CHANGELOG.md', '# changelog\n');
   write('LICENSE', 'MIT\n');
   write('.env.example', 'SECRET=\n');
   write('.gitignore', 'node_modules\n');
   // internal paths (should NOT ship)
+  write('CHANGELOG.md', '# changelog\n'); // internal release history, not adopter docs
   write('CLAUDE.md', '# internal\n');
   write('.gitattributes',
     'tests/** export-ignore\n' +
@@ -201,6 +206,7 @@ describe('agent archive allowlist invariants', () => {
 
     // absent (internal / non-conformance)
     for (const p of [
+      'CHANGELOG.md',
       'CLAUDE.md',
       '.gitattributes',
       'kill-agents.ps1',

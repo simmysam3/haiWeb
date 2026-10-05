@@ -33,10 +33,8 @@ describe('TraceOverlay', () => {
     const desc = e.querySelector('desc')!;
     expect(desc.id).toBe(e.getAttribute('aria-describedby'));
     expect(desc.textContent).toBe('moderate: León Cuero to A');
-    // R-9-style measure: one entry per render, read by the Playwright harness in a real browser
-    const measures = performance.getEntriesByName(TRACE_MEASURE, 'measure');
-    expect(measures).toHaveLength(1);
-    expect(Number.isFinite(measures[0]!.duration)).toBe(true);
+    // LF §9.3: an overlay records no measure of its own; the canvas records the one sm-trace-draw, however many it draws
+    expect(performance.getEntriesByName(TRACE_MEASURE, 'measure')).toHaveLength(0);
   });
 
   it('draws a dashed stub with the status word at a handle gap (contract §10 copy)', () => {
