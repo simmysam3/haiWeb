@@ -53,7 +53,8 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   const stateRef = useRef(state);
   const languageRef = useRef(language);
   const pathnameRef = useRef(pathname);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The automatic resend after a first rate-limit 429: its timer, and the pending answer it will replace.
+  const pendingResend = useRef<{ timer: ReturnType<typeof setTimeout>; assistantId: string } | null>(null);
   const sendRef = useRef<(text: string, autoRetry?: boolean) => Promise<void>>(async () => undefined);
   // The latest sendText call. A newer request aborts the one in flight (one help request at a time), and
   // the aborted call ends after the newer one began: only the latest may clear `streaming`.
@@ -77,12 +78,29 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
     else saveWidgetState(toStored(state), ownerKey);
   }, [state, ownerKey]);
 
-  const cancelRetry = useCallback(() => {
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-    retryTimer.current = null;
+  /** Drops the pending automatic resend, if any, and returns the id of the answer it would have replaced. */
+  const dropResend = useCallback((): string | null => {
+    const pending = pendingResend.current;
+    pendingResend.current = null;
+    if (!pending) return null;
+    clearTimeout(pending.timer);
+    return pending.assistantId;
   }, []);
 
-  useEffect(() => cancelRetry, [cancelRetry]);
+  // Leaving the page drops the resend and nothing else: the stored answer is still 'streaming', so the
+  // remount shows it interrupted with Retry (rehydrate).
+  useEffect(
+    () => () => {
+      dropResend();
+    },
+    [dropResend],
+  );
+
+  // Send, Retry, Reset and Close cancel the resend: its question stays, as a failed answer with Retry.
+  const cancelRetry = useCallback(() => {
+    const waiting = dropResend();
+    if (waiting) dispatch({ type: 'errored', assistantId: waiting });
+  }, [dropResend]);
 
   const sendText = useCallback(
     async (text: string, autoRetry = false) => {
@@ -138,16 +156,18 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
               notice: { kind: 'budget_exhausted', resetAt: outcome.resetAt, contact: outcome.contact ?? DEFAULT_SUPPORT_CONTACT },
             });
           } else if (outcome.status === 429 && !autoRetry) {
-            // The question stays in the transcript, as a failed answer with Retry, until the automatic
-            // resend replaces it: if the widget unmounts during the wait (which cancels the resend), the
-            // stored conversation still holds it (spec §7.3).
-            dispatch({ type: 'errored', assistantId });
+            // The question stays in the transcript with its answer pending ("Thinking…" under "One moment…")
+            // until the automatic resend replaces it: no model-error line and no Retry inside the limiter's
+            // window (spec §7.5). Send, Retry, Reset or Close during the wait cancel the resend and mark the
+            // answer failed (cancelRetry). If the widget unmounts during the wait, the stored conversation
+            // still holds the question, and rehydrate shows it interrupted with Retry (spec §7.3).
             dispatch({ type: 'notice', notice: { kind: 'rate_limited' } });
-            retryTimer.current = setTimeout(() => {
-              retryTimer.current = null;
+            const timer = setTimeout(() => {
+              pendingResend.current = null;
               dispatch({ type: 'remove_exchange', assistantId });
               void sendRef.current(text, true);
             }, HELP_RATE_LIMIT_RETRY_MS);
+            pendingResend.current = { timer, assistantId };
           } else if (outcome.status === 429) {
             dispatch({ type: 'errored', assistantId });
             dispatch({ type: 'notice', notice: { kind: 'rate_limited' } });

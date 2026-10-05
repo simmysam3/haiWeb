@@ -765,6 +765,11 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(helpBodies().map((b) => b.message)).toEqual([QUESTION, 'Second question', QUESTION]);
     expect(screen.getByText('Retried answer.')).toBeInTheDocument();
     expect(screen.queryByText('Automatic resend.')).toBeNull();
+    // The cancelled resend leaves the second question as a failed answer with Retry, never an endless "Thinking…".
+    expect(screen.getByText('Second question')).toBeInTheDocument();
+    expect(screen.queryByText('Thinking…')).toBeNull();
+    expect(screen.getByText('Something went wrong — try again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('a question rate-limited just before leaving the page is restored with Retry, and Retry resends it', async () => {
@@ -775,10 +780,13 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     await openPanel();
     ask(UNANSWERED);
     expect(await screen.findByText('One moment…')).toBeInTheDocument();
-    // During the wait the question stays, as a failed answer with Retry, never as an endless "Thinking…".
+    // During the wait the question stays with its answer pending ("Thinking…" under "One moment…"): no
+    // model-error line and no Retry, because the automatic resend is coming (spec §7.5). A resend that a new
+    // question or a Retry cancels leaves a failed answer with Retry, never an endless "Thinking…" (pinned below).
     expect(screen.getByText(UNANSWERED)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    expect(screen.queryByText('Thinking…')).toBeNull();
+    expect(screen.getByText('Thinking…')).toBeInTheDocument();
+    expect(screen.queryByText('Something went wrong — try again.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     first.unmount(); // crossing from /account to /sourcing-map during the 6 s wait
     replies.push(sseResponse(answer('Answered after all.', meta({ redacted_message: UNANSWERED }))));
     renderWidget();
@@ -925,5 +933,48 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(await screen.findByTestId('help-unread')).toBeInTheDocument();
     await openPanel();
     expect(screen.queryByTestId('help-unread')).toBeNull();
+  });
+
+  // Task 3.8 review, round 2.
+  it('during the 6 s wait the rate-limited question shows neither the model-error line nor Retry, so the wait differs from giving up', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    replies.push(RATE_LIMITED(), RATE_LIMITED());
+    renderWidget();
+    const dialog = await openPanel();
+    ask(QUESTION);
+    expect(await screen.findByText('One moment…')).toBeInTheDocument();
+    expect(screen.getByText(QUESTION)).toBeInTheDocument();
+    expect(screen.queryByText('Something went wrong — try again.')).toBeNull();
+    expect(screen.queryByText('Interrupted — ask again.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    const waiting = dialog.textContent;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+    // The automatic resend met a second 429: no resend comes now, so the answer fails with Retry.
+    expect(await screen.findByText('Something went wrong — try again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(dialog.textContent).not.toBe(waiting);
+  });
+
+  it('a new question during the 6 s wait leaves the rate-limited question as a failed answer with Retry, never an endless "Thinking…"', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    replies.push(
+      RATE_LIMITED(),
+      sseResponse(answer('Fresh answer.', meta({ redacted_message: 'Another question' }))),
+      sseResponse(answer('Answered after all.')),
+    );
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    expect(await screen.findByText('One moment…')).toBeInTheDocument();
+    ask('Another question');
+    expect(await screen.findByText('Fresh answer.')).toBeInTheDocument();
+    expect(screen.getByText(QUESTION)).toBeInTheDocument();
+    expect(screen.queryByText('Thinking…')).toBeNull();
+    expect(screen.getByText('Something went wrong — try again.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Answered after all.')).toBeInTheDocument();
+    expect(helpBodies().map((b) => b.message)).toEqual([QUESTION, 'Another question', QUESTION]);
   });
 });
