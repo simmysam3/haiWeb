@@ -1084,6 +1084,7 @@ describe('Workspace', () => {
     const tab = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('tab', { name: 'Path beneath' });
     expect(tab).toHaveAttribute('aria-disabled', 'true');
     expect(tab).toHaveAccessibleDescription('Available when the run completes.');
+    await panelsSettled();
   });
 
   it('a Path beneath row opens that alias’s handle panel on this card; Close returns focus to the row and the details come back on Path beneath (§7)', async () => {
@@ -1121,6 +1122,7 @@ describe('Workspace', () => {
     // a new pick opens on Details: the panel is keyed by the pick, and the tab is the panel's own
     fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
     expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true');
+    await panelsSettled();
   });
 
   it('a handle panel whose opening row has gone closes back to the map handle, never <body>; a pressed map handle pressed again keeps the focus (R7)', async () => {
@@ -1144,6 +1146,7 @@ describe('Workspace', () => {
     fireEvent.click(mapA());
     expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
     expect(mapA()).toHaveFocus();
+    await panelsSettled();
   });
 
   it('Pin keeps the details open and marks the card; selecting another card keeps the pin, and only the active card reads pressed (§6.2)', async () => {
