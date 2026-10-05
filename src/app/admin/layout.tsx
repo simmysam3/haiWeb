@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin-guard";
+import { loadEnv } from "@/config/env";
 
 const adminNav = [
   { href: "/admin", label: "Overview" },
@@ -12,6 +13,9 @@ const adminNav = [
   { href: "/admin/feedback", label: "Feedback" },
 ];
 
+// HAIWAVE Help review (spec §7.6); listed only while the help agent is enabled.
+const helpNavItem = { href: "/admin/help", label: "Help Conversations" };
+
 export default async function AdminLayout({
   children,
 }: {
@@ -21,6 +25,7 @@ export default async function AdminLayout({
   // restricted to admin identities. A non-admin participant is sent back to
   // their own account rather than shown the console shell.
   if (!(await isAdmin())) redirect("/account");
+  const nav = loadEnv().HELP_AGENT_ENABLED ? [...adminNav, helpNavItem] : adminNav;
 
   return (
     <div className="min-h-screen flex">
@@ -37,7 +42,7 @@ export default async function AdminLayout({
           </div>
         </div>
         <nav className="flex-1 py-4">
-          {adminNav.map((item) => (
+          {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
