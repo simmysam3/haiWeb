@@ -24,7 +24,7 @@ export const ALLOWLIST = [
   'Dockerfile', 'docker-compose.yml', '.dockerignore',
   'scripts/docker-entrypoint.sh', 'scripts/seed-config.mjs', 'scripts/hash-chat-password.mjs',
   // adopter docs & meta
-  'README.md', 'UPGRADING.md', 'CHANGELOG.md', 'LICENSE', '.env.example', '.gitignore',
+  'README.md', 'UPGRADING.md', 'LICENSE', '.env.example', '.gitignore',
   // haiClient operator docs, FILE BY FILE (owner ruling A, 2026-10-03; customer-safety read
   // ~/dev/hw/reports/REPORT-2026-10-04-agent-docs-customer-safety.md). Never add 'docs' or 'docs/': an unreviewed doc must
   // not ship by default. A new doc needs its own read + the owner's approval + a line here and in the test's APPROVED_DOCS.

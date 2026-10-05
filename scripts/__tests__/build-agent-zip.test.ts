@@ -157,11 +157,11 @@ function initStructuredRepo(): string {
   write('.dockerignore', 'node_modules\n');
   write('README.md', '# agent\n');
   write('UPGRADING.md', '# upgrading\n');
-  write('CHANGELOG.md', '# changelog\n');
   write('LICENSE', 'MIT\n');
   write('.env.example', 'SECRET=\n');
   write('.gitignore', 'node_modules\n');
   // internal paths (should NOT ship)
+  write('CHANGELOG.md', '# changelog\n'); // internal release history, not adopter docs
   write('CLAUDE.md', '# internal\n');
   write('.gitattributes',
     'tests/** export-ignore\n' +
@@ -206,6 +206,7 @@ describe('agent archive allowlist invariants', () => {
 
     // absent (internal / non-conformance)
     for (const p of [
+      'CHANGELOG.md',
       'CLAUDE.md',
       '.gitattributes',
       'kill-agents.ps1',
