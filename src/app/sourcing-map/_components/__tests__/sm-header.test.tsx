@@ -109,6 +109,29 @@ describe('SmHeader — HAIWAVE Help entry point', () => {
     expect(button.closest('div.ml-auto')).not.toBeNull();
   });
 
+  it('draws the Help button in the Sourcing Map variant, never the navy nav one (Task 3.9 review)', () => {
+    render(
+      <HelpProvider enabled ownerKey="owner-test">
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </HelpProvider>,
+    );
+    // The header is always navy, so the nav variant's text-navy icon would vanish on it.
+    const button = screen.getByRole('button', { name: 'Help' });
+    expect(button).toHaveClass('sm-btn');
+    expect(button).not.toHaveClass('text-navy');
+  });
+
+  it('places the Help button before the theme toggle (Task 3.9 review)', () => {
+    render(
+      <HelpProvider enabled ownerKey="owner-test">
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </HelpProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Help' });
+    const toggle = screen.getByRole('button', { name: 'Light theme' });
+    expect(button.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('has no Help button without an enabled help provider', () => {
     render(<SmHeader crumbs={[{ label: 'Projects' }]} />);
     expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
