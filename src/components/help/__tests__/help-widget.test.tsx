@@ -775,6 +775,10 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     await openPanel();
     ask(UNANSWERED);
     expect(await screen.findByText('One moment…')).toBeInTheDocument();
+    // During the wait the question stays, as a failed answer with Retry, never as an endless "Thinking…".
+    expect(screen.getByText(UNANSWERED)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('Thinking…')).toBeNull();
     first.unmount(); // crossing from /account to /sourcing-map during the 6 s wait
     replies.push(sseResponse(answer('Answered after all.', meta({ redacted_message: UNANSWERED }))));
     renderWidget();
