@@ -58,7 +58,8 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   // The latest sendText call. A newer request aborts the one in flight (one help request at a time), and
   // the aborted call ends after the newer one began: only the latest may clear `streaming`.
   const latestRequest = useRef(0);
-  // The case-summary request in flight. Reset and Close drop it: its answer belongs to the conversation they ended.
+  // The case-summary request in flight. Each one is a billed model call, so Summarize sends nothing more
+  // while it runs; Reset and Close drop it: its answer belongs to the conversation they ended.
   const summaryRequest = useRef<object | null>(null);
 
   useEffect(() => {
@@ -192,12 +193,13 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   }, []);
   const summarize = useCallback(() => {
     const conversationId = stateRef.current.conversationId;
-    if (!conversationId) return;
+    if (!conversationId || summaryRequest.current) return;
     const request = {};
     summaryRequest.current = request;
     setSummary({ status: 'loading' });
     void requestCaseSummary(conversationId).then((res) => {
       if (summaryRequest.current !== request) return;
+      summaryRequest.current = null;
       setSummary(res ? { status: 'ready', summary: res.summary, contact: res.contact } : { status: 'failed' });
     });
   }, []);

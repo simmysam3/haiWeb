@@ -817,4 +817,24 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(screen.getByText(/Ask where to find something in the console/)).toBeInTheDocument();
     expect(screen.queryByText('Summary of the OLD conversation')).toBeNull();
   });
+
+  it('Summarize sends one case-summary request at a time, and can be asked again once it settles', async () => {
+    const pending = holdCaseSummaries();
+    replies.push(sseResponse(ev('meta', meta()) + ev('error', { code: 'withheld', retryable: false })));
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    expect(await screen.findByText("I can't help with that one.")).toBeInTheDocument();
+    const inMessage = () => screen.getAllByRole('button', { name: 'Summarize for support' })[0];
+    fireEvent.click(inMessage());
+    fireEvent.click(inMessage());
+    fireEvent.click(inMessage());
+    expect(caseSummaryPosts()).toHaveLength(1);
+    await act(async () => {
+      pending[0](jsonResponse(503, { error: { code: 'NO_ACTIVE_PACK', message: 'x' } }));
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the summary — try again.");
+    fireEvent.click(inMessage());
+    expect(caseSummaryPosts()).toHaveLength(2);
+  });
 });
