@@ -16,6 +16,7 @@ const META = {
   served: { guide_sha: null, agent_version: null, matches_pack: false },
 };
 const DONE = { assistant_message_id: AMSG, finish_reason: 'STOP', usage: { input: 1, cached: 0, output: 1 } };
+const PACK = { guideEdition: '1.7', packDate: '2026-10-07', servedMatches: true };
 
 const openState: HelpState = { ...INITIAL_HELP_STATE, view: 'open' };
 const sent = helpReducer(openState, { type: 'send', userId: 'u1', assistantId: 'a1', text: 'KEY=abc' });
@@ -33,8 +34,18 @@ describe('helpReducer', () => {
     expect(helpReducer(sent, { type: 'close' })).toEqual(INITIAL_HELP_STATE);
   });
 
+  it('open from minimized keeps the conversation, its pack info and a panel notice', () => {
+    const minimized: HelpState = { ...sent, view: 'minimized', conversationId: CONV, unread: true, pack: PACK, notice: { kind: 'session_expired' } };
+    expect(helpReducer(minimized, { type: 'open' })).toEqual({ ...minimized, view: 'open', unread: false });
+  });
+
   it('minimize does nothing while closed', () => {
     expect(helpReducer(INITIAL_HELP_STATE, { type: 'minimize' })).toBe(INITIAL_HELP_STATE);
+  });
+
+  it('minimize keeps the conversation, its pack info and a panel notice', () => {
+    const open: HelpState = { ...sent, conversationId: CONV, pack: PACK, notice: { kind: 'session_expired' } };
+    expect(helpReducer(open, { type: 'minimize' })).toEqual({ ...open, view: 'minimized' });
   });
 
   it('reset clears messages and the conversation but stays open', () => {
@@ -62,6 +73,18 @@ describe('helpReducer', () => {
     expect(s.messages.map((m) => m.id)).toEqual(['u1', 'a1', 'u2', 'a2']);
   });
 
+  it('a send in an existing conversation keeps its id, its pack info and the view', () => {
+    const first = helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META });
+    expect(helpReducer(first, { type: 'send', userId: 'u2', assistantId: 'a2', text: 'and then?' })).toEqual({
+      ...first,
+      messages: [
+        ...first.messages,
+        { id: 'u2', role: 'user', text: 'and then?', status: 'complete' },
+        { id: 'a2', role: 'assistant', text: '', status: 'streaming' },
+      ],
+    });
+  });
+
   it('meta swaps in the redacted question, the conversation id and the pack info', () => {
     const s = helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META });
     expect(s.messages[0]).toMatchObject({ serverId: UMSG, text: 'KEY=‹redacted›', redactionCount: 1 });
@@ -72,6 +95,18 @@ describe('helpReducer', () => {
   it('meta records a served guide that matches the pack', () => {
     const matching = { ...META, served: { guide_sha: 'a'.repeat(64), agent_version: '1.103.0', matches_pack: true } };
     expect(helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: matching }).pack?.servedMatches).toBe(true);
+  });
+
+  it('meta changes only the question, the conversation id and the pack info', () => {
+    expect(helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META })).toEqual({
+      ...sent,
+      conversationId: CONV,
+      pack: { guideEdition: '1.7', packDate: '2026-10-07', servedMatches: false },
+      messages: [
+        { id: 'u1', role: 'user', text: 'KEY=‹redacted›', status: 'complete', serverId: UMSG, redactionCount: 1 },
+        { id: 'a1', role: 'assistant', text: '', status: 'streaming' },
+      ],
+    });
   });
 
   it('delta appends; done completes the answer with its server id', () => {
@@ -102,6 +137,21 @@ describe('helpReducer', () => {
     expect(helpReducer(sent, { type: 'stream_error', assistantId: 'a1', code: 'withheld' }).unread).toBe(false);
   });
 
+  it('done or a model error while minimized updates the answer and keeps the rest of the conversation', () => {
+    const minimized: HelpState = { ...helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META }), view: 'minimized' };
+    const [question, streamingAnswer] = minimized.messages;
+    expect(helpReducer(minimized, { type: 'done', assistantId: 'a1', done: DONE })).toEqual({
+      ...minimized,
+      unread: true,
+      messages: [question, { ...streamingAnswer, status: 'complete', serverId: AMSG }],
+    });
+    expect(helpReducer(minimized, { type: 'stream_error', assistantId: 'a1', code: 'model_error' })).toEqual({
+      ...minimized,
+      unread: true,
+      messages: [question, { ...streamingAnswer, status: 'error' }],
+    });
+  });
+
   it('interrupted and errored set their statuses', () => {
     expect(answer(helpReducer(sent, { type: 'interrupted', assistantId: 'a1' }))?.status).toBe('interrupted');
     expect(answer(helpReducer(sent, { type: 'errored', assistantId: 'a1' }))?.status).toBe('error');
@@ -117,6 +167,13 @@ describe('helpReducer', () => {
     const s = helpReducer(sent, { type: 'failed', assistantId: 'a1', notice: { kind: 'session_expired' } });
     expect(s.messages.map((m) => m.id)).toEqual(['u1']);
     expect(s.notice).toEqual({ kind: 'session_expired' });
+  });
+
+  it('failed on a later question keeps the earlier exchange, the view and the conversation', () => {
+    const first = helpReducer(helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META }), { type: 'done', assistantId: 'a1', done: DONE });
+    const second = helpReducer(first, { type: 'send', userId: 'u2', assistantId: 'a2', text: 'and then?' });
+    const s = helpReducer(second, { type: 'failed', assistantId: 'a2', notice: { kind: 'session_expired' } });
+    expect(s).toEqual({ ...second, notice: { kind: 'session_expired' }, messages: second.messages.slice(0, 3) });
   });
 
   it('remove_exchange drops the answer and the question before it', () => {
@@ -152,6 +209,11 @@ describe('helpReducer', () => {
     expect(helpReducer(twoAnswers, { type: 'remove_exchange', assistantId: 'a2' }).messages.map((m) => m.id)).toEqual(['u1', 'a1']);
   });
 
+  it('remove_exchange keeps the view, the conversation, the unread dot and the pack info', () => {
+    const minimized: HelpState = { ...helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META }), view: 'minimized', unread: true };
+    expect(helpReducer(minimized, { type: 'remove_exchange', assistantId: 'a1' })).toEqual({ ...minimized, messages: [] });
+  });
+
   it('notice sets the panel notice and clears it with null, leaving the messages alone', () => {
     const budget = { kind: 'budget_exhausted' as const, resetAt: '2026-10-08T00:00:00Z', contact: 'support@haiwave.ai' };
     const shown = helpReducer(sent, { type: 'notice', notice: budget });
@@ -163,8 +225,21 @@ describe('helpReducer', () => {
     expect(answer(helpReducer(sent, { type: 'feedback', messageId: 'a1', rating: 'down' }))?.feedback).toBe('down');
   });
 
+  it('feedback records a thumbs-up too', () => {
+    expect(answer(helpReducer(sent, { type: 'feedback', messageId: 'a1', rating: 'up' }))?.feedback).toBe('up');
+  });
+
   it('ignores updates for a message that no longer exists', () => {
     expect(helpReducer(sent, { type: 'delta', assistantId: 'gone', text: 'x' })).toBe(sent);
+  });
+
+  it('message updates change only the message they name', () => {
+    const [question, streamingAnswer] = sent.messages;
+    expect(question).toEqual({ id: 'u1', role: 'user', text: 'KEY=abc', status: 'complete' });
+    expect(helpReducer(sent, { type: 'delta', assistantId: 'a1', text: 'x' }).messages[0]).toEqual(question);
+    expect(helpReducer(sent, { type: 'stream_error', assistantId: 'a1', code: 'withheld' }).messages[0]).toEqual(question);
+    expect(helpReducer(sent, { type: 'feedback', messageId: 'a1', rating: 'up' }).messages[0]).toEqual(question);
+    expect(helpReducer(sent, { type: 'meta', userId: 'u1', assistantId: 'a1', meta: META }).messages[1]).toEqual(streamingAnswer);
   });
 });
 
@@ -175,6 +250,12 @@ describe('persistence', () => {
     const restored = rehydrate(loadWidgetState(OWNER));
     expect(answer(restored)).toMatchObject({ text: 'Partial', status: 'interrupted' });
     expect(restored.view).toBe('open');
+  });
+
+  it('rehydrate restores a minimized panel with its conversation, unread dot and pack info', () => {
+    const stored = toStored({ ...sent, view: 'minimized', conversationId: CONV, unread: true, pack: PACK });
+    const [question, streamingAnswer] = stored.messages;
+    expect(rehydrate(stored)).toEqual({ ...stored, notice: null, messages: [question, { ...streamingAnswer, status: 'interrupted' }] });
   });
 
   it('rehydrate leaves every message that was not streaming as it was', () => {
