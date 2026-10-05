@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { HelpPackPayloadSchema } from '@haiwave/protocol';
 import {
   stripGuideForPack, parseKnownEnvVars, parseFrontMatter, latestBriefFile, collectDeployDocs, listZipEntries,
   newerAsBuiltWarning, assemblePack, main, DEPLOY_DOC_PATHS,
@@ -304,6 +305,13 @@ describe('assemblePack', () => {
     const p = assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
     expect(Object.keys(p).sort()).toEqual(['known_env_vars', 'manifest', 'parts', 'schema_version']);
     expect(Object.keys(p.parts).sort()).toEqual(['brief', 'console_pages', 'deploy_docs', 'guide']);
+  });
+  // The test above compares the key names with contract C.2 by hand (phase 1 could not import the protocol in haiWeb).
+  // This one hands the same payload to the schema haiCore's PUT /admin/help/packs validates with.
+  it('parses under the protocol\'s HelpPackPayloadSchema, which is strict (plan C.2)', () => {
+    const t = trees();
+    const p = assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+    expect(() => HelpPackPayloadSchema.parse(p)).not.toThrow();
   });
   it('gives a brief with no front matter an empty date, reviewed_by and as_built, which main then refuses', async () => {
     const t = trees({ brief: '# Brief\n' });

@@ -40,6 +40,13 @@ const EnvSchema = z.object({
 
   // Session
   SESSION_SECRET: z.string().default(DEV_SESSION_SECRET),
+
+  // HAIWAVE Help (console help panel, spec §7). Server-only; off by default
+  // until the rollout prerequisites in spec §9.3 are met.
+  HELP_AGENT_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -21,8 +21,18 @@ vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
 vi.mock('next/image', () => ({ default: () => null }));
+const { helpProps } = vi.hoisted(() => ({ helpProps: [] as Array<{ enabled: boolean; ownerKey: string | null }> }));
+vi.mock('@/components/help', () => ({
+  HelpProvider: ({ enabled, ownerKey, children }: { enabled: boolean; ownerKey: string | null; children: React.ReactNode }) => {
+    helpProps.push({ enabled, ownerKey });
+    // A marker, so a test can see where the provider sits around the app.
+    return <div data-testid="help-provider">{children}</div>;
+  },
+  HelpButton: () => null,
+}));
 
 beforeEach(() => {
+  helpProps.length = 0;
   getSession.mockReset();
   forbiddenMock.mockClear();
   fetchBffJson.mockReset();
@@ -70,5 +80,34 @@ describe('SourcingMapLayout', () => {
     const { default: Layout } = await import('../layout');
     await expect(Layout({ children: <p>inside</p> })).rejects.toThrow('__NEXT_FORBIDDEN__');
     expect(fetchBffJson).not.toHaveBeenCalled();
+  });
+
+  it('mounts the help provider after the role check, enabled only when HELP_AGENT_ENABLED=true', async () => {
+    getSession.mockResolvedValue(sessionFor('account_admin'));
+    const { default: Layout } = await import('../layout');
+    render(await Layout({ children: <p>inside</p> }));
+    process.env.HELP_AGENT_ENABLED = 'true';
+    try {
+      render(await Layout({ children: <p>inside</p> }));
+    } finally {
+      delete process.env.HELP_AGENT_ENABLED;
+    }
+    expect(helpProps.map((p) => p.enabled)).toEqual([false, true]);
+  });
+
+  it("hands the provider the signed-in user's owner key (amendment P3-7)", async () => {
+    getSession.mockResolvedValue(sessionFor('account_admin'));
+    const { default: Layout } = await import('../layout');
+    render(await Layout({ children: <p>inside</p> }));
+    // The key of participant-1:user-1, computed once outside the test (P3-7).
+    expect(helpProps.map((p) => p.ownerKey)).toEqual(['b161539033611f261ba7bcd678a2474a0b0235073d8c96352ba1e92c62179c57']);
+  });
+
+  it('renders the whole app, theme root included, inside the help provider (Task 3.9 review)', async () => {
+    getSession.mockResolvedValue(sessionFor('account_admin'));
+    const { default: Layout } = await import('../layout');
+    render(await Layout({ children: <p>inside</p> }));
+    // SmHeader (in the page, so in sm-root) holds the Help button; outside the provider it renders nothing.
+    expect(screen.getByTestId('help-provider')).toContainElement(screen.getByTestId('sm-root'));
   });
 });

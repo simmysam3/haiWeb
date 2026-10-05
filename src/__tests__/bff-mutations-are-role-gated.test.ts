@@ -25,6 +25,9 @@ export const OPEN_BY_DESIGN: Record<string, string> = {
   'account/notifications/[id]/read/route.ts': 'marks the caller\'s own notification read',
   'account/rules/test/route.ts': 'dry-run evaluator, nothing persisted',
   'account/query-guard/test/route.ts': 'dry-run evaluator, nothing persisted',
+  'help/messages/route.ts': 'HAIWAVE Help is open to every signed-in user of a participant; haiCore enforces the rate limit and the daily budget',
+  'help/messages/[id]/feedback/route.ts': 'rates the caller\'s own help answer; haiCore answers 404 for another user\'s message',
+  'help/conversations/[id]/case-summary/route.ts': 'summarises the caller\'s own help conversation; haiCore answers 404 for another user\'s',
 };
 
 /** GET handlers that must be gated anyway. */

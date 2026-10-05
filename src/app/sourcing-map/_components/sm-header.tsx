@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { ThemeToggle } from './theme-root';
 import { useOpenRisks } from './open-risks';
 import { smThemeStyle } from '@/lib/sourcing-map/theme';
+import { HelpButton } from '@/components/help';
 
 export interface SmCrumb {
   label: string;
@@ -54,6 +55,7 @@ export function SmHeader({ crumbs, actions }: { crumbs: SmCrumb[]; actions?: Rea
           {openRisks === null ? 'Supply Risks' : `Supply Risks (${openRisks} open)`}
         </Link>
         {actions}
+        <HelpButton variant="sm" />
         <ThemeToggle />
         <Link href="/account" className="sm-btn sm-btn-ghost text-sm">
           Console
