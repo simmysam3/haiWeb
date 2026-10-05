@@ -7,7 +7,7 @@ import { axe, axeLine, cardBoxes, durations, overflowing } from './sourcing-map-
  * Sourcing Map LF (spec §9.3, §9.4): what only a browser can show about the deferred features, through the dev-only
  * harness route /sm-harness/<fixture> (served only by a server started with SM_HARNESS=1): two traces' geometry, the
  * R-9 budgets with two traces drawn, axe in five states and both themes, Escape and focus with real key presses, the
- * result picker, the heat switch and the handle count. Each test logs its SM_LF_* lines before it asserts, so one
+ * result picker, the heat switch, the handle count and the direct supplier's p90 (H-8). Each test logs its SM_LF_* lines before it asserts, so one
  * defect never hides another. Skips, never throws, without SM_HARNESS_URL (e.g. http://localhost:3111).
  * SM_LF_SHOTS=<folder> also saves one screenshot per state and theme of H-3 (ruling F29).
  */
@@ -17,6 +17,7 @@ const FIXTURES = path.join(process.cwd(), 'src/app/sourcing-map/__fixtures__');
 const estimate = JSON.parse(readFileSync(path.join(FIXTURES, 'sp2/estimate-may-wait.json'), 'utf8')) as unknown;
 const throttled = JSON.parse(readFileSync(path.join(FIXTURES, 'sp2/execution-throttled.json'), 'utf8')) as { status: unknown };
 const panelLeon = JSON.parse(readFileSync(path.join(FIXTURES, 'sp3/option-panel-leon.json'), 'utf8')) as unknown;
+const panelP90 = JSON.parse(readFileSync(path.join(FIXTURES, 'lf/option-panel-p90.json'), 'utf8')) as unknown;
 /** The compare fixture's (the multitier's deep copy with deltas) option cards: leather (León, Mekong, Arno's timeout), knit uppers, laces, outsoles. */
 const CARDS = 6;
 /** Its tier-row handles (compare): León A B C, Mekong A F C, FlowKnit D, Bowline D, Zephyr E. */
@@ -46,10 +47,10 @@ function handleBoxes(page: Page): Promise<HandleBox[]> {
 const badHandles = (hs: HandleBox[]) => hs.filter((h) => h.height > TIER_ROW_H || !h.inCard || h.scrollHeight > h.clientHeight + 1);
 
 /** The BFF forms of sourcing-map-sp2.spec.ts:28-31 and sourcing-map-sp3.spec.ts:18-20, written again (they are not exported). */
-async function routeBff(page: Page): Promise<void> {
+async function routeBff(page: Page, panel: unknown): Promise<void> {
   await page.route('**/api/account/sourcing-map/runs/*/estimate', (route) => route.fulfill({ json: estimate }));
   await page.route('**/api/account/sourcing-map/executions/*/status**', (route) => route.fulfill({ json: throttled.status }));
-  await page.route('**/options/*/panel', (route) => route.fulfill({ json: panelLeon }));
+  await page.route('**/options/*/panel', (route) => route.fulfill({ json: panel }));
 }
 
 /**
@@ -75,8 +76,8 @@ const root = (page: Page) => page.getByTestId('sm-root');
 const cardButton = (page: Page, key: string) => page.locator(`section[aria-label="Sourcing map"] button[data-anchor="${key}"]`);
 const details = (page: Page, name: string) => page.getByRole('complementary', { name: `Details for ${name}` });
 
-async function openPage(page: Page, fixture: 'compare' | 'throttled'): Promise<void> {
-  await routeBff(page);
+async function openPage(page: Page, fixture: 'compare' | 'throttled' | 'multitier', panel: unknown = panelLeon): Promise<void> {
+  await routeBff(page, panel);
   await page.goto(`${HARNESS}/sm-harness/${fixture}`);
   await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible();
   // Setup, not a measurement: the anchors are measured once per selection, so the web fonts settle first.
@@ -387,5 +388,45 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     expect.soft(handles, 'every tier-row handle, and no Path beneath row, is a data-alias button').toBe(HANDLES);
     expect.soft(texts, 'a handle per tier-row group button').toHaveLength(HANDLES);
     expect.soft(refused, 'no handle label the walk pattern refuses').toEqual([]);
+  });
+
+  test('H-8 p90: Mekong\'s Details tab words the p90 beside the p50, clean in both themes and opening under 200 ms; neither the strip nor Path beneath says p90', async ({ page }) => {
+    await openPage(page, 'multitier', panelP90);
+    await cardButton(page, 'leon').click();
+    await details(page, 'León Cuero').getByRole('button', { name: 'Pin', exact: true }).click();
+    await cardButton(page, 'mekong').click();
+    const mekong = details(page, 'Mekong Tannery');
+    const history = mekong.getByRole('region', { name: 'Delivery history' });
+    // setup: the panel's answer is in (the p50 words are there with or without the p90)
+    await expect(history.getByText(/^Calibrated p50: 30 d/)).toBeVisible();
+    const line = (await history.getByText(/^Calibrated p50: 30 d/).textContent()) ?? '';
+    const panelMs = await durations(page, 'sm-panel-open');
+    const axes: Record<string, string> = {};
+    for (const theme of ['dark', 'light'] as const) {
+      await setTheme(page, theme);
+      axes[theme] = axeLine(await axe(page));
+    }
+    // the strip and the Path beneath tab panel, each shown before it is searched for the word
+    const strip = page.getByRole('table', { name: 'Compare pinned and active' });
+    await mekong.getByRole('tab', { name: 'Path beneath' }).click();
+    const pathPanel = mekong.getByRole('tabpanel', { name: 'Path beneath' });
+    await pathPanel.waitFor({ state: 'visible', timeout: 2000 }).catch(() => undefined);
+    const shown = { strip: await strip.isVisible(), pathPanel: await pathPanel.isVisible() };
+    // read only what is on screen: an absent element must red the `shown` line below, not time out here
+    const says = async (box: ReturnType<Page['locator']>, on: boolean) => on && ((await box.textContent()) ?? '').includes('p90');
+    const said = { strip: await says(strip, shown.strip), pathPanel: await says(pathPanel, shown.pathPanel) };
+    console.log(`SM_LF_P90 line=${JSON.stringify(line)} axe dark=${axes.dark} light=${axes.light}`);
+    console.log(`SM_LF_PANEL_OPEN_MS browser=${JSON.stringify(panelMs)}`);
+    console.log(`SM_LF_P90_NEGATIVE shown=${JSON.stringify(shown)} says_p90=${JSON.stringify(said)}`);
+
+    expect.soft(line, 'the p90 sits beside the p50 in Mekong\'s Delivery history').toBe('Calibrated p50: 30 d · p90: 45 d');
+    expect.soft(axes.dark, 'axe in dark').toBe('[]');
+    expect.soft(axes.light, 'axe in light').toBe('[]');
+    expect.soft(panelMs.length, 'the panel measured its opening').toBeGreaterThan(0);
+    expect.soft(Math.max(...panelMs), 'sm-panel-open under 200 ms').toBeLessThan(200);
+    // the negative counts only when what it searches is on screen
+    expect(shown, 'the strip and the Path beneath panel are both visible').toEqual({ strip: true, pathPanel: true });
+    expect.soft(said.strip, 'the strip says no p90').toBe(false);
+    expect.soft(said.pathPanel, 'Path beneath says no p90').toBe(false);
   });
 });

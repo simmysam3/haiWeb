@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { SmExecutionDetailSchema } from '@haiwave/protocol';
+import { SmExecutionDetailSchema, SmOptionPanelSchema } from '@haiwave/protocol';
 import type { SmCandidateResult2, SmExecutionDetail2 } from '@/lib/sourcing-map/types';
 import { multitierDetail } from '../../sp2';
-import { compareDetail } from '..';
+import { compareDetail, p90Panel } from '..';
 
 const optionsOf = (d: SmExecutionDetail2): SmCandidateResult2[] => d.result!.slots.flatMap((s) => s.candidates);
 const option = (d: SmExecutionDetail2, key: string): SmCandidateResult2 => optionsOf(d).find((c) => c.candidate_key === key)!;
@@ -45,5 +45,10 @@ describe('the compare fixture (LF §9.2)', () => {
 
     // the multitier is never touched: the deep copy leaves its own C at tier 3 under Mekong
     expect(tierUnder(multitierDetail, 'mekong', 'C')).toBe(3);
+  });
+
+  it('the p90 panel parses under the linked protocol and keeps p90_days', () => {
+    // under a protocol older than 3.99.0 zod strips the key and this reads undefined: the wait is not over (a STOP)
+    expect(SmOptionPanelSchema.parse(p90Panel).delivery_history!.lead_time!.p90_days).toBe(45);
   });
 });

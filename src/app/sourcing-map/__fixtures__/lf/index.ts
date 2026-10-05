@@ -3,8 +3,9 @@
  * LF's fixtures: the one module. `compareDetail` is the multitier detail with the deltas that the compare features
  * need (spec §9.2); the multitier itself is never edited (a deep copy), so the SP2 and SP3 tests keep the story they pin.
  */
-import type { SmCandidateResult2, SmExecutionDetail2, SmTrace } from '@/lib/sourcing-map/types';
+import type { SmCandidateResult2, SmExecutionDetail2, SmOptionPanel, SmTrace } from '@/lib/sourcing-map/types';
 import { multitierDetail } from '../sp2';
+import p90PanelJson from './option-panel-p90.json';
 
 /** The shallowest tier at which C sits: Mekong's, one tier above León's (which keeps the multitier's 3). */
 const C_AT_MEKONG = 2;
@@ -47,3 +48,6 @@ function buildCompareDetail(): SmExecutionDetail2 {
 }
 
 export const compareDetail = buildCompareDetail();
+
+/** León's panel with a calibrated p50 of 30 d and a p90 of 45 d: the direct supplier's lead time at protocol 3.99.0 (§8.4). */
+export const p90Panel = p90PanelJson as unknown as SmOptionPanel;

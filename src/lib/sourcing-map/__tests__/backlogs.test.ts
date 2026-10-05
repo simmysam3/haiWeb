@@ -33,6 +33,14 @@ describe('backlog selectors and labels', () => {
     expect(leadTimeText(null)).toBeNull();
   });
 
+  it('words the direct supplier’s p90 beside its p50, and only there (§8.4)', () => {
+    expect(leadTimeText({ kind: 'calibrated_p50', days: 30, sample_count: 12, p90_days: 45 })).toBe('Calibrated p50: 30 d · p90: 45 d');
+    expect(leadTimeText({ kind: 'calibrated_p50', days: 30, sample_count: 12 })).toBe('Calibrated p50: 30 d');
+    // a median never carries a p90, even when the object is cast to hold a stray one
+    const stray = { kind: 'calibrated_median', days: 42, sample_count: 4, p90_days: 60 } as Parameters<typeof leadTimeText>[0];
+    expect(leadTimeText(stray)).toBe('Calibrated median: 42 d (4 orders)');
+  });
+
   it('words the request status', () => {
     expect(requestStatusText('request_closed')).toBe('Request closed');
     expect(requestStatusText('open')).toBe('Open');
