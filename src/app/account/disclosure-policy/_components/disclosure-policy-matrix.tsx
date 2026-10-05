@@ -30,24 +30,39 @@ function resolveCell(c: AttributeClassSummary, rows: DisclosurePolicyRow[], tc: 
 
 export function DisclosurePolicyMatrix({ classes, rows, onSave }: Props) {
   return (
-    <div role="grid" className="grid grid-cols-5 gap-px bg-slate/15 border border-slate/15 rounded-md overflow-hidden">
-      <div className="bg-light-gray p-3 text-xs font-semibold text-charcoal">Attribute class / Trust class</div>
-      {TRUST_CLASSES.map((tc) => <div key={tc} className="bg-light-gray p-3 text-xs font-semibold text-charcoal">{TRUST_CLASS_LABEL[tc]}</div>)}
-      {classes.map((c) => (
-        <MatrixRow key={c.attribute_class_id} attributeClass={c} rows={rows} onSave={onSave} />
-      ))}
+    <div className="overflow-hidden rounded-md">
+      <table className="w-full table-fixed border-separate border-spacing-px bg-slate/15">
+        <caption className="sr-only">Disclosure by attribute class and trust class</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="bg-light-gray p-3 text-left text-xs font-semibold text-charcoal">
+              Attribute class / Trust class
+            </th>
+            {TRUST_CLASSES.map((tc) => (
+              <th key={tc} scope="col" className="bg-light-gray p-3 text-left text-xs font-semibold text-charcoal">
+                {TRUST_CLASS_LABEL[tc]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {classes.map((c) => (
+            <MatrixRow key={c.attribute_class_id} attributeClass={c} rows={rows} onSave={onSave} />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function MatrixRow({ attributeClass, rows, onSave }: { attributeClass: AttributeClassSummary; rows: DisclosurePolicyRow[]; onSave: Props['onSave'] }) {
   return (
-    <>
-      <div className="bg-white p-3 text-sm font-medium text-charcoal">{attributeClass.display_name}</div>
+    <tr>
+      <th scope="row" className="bg-white p-3 text-left text-sm font-medium text-charcoal">{attributeClass.display_name}</th>
       {TRUST_CLASSES.map((tc) => {
         const cell = resolveCell(attributeClass, rows, tc);
         return (
-          <div key={tc} className="bg-white p-3 space-y-2">
+          <td key={tc} className="bg-white p-3 space-y-2">
             <select
               aria-label={`${attributeClass.attribute_class_id} disclosure for ${tc}`}
               value={cell.disclosure}
@@ -65,9 +80,9 @@ function MatrixRow({ attributeClass, rows, onSave }: { attributeClass: Attribute
               />
               Disclose shortfall
             </label>
-          </div>
+          </td>
         );
       })}
-    </>
+    </tr>
   );
 }

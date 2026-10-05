@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DisclosurePolicyMatrix } from '../disclosure-policy-matrix';
 import { RoomParticipationPanel } from '../room-participation-panel';
@@ -10,7 +10,51 @@ const classes: AttributeClassSummary[] = [{
   default_disclosure: { unknown: 'declined', behavioral_only: 'declined', trading_pair: 'qualified', premier_partner: 'raw' },
 }];
 
+// Two classes so row order is observable.
+const twoClasses: AttributeClassSummary[] = [
+  ...classes,
+  {
+    attribute_class_id: 'lead_time', display_name: 'Lead time', status: 'adopted',
+    default_disclosure: { unknown: 'declined', behavioral_only: 'declined', trading_pair: 'declined', premier_partner: 'qualified' },
+  },
+];
+
 describe('DisclosurePolicyMatrix', () => {
+  it('is a named table, not an ARIA grid', () => {
+    render(<DisclosurePolicyMatrix classes={classes} rows={[]} onSave={vi.fn()} />);
+    expect(screen.getByRole('table', { name: 'Disclosure by attribute class and trust class' })).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).toBeNull();
+  });
+
+  it('names its column headers and row headers in trust-class and attribute-class order', () => {
+    render(<DisclosurePolicyMatrix classes={twoClasses} rows={[]} onSave={vi.fn()} />);
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Attribute class / Trust class',
+      'Unknown',
+      'Behavioral-only',
+      'Trading pair',
+      'Premier partner',
+    ]);
+    expect(screen.getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Availability', 'Lead time']);
+  });
+
+  it('holds one disclosure select and one shortfall checkbox per cell, in row and column order', () => {
+    render(<DisclosurePolicyMatrix classes={twoClasses} rows={[]} onSave={vi.fn()} />);
+    const trustClasses = ['unknown', 'behavioral_only', 'trading_pair', 'premier_partner'];
+    const cells = screen.getAllByRole('cell');
+    expect(cells).toHaveLength(twoClasses.length * 4);
+    cells.forEach((cell, i) => {
+      const id = twoClasses[Math.floor(i / 4)].attribute_class_id;
+      const tc = trustClasses[i % 4];
+      const selects = within(cell).getAllByRole('combobox');
+      expect(selects).toHaveLength(1);
+      expect(selects[0]).toHaveAccessibleName(`${id} disclosure for ${tc}`);
+      const boxes = within(cell).getAllByRole('checkbox');
+      expect(boxes).toHaveLength(1);
+      expect(boxes[0]).toHaveAccessibleName(`${id} disclose shortfall quantity for ${tc}`);
+    });
+  });
+
   it('shows the registry default when no participant row exists', () => {
     render(<DisclosurePolicyMatrix classes={classes} rows={[]} onSave={vi.fn()} />);
     expect(screen.getByLabelText('availability disclosure for trading_pair')).toHaveValue('qualified');

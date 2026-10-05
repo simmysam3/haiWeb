@@ -37,9 +37,42 @@ describe('PostureGrid', () => {
     fetchSpy.mockRestore();
   });
 
+  it('is a named table, not an ARIA grid', () => {
+    render(<PostureGrid initialPostures={seed} />);
+    expect(screen.getByRole('table', { name: 'Posture by modality and trust class' })).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).toBeNull();
+  });
+
+  it('names its column headers and row headers in trust-class and modality order', () => {
+    render(<PostureGrid initialPostures={seed} />);
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Modality \\ Trust Class',
+      'unknown',
+      'behavioral_only',
+      'trading_pair',
+      'premier_partner',
+    ]);
+    expect(screen.getAllByRole('rowheader').map((h) => h.textContent)).toEqual([
+      'audit',
+      'watcher',
+      'phantom_demand',
+    ]);
+  });
+
   it('renders 12 cells (3 modalities × 4 trust classes)', () => {
     render(<PostureGrid initialPostures={seed} />);
-    expect(screen.getAllByRole('gridcell').length).toBe(12);
+    const cells = screen.getAllByRole('cell');
+    expect(cells.length).toBe(12);
+    expect(screen.queryAllByRole('gridcell')).toEqual([]);
+    const modalities = ['audit', 'watcher', 'phantom_demand'];
+    const trustClasses = ['unknown', 'behavioral_only', 'trading_pair', 'premier_partner'];
+    cells.forEach((cell, i) => {
+      const buttons = within(cell).getAllByRole('button');
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0]).toHaveAccessibleName(
+        `${modalities[Math.floor(i / 4)]} posture for ${trustClasses[i % 4]}`,
+      );
+    });
   });
 
   it('opens drawer when a cell is clicked and closes when × is clicked', async () => {
