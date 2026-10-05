@@ -396,13 +396,17 @@ describe('AdminHelpPage', () => {
     await screen.findByText('Acme Corp');
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent("Couldn't load more help conversations — haiCore answered 503.");
+    expect(alert).toHaveTextContent(
+      "Couldn't load more help conversations — haiCore answered 503. The list below shows only the conversations loaded before that.",
+    );
     // The rows it kept are on screen, so the alert must not say the list is empty.
     expect(alert).not.toHaveTextContent('The list below is empty');
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load more help conversations — the server could not be reached."),
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        "Couldn't load more help conversations — the server could not be reached. The list below shows only the conversations loaded before that.",
+      ),
     );
     expect(screen.getByRole('alert')).not.toHaveTextContent('The list below is empty');
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
