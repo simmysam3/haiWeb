@@ -8,7 +8,7 @@ import { availabilityReason, HEAT_GOOD, HEAT_MID, otherTiers } from '../selector
 import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { modalBand, nodeTallies, pathGroups, utilBandWord } from '../selectors';
 import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
-import { pinnable } from '../selectors';
+import { compareColumn, pinnable, sharedAliases } from '../selectors';
 
 describe('map selectors', () => {
   it('formats a date or an instant with the year (UTC)', () => {
@@ -468,5 +468,26 @@ describe('what can be pinned (LF step 6)', () => {
     expect(pinnable(vomeroResult.slots[0]!.candidates[0]!)).toBe(false);
     // a León that answers for itself only: its projection is served and empty, so it can be pinned (unlike hasPath)
     expect(pinnable(notTracedDetail.result!.slots[0]!.candidates[0]!)).toBe(true);
+  });
+});
+
+describe('the compare strip: the selectors (LF step 6)', () => {
+  it('names the aliases beneath both cards (§6.7)', () => {
+    // León (A, B, C) and Mekong (A, F, C) share A and C, in León's order
+    expect(sharedAliases(leon2!, mekong2!)).toEqual(['A', 'C']);
+    // León and Zephyr (E) share nothing
+    expect(sharedAliases(leon2!, zephyr2)).toEqual([]);
+  });
+
+  it('words one card’s side of the strip, with a dash for what it does not have (§6.7)', () => {
+    const drop = '2027-03-15';
+    const leather = mt.slots[0]!;
+    expect(compareColumn(leather, leon2!, drop)).toEqual({ coverage: '50%', responders: '3', median: '14 d', modal: 'low', binding: 'A · tier 2 · moderate' });
+    // Mekong answers for itself only: nothing binds beneath it
+    expect(compareColumn(leather, mekong2!, drop)).toEqual({ coverage: '100%', responders: '3', median: '14 d', modal: 'low', binding: '—' });
+    // Arno timed out: its own gap words, and a dash for everything beneath it, never 0, NaN or a crash
+    expect(compareColumn(leather, arno2!, drop)).toEqual({ coverage: 'No answer · timeout', responders: '—', median: '—', modal: '—', binding: '—' });
+    // FlowKnit has one responder and withholds its median
+    expect(compareColumn(mt.slots[1]!, mt.slots[1]!.candidates[0]!, drop).median).toBe('—');
   });
 });

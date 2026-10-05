@@ -544,3 +544,26 @@ export function availabilityReason(c: SmCandidateResult, week: string | null, de
   if (heat === 'good') return `${covers}, which meets the ${formatPct(HEAT_GOOD)} threshold.`;
   return `${covers}, below the ${formatPct(heat === 'mid' ? HEAT_GOOD : HEAT_MID)} threshold.`;
 }
+
+/** The aliases beneath both options, in `a`'s order (§6.7). */
+export function sharedAliases(a: SmCandidateResult, b: SmCandidateResult): string[] {
+  const inB = new Set((b.nodes ?? []).map((n) => n.alias));
+  return (a.nodes ?? []).map((n) => n.alias).filter((alias) => inB.has(alias));
+}
+
+export interface CompareColumn { coverage: string; responders: string; median: string; modal: string; binding: string }
+/** One card's side of the compare strip, as words (§6.7). A value the card does not have is EM_DASH; coverage falls back to noCoverageText. */
+export function compareColumn(slot: SmSlotResult, c: SmCandidateResult, asOfDrop: string | null): CompareColumn {
+  const week = slotWeekFor(slot, asOfDrop);
+  const answer = candidateWeekAt(c, week);
+  const a = c.aggregates;
+  const modal = a ? modalBand(a.utilization) : null;
+  const binding = bindingRows(c).map((r) => `${r.alias} · tier ${r.tier} · ${r.band}`).join(', ');
+  return {
+    coverage: answer ? formatPct(answer.option_coverage) : noCoverageText(c, week),
+    responders: a ? String(a.responders) : EM_DASH,
+    median: a && a.median_lead_time_days !== null ? `${a.median_lead_time_days} d` : EM_DASH,
+    modal: modal ? utilBandWord(modal) : EM_DASH,
+    binding: binding === '' ? EM_DASH : binding,
+  };
+}

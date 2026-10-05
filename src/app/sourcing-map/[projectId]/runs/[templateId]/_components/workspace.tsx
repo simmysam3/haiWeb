@@ -376,6 +376,8 @@ export function Workspace({
       onOpenRow={openRow}
       // LF (spec §6.2, §9.5): nothing to pin while the run is live, nor on a card that never answered or has no projection
       pin={{ pinned: activePinned, onToggle: togglePin, reason: running ? RUN_NOT_COMPLETE : pinnable(selectedCandidate) ? null : NOTHING_BENEATH }}
+      // LF (spec §6.7): the strip sets the pinned card against the active one, so only while they are two cards
+      compare={pinned && pinnedCandidate && !activePinned ? { slot: result.slots[pinned.slot]!, candidate: pinnedCandidate, onUnpin: () => setPinned(null) } : null}
     />
   ) : null;
 

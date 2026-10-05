@@ -6,6 +6,7 @@ import { Pill } from '@/components/pill';
 import { SmButton } from '@/app/sourcing-map/_components/sm-button';
 import { OptionPanel } from './option-panel';
 import { PathBeneath } from './path-beneath';
+import { CompareStrip } from './compare-strip';
 
 const TRACE_BANDS: SmBand[] = ['slight', 'moderate', 'severe'];
 
@@ -22,7 +23,7 @@ const TAB = 'sm-muted px-3 py-2 text-sm aria-disabled:opacity-55';
  * SP2 (spec §12.4): the path summary and the sub-tier aggregates. SP3 (spec §12.3): the option panel.
  * A sticky column in the workspace's page flow, below the header (Task 39 P2): a fixed overlay covered the header's controls.
  */
-export function DetailsPanel({ ref, executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false, unavailable = null, onOpenRow, pin }: {
+export function DetailsPanel({ ref, executionId, result, slot, candidate: c, drops, asOfDrop, productNames, onClose, hidden = false, unavailable = null, onOpenRow, pin, compare = null }: {
   /** LF (spec §7): the workspace finds a Path beneath row in this panel, to return focus to it */
   ref?: Ref<HTMLElement>;
   executionId: string; result: SourcingMapExecutionResult2; slot: SmSlotResult; candidate: SmCandidateResult; drops: SmPortfolioDrop[]; asOfDrop: string | null;
@@ -35,6 +36,8 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
   onOpenRow?(alias: string): void;
   /** LF (spec §6.2, §9.5): Pin / Unpin; the workspace owns the pin, and says why it is unavailable, or null */
   pin?: { pinned: boolean; onToggle(): void; reason: string | null };
+  /** LF (spec §6.7): the pinned card, when another card is pinned; the strip sets it against this one, above the tabs */
+  compare?: { slot: SmSlotResult; candidate: SmCandidateResult; onUnpin(): void } | null;
 }) {
   const asOfWeek = slotWeekFor(slot, asOfDrop);
   const demandWeek = slot.demand.find((d) => d.week === asOfWeek);
@@ -49,6 +52,13 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
   // LF (spec §6.2, w3): an unavailable Pin stays focusable and ignores a press (SmButton), and is described by its reason,
   // a line of its own under the header
   const pinReasonId = useId();
+  // LF (spec §6.7, w13): the strip's Unpin removes itself under the viewer's focus, so focus goes to this header's Pin
+  // button first. It is the same button before and after: the active card is not the pinned one on both sides.
+  const pinRef = useRef<HTMLButtonElement>(null);
+  function unpinFromStrip() {
+    pinRef.current?.focus();
+    compare?.onUnpin();
+  }
   // LF (spec §7): two tabs over two panels, both always mounted and the unselected one hidden, so a switch never remounts
   // the option panel (it would refetch). The tab is this panel's state, and the workspace keys the panel by the pick, so
   // a new pick opens on Details. With two tabs either arrow moves to the other (APG); the press is taken with
@@ -77,7 +87,7 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
         <h2 ref={headingRef} tabIndex={-1} className="sm-heading text-lg font-semibold">{c.supplier_name}{c.supplier_country ? ` · ${c.supplier_country}` : ''}</h2>
         <div className="flex items-center gap-2">
           {pin && (
-            <SmButton aria-disabled={pin.reason !== null} aria-describedby={pin.reason !== null ? pinReasonId : undefined} className="sm-btn sm-btn-ghost text-xs" onClick={pin.onToggle}>
+            <SmButton ref={pinRef} aria-disabled={pin.reason !== null} aria-describedby={pin.reason !== null ? pinReasonId : undefined} className="sm-btn sm-btn-ghost text-xs" onClick={pin.onToggle}>
               {pin.pinned ? 'Unpin' : 'Pin'}
             </SmButton>
           )}
@@ -85,6 +95,7 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
         </div>
       </div>
       {pin && pin.reason !== null && <p id={pinReasonId} className="sm-muted mt-1 text-xs">{pin.reason}</p>}
+      {compare && <CompareStrip pinned={compare} active={{ slot, candidate: c }} asOfDrop={asOfDrop} onUnpin={unpinFromStrip} />}
       <div role="tablist" aria-label="Option details" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">
         <button ref={detailsTabRef} role="tab" type="button" id={detailsTabId} aria-selected={tab === 'details'} onClick={() => setTab('details')} onKeyDown={(e) => onArrow(e, 'path')} className={tab === 'details' ? TAB_SELECTED : TAB}>Details</button>
         <button ref={pathTabRef} role="tab" type="button" id={pathTabId} aria-selected={tab === 'path'} aria-disabled={reason !== null || undefined} aria-describedby={reason !== null ? reasonId : undefined} onClick={() => choose('path')} onKeyDown={(e) => onArrow(e, 'details')} className={tab === 'path' ? TAB_SELECTED : TAB}>Path beneath</button>

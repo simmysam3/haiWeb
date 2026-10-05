@@ -1293,6 +1293,37 @@ describe('Workspace', () => {
     await panelsSettled();
   });
 
+  it('the strip shows above the tabs while another card is pinned, on both tabs; Unpin in it clears the pin and hands focus to the Pin button, never <body>', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    const details = (name: string) => screen.getByRole('complementary', { name: `Details for ${name}` });
+    const strip = () => screen.queryByRole('table', { name: 'Compare pinned and active' });
+    // León pinned, Mekong active: the strip precedes the tablist, outside it
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(mekong);
+    const tablist = within(details('Mekong Tannery')).getByRole('tablist', { name: 'Option details' });
+    expect(strip()).toBeInTheDocument();
+    expect(strip()!.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // it stays while Path beneath is the selected tab
+    fireEvent.click(within(tablist).getByRole('tab', { name: 'Path beneath' }));
+    expect(strip()).toBeInTheDocument();
+    // the pinned card is the active one: nothing to compare it with
+    fireEvent.click(leon);
+    expect(strip()).toBeNull();
+    // Mekong again, and Unpin in the strip: the pin goes, and focus goes to the details' Pin button, never <body>
+    fireEvent.click(mekong);
+    const unpin = within(strip()!).getByRole('button', { name: 'Unpin León Cuero' });
+    unpin.focus();
+    fireEvent.click(unpin);
+    expect(strip()).toBeNull();
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(within(details('Mekong Tannery')).getByRole('button', { name: 'Pin' })).toHaveFocus();
+    await panelsSettled();
+    await panelsSettled();
+  });
+
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
     const real = withRealKeys(multitierDetail);
     const leon = real.result!.slots[0]!.candidates[0]!;
