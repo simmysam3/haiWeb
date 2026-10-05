@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { vomeroEstimate } from '@/lib/sourcing-map/__fixtures__/vomero';
 
 const { notFound } = vi.hoisted(() => ({ notFound: vi.fn(() => { throw new Error('NEXT_NOT_FOUND'); }) }));
 vi.mock('next/navigation', () => ({
@@ -14,6 +15,7 @@ import HarnessPage from '../[fixture]/page';
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   notFound.mockClear();
 });
 
@@ -33,9 +35,9 @@ describe('/sm-harness/[fixture] (plan Task 13)', () => {
     expect(notFound).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the harness for the five fixtures with SM_HARNESS=1', async () => {
+  it('renders the harness for the six fixtures with SM_HARNESS=1', async () => {
     vi.stubEnv('SM_HARNESS', '1');
-    const names = ['multitier', 'throttled', 'not-traced', 'supply-risks', 'demand-exceptions'];
+    const names = ['multitier', 'throttled', 'not-traced', 'supply-risks', 'demand-exceptions', 'compare'];
     for (const [i, fixture] of names.entries()) {
       render(await HarnessPage({ params: Promise.resolve({ fixture }) }));
       expect(screen.getAllByTestId('harness')[i]).toHaveTextContent(fixture);
@@ -53,5 +55,14 @@ describe('/sm-harness/[fixture] (plan Task 13)', () => {
       if (fixture === 'supply-risks') expect(screen.getAllByRole('combobox', { name: /^Owner for / }).length).toBeGreaterThan(0);
       unmount();
     }
+  });
+
+  it('serves the compare fixture at compare: FlowKnit’s card offers "Select to trace"', async () => {
+    // the workspace reads the run's estimate on mount
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, text: async () => JSON.stringify(vomeroEstimate) })));
+    const { Harness } = await vi.importActual<typeof import('../[fixture]/harness')>('../[fixture]/harness');
+    render(<Harness fixture="compare" />);
+    const card = (await screen.findByRole('button', { name: /^FlowKnit Mills/ })).closest('article')!;
+    expect(within(card).getByText('Select to trace')).toBeInTheDocument();
   });
 });

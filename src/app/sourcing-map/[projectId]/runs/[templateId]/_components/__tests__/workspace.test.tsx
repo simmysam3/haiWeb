@@ -5,6 +5,7 @@ import {
 } from '@/lib/sourcing-map/__fixtures__/vomero';
 import type { SmCandidateResult2, SmExecutionDetail2 as SmExecutionDetail, SmExecutionSummary2 } from '@/lib/sourcing-map/types';
 import { multitierDetail, throttledDetail, throttledStatus, withRealKeys } from '@/app/sourcing-map/__fixtures__/sp2';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
 import { recordFocusWhen } from '@/test/focus-recorder';
 import { Workspace } from '../workspace';
 
@@ -39,6 +40,8 @@ beforeEach(() => {
   fetchMock.mockReset();
   replace.mockReset();
   search.value = '';
+  // the heat choice is stored (LF §6.6): one test's press never reaches the next test's first paint
+  window.localStorage.clear();
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockImplementation(async (url: string) => (url.endsWith('/estimate') ? reply(200, vomeroEstimate) : reply(404, { error: `unexpected ${url}` })));
 });
@@ -80,6 +83,14 @@ async function settle(release: () => void) {
     release();
     await new Promise((r) => setTimeout(r, 20));
   });
+}
+
+/**
+ * A wait, not an assertion: every mounted option panel (one hidden under a handle panel too, as text queries see hidden
+ * elements) has had its read answered, so the update lands inside the test and adds no act(...) warning.
+ */
+async function panelsSettled() {
+  await waitFor(() => expect(screen.queryAllByText('Loading…')).toEqual([]));
 }
 
 function picked(): string {
@@ -274,6 +285,16 @@ describe('Workspace', () => {
     const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
     expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveFocus();
+    // LF final review I-1: a key can name two cards. Zephyr has no candidate_key (SP1), so its participant id keys it in
+    // the EVA midsole lane and in the outsole lane alike; focus returns to the card selected, in its own lane
+    const outsole = within(screen.getByRole('group', { name: 'Rubber outsoles' })).getByRole('button', { name: /^Zephyr Compounds, DE/ });
+    // Escape's step 2 is the same close (§6.5)
+    fireEvent.click(outsole);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(outsole).toHaveFocus();
+    fireEvent.click(outsole);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for Zephyr Compounds' })).getByRole('button', { name: 'Close details' }));
+    expect(outsole).toHaveFocus();
   });
 
   it('a switch of result closes the details panel, whose pick named a card of the previous result (R3)', async () => {
@@ -711,6 +732,18 @@ describe('Workspace', () => {
     expect(document.activeElement).toBe(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
   });
 
+  it('C pressed under León says it is also at tier 2 under Mekong Tannery; pressed under Mekong, at tier 3 under León Cuero', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    const alsoAt = (panel: HTMLElement) => within(panel).queryAllByText(/^Also at tier/).map((el) => el.textContent);
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Tier 3 under León Cuero' })).getByRole('button', { name: /^C · IN/ }));
+    const fromLeon = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    expect(alsoAt(fromLeon)).toEqual(['Also at tier 2 under Mekong Tannery']);
+    fireEvent.click(within(fromLeon).getByRole('button', { name: 'Close handle details' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^C · IN/ }));
+    const fromMekong = screen.getByRole('complementary', { name: 'Details for supplier C' });
+    expect(alsoAt(fromMekong)).toEqual(['Also at tier 3 under León Cuero']);
+  });
+
   it('SP2: a throttled execution keeps polling, names the responder from the summary and then from each frame (or falls back when the name is null), keeps Cancel live, and Run says an execution is running (spec §12.5, G-41, G-52, Review Focus 4)', async () => {
     mount(throttledDetail, [throttledDetail.execution]);
     expect(swr.key).toBe('/api/account/sourcing-map/executions/5a1e0000-0000-4000-8000-000000000033/status');
@@ -823,6 +856,504 @@ describe('Workspace', () => {
     expect(screen.getByRole('complementary', { name: 'Details for FlowKnit Mills' })).toBeInTheDocument();
     expect(document.activeElement).toBe(rail);
   });
+
+  it('Hide all paths closes the details and the trace, leaves an open handle panel as it is, and keeps focus on itself (§6.4)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // control: León's trace is drawn
+    expect(document.querySelector('svg[data-trace]')).not.toBeNull();
+    // Mekong's copy of A: its panel takes the column, and León's details stay mounted, hidden under it
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under Mekong Tannery' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    expect(document.querySelector('aside[aria-label="Details for León Cuero"]')).toHaveAttribute('hidden');
+    // a press focuses the button it presses; fireEvent does not
+    const hide = screen.getByRole('button', { name: 'Hide all paths' });
+    hide.focus();
+    fireEvent.click(hide);
+    expect(document.querySelector('svg[data-trace]')).toBeNull();
+    // unmounted, not merely hidden under the handle panel: a role query never sees a hidden panel, and with
+    // `hidden: true` it still misses it, because a hidden element has no accessible name
+    expect(document.querySelector('aside[aria-label="Details for León Cuero"]')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // Review Focus 5: the pressed button turns unavailable under the viewer's focus, and keeps it
+    expect(hide).toHaveFocus();
+    expect(hide).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('Escape closes one layer per press, from anywhere: the handle panel, then the details, then Configure; each returns focus as its Close does (§6.5)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    // (a) to (d) press on <body>: the key works with focus anywhere on the page
+    const escape = () => fireEvent.keyDown(document.body, { key: 'Escape' });
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    fireEvent.click(leon);
+    const leonA = within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    fireEvent.click(leonA);
+    // control: the handle panel holds the column
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // another key closes nothing
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+    expect(screen.getByRole('complementary', { name: 'Details for supplier A' })).toBeInTheDocument();
+    // a press inside the handle panel, on its focused heading: no panel answers Escape itself, so that panel goes
+    const heading = within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('heading', { name: 'Supplier A · tier 2' });
+    expect(heading).toHaveFocus();
+    fireEvent.keyDown(heading, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    // and nothing else: León's details come back
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the handle panel again, for the presses on <body>
+    fireEvent.click(leonA);
+    // (a) the handle panel goes first
+    escape();
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    expect(leonA).toHaveFocus();
+    // (b) then the details
+    escape();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(leon).toHaveFocus();
+    // (c) then Configure
+    const configure = screen.getByRole('button', { name: 'Configure' });
+    fireEvent.click(configure);
+    // control: the tray holds the column
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    escape();
+    expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+    expect(configure).toHaveFocus();
+    // (d) nothing open: a press changes nothing and throws nothing. jsdom reports a listener's throw as an error
+    // event on the window, never to the caller, so that is where it is looked for.
+    const thrown = vi.fn();
+    window.addEventListener('error', thrown);
+    leon.focus();
+    escape();
+    window.removeEventListener('error', thrown);
+    expect(thrown).not.toHaveBeenCalled();
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(leon).toHaveFocus();
+  });
+
+  // Review Focus 2: Escape pressed where something else owns it closes no Sourcing Map layer.
+  it('ignores an Escape another handler already took (defaultPrevented)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const take = (e: KeyboardEvent) => e.preventDefault();
+    document.body.addEventListener('keydown', take, true);
+    try {
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+    } finally {
+      document.body.removeEventListener('keydown', take, true);
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('an Escape inside the upload wizard closes the wizard and leaves Configure open (w1)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Upload schedule' }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Upload schedule' }), { key: 'Escape' });
+    // the dialog still gets its key: the page's listener takes nothing from it
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    // review I-1: the modal owns Escape even while focus is outside it (a click on its backdrop leaves focus on <body>)
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Upload schedule' }));
+    (document.activeElement as HTMLElement).blur();
+    // present control: the press lands on <body>
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Upload schedule' })).toBeInTheDocument();
+  });
+
+  it('ignores an Escape whose target is outside what the workspace renders (the help panel, w9)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // another surface of the page, beside the container the workspace is rendered into
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    try {
+      fireEvent.keyDown(outside, { key: 'Escape' });
+    } finally {
+      outside.remove();
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the help panel's shape, a NON-modal dialog, were it ever mounted inside the root: the dialog rule keeps its
+    // Escape from the page (the modal rule does not match it)
+    const panel = document.createElement('div');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'false');
+    const composer = document.createElement('button');
+    panel.appendChild(composer);
+    screen.getByRole('region', { name: 'Sourcing map' }).appendChild(panel);
+    try {
+      composer.focus();
+      // present control: the press lands inside the dialog
+      expect(composer).toHaveFocus();
+      fireEvent.keyDown(composer, { key: 'Escape' });
+    } finally {
+      panel.remove();
+    }
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    // the page itself is no other surface: a press on <html> closes a layer, as one on <body> does
+    fireEvent.keyDown(document.documentElement, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
+
+  it('ignores an Escape on a <select>, whose list uses it (w4)', () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText('Result'), { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+  });
+
+  it('does not close Configure while its Apply is in flight (w5)', async () => {
+    const slowApply = deferred();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return slowApply.promise;
+      return reply(404, {});
+    });
+    mount();
+    applyDepthCap4();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByRole('complementary', { name: 'Configure run' })).toBeInTheDocument();
+    await settle(() => slowApply.resolve(reply(200, { template: DEPTH_4 })));
+    // the answer closed the tray; opened again it closes on Escape, because the tray also reports that nothing is in flight
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull();
+  });
+
+  it('on a running execution Hide all paths is unavailable and says why; Escape still closes the details (§9.5)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // control: León's details are open, so a path is open
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    const hide = screen.getByRole('button', { name: 'Hide all paths' });
+    expect(hide).toHaveAttribute('aria-disabled', 'true');
+    expect(hide).toHaveAccessibleDescription('Available when the run completes.');
+    // Escape is not disabled (§9.5): it closes the details
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('complementary', { name: 'Details for León Cuero' })).toBeNull();
+  });
+
+  it('the switch turns the link heat off and on, stores the choice, and a stored off is honoured on mount', async () => {
+    const linkStrokes = () => Array.from(document.querySelectorAll<SVGPathElement>('svg[data-map-links] path[data-link]')).map((p) => p.style.stroke);
+    const first = mount(multitierDetail, [multitierDetail.execution]);
+    // control: the heat is on at first paint, so some link carries a heat colour
+    const heatSwitch = await screen.findByRole('button', { name: 'Heat on links: on' });
+    expect(linkStrokes().some((s) => s.startsWith('var(--sm-heat-'))).toBe(true);
+    fireEvent.click(heatSwitch);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Heat on links: off' })).toHaveAttribute('aria-pressed', 'false');
+    expect(window.localStorage.getItem('sm.heat')).toBe('off');
+    // a second press: the heat is back, and stored as on
+    fireEvent.click(screen.getByRole('button', { name: 'Heat on links: off' }));
+    expect(screen.getByRole('button', { name: 'Heat on links: on' })).toBeInTheDocument();
+    expect(linkStrokes().some((s) => s.startsWith('var(--sm-heat-'))).toBe(true);
+    expect(window.localStorage.getItem('sm.heat')).toBe('on');
+    // a stored off is honoured by a fresh mount
+    first.unmount();
+    window.localStorage.setItem('sm.heat', 'off');
+    mount(multitierDetail, [multitierDetail.execution]);
+    expect(await screen.findByRole('button', { name: 'Heat on links: off' })).toHaveAttribute('aria-pressed', 'false');
+    expect(linkStrokes().length).toBeGreaterThan(0);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+  });
+
+  it('on a running execution the heat switch is unavailable and says why, and the links keep the stored setting (§9.5)', async () => {
+    window.localStorage.setItem('sm.heat', 'off');
+    const linkStrokes = () => Array.from(document.querySelectorAll<SVGPathElement>('svg[data-map-links] path[data-link]')).map((p) => p.style.stroke);
+    mount(throttledDetail, [throttledDetail.execution]);
+    const heatSwitch = await screen.findByRole('button', { name: 'Heat on links: off' });
+    expect(linkStrokes().length).toBeGreaterThan(0);
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(heatSwitch).toHaveAttribute('aria-disabled', 'true');
+    expect(heatSwitch).toHaveAccessibleDescription('Available when the run completes.');
+    // a press changes neither the links nor the stored value
+    fireEvent.click(heatSwitch);
+    expect(screen.getByRole('button', { name: 'Heat on links: off' })).toBeInTheDocument();
+    expect(linkStrokes().filter((s) => s !== 'var(--sm-line-2)')).toEqual([]);
+    expect(window.localStorage.getItem('sm.heat')).toBe('off');
+  });
+
+  it('on a running execution the Path beneath tab is unavailable and says why (§9.5)', async () => {
+    mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    const tab = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('tab', { name: 'Path beneath' });
+    expect(tab).toHaveAttribute('aria-disabled', 'true');
+    expect(tab).toHaveAccessibleDescription('Available when the run completes.');
+    await panelsSettled();
+  });
+
+  it('a Path beneath row opens that alias’s handle panel on this card; Close returns focus to the row and the details come back on Path beneath (§7)', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    const leon = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+    const pathTab = within(leon).getByRole('tab', { name: 'Path beneath' });
+    fireEvent.click(pathTab);
+    const rowA = within(within(leon).getByRole('tabpanel', { name: 'Path beneath' })).getByRole('button', { name: /^A · IT/ });
+    fireEvent.click(rowA);
+    const panel = screen.getByRole('complementary', { name: 'Details for supplier A' });
+    // the handle is León's own copy of A: the trace role is León's
+    expect(within(panel).getByText('binding')).toBeInTheDocument();
+    // ruling F3: where row A stood when focus() was called on it. jsdom focuses inside a hidden subtree; a browser does not.
+    let hiddenAt: Element | null | undefined;
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+      if (this === rowA) hiddenAt = this.closest('[hidden]');
+      focus.call(this, options);
+    });
+    try {
+      fireEvent.click(within(panel).getByRole('button', { name: 'Close handle details' }));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(rowA).toHaveFocus();
+    // the details were hidden under the handle panel, never unmounted: they come back on Path beneath
+    expect(pathTab).toHaveAttribute('aria-selected', 'true');
+    // F3: focused only once the details are shown again, never while they were still hidden under the handle panel
+    expect(hiddenAt).toBeNull();
+    // Escape closes the panel as Close does: back to the row (§6.5)
+    fireEvent.click(rowA);
+    fireEvent.keyDown(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('heading', { name: 'Supplier A · tier 2' }), { key: 'Escape' });
+    expect(rowA).toHaveFocus();
+    // a new pick opens on Details: the panel is keyed by the pick, and the tab is the panel's own
+    fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true');
+    await panelsSettled();
+  });
+
+  it('a handle panel whose opening row has gone closes back to the map handle, never <body>; a pressed map handle pressed again keeps the focus (R7)', async () => {
+    mount(compareDetail, [compareDetail.execution]);
+    const leonCard = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mapA = () => within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ });
+    const openFromRowA = () => {
+      const leon = screen.getByRole('complementary', { name: 'Details for León Cuero' });
+      fireEvent.click(within(leon).getByRole('tab', { name: 'Path beneath' }));
+      fireEvent.click(within(within(leon).getByRole('tabpanel', { name: 'Path beneath' })).getByRole('button', { name: /^A · IT/ }));
+    };
+    fireEvent.click(leonCard);
+    openFromRowA();
+    // Hide all paths closes the details, and the row with them; the handle panel stays (§6.4)
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('button', { name: 'Close handle details' }));
+    expect(mapA()).toHaveFocus();
+    // opened from the row again; the map's handle, pressed while its panel shows, closes it and keeps the focus, whatever opened it
+    fireEvent.click(leonCard);
+    openFromRowA();
+    fireEvent.click(mapA());
+    expect(screen.queryByRole('complementary', { name: 'Details for supplier A' })).toBeNull();
+    expect(mapA()).toHaveFocus();
+    await panelsSettled();
+  });
+
+  it('Pin keeps the details open and marks the card; selecting another card keeps the pin, and only the active card reads pressed (§6.2)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    // LF-R9: a card's wrapper takes its lane's height from layoutMap, and the pin adds no line to any card
+    const heights = () => Array.from(document.querySelectorAll('article')).map((a) => a.parentElement!.style.height);
+    const before = heights();
+    fireEvent.click(leon);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    // the details stay open: the card is now both active and pinned
+    expect(screen.getByRole('complementary', { name: 'Details for León Cuero' })).toBeInTheDocument();
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // another card becomes the active one; the pin stays
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    fireEvent.click(mekong);
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // aria-pressed is the active card's alone
+    expect(leon).toHaveAttribute('aria-pressed', 'false');
+    expect(mekong).toHaveAttribute('aria-pressed', 'true');
+    // the details are the active card's, and Mekong is not the pinned card
+    expect(within(screen.getByRole('complementary', { name: 'Details for Mekong Tannery' })).getByRole('button', { name: 'Pin' })).toBeInTheDocument();
+    expect(heights()).toEqual(before);
+    // selecting the pinned card makes it the active card too, and it stays pinned (§6.2: the prototype's toggle would unpin it)
+    fireEvent.click(leon);
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Unpin' })).toBeInTheDocument();
+    expect(leon).toHaveAttribute('aria-pressed', 'true');
+    // Close details closes the active card's details only; the pin stays
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Close details' }));
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    await panelsSettled();
+  });
+
+  it('a second Pin replaces the first, and Unpin clears the pin only', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    const details = (name: string) => screen.getByRole('complementary', { name: `Details for ${name}` });
+    // Step 4's state: León pinned, Mekong active
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(mekong);
+    // Pin on Mekong: it replaces León's pin
+    fireEvent.click(within(details('Mekong Tannery')).getByRole('button', { name: 'Pin' }));
+    expect(within(mekong.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    expect(within(leon.closest('article')!).queryByText('Pinned')).toBeNull();
+    // Unpin, on the pinned card's details
+    fireEvent.click(within(details('Mekong Tannery')).getByRole('button', { name: 'Unpin' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // the pin only: Mekong stays the active card, its details open
+    expect(details('Mekong Tannery')).toBeInTheDocument();
+    await panelsSettled();
+  });
+
+  it('the pin is cleared by Hide all paths, by collapsing its lane and by a switch of result; Configure leaves it (§6.2)', async () => {
+    // another result of the run: the multitier result again under another id (the stub of the R3 switch pin, with a
+    // result whose León can be pinned, so the lines after the switch run on it)
+    const other: SmExecutionDetail = { ...multitierDetail, execution: { ...multitierDetail.execution, execution_id: VOMERO_IDS.executionOld, created_at: '2026-09-20T10:00:00.000Z', started_at: '2026-09-20T10:00:00.000Z' } };
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/estimate')) return reply(200, vomeroEstimate);
+      if (url.endsWith(`/executions/${VOMERO_IDS.executionOld}`)) return reply(200, other);
+      if (url.endsWith(`/runs/${VOMERO_IDS.template}`) && init?.method === 'PATCH') return reply(200, { template: DEPTH_4 });
+      return reply(404, {});
+    });
+    mount(multitierDetail, [multitierDetail.execution, other.execution]);
+    const leon = () => screen.getByRole('button', { name: /^León Cuero, MX/ });
+    const pinLeon = () => {
+      fireEvent.click(leon());
+      fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    };
+    await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    // Hide all paths clears the active card and the pinned card
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide all paths' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    // collapsing the pinned card's lane clears the pin, as it clears a selection there; another lane's active card stays
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: /^Zephyr Compounds, DE/ }));
+    // only the pinned card's lane: collapsing another lane (Zephyr's) leaves the pin; Zephyr, closed with it, is selected again
+    const zephyrRail = within(screen.getByRole('group', { name: 'Rubber outsoles' })).getByRole('button', { name: 'Rubber outsoles' });
+    fireEvent.click(zephyrRail);
+    fireEvent.click(zephyrRail);
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Zephyr Compounds, DE/ }));
+    const rail = within(screen.getByRole('group', { name: 'Full grain leather hides' })).getByRole('button', { name: 'Full grain leather hides' });
+    fireEvent.click(rail);
+    fireEvent.click(rail);
+    expect(within(leon().closest('article')!).queryByText('Pinned')).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Details for Zephyr Compounds' })).toBeInTheDocument();
+    // a switch of result: the pin named a card of the result just replaced
+    pinLeon();
+    pick(VOMERO_IDS.executionOld);
+    await waitFor(() => expect(picked()).toBe(VOMERO_IDS.executionOld));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // Configure opened and closed leaves the pin (it closes the details only)
+    pinLeon();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure' }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Configure run' })).getByRole('button', { name: 'Close' }));
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // and so does an Apply
+    applyDepthCap4();
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Configure run' })).toBeNull());
+    expect(within(leon().closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // a wait: the new scope's readiness has answered (Run leaves "Checking…")
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Run' })).not.toHaveAttribute('aria-disabled'));
+  });
+
+  it('with a pin and nothing else open, Escape clears it; before that it closes the details and leaves the pin (§6.5)', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const escape = () => fireEvent.keyDown(document.body, { key: 'Escape' });
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    fireEvent.click(leon);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    // the first press closes the details (step 2) and leaves the pin
+    escape();
+    expect(screen.queryByRole('complementary', { name: /^Details for/ })).toBeNull();
+    expect(within(leon.closest('article')!).getByText('Pinned')).toBeInTheDocument();
+    // a path remains, so Hide all paths is still available
+    expect(screen.getByRole('button', { name: 'Hide all paths' })).not.toHaveAttribute('aria-disabled');
+    // the second press clears the pin (step 4: Hide all paths)
+    escape();
+    expect(screen.queryByText('Pinned')).toBeNull();
+    // the third: nothing is open, so it changes nothing and throws nothing (jsdom reports a listener's throw as an
+    // error event on the window, never to the caller)
+    const thrown = vi.fn();
+    window.addEventListener('error', thrown);
+    escape();
+    window.removeEventListener('error', thrown);
+    expect(thrown).not.toHaveBeenCalled();
+    await panelsSettled();
+  });
+
+  it('Pin is unavailable with its reason on a running execution and on a card that cannot be pinned; a handle on the pinned card shows its trace role', async () => {
+    const throttled = mount(throttledDetail, [throttledDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^León Cuero, MX/ }));
+    // a running execution has no projection yet (§9.5)
+    const pin = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' });
+    expect(pin).toHaveAttribute('aria-disabled', 'true');
+    expect(pin).toHaveAccessibleDescription('Available when the run completes.');
+    // LF final review m-A: the Path beneath tab shares Pin's reason, which shows once
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getAllByText('Available when the run completes.')).toHaveLength(1);
+    throttled.unmount();
+    // a complete result: Arno timed out, so it never answered and cannot be pinned
+    mount(multitierDetail, [multitierDetail.execution]);
+    fireEvent.click(await screen.findByRole('button', { name: /^Arno Pelli, IT/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for Arno Pelli' })).getByRole('button', { name: 'Pin' })).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    // LF final review m-A: Pin and the Path beneath tab are unavailable for the same reason, and it shows once
+    expect(within(screen.getByRole('complementary', { name: 'Details for Arno Pelli' })).getAllByText('Nothing was traced beneath this option.')).toHaveLength(1);
+    // a handle pressed on the pinned card, while another card is active, shows its role on the pinned card's trace
+    fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Mekong Tannery, VN/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByText('binding')).toBeInTheDocument();
+    // Close returns focus to the handle it was pressed on, under the pinned card, never the active card's copy of A
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for supplier A' })).getByRole('button', { name: 'Close handle details' }));
+    expect(within(screen.getByRole('group', { name: 'Tier 2 under León Cuero' })).getByRole('button', { name: /^A · IT · Dyes/ })).toHaveFocus();
+    await panelsSettled();
+  });
+
+  it('the strip shows above the tabs while another card is pinned, on both tabs; Unpin in it clears the pin and hands focus to the Pin button, never <body>', async () => {
+    mount(multitierDetail, [multitierDetail.execution]);
+    const leon = await screen.findByRole('button', { name: /^León Cuero, MX/ });
+    const mekong = screen.getByRole('button', { name: /^Mekong Tannery, VN/ });
+    const details = (name: string) => screen.getByRole('complementary', { name: `Details for ${name}` });
+    const strip = () => screen.queryByRole('table', { name: 'Compare pinned and active' });
+    // León pinned, Mekong active: the strip precedes the tablist, outside it
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(mekong);
+    const tablist = within(details('Mekong Tannery')).getByRole('tablist', { name: 'Option details' });
+    expect(strip()).toBeInTheDocument();
+    expect(strip()!.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // it stays while Path beneath is the selected tab
+    fireEvent.click(within(tablist).getByRole('tab', { name: 'Path beneath' }));
+    expect(strip()).toBeInTheDocument();
+    // the pinned card is the active one: nothing to compare it with
+    fireEvent.click(leon);
+    expect(strip()).toBeNull();
+    // Mekong again, and Unpin in the strip: the pin goes, and focus goes to the details' Pin button, never <body>
+    fireEvent.click(mekong);
+    const unpin = within(strip()!).getByRole('button', { name: 'Unpin León Cuero' });
+    unpin.focus();
+    fireEvent.click(unpin);
+    expect(strip()).toBeNull();
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(within(details('Mekong Tannery')).getByRole('button', { name: 'Pin' })).toHaveFocus();
+    // two slots through the workspace: León (leather) pinned, FlowKnit (uppers) active; each header names its own slot (I-1)
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(screen.getByRole('button', { name: /^FlowKnit Mills/ }));
+    expect(within(strip()!).getByText('León Cuero (pinned) · Full grain leather hides')).toBeInTheDocument();
+    expect(within(strip()!).getByText('FlowKnit Mills · Polyester knit uppers')).toBeInTheDocument();
+    // Unpin from the strip while the active card's Pin is unavailable (Arno never answered): focus stays on that Pin, never <body>
+    fireEvent.click(screen.getByRole('button', { name: /^Arno Pelli, IT/ }));
+    const arnoUnpin = within(strip()!).getByRole('button', { name: 'Unpin León Cuero' });
+    arnoUnpin.focus();
+    fireEvent.click(arnoUnpin);
+    expect(strip()).toBeNull();
+    expect(within(details('Arno Pelli')).getByRole('button', { name: 'Pin' })).toHaveFocus();
+    await panelsSettled();
+    await panelsSettled();
+  });
+
   describe('"Open map": ?execution=&option= seeds the selection once, on mount (spec §12.1, G-35)', () => {
     const real = withRealKeys(multitierDetail);
     const leon = real.result!.slots[0]!.candidates[0]!;
