@@ -1,7 +1,7 @@
 // src/components/help/help-composer.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import { HELP_MESSAGE_MAX_CHARS, type HelpLanguage } from '@haiwave/protocol';
 import { t } from './strings';
 
@@ -10,9 +10,10 @@ interface HelpComposerProps {
   streaming: boolean;
   onSend(text: string): void;
   onStop(): void;
+  ref?: Ref<HTMLTextAreaElement>;
 }
 
-export function HelpComposer({ language, streaming, onSend, onStop }: HelpComposerProps) {
+export function HelpComposer({ language, streaming, onSend, onStop, ref }: HelpComposerProps) {
   const [text, setText] = useState('');
 
   const submit = () => {
@@ -31,6 +32,7 @@ export function HelpComposer({ language, streaming, onSend, onStop }: HelpCompos
       }}
     >
       <textarea
+        ref={ref}
         aria-label={t(language, 'messageLabel')}
         placeholder={t(language, 'placeholder')}
         value={text}
