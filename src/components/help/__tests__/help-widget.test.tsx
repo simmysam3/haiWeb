@@ -977,4 +977,45 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(await screen.findByText('Answered after all.')).toBeInTheDocument();
     expect(helpBodies().map((b) => b.message)).toEqual([QUESTION, 'Another question', QUESTION]);
   });
+
+  // The summary that lands must be the one asked for last, not merely one while a request is in flight.
+  it("an old conversation's support summary that lands while the new conversation's is pending is dropped, and the new one shows", async () => {
+    const CONV2 = '1c9b6b63-69c7-4b9f-8b4a-0b2e5d8a2a21';
+    const UMSG2 = 'f9b8c7d6-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+    const AMSG2 = 'e8a7b6c5-4d3e-4f2a-9b1c-0d9e8f7a6b5c';
+    const pending = holdCaseSummaries();
+    replies.push(sseResponse(answer('Answer one.')));
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    await screen.findByText('Answer one.');
+    await stored(AMSG);
+    fireEvent.click(footerSummarize());
+    fireEvent.click(screen.getByRole('button', { name: 'Start a new conversation' }));
+    replies.push(
+      sseResponse(
+        ev('meta', { ...meta({ redacted_message: 'And another thing?' }), conversation_id: CONV2, user_message_id: UMSG2 }) +
+          ev('delta', { text: 'Answer two.' }) +
+          ev('done', { ...DONE, assistant_message_id: AMSG2 }),
+      ),
+    );
+    ask('And another thing?');
+    await screen.findByText('Answer two.');
+    await stored(AMSG2);
+    fireEvent.click(footerSummarize());
+    expect(caseSummaryPosts().map(([u]) => u)).toEqual([
+      `/api/help/conversations/${CONV}/case-summary`,
+      `/api/help/conversations/${CONV2}/case-summary`,
+    ]);
+    await act(async () => {
+      pending[0](jsonResponse(200, { summary: 'Summary of the OLD conversation', contact: 'support@haiwave.ai' }));
+      await new Promise((resolve) => setTimeout(resolve, 50)); // let the old request's answer land
+    });
+    expect(screen.queryByText('Summary of the OLD conversation')).toBeNull();
+    await act(async () => {
+      pending[1](jsonResponse(200, { summary: 'Summary of the NEW conversation', contact: 'support@haiwave.ai' }));
+    });
+    expect(await screen.findByText('Summary of the NEW conversation')).toBeInTheDocument();
+    expect(screen.queryByText('Summary of the OLD conversation')).toBeNull();
+  });
 });
