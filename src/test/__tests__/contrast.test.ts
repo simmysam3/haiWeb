@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { contrastRatio, consoleColor, textToken, groundToken, ratioOn } from '../contrast';
+import { contrastRatio, consoleColor, textToken, groundToken, ratioOn, smTextColor, smGroundColor, smRatioOn, smWorstRatio } from '../contrast';
 
 describe('contrast instrument', () => {
   it('reproduces the measured ratios in hundredths: 416, 227, 541, 1047 (present control)', () => {
@@ -35,5 +35,48 @@ describe('contrast instrument', () => {
 
     host.innerHTML = '<div><span class="text-teal-dark">x</span></div>';
     expect(() => groundToken(host.querySelector('span') as HTMLElement)).toThrow(/no ground/);
+  });
+
+  it('reads a Sourcing Map class through sourcing-map.css to its theme token, in both themes (present control)', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="sm-root"><div class="sm-card"><span class="sm-muted text-xs">x</span></div><b>y</b></div>';
+    const span = host.querySelector('span') as HTMLElement;
+    expect(smTextColor(span, 'dark')).toBe('#B9C2CC');
+    expect(smTextColor(span, 'light')).toBe('#475569');
+    expect(smGroundColor(span, 'dark')).toBe('#212846');
+    expect(smGroundColor(span, 'light')).toBe('#FFFFFF');
+    const bold = host.querySelector('b') as HTMLElement;
+    expect(smTextColor(bold, 'dark')).toBe('#E8EBF0');
+    expect(smGroundColor(bold, 'dark')).toBe('#10132A');
+  });
+
+  it('measures the pair in each theme and reports the worse', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="sm-root"><div class="sm-surface"><span class="sm-muted">x</span></div></div>';
+    const span = host.querySelector('span') as HTMLElement;
+    expect(Math.round(smRatioOn(span, 'dark') * 100)).toBe(901);
+    expect(Math.round(smRatioOn(span, 'light') * 100)).toBe(758);
+    expect(Math.round(smWorstRatio(span) * 100)).toBe(758);
+  });
+
+  it('reads a brand class as its hex in both themes, and throws on a colour it does not know or a ground it cannot find', () => {
+    const host = document.createElement('div');
+    host.innerHTML = '<div class="sm-root"><div class="sm-surface"><span class="text-xs text-slate">x</span></div></div>';
+    expect(Math.round(smWorstRatio(host.querySelector('span') as HTMLElement) * 100)).toBe(341);
+
+    host.innerHTML = '<div class="sm-root"><div class="sm-surface"><span class="text-red-900">x</span></div></div>';
+    expect(() => smWorstRatio(host.querySelector('span') as HTMLElement)).toThrow(/unknown colour class/);
+
+    host.innerHTML = '<div class="sm-root"><div class="bg-black/60"><span class="sm-muted">x</span></div></div>';
+    expect(() => smWorstRatio(host.querySelector('span') as HTMLElement)).toThrow(/unknown colour class/);
+
+    host.innerHTML = '<div><span class="text-slate">x</span></div>';
+    expect(() => smWorstRatio(host.querySelector('span') as HTMLElement)).toThrow(/no ground/);
+
+    host.innerHTML = '<div class="sm-root"><span class="sm-btn-primary">x</span></div>';
+    expect(() => smWorstRatio(host.querySelector('span') as HTMLElement)).toThrow(/not a theme token/);
+
+    host.innerHTML = '<div class="sm-surface"><span class="text-xs">x</span></div>';
+    expect(() => smWorstRatio(host.querySelector('span') as HTMLElement)).toThrow(/no text colour/);
   });
 });

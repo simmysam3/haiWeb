@@ -208,22 +208,30 @@ export function GuardRulesMatrix({ initialMatrix, defaultAlertEmail, initialRule
           Test rules
         </Button>
       </div>
-      <div
-        role="grid"
-        className="grid grid-cols-6 gap-px bg-slate/15 border border-slate/15 rounded-md overflow-hidden"
-      >
-        <div className="bg-light-gray p-3 text-xs font-semibold text-charcoal">Rule \ Class</div>
-        <div className="bg-light-gray p-3 text-xs font-semibold text-charcoal">
-          All counterparties
-        </div>
-        {TRUST_CLASSES.map((tc) => (
-          <div key={tc} className="bg-light-gray p-3 text-xs font-semibold text-charcoal">
-            {TRUST_CLASS_LABEL[tc]}
-          </div>
-        ))}
-        {RULE_TYPES.map((rt) => (
-          <RuleRow key={rt} rt={rt} find={find} onCellClick={(tc) => setOpen({ tc, rt })} />
-        ))}
+      <div className="overflow-hidden rounded-md">
+        <table className="w-full table-fixed border-separate border-spacing-px bg-slate/15">
+          <caption className="sr-only">Query Guard rules by rule type and trust class</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="bg-light-gray p-3 text-left text-xs font-semibold text-charcoal">
+                Rule \ Class
+              </th>
+              <th scope="col" className="bg-light-gray p-3 text-left text-xs font-semibold text-charcoal">
+                All counterparties
+              </th>
+              {TRUST_CLASSES.map((tc) => (
+                <th key={tc} scope="col" className="bg-light-gray p-3 text-left text-xs font-semibold text-charcoal">
+                  {TRUST_CLASS_LABEL[tc]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {RULE_TYPES.map((rt) => (
+              <RuleRow key={rt} rt={rt} find={find} onCellClick={(tc) => setOpen({ tc, rt })} />
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <GuardSummary matrix={matrix} />
@@ -273,36 +281,36 @@ function RuleRow({
 }) {
   const columns: (TrustClass | null)[] = [null, ...TRUST_CLASSES];
   return (
-    <>
-      <div className="bg-white p-3 text-sm font-medium text-charcoal">
+    <tr>
+      <th scope="row" className="bg-white p-3 text-left text-sm font-medium text-charcoal">
         {RULE_TYPE_LABEL[rt]}
         {rt === 'excess_volume' && (
           <span className="mt-1 block text-[10px] font-normal text-slate">
             Requires counterparty agent &ge; protocol v3.51
           </span>
         )}
-      </div>
+      </th>
       {columns.map((tc) => {
         const cell = find(tc, rt);
         return (
-          <button
-            key={`${rt}-${tc ?? 'global'}`}
-            type="button"
-            role="gridcell"
-            aria-label={`${rt} rule for ${tc === null ? 'all counterparties' : tc}`}
-            className="bg-white p-3 text-left hover:bg-light-gray transition-colors"
-            onClick={() => onCellClick(tc)}
-          >
-            <span className="block text-sm text-charcoal">{formatCell(cell)}</span>
-            <span
-              className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${chipClass(cell.source)}`}
+          <td key={`${rt}-${tc ?? 'global'}`} className="bg-white p-0">
+            <button
+              type="button"
+              aria-label={`${rt} rule for ${tc === null ? 'all counterparties' : tc}`}
+              className="block w-full p-3 text-left hover:bg-light-gray transition-colors"
+              onClick={() => onCellClick(tc)}
             >
-              {SOURCE_LABEL[cell.source]}
-            </span>
-          </button>
+              <span className="block text-sm text-charcoal">{formatCell(cell)}</span>
+              <span
+                className={`mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${chipClass(cell.source)}`}
+              >
+                {SOURCE_LABEL[cell.source]}
+              </span>
+            </button>
+          </td>
         );
       })}
-    </>
+    </tr>
   );
 }
 

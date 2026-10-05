@@ -27,13 +27,14 @@ Determined by tracing what the build (`tsc -b`), the Docker image (`Dockerfile`)
 - Code/build: `src/`, `packages/`, `haicore-protocol/`, `frontend/`, `public/`, `config/`
 - Manifests/build config: `package.json`, `package-lock.json`, `tsconfig.json`, `tsconfig.typecheck.json`, `vitest.config.ts`
 - Container: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, and the three Dockerfile-required scripts `scripts/docker-entrypoint.sh`, `scripts/seed-config.mjs`, `scripts/hash-chat-password.mjs` (entrypoint runs seed-config, which imports hash-chat-password)
-- Adopter docs/meta: `README.md`, `UPGRADING.md`, `CHANGELOG.md`, `LICENSE`, `.env.example`, `.gitignore`
+- Adopter docs/meta: `README.md`, `UPGRADING.md`, `LICENSE`, `.env.example`, `.gitignore`
+  - `CHANGELOG.md` was on this list until 2026-10-04, when the owner took it out of the archive: it is internal release history (register ids, PR numbers, demo names), and `UPGRADING.md` is the adopter's upgrade document.
 
 `.gitattributes` is deliberately **not** shipped — it enumerates our excluded internal paths (a roadmap of what we hold back). `git archive` reads `.gitattributes` from the tree to *apply* the `export-ignore` rules regardless of the pathspec, so omitting it from the allowlist drops the file from the output while its rules still function.
 
 ### Excluded by default (not in the allowlist)
 
-`CLAUDE.md`, `.gitattributes` (excluded-paths roadmap), `kill-agents.ps1`, `kill-all.ps1`, `deploy-agent.sh`, `docs/`, all other `scripts/*`, `seed-data/`, `test-environment/`, `e2e/`, `seed-products.mjs`, and (gitignored anyway) `data/`, `dist/`, `node_modules/`.
+`CLAUDE.md`, `CHANGELOG.md` (since 2026-10-04), `.gitattributes` (excluded-paths roadmap), `kill-agents.ps1`, `kill-all.ps1`, `deploy-agent.sh`, `docs/`, all other `scripts/*`, `seed-data/`, `test-environment/`, `e2e/`, `seed-products.mjs`, and (gitignored anyway) `data/`, `dist/`, `node_modules/`.
 
 ### Tests — conformance kit only
 
@@ -95,3 +96,7 @@ customer-safety read (spec DESIGN-2026-10-03-console-help-agent §5.3 exclusions
 `~/dev/hw/reports/REPORT-2026-10-04-agent-docs-customer-safety.md`) and the owner has approved it. Each is listed by exact
 path in `ALLOWLIST`; the invariant test requires every approved doc to ship and refuses any `docs` entry that is not
 one approved file. They also feed the HAIWAVE Help knowledge pack (Task 1.8 reads every top-level `docs/*.md` in the zip).
+
+Approved so far:
+- 2026-10-04: `docs/identity-provider.md`, `docs/typed-memory.md`.
+- 2026-10-05: `docs/counterparty-sync.md`, `docs/erp-connector.md`, `docs/erp-write-enable.md`, `docs/work-queue.md`. These were fixed upstream for customer use (haiClient PR #290, merged as `d7a69aa3`), each re-read, and then approved by the owner.

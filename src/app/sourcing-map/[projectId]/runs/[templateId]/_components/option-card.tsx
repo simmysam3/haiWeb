@@ -1,14 +1,13 @@
 'use client';
 import type { SmCandidateResult2 as SmCandidateResult, SmPortfolioDrop, SmSlotResult2 as SmSlotResult } from '@/lib/sourcing-map/types';
-import { availabilityReason, availabilityText, candidateKeyOf, candidateWeekAt, cardSummaryText, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, traceable, unobservedTier, utilizationText } from '@/lib/sourcing-map/map/selectors';
+import { availabilityReason, availabilityText, candidateKeyOf, candidateWeekAt, cardSummaryText, gapText, heatOf, limitReason, slotDemandAt, slotWeekFor, traceable, unobservedTier } from '@/lib/sourcing-map/map/selectors';
 import { Pill } from '@/components/pill';
 import { DetailChevron } from '@/components/sonar/observations/detail-chevron';
 import { DropPips } from './drop-pips';
 import { TierRows } from './tier-rows';
+import { UtilizationBar } from './utilization-bar';
 
 const TONE = { good: 'success', mid: 'warn', bad: 'problem' } as const;
-/** The utilization bar's segments, in band order, with the tones `pill.tsx`'s `sm_utilization` map gives the same bands (AR-6). */
-const UTIL_BANDS = [['low', 'success'], ['moderate', 'info'], ['high', 'warn'], ['at_capacity', 'problem']] as const;
 // The D-148 disclosure ceiling, in the user's words; the internal register id stays out of the copy (L296).
 /** Contract §9: the card's and the handle panel's copy for a seat that answers for itself only. */
 export const NOT_TRACED_NOTE = 'not traced below (answers for itself only)';
@@ -27,10 +26,13 @@ const OWN_CONTROL = 'a, button, input, select, textarea, [tabindex]';
 export function OptionCard({
   slot, candidate: c, asOfDrop, drops, selected, onSelect,
   traced = false, selectedAlias = null, onSelectAlias = () => undefined, hoveredAlias = null, onHoverAlias = () => undefined,
+  pinned = false,
 }: {
   slot: SmSlotResult; candidate: SmCandidateResult; asOfDrop: string | null; drops: SmPortfolioDrop[]; selected: boolean; onSelect(): void;
   /** SP2 (spec §12.1, §12.3): the tier rows' state, owned by the map; every SP1 call site can omit them */
   traced?: boolean; selectedAlias?: string | null; onSelectAlias?(alias: string | null, origin: string): void; hoveredAlias?: string | null; onHoverAlias?(alias: string | null): void;
+  /** LF (spec §6.2): the pinned card says so in its footer row; aria-pressed stays the active card's */
+  pinned?: boolean;
 }) {
   const week = slotWeekFor(slot, asOfDrop);
   const demand = slotDemandAt(slot, week);
@@ -43,8 +45,8 @@ export function OptionCard({
   const note = c.not_traced_below === true ? NOT_TRACED_NOTE : unobserved !== null ? `not fully observed below tier ${unobserved}` : null;
   const summary = cardSummaryText(c);
   const util = summary !== null && c.aggregates != null ? c.aggregates.utilization : null;
-  const segments = util === null ? [] : UTIL_BANDS.filter(([k]) => util[k] > 0);
   const name = `${c.supplier_name}${c.supplier_country ? `, ${c.supplier_country}` : ''}`;
+  const label = gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${note !== null ? `; ${note}` : ''}`;
   return (
     <article
       // A mouse click anywhere else on the card also selects; the button handles its own clicks and keys.
@@ -65,7 +67,7 @@ export function OptionCard({
         data-anchor={candidateKeyOf(c)}
         onClick={onSelect}
         aria-pressed={selected}
-        aria-label={gap ? `${name}: ${gap}` : `${name}: ${availability}; ${limit}${note !== null ? `; ${note}` : ''}`}
+        aria-label={pinned ? `${label}; pinned` : label}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="truncate text-sm font-semibold" title={c.supplier_name}>{c.supplier_name}</span>
@@ -96,14 +98,8 @@ export function OptionCard({
       <span className="mt-auto flex flex-col pt-2">
         {summary !== null && <span className="truncate" title={summary}>{summary}</span>}
         <span className={`flex items-center gap-2 ${summary !== null ? 'mt-1' : ''}`}>
-          {util !== null && segments.length > 0 && (
-            <span role="img" aria-label={`Utilization below tier 1: ${utilizationText(util)}`} className="flex h-1.5 w-16 overflow-hidden rounded-full">
-              {segments.map(([k, tone]) => (
-                <span key={k} data-util={k} style={{ flexGrow: util[k], background: `var(--sm-pill-${tone}-fg)` }} />
-              ))}
-            </span>
-          )}
-          {traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
+          {util !== null && <UtilizationBar utilization={util} />}
+          {pinned ? <span className="sm-muted">Pinned</span> : traceable(c) && !selected && <span className="sm-muted">Select to trace</span>}
           <span className="ml-auto flex"><DetailChevron /></span>
         </span>
       </span>

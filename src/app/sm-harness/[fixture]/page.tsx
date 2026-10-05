@@ -4,7 +4,7 @@ import { Harness, type HarnessFixture } from './harness';
 /** Never prerendered: the gate reads the server's environment at request time. */
 export const dynamic = 'force-dynamic';
 
-const FIXTURES: readonly string[] = ['multitier', 'throttled', 'not-traced', 'supply-risks', 'demand-exceptions'];
+const FIXTURES: readonly string[] = ['multitier', 'throttled', 'not-traced', 'supply-risks', 'demand-exceptions', 'compare'];
 
 /**
  * The browser harness (SP2 plan Task 13, SP3-d Task 12; spec §12.6): the run workspace on the SP2-0 fixtures, the not-traced variant, and the two backlog tables on the SP3 fixtures with no session and

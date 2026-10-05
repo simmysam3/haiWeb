@@ -69,7 +69,7 @@ describe('TrustPosturePage', () => {
     expect(alert.textContent).toMatch(/unable to load trust posture/i);
     expect(alert.textContent).toMatch(/503/);
     // Grid still rendered (12 default cells) so the page is usable
-    expect(screen.getAllByRole('gridcell').length).toBe(12);
+    expect(screen.getAllByRole('cell').length).toBe(12);
   });
 
   it('shows an error banner when fetch itself rejects (network error)', async () => {
@@ -83,7 +83,7 @@ describe('TrustPosturePage', () => {
     expect(alert).toBeInTheDocument();
     expect(alert.textContent).toMatch(/unable to reach the trust posture service/i);
     // Grid still rendered with spec defaults
-    expect(screen.getAllByRole('gridcell').length).toBe(12);
+    expect(screen.getAllByRole('cell').length).toBe(12);
   });
 
   it('synthesised default grid uses permissive for phantom_demand (spec §6.2)', async () => {
@@ -117,7 +117,7 @@ describe('TrustPosturePage', () => {
     const Page = (await import('../page')).default;
     const ui = await Page();
     render(ui as React.ReactElement);
-    const grid = screen.getByRole('grid');
+    const grid = screen.getByRole('table');
     const box = screen.getByRole('switch');
     expect(grid).not.toContainElement(box);
     expect(grid.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
