@@ -766,4 +766,26 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(screen.getByText('Retried answer.')).toBeInTheDocument();
     expect(screen.queryByText('Automatic resend.')).toBeNull();
   });
+
+  it('a question rate-limited just before leaving the page is restored with Retry, and Retry resends it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const UNANSWERED = 'My unanswered question';
+    replies.push(RATE_LIMITED());
+    const first = renderWidget();
+    await openPanel();
+    ask(UNANSWERED);
+    expect(await screen.findByText('One moment…')).toBeInTheDocument();
+    first.unmount(); // crossing from /account to /sourcing-map during the 6 s wait
+    replies.push(sseResponse(answer('Answered after all.', meta({ redacted_message: UNANSWERED }))));
+    renderWidget();
+    expect(await screen.findByText(UNANSWERED)).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(12_000);
+    });
+    expect(helpBodies()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Answered after all.')).toBeInTheDocument();
+    expect(helpBodies().map((b) => b.message)).toEqual([UNANSWERED, UNANSWERED]);
+    expect(screen.getAllByText(UNANSWERED)).toHaveLength(1);
+  });
 });

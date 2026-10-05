@@ -135,10 +135,14 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
               notice: { kind: 'budget_exhausted', resetAt: outcome.resetAt, contact: outcome.contact ?? DEFAULT_SUPPORT_CONTACT },
             });
           } else if (outcome.status === 429 && !autoRetry) {
-            dispatch({ type: 'remove_exchange', assistantId });
+            // The question stays in the transcript, as a failed answer with Retry, until the automatic
+            // resend replaces it: if the widget unmounts during the wait (which cancels the resend), the
+            // stored conversation still holds it (spec §7.3).
+            dispatch({ type: 'errored', assistantId });
             dispatch({ type: 'notice', notice: { kind: 'rate_limited' } });
             retryTimer.current = setTimeout(() => {
               retryTimer.current = null;
+              dispatch({ type: 'remove_exchange', assistantId });
               void sendRef.current(text, true);
             }, HELP_RATE_LIMIT_RETRY_MS);
           } else if (outcome.status === 429) {
