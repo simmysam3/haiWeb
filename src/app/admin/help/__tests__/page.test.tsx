@@ -80,6 +80,32 @@ describe('AdminHelpPage', () => {
     });
   });
 
+  it('offers exactly the four help languages (C.2) and All', async () => {
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    const options = within(screen.getByRole('combobox', { name: 'Language' })).getAllByRole('option') as HTMLOptionElement[];
+    expect(options.map((o) => o.value)).toEqual(['', 'en', 'es', 'ko', 'pt-BR']);
+  });
+
+  it('sends a participant id only when the whole box is one UUID, in either case', async () => {
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    const input = screen.getByRole('textbox', { name: 'Participant id' });
+    fireEvent.change(input, { target: { value: `${CONV}x` } });
+    await act(async () => {});
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('participant_id'))).toBe(false);
+    fireEvent.change(input, { target: { value: CONV.toUpperCase() } });
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenLastCalledWith(`/api/admin/help/conversations?participant_id=${CONV.toUpperCase()}&page_size=50`),
+    );
+  });
+
+  it('a row lists all of its flags', async () => {
+    fetchMock.mockImplementation(async () => ok({ items: [{ ...SUMMARY, flags: ['served_mismatch', 'case_summary'] }], next_cursor: null }));
+    render(<Page />);
+    expect(await screen.findByText('served_mismatch, case_summary')).toBeInTheDocument();
+  });
+
   it('asks for 50 conversations per page', async () => {
     render(<Page />);
     await screen.findByText('Acme Corp');
@@ -214,6 +240,47 @@ describe('AdminHelpPage', () => {
     }
     expect(within(answer).getByText('pack 2026-10-07.1')).toBeInTheDocument();
     expect(within(question).queryByText(/^pack /)).toBeNull();
+  });
+
+  it('each message shows its own status (interrupted, withheld)', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.startsWith(`/api/admin/help/conversations/${CONV}`)
+        ? ok({ ...DETAIL, messages: [{ ...DETAIL.messages[0], status: 'interrupted' }, { ...DETAIL.messages[1], status: 'withheld' }] })
+        : ok({ items: [SUMMARY], next_cursor: null }),
+    );
+    render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: `Conversation ${CONV}` }));
+    const answer = (await screen.findByText('Rotate the secret on Agents.')).closest('li') as HTMLElement;
+    const question = screen.getByText('KEYCLOAK_CLIENT_SECRET=‹redacted› 401?').closest('li') as HTMLElement;
+    expect(within(question).getByText('interrupted')).toBeInTheDocument();
+    expect(within(answer).getByText('withheld')).toBeInTheDocument();
+  });
+
+  it('lists every pack the conversation used', async () => {
+    const later = { version: '2026-10-08.1', manifest: { guide: { edition: '1.8' }, agent: { version: '1.103.0' }, brief: { date: '2026-10-08' } } };
+    fetchMock.mockImplementation(async (url: string) =>
+      url.startsWith(`/api/admin/help/conversations/${CONV}`)
+        ? ok({ ...DETAIL, packs: [...DETAIL.packs, later] })
+        : ok({ items: [SUMMARY], next_cursor: null }),
+    );
+    render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: `Conversation ${CONV}` }));
+    expect(await screen.findByText('Pack 2026-10-07.1 · guide 1.7 · agent 1.102.0 · brief 2026-10-06')).toBeInTheDocument();
+    expect(screen.getByText('Pack 2026-10-08.1 · guide 1.8 · agent 1.103.0 · brief 2026-10-08')).toBeInTheDocument();
+  });
+
+  it('renders transcript text as text, never as markup', async () => {
+    const markup = '<img src=x onerror="alert(1)"><b>bold</b>';
+    fetchMock.mockImplementation(async (url: string) =>
+      url.startsWith(`/api/admin/help/conversations/${CONV}`)
+        ? ok({ ...DETAIL, messages: [{ ...DETAIL.messages[0], content: markup }] })
+        : ok({ items: [SUMMARY], next_cursor: null }),
+    );
+    const { container } = render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: `Conversation ${CONV}` }));
+    expect(await screen.findByText(markup)).toBeInTheDocument();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('b')).toBeNull();
   });
 
   it('only answers show token usage and latency', async () => {
@@ -420,6 +487,29 @@ describe('AdminHelpPage', () => {
     await act(async () => fresh.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV4, participant_name: 'Delta Co', thumbs_down_count: 2 }], next_cursor: null })));
     expect(screen.getByText('Delta Co')).toBeInTheDocument();
     expect(screen.queryByText('Beta LLC')).toBeNull();
+  });
+
+  it('a Load more whose body lands after the filters changed is dropped', async () => {
+    const body = deferred<unknown>();
+    const moreJson = vi.fn(() => body.promise);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('cursor=cur-2')) return { ok: true, status: 200, json: moreJson } as unknown as Response;
+      if (url.includes('cursor=td-2')) return ok({ items: [], next_cursor: null });
+      if (url.includes('thumbs_down=true')) return ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc', thumbs_down_count: 3 }], next_cursor: 'td-2' });
+      return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+    });
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await act(async () => {});
+    expect(moreJson).toHaveBeenCalled(); // its headers landed under the old filters; its body is still coming
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thumbs-down only' }));
+    await screen.findByText('Gamma Inc');
+    await act(async () => body.resolve({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC', thumbs_down_count: 0 }], next_cursor: 'cur-3' }));
+    expect(screen.queryByText('Beta LLC')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/admin/help/conversations?thumbs_down=true&page_size=50&cursor=td-2');
   });
 
   type Settle = (more: { resolve: (r: Response) => void; reject: (e: unknown) => void }) => void;

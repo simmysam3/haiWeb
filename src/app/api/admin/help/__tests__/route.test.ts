@@ -68,6 +68,39 @@ describe('GET /api/admin/help/conversations', () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: 'Failed to reach haiCore' });
   });
+
+  it('relays the list body as haiCore sent it', async () => {
+    const body = {
+      items: [{ conversation_id: CONV, participant_id: '11111111-1111-1111-1111-111111111111', participant_name: 'Acme Corp', user_sub: 'kc-user-1', language: 'ko', started_at: '2026-10-07T10:00:00.000Z', last_message_at: '2026-10-07T10:05:00.000Z', message_count: 2, thumbs_down_count: 1, flags: ['served_mismatch'] }],
+      next_cursor: 'cur-2',
+    };
+    fetchMock.mockResolvedValue(json(200, body));
+    const res = await LIST(new NextRequest('http://localhost/api/admin/help/conversations'));
+    expect(await res.json()).toEqual(body);
+  });
+
+  it.each([
+    ['a non-admin', { is_admin: false }],
+    ['no session', null],
+  ])('404 while the flag is off, before any session read, for %s', async (_who, session) => {
+    delete process.env.HELP_AGENT_ENABLED;
+    getSession.mockResolvedValue(session);
+    expect((await LIST(new NextRequest('http://localhost/api/admin/help/conversations'))).status).toBe(404);
+    expect(getSession).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('reads from the configured haiCore host', async () => {
+    const before = process.env.HAIWAVE_API_URL;
+    process.env.HAIWAVE_API_URL = 'http://core.example.test:7000';
+    try {
+      await LIST(new NextRequest('http://localhost/api/admin/help/conversations'));
+    } finally {
+      if (before === undefined) delete process.env.HAIWAVE_API_URL;
+      else process.env.HAIWAVE_API_URL = before;
+    }
+    expect((fetchMock.mock.calls[0] as [string])[0]).toBe('http://core.example.test:7000/api/v1/admin/help/conversations');
+  });
 });
 
 describe('GET /api/admin/help/conversations/[id]', () => {
@@ -124,5 +157,18 @@ describe('GET /api/admin/help/conversations/[id]', () => {
     fetchMock.mockResolvedValue(json(200, body));
     const res = await DETAIL(new NextRequest('http://localhost/x'), { params: Promise.resolve({ id: CONV }) });
     expect(await res.json()).toEqual(body);
+  });
+
+  it.each([
+    ['a non-admin', { is_admin: false }, CONV],
+    ['no session', null, CONV],
+    ['an admin with a non-UUID id', { is_admin: true }, 'nope'],
+  ])('404 while the flag is off, before any session read or id check, for %s', async (_who, session, id) => {
+    delete process.env.HELP_AGENT_ENABLED;
+    getSession.mockResolvedValue(session);
+    const res = await DETAIL(new NextRequest('http://localhost/x'), { params: Promise.resolve({ id }) });
+    expect(res.status).toBe(404);
+    expect(getSession).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

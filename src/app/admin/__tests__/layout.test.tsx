@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 
 const isAdminMock = vi.fn();
 const redirectMock = vi.fn();
@@ -43,5 +43,18 @@ describe('AdminLayout nav — Help Conversations', () => {
       delete process.env.HELP_AGENT_ENABLED;
     }
     expect(screen.getByRole('link', { name: 'Help Conversations' })).toHaveAttribute('href', '/admin/help');
+  });
+
+  it('adds Help Conversations after the existing entries and keeps them', async () => {
+    isAdminMock.mockResolvedValue(true);
+    process.env.HELP_AGENT_ENABLED = 'true';
+    try {
+      render(await AdminLayout({ children: null }));
+    } finally {
+      delete process.env.HELP_AGENT_ENABLED;
+    }
+    expect(screen.getByRole('link', { name: 'Feedback' })).toHaveAttribute('href', '/admin/feedback');
+    const navLinks = within(screen.getByRole('navigation')).getAllByRole('link');
+    expect(navLinks.at(-1)).toHaveTextContent('Help Conversations');
   });
 });
