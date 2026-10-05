@@ -790,6 +790,11 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
   });
 
   const caseSummaryPosts = () => fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/case-summary'));
+  /**
+   * Waits until the stored panel state holds `text`. The save effect runs in the same flush as, and after, the
+   * effect that keeps the state summarize() reads, so a click after this never meets the answer half-applied.
+   */
+  const stored = (text: string) => waitFor(() => expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toContain(text));
   /** Case-summary requests stay pending until the test answers them, in order. */
   function holdCaseSummaries() {
     const pending: Array<(res: Response) => void> = [];
@@ -807,6 +812,7 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     await openPanel();
     ask(QUESTION);
     await screen.findByText('Answer one.');
+    await stored(AMSG);
     fireEvent.click(footerSummarize());
     expect(caseSummaryPosts()).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Start a new conversation' }));
@@ -825,6 +831,7 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     await openPanel();
     ask(QUESTION);
     expect(await screen.findByText("I can't help with that one.")).toBeInTheDocument();
+    await stored('"withheld"');
     const inMessage = () => screen.getAllByRole('button', { name: 'Summarize for support' })[0];
     fireEvent.click(inMessage());
     fireEvent.click(inMessage());
@@ -836,5 +843,83 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the summary — try again.");
     fireEvent.click(inMessage());
     expect(caseSummaryPosts()).toHaveLength(2);
+  });
+
+  // Pins the listing's cases left out (help-api.ts has no test file of its own; this file is its test).
+  async function answeredConversation() {
+    replies.push(sseResponse(answer('Answer one.')));
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    await screen.findByText('Answer one.');
+    await stored(AMSG);
+  }
+  function answerCaseSummary(reply: () => Promise<Response>) {
+    const base = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => (url.endsWith('/case-summary') ? reply() : base?.(url, init)));
+  }
+
+  it('feedback and the case summary are POSTs, and feedback goes as JSON with the rating given (C.1)', async () => {
+    await answeredConversation();
+    fireEvent.click(screen.getByRole('button', { name: 'Helpful' }));
+    fireEvent.click(footerSummarize());
+    expect(await screen.findByText('Problem: docker build fails at COPY.')).toBeInTheDocument();
+    const initOf = (suffix: string) => fetchMock.mock.calls.find(([u]) => String(u).endsWith(suffix))?.[1] as RequestInit;
+    expect(initOf('/feedback').method).toBe('POST');
+    expect(new Headers(initOf('/feedback').headers).get('content-type')).toBe('application/json');
+    expect(JSON.parse(initOf('/feedback').body as string)).toEqual({ rating: 'up' });
+    expect(initOf('/case-summary').method).toBe('POST');
+  });
+
+  it('a case summary whose body fails the schema shows the failure line', async () => {
+    answerCaseSummary(async () => jsonResponse(200, {}));
+    await answeredConversation();
+    fireEvent.click(footerSummarize());
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the summary — try again.");
+    expect(screen.queryByRole('link', { name: /undefined/ })).toBeNull();
+  });
+
+  it('a case-summary request that never reaches the server shows the failure line, and Summarize works again', async () => {
+    answerCaseSummary(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    await answeredConversation();
+    fireEvent.click(footerSummarize());
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't create the summary — try again.");
+    expect(footerSummarize()).toBeEnabled();
+  });
+
+  it('keys other than Escape inside the panel neither minimize it nor stop there', async () => {
+    const outside = vi.fn();
+    document.addEventListener('keydown', outside);
+    try {
+      renderWidget();
+      await openPanel();
+      const box = screen.getByRole('textbox', { name: 'Message' });
+      fireEvent.keyDown(box, { key: 'a' });
+      fireEvent.keyDown(box, { key: 'Enter' });
+      expect(screen.getByRole('dialog', { name: 'HAIWAVE Help' })).toBeInTheDocument();
+      expect(outside.mock.calls.map(([e]) => (e as KeyboardEvent).key)).toEqual(['a', 'Enter']);
+    } finally {
+      document.removeEventListener('keydown', outside);
+    }
+  });
+
+  it('the unread dot shows while minimized with a new answer and goes when the panel opens (spec §7.1)', async () => {
+    const stream = openStream();
+    replies.push(stream.response);
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    await screen.findByText(QUESTION);
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize' }));
+    expect(screen.queryByTestId('help-unread')).toBeNull();
+    await act(async () => {
+      stream.push(answer('Answer'));
+      stream.finish();
+    });
+    expect(await screen.findByTestId('help-unread')).toBeInTheDocument();
+    await openPanel();
+    expect(screen.queryByTestId('help-unread')).toBeNull();
   });
 });

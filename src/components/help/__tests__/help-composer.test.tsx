@@ -58,3 +58,15 @@ describe('HelpComposer', () => {
     expect(onStop).toHaveBeenCalled();
   });
 });
+
+// Task 3.8 review, round 1: pins the listing's cases left out.
+describe('HelpComposer (review round 1)', () => {
+  // A blank message would get 400 VALIDATION_ERROR (C.2: message is trimmed, at least one character).
+  it('whitespace-only text is never sent: Enter does nothing and Send stays disabled', () => {
+    const { onSend, box } = renderComposer();
+    fireEvent.change(box, { target: { value: '   ' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+});

@@ -120,3 +120,13 @@ describe('HelpMessages (implementer pins)', () => {
     expect(screen.queryByText(/Secrets masked before sending/)).toBeNull();
   });
 });
+
+// Task 3.8 review, round 1: pins the listing's cases left out.
+describe('HelpMessages (review round 1)', () => {
+  // haiCore refuses a longer note (C.2), and feedback failures are not surfaced, so the box must stop at the cap.
+  it('the feedback note is capped at 1,000 characters (C.2 HELP_FEEDBACK_NOTE_MAX_CHARS)', () => {
+    renderMessages([reply({ text: 'Answer', serverId: AMSG })]);
+    fireEvent.click(screen.getByRole('button', { name: 'Not helpful' }));
+    expect(screen.getByRole('textbox', { name: 'What was wrong? (optional)' })).toHaveAttribute('maxLength', '1000');
+  });
+});
