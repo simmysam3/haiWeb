@@ -260,6 +260,18 @@ describe('AccountNav — HAIWAVE Help entry point', () => {
     expect(logoStrip).toContainElement(screen.getByRole('button', { name: 'Help' }));
   });
 
+  it('draws the Help button in the nav variant, navy on the white strip, never the Sourcing Map one (Task 3.9 review)', () => {
+    render(
+      <HelpProvider enabled ownerKey="owner-test">
+        <AccountNav userName="Test User" userEmail="test@example.com" />
+      </HelpProvider>,
+    );
+    // The 'sm' variant carries no colour of its own here, so its icon would inherit the aside's white.
+    const button = screen.getByRole('button', { name: 'Help' });
+    expect(button).toHaveClass('text-navy');
+    expect(button).not.toHaveClass('sm-btn');
+  });
+
   it('renders no Help button without an enabled help provider', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
