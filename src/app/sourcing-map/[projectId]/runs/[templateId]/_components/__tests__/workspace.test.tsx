@@ -1286,11 +1286,15 @@ describe('Workspace', () => {
     const pin = within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' });
     expect(pin).toHaveAttribute('aria-disabled', 'true');
     expect(pin).toHaveAccessibleDescription('Available when the run completes.');
+    // LF final review m-A: the Path beneath tab shares Pin's reason, which shows once
+    expect(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getAllByText('Available when the run completes.')).toHaveLength(1);
     throttled.unmount();
     // a complete result: Arno timed out, so it never answered and cannot be pinned
     mount(multitierDetail, [multitierDetail.execution]);
     fireEvent.click(await screen.findByRole('button', { name: /^Arno Pelli, IT/ }));
     expect(within(screen.getByRole('complementary', { name: 'Details for Arno Pelli' })).getByRole('button', { name: 'Pin' })).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    // LF final review m-A: Pin and the Path beneath tab are unavailable for the same reason, and it shows once
+    expect(within(screen.getByRole('complementary', { name: 'Details for Arno Pelli' })).getAllByText('Nothing was traced beneath this option.')).toHaveLength(1);
     // a handle pressed on the pinned card, while another card is active, shows its role on the pinned card's trace
     fireEvent.click(screen.getByRole('button', { name: /^León Cuero, MX/ }));
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for León Cuero' })).getByRole('button', { name: 'Pin' }));

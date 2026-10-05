@@ -345,10 +345,13 @@ describe('DetailsPanel', () => {
     expect(details).toHaveAttribute('aria-selected', 'true');
     // Arno timed out: its nodes are an empty list, so nothing was traced beneath it either
     const cd = compareDetail.result!;
-    const view = (candidate: (typeof cd)['slots'][number]['candidates'][number], unavailable: string | null = null) => (
-      <DetailsPanel executionId={EXEC} result={cd} slot={cd.slots[0]!} candidate={candidate} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} unavailable={unavailable} />
+    const view = (candidate: (typeof cd)['slots'][number]['candidates'][number], unavailable: string | null = null, pin?: { pinned: boolean; onToggle(): void; reason: string | null }) => (
+      <DetailsPanel executionId={EXEC} result={cd} slot={cd.slots[0]!} candidate={candidate} drops={cd.portfolio.drops} asOfDrop="2027-03-15" productNames={NAMES} onClose={vi.fn()} unavailable={unavailable} pin={pin} />
     );
     rerender(view(cd.slots[0]!.candidates[2]!));
+    expect(path).toHaveAccessibleDescription('Nothing was traced beneath this option.');
+    // LF final review m-A: a Pin that is available shares no reason, so the tab keeps its own line
+    rerender(view(cd.slots[0]!.candidates[2]!, null, { pinned: false, onToggle: vi.fn(), reason: null }));
     expect(path).toHaveAccessibleDescription('Nothing was traced beneath this option.');
     // a running execution: the run's reason, even on a card with something beneath it
     rerender(view(cd.slots[0]!.candidates[0]!, RUN_NOT_COMPLETE));

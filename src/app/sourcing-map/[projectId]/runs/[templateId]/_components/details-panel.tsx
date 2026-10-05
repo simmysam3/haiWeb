@@ -70,6 +70,9 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
   const pathTabRef = useRef<HTMLButtonElement>(null);
   const reason = unavailable ?? (hasPath(c) ? null : NOTHING_BENEATH);
   const reasonId = useId();
+  // LF final review m-A: when Pin is unavailable for the tab's own reason, Pin's line under the header describes both,
+  // so the sentence shows once; the tab keeps a line of its own only for a reason Pin does not share
+  const reasonShared = reason !== null && pin?.reason === reason;
   // w3: an unavailable tab takes focus and is described, and is never selected
   function choose(next: Tab) {
     if (next === 'path' && reason !== null) return;
@@ -98,9 +101,9 @@ export function DetailsPanel({ ref, executionId, result, slot, candidate: c, dro
       {compare && <CompareStrip pinned={compare} active={{ slot, candidate: c }} asOfDrop={asOfDrop} onUnpin={unpinFromStrip} />}
       <div role="tablist" aria-label="Option details" className="mt-4 flex gap-2 border-b border-[var(--sm-line)]">
         <button ref={detailsTabRef} role="tab" type="button" id={detailsTabId} aria-selected={tab === 'details'} onClick={() => setTab('details')} onKeyDown={(e) => onArrow(e, 'path')} className={tab === 'details' ? TAB_SELECTED : TAB}>Details</button>
-        <button ref={pathTabRef} role="tab" type="button" id={pathTabId} aria-selected={tab === 'path'} aria-disabled={reason !== null || undefined} aria-describedby={reason !== null ? reasonId : undefined} onClick={() => choose('path')} onKeyDown={(e) => onArrow(e, 'details')} className={tab === 'path' ? TAB_SELECTED : TAB}>Path beneath</button>
+        <button ref={pathTabRef} role="tab" type="button" id={pathTabId} aria-selected={tab === 'path'} aria-disabled={reason !== null || undefined} aria-describedby={reason !== null ? (reasonShared ? pinReasonId : reasonId) : undefined} onClick={() => choose('path')} onKeyDown={(e) => onArrow(e, 'details')} className={tab === 'path' ? TAB_SELECTED : TAB}>Path beneath</button>
       </div>
-      {reason !== null && <p id={reasonId} className="sm-muted mt-1 text-xs">{reason}</p>}
+      {reason !== null && !reasonShared && <p id={reasonId} className="sm-muted mt-1 text-xs">{reason}</p>}
       <div role="tabpanel" aria-labelledby={detailsTabId} hidden={tab !== 'details'}>
         <p className="sm-muted">{`${slotTitle(slot)} · ${c.supplier_sku}`}</p>
         <dl className="mt-4 grid grid-cols-2 gap-2">
