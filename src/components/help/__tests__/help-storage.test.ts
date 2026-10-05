@@ -13,6 +13,9 @@ import {
   type StorageLike,
 } from '../help-storage';
 
+// The signed-in user the stored panel state belongs to (amendment P3-7): an opaque key, the same for one user.
+const OWNER = 'owner-test';
+
 const STATE: HelpWidgetState = {
   view: 'open',
   conversationId: '0b8a5a52-58b6-4a8e-9a39-9a1d4c7f1f10',
@@ -66,37 +69,37 @@ afterEach(() => {
 
 describe('widget state storage', () => {
   it('round-trips through sessionStorage under hw-help:v1', () => {
-    saveWidgetState(STATE);
+    saveWidgetState(STATE, OWNER);
     expect(window.sessionStorage.getItem(HELP_STATE_KEY)).not.toBeNull();
-    expect(loadWidgetState()).toEqual(STATE);
+    expect(loadWidgetState(OWNER)).toEqual(STATE);
   });
 
   it('keeps only the last 40 messages', () => {
     const many = Array.from({ length: 45 }, (_, i) => ({ id: `m${i}`, role: 'user' as const, text: `q${i}`, status: 'complete' as const }));
-    saveWidgetState({ ...STATE, messages: many });
-    const loaded = loadWidgetState();
+    saveWidgetState({ ...STATE, messages: many }, OWNER);
+    const loaded = loadWidgetState(OWNER);
     expect(loaded?.messages).toHaveLength(HELP_MAX_STORED_MESSAGES);
     expect(loaded?.messages[0].id).toBe('m5');
     expect(loaded?.messages.at(-1)?.id).toBe('m44');
   });
 
   it('returns null for missing, corrupt or wrongly shaped state', () => {
-    expect(loadWidgetState()).toBeNull();
+    expect(loadWidgetState(OWNER)).toBeNull();
     window.sessionStorage.setItem(HELP_STATE_KEY, '{not json');
-    expect(loadWidgetState()).toBeNull();
-    window.sessionStorage.setItem(HELP_STATE_KEY, JSON.stringify({ view: 'sideways', messages: [] }));
-    expect(loadWidgetState()).toBeNull();
+    expect(loadWidgetState(OWNER)).toBeNull();
+    window.sessionStorage.setItem(HELP_STATE_KEY, JSON.stringify({ owner: OWNER, state: { view: 'sideways', messages: [] } }));
+    expect(loadWidgetState(OWNER)).toBeNull();
   });
 
   it('clear removes the key', () => {
-    saveWidgetState(STATE);
+    saveWidgetState(STATE, OWNER);
     clearWidgetState();
     expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
   });
 
   it('never throws when storage is blocked or full', () => {
-    expect(loadWidgetState(throwing)).toBeNull();
-    expect(() => saveWidgetState(STATE, throwing)).not.toThrow();
+    expect(loadWidgetState(OWNER, throwing)).toBeNull();
+    expect(() => saveWidgetState(STATE, OWNER, throwing)).not.toThrow();
     expect(() => clearWidgetState(throwing)).not.toThrow();
     expect(loadLanguage(throwing)).toBeNull();
     expect(() => saveLanguage('ko', throwing)).not.toThrow();
@@ -106,8 +109,8 @@ describe('widget state storage', () => {
     const restore = blockWindowStorage('sessionStorage');
     try {
       expect(() => window.sessionStorage).toThrow('blocked');
-      expect(loadWidgetState()).toBeNull();
-      expect(() => saveWidgetState(STATE)).not.toThrow();
+      expect(loadWidgetState(OWNER)).toBeNull();
+      expect(() => saveWidgetState(STATE, OWNER)).not.toThrow();
       expect(() => clearWidgetState()).not.toThrow();
     } finally {
       restore();
@@ -116,7 +119,7 @@ describe('widget state storage', () => {
 
   it('stores the state under the contract key, the literal hw-help:v1 (C.6)', () => {
     expect(HELP_STATE_KEY).toBe('hw-help:v1');
-    saveWidgetState(STATE);
+    saveWidgetState(STATE, OWNER);
     expect(window.sessionStorage.getItem('hw-help:v1')).not.toBeNull();
   });
 
@@ -135,8 +138,8 @@ describe('widget state storage', () => {
     ['a message with nothing redacted (redactionCount 0)', { ...STATE, messages: [{ id: 'u9', role: 'user', text: 'x', status: 'complete', redactionCount: 0 }] }],
     ['an unread answer', { ...STATE, unread: true }],
   ])('round-trips %s', (name, state) => {
-    saveWidgetState(state);
-    expect(loadWidgetState(), name).toEqual(state);
+    saveWidgetState(state, OWNER);
+    expect(loadWidgetState(OWNER), name).toEqual(state);
   });
 
   it('round-trips a minimized state that holds every message status, and a closed state with no conversation and no pack', () => {
@@ -153,12 +156,12 @@ describe('widget state storage', () => {
       pack: { guideEdition: '1.7', packDate: '2026-10-07', servedMatches: false },
       unread: true,
     };
-    saveWidgetState(minimized);
-    expect(loadWidgetState()).toEqual(minimized);
+    saveWidgetState(minimized, OWNER);
+    expect(loadWidgetState(OWNER)).toEqual(minimized);
 
     const closed: HelpWidgetState = { view: 'closed', conversationId: null, messages: [], unread: false };
-    saveWidgetState(closed);
-    expect(loadWidgetState()).toEqual(closed);
+    saveWidgetState(closed, OWNER);
+    expect(loadWidgetState(OWNER)).toEqual(closed);
   });
 
   // One wrong field is enough. The stored value is right everywhere else: the first assertion is the control.
@@ -172,23 +175,23 @@ describe('widget state storage', () => {
     ['the text of a message (missing)', firstMessageWith({ text: undefined })],
     ['the feedback of a message', firstMessageWith({ feedback: 'meh' })],
   ])('refuses a stored state that is wrong only in %s', (field, wrong) => {
-    window.sessionStorage.setItem('hw-help:v1', JSON.stringify(STATE));
-    expect(loadWidgetState(), 'control').toEqual(STATE);
-    window.sessionStorage.setItem('hw-help:v1', JSON.stringify(wrong));
-    expect(loadWidgetState(), field).toBeNull();
+    window.sessionStorage.setItem('hw-help:v1', JSON.stringify({ owner: OWNER, state: STATE }));
+    expect(loadWidgetState(OWNER), 'control').toEqual(STATE);
+    window.sessionStorage.setItem('hw-help:v1', JSON.stringify({ owner: OWNER, state: wrong }));
+    expect(loadWidgetState(OWNER), field).toBeNull();
   });
 
   it('saveWidgetState writes to the store it is given, not to sessionStorage', () => {
     const store = memoryStore();
-    saveWidgetState(STATE, store);
+    saveWidgetState(STATE, OWNER, store);
     expect(store.map.has('hw-help:v1')).toBe(true);
     expect(window.sessionStorage.length).toBe(0);
   });
 
   it('loadWidgetState reads the store it is given', () => {
     const store = memoryStore();
-    store.map.set('hw-help:v1', JSON.stringify(STATE));
-    expect(loadWidgetState(store)).toEqual(STATE);
+    store.map.set('hw-help:v1', JSON.stringify({ owner: OWNER, state: STATE }));
+    expect(loadWidgetState(OWNER, store)).toEqual(STATE);
   });
 
   it('clearWidgetState clears the store it is given', () => {
@@ -196,6 +199,54 @@ describe('widget state storage', () => {
     store.map.set('hw-help:v1', JSON.stringify(STATE));
     clearWidgetState(store);
     expect(store.map.has('hw-help:v1')).toBe(false);
+  });
+});
+
+// The stored panel state belongs to one signed-in user (amendment P3-7): the next user of the tab never gets it back.
+describe('widget state owner', () => {
+  it('round-trips under its owner, stored as { owner, state }', () => {
+    saveWidgetState(STATE, OWNER);
+    expect(JSON.parse(window.sessionStorage.getItem(HELP_STATE_KEY) ?? 'null')).toEqual({ owner: OWNER, state: STATE });
+    expect(loadWidgetState(OWNER)).toEqual(STATE);
+  });
+
+  it('a load under a different owner returns null and removes the entry', () => {
+    saveWidgetState(STATE, OWNER);
+    expect(loadWidgetState('owner-other')).toBeNull();
+    expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
+  });
+
+  it('an entry in the old bare shape, with no owner, returns null and is removed', () => {
+    window.sessionStorage.setItem(HELP_STATE_KEY, JSON.stringify(STATE));
+    expect(loadWidgetState(OWNER)).toBeNull();
+    expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
+  });
+
+  it('with no owner, a load returns null and removes the entry, and a save writes nothing', () => {
+    saveWidgetState(STATE, OWNER);
+    expect(loadWidgetState(null)).toBeNull();
+    expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
+    // An entry whose owner is also null still belongs to nobody.
+    window.sessionStorage.setItem(HELP_STATE_KEY, JSON.stringify({ owner: null, state: STATE }));
+    expect(loadWidgetState(null)).toBeNull();
+    expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
+
+    saveWidgetState(STATE, null);
+    expect(window.sessionStorage.getItem(HELP_STATE_KEY)).toBeNull();
+  });
+
+  it("a load that has to remove another user's entry never throws when removal is blocked", () => {
+    let removals = 0;
+    const store: StorageLike = {
+      getItem: () => JSON.stringify({ owner: 'owner-other', state: STATE }),
+      setItem: () => {},
+      removeItem: () => {
+        removals += 1;
+        throw new DOMException('blocked', 'SecurityError');
+      },
+    };
+    expect(loadWidgetState(OWNER, store)).toBeNull();
+    expect(removals).toBe(1);
   });
 });
 

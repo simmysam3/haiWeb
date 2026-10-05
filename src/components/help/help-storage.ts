@@ -25,6 +25,9 @@ const HelpWidgetStateSchema = z.object({
   unread: z.boolean(),
 });
 
+// What sessionStorage holds: the panel state and the signed-in user it belongs to (amendment P3-7).
+const StoredWidgetStateSchema = z.object({ owner: z.string(), state: HelpWidgetStateSchema });
+
 export type HelpUiMessage = z.infer<typeof HelpUiMessageSchema>;
 export type HelpMessageStatus = HelpUiMessage['status'];
 export type HelpWidgetState = z.infer<typeof HelpWidgetStateSchema>;
@@ -48,21 +51,30 @@ function localStore(): StorageLike | null {
   }
 }
 
-export function loadWidgetState(store: StorageLike | null = sessionStore()): HelpWidgetState | null {
+export function loadWidgetState(owner: string | null, store: StorageLike | null = sessionStore()): HelpWidgetState | null {
   try {
     const raw = store?.getItem(HELP_STATE_KEY);
     if (!raw) return null;
-    const parsed = HelpWidgetStateSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
+    const entry: unknown = JSON.parse(raw);
+    const entryOwner = typeof entry === 'object' && entry !== null && 'owner' in entry ? entry.owner : undefined;
+    // With no signed-in owner nothing is loaded. Another user's entry, or one with no owner (the old bare
+    // shape), must never reach this user. In both cases the entry is removed.
+    if (owner === null || entryOwner !== owner) {
+      store?.removeItem(HELP_STATE_KEY);
+      return null;
+    }
+    const parsed = StoredWidgetStateSchema.safeParse(entry);
+    return parsed.success ? parsed.data.state : null;
   } catch {
     return null;
   }
 }
 
-export function saveWidgetState(state: HelpWidgetState, store: StorageLike | null = sessionStore()): void {
+export function saveWidgetState(state: HelpWidgetState, owner: string | null, store: StorageLike | null = sessionStore()): void {
+  if (owner === null) return; // no signed-in owner: the panel works in memory only
   const capped: HelpWidgetState = { ...state, messages: state.messages.slice(-HELP_MAX_STORED_MESSAGES) };
   try {
-    store?.setItem(HELP_STATE_KEY, JSON.stringify(capped));
+    store?.setItem(HELP_STATE_KEY, JSON.stringify({ owner, state: capped }));
   } catch {
     // Quota exceeded or storage blocked: keep going in memory.
   }

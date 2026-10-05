@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { helpReducer, INITIAL_HELP_STATE, rehydrate, toStored, type HelpState } from '../help-state';
 import { loadWidgetState, saveWidgetState } from '../help-storage';
 
+const OWNER = 'owner-test'; // the signed-in user the stored state belongs to (amendment P3-7)
 const CONV = '0b8a5a52-58b6-4a8e-9a39-9a1d4c7f1f10';
 const UMSG = 'b5d4c3a2-1f0e-4d9c-8b7a-6f5e4d3c2b1a';
 const AMSG = 'c6e5d4b3-2a1f-4e0d-9c8b-7a6f5e4d3c2b';
@@ -170,8 +171,8 @@ describe('helpReducer', () => {
 describe('persistence', () => {
   it('rehydrated streaming message becomes interrupted (Review Focus #5)', () => {
     const streaming = helpReducer(sent, { type: 'delta', assistantId: 'a1', text: 'Partial' });
-    saveWidgetState(toStored(streaming));
-    const restored = rehydrate(loadWidgetState());
+    saveWidgetState(toStored(streaming), OWNER);
+    const restored = rehydrate(loadWidgetState(OWNER));
     expect(answer(restored)).toMatchObject({ text: 'Partial', status: 'interrupted' });
     expect(restored.view).toBe('open');
   });
