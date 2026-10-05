@@ -1,14 +1,17 @@
 'use client';
-import { useId, useLayoutEffect } from 'react';
+import { useId } from 'react';
 import type { SmTrace } from '@/lib/sourcing-map/types';
 import { bandVar, bandWord, gapStubText, traceSentence } from '@/lib/sourcing-map/map/selectors';
 
 /** An anchor in the canvas's frame; a DOMRect satisfies it. */
 export interface AnchorRect { x: number; y: number; width: number; height: number }
 
-/** The trace's draw time, recorded as sm-map-render is (map-canvas.tsx:17-43): a mark in render, a measure at commit. */
+/**
+ * The traces' draw time (LF §9.3): the canvas records it, not an overlay, as one measure however many traces it draws: a
+ * mark in its render and a measure in its layout effect, which runs once every overlay's DOM is committed (map-canvas.tsx).
+ */
 export const TRACE_MEASURE = 'sm-trace-draw';
-const TRACE_START = 'sm-trace-draw:start';
+export const TRACE_START = 'sm-trace-draw:start';
 /** How far left of the parent the line runs, in the 16 px gap between cards (MAP_L.gap) or the lane gutter. */
 const GUTTER = 10;
 const STUB = 14;
@@ -96,22 +99,18 @@ function cardKeyOf(trace: SmTrace): string | undefined {
  * the DOM), pointer-events none. An edge or gap whose anchor is not measured is skipped, never drawn to (0, 0) and
  * never thrown on (Review Focus 2).
  */
-export function TraceOverlay({ trace, anchors, names, width, height }: {
+export function TraceOverlay({ trace, anchors, names, width, height, pinned = false }: {
   trace: SmTrace; anchors: Record<string, AnchorRect>; names: Record<string, string>; width: number; height: number;
+  /** LF (spec §6.3): the pinned card's trace, drawn beside the active card's; its name says which it is */
+  pinned?: boolean;
 }) {
-  performance.clearMarks(TRACE_START);
-  performance.mark(TRACE_START);
-  useLayoutEffect(() => {
-    performance.clearMeasures(TRACE_MEASURE);
-    performance.measure(TRACE_MEASURE, TRACE_START);
-  });
   const id = useId();
   const nameOf = (k: string) => names[k] ?? k;
   const cardKey = cardKeyOf(trace);
   const card = cardKey === undefined ? undefined : anchors[cardKey];
   const labels = gapLabels(trace.gaps.map((g) => ({ anchor: anchors[g.at], label: gapStubText(g.status), stubOnly: g.at === cardKey })), card);
   return (
-    <svg data-trace role="img" aria-label={`Shortfall trace: ${traceSentence(trace, names)}`} width={width} height={height} className="pointer-events-none absolute inset-0">
+    <svg data-trace role="img" aria-label={`Shortfall trace${pinned ? ' (pinned)' : ''}: ${traceSentence(trace, names)}`} width={width} height={height} className="pointer-events-none absolute inset-0">
       {trace.edges.map((e, i) => {
         const a = anchors[e.parent];
         const b = anchors[e.child];

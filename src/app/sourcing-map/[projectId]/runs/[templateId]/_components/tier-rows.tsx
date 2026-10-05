@@ -8,7 +8,8 @@ import { MAP_L, tiersOf } from '@/lib/sourcing-map/map/layout';
  * the requirements §7.3 view of a node — alias letter, two-letter country (or "—"), the class at its floored level,
  * a band dot worded in title and aria-label — and never a quantity, an id or a name. Handles for one alias light
  * together on hover, across every card that carries it. Each handle is a <button>, so OptionCard's surface click
- * (ruling F-a) leaves it alone. `traced` marks the selected card: its trace's roles are drawn on its own handles.
+ * (ruling F-a) leaves it alone. `traced` marks a traced card, the active one or the pinned one (LF §6.3): its trace's
+ * roles are drawn on its own handles.
  * A handle is one line (Task 13 fix round A): in a row too narrow for its handles the label truncates with an ellipsis,
  * the full label stays in the DOM (the accessible name) and in `title`, and the band dot and the role marker stay.
  * The row keeps its overflow visible so a handle's focus outline and hover ring are never clipped.

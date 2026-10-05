@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { vomeroResult } from '@/lib/sourcing-map/__fixtures__/vomero';
 import { multitierDetail } from '@/app/sourcing-map/__fixtures__/sp2';
 import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
+import { smWorstRatio } from '@/test/contrast';
 import { OptionCard } from '../option-card';
 
 const drops = vomeroResult.portfolio.drops;
@@ -211,6 +212,26 @@ describe('OptionCard', () => {
     expect(wrapper().className).toBe('ml-auto flex');
     rerender(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} />);
     expect(wrapper().className).toBe('ml-auto flex');
+  });
+
+  it('a pinned card says "Pinned" in its footer row and in its name, without a new line and without reading pressed (§6.2, LF-R9)', () => {
+    render(<OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} pinned />);
+    const button = screen.getByRole('button', { name: /^León Cuero, MX/ });
+    // the row that holds the chevron, where "Select to trace" sits: no new line, so no lane height changes
+    const footerRow = button.closest('article')!.querySelector('.ml-auto')!.parentElement!;
+    expect(footerRow).toContainElement(screen.getByText('Pinned'));
+    // it replaces the cue, never both (León is traceable and not selected, so the cue would show)
+    expect(screen.queryByText('Select to trace')).toBeNull();
+    // the selecting button's name says so too: the mark is never sight alone
+    expect(button).toHaveAccessibleName(/; pinned$/);
+    // aria-pressed is the active card's alone; pinned is not pressed
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('the "Pinned" mark clears 4.5:1 on its card in both themes (§6.2, F18)', () => {
+    // AA pair (F18): sm-muted on sm-card, the pair of the "Select to trace" cue it replaces
+    render(<div className="sm-root"><OptionCard slot={leather2} candidate={leon2} asOfDrop="2027-03-15" drops={drops2} selected={false} onSelect={vi.fn()} pinned /></div>);
+    expect(smWorstRatio(screen.getByText('Pinned'))).toBeGreaterThanOrEqual(4.5);
   });
 
   it('renders the tier rows under the card; a handle click selects the alias, never the card (ruling F-a), and hover reaches the card’s handler', async () => {

@@ -342,6 +342,23 @@ export function nodeOf(result: SourcingMapExecutionResult, alias: string, prefer
   return first;
 }
 
+export interface OtherTier { tier: number; names: string[] }
+
+/** Where else this alias sits: for each tier other than the one `origin` sees (nodes[].tier), the names of the OTHER options that see it there. Tiers ascending; names in display order. */
+export function otherTiers(result: SourcingMapExecutionResult, alias: string, origin: string): OtherTier[] {
+  const sees = result.slots.flatMap((s) => s.candidates).flatMap((c) => {
+    const n = (c.nodes ?? []).find((x) => x.alias === alias);
+    return n ? [{ key: candidateKeyOf(c), name: c.supplier_name, tier: n.tier }] : [];
+  });
+  const here = sees.find((x) => x.key === origin)?.tier;
+  const byTier = new Map<number, string[]>();
+  for (const x of sees) {
+    if (x.key === origin || x.tier === here) continue;
+    byTier.set(x.tier, [...(byTier.get(x.tier) ?? []), x.name]);
+  }
+  return [...byTier].sort(([a], [b]) => a - b).map(([tier, names]) => ({ tier, names }));
+}
+
 export interface BindingNode {
   alias: string;
   tier: number;
@@ -363,6 +380,15 @@ export function bindingNodes(result: SourcingMapExecutionResult): BindingNode[] 
     });
   });
   return out;
+}
+
+export interface BindingRow { alias: string; tier: number; band: SmBand; binds_for: number; country: string | null; classLabel: string | null }
+/** The option's binding nodes, in trace order: tier, band and binds_for from trace.nodes; country and class from the SAME option's nodes[] by alias, null when it has none. */
+export function bindingRows(c: SmCandidateResult): BindingRow[] {
+  return (c.trace?.nodes ?? []).filter((t) => t.role === 'binding').map((t) => {
+    const n = (c.nodes ?? []).find((x) => x.alias === t.alias);
+    return { alias: t.alias, tier: t.tier, band: t.band, binds_for: t.binds_for, country: n?.country ?? null, classLabel: n?.class?.label ?? null };
+  });
 }
 
 const PEER_LIST = new Intl.ListFormat('en-US', { style: 'long', type: 'conjunction' });
@@ -404,6 +430,22 @@ export function formatHourUtc(iso: string): string {
 /** The em dash of the contract's copy; the one definition, imported by every later user. */
 export const EM_DASH = String.fromCharCode(0x2014);
 
+/** LF (spec §9.5): why a map control is unavailable while the execution is queued, running or throttled. */
+export const RUN_NOT_COMPLETE = 'Available when the run completes.';
+
+/** LF (spec §7, w7): why the Path beneath tab is unavailable on an option with no node beneath it. */
+export const NOTHING_BENEATH = 'Nothing was traced beneath this option.';
+
+/** LF (spec §7, w7): the option has something to drill into, at least one node beneath it (a gap card's list is empty). */
+export function hasPath(c: SmCandidateResult): boolean {
+  return (c.nodes ?? []).length > 0;
+}
+
+/** LF (spec §6.2): an option can be pinned when it answered and carries a projection (`nodes` served, even empty), traced or not. */
+export function pinnable(c: SmCandidateResult): boolean {
+  return gapText(c.status) === null && c.nodes !== undefined;
+}
+
 /**
  * Spec §12.5, contract §10 copy: the throttled banner's sentence; the fallback when nothing is known yet (before the
  * first status frame) or the waiting responder is below tier 1 and so not named (G-52).
@@ -443,6 +485,49 @@ export function utilizationText(u: SmOptionAggregates['utilization']): string {
   return `${u.low} low ${dot} ${u.moderate} moderate ${dot} ${u.high} high ${dot} ${u.at_capacity} at capacity`;
 }
 
+export type SmUtilBand = keyof SmOptionAggregates['utilization'];
+const UTIL_BAND_ORDER: SmUtilBand[] = ['low', 'moderate', 'high', 'at_capacity'];
+/** The largest count; on a tie the first of low, moderate, high, at_capacity (§6.7, OQ-7); null when the counts sum to 0 (w10). */
+export function modalBand(u: SmOptionAggregates['utilization']): SmUtilBand | null {
+  let best: SmUtilBand | null = null;
+  for (const b of UTIL_BAND_ORDER) if (u[b] > 0 && (best === null || u[b] > u[best])) best = b;
+  return best;
+}
+export function utilBandWord(b: SmUtilBand): string {
+  return b === 'at_capacity' ? 'at capacity' : b;
+}
+
+/** One count per node, by country and by class label; a node with no country, or no class, is not counted in that list. By count, then by name. */
+export function nodeTallies(c: SmCandidateResult): { countries: Array<[string, number]>; classes: Array<[string, number]> } {
+  const tally = (names: Array<string | undefined>): Array<[string, number]> => {
+    const counts = new Map<string, number>();
+    for (const name of names) if (name !== undefined) counts.set(name, (counts.get(name) ?? 0) + 1);
+    return [...counts].sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
+  };
+  const nodes = c.nodes ?? [];
+  return { countries: tally(nodes.map((n) => n.country ?? undefined)), classes: tally(nodes.map((n) => n.class?.label)) };
+}
+
+export interface PathTier { tier: number; groups: Array<{ label: string | null; level: number | null; nodes: SmSubtierNode[] }> }
+/** Tiers ascending; in a tier one group per class label and level, by label then level ascending, the no-class group last; in a group, nodes by alias. */
+export function pathGroups(c: SmCandidateResult): PathTier[] {
+  const nodes = c.nodes ?? [];
+  const tiers = [...new Set(nodes.map((n) => n.tier))].sort((a, b) => a - b);
+  return tiers.map((tier) => {
+    const groups: PathTier['groups'] = [];
+    for (const n of nodes.filter((x) => x.tier === tier)) {
+      const label = n.class?.label ?? null;
+      const level = n.class?.level ?? null;
+      const group = groups.find((g) => g.label === label && g.level === level);
+      if (group) group.nodes.push(n);
+      else groups.push({ label, level, nodes: [n] });
+    }
+    for (const g of groups) g.nodes.sort((a, b) => a.alias.localeCompare(b.alias));
+    groups.sort((a, b) => (a.label === null ? 1 : 0) - (b.label === null ? 1 : 0) || (a.label ?? '').localeCompare(b.label ?? '') || (a.level ?? 0) - (b.level ?? 0));
+    return { tier, groups };
+  });
+}
+
 /** candidate_key → supplier name over every slot (the handle panel's "Also supplies", the trace sentence, Shared exposure). */
 export function candidateNamesOf(result: SourcingMapExecutionResult): Record<string, string> {
   return Object.fromEntries(result.slots.flatMap((s) => s.candidates.map((c) => [candidateKeyOf(c), c.supplier_name] as const)));
@@ -458,4 +543,27 @@ export function availabilityReason(c: SmCandidateResult, week: string | null, de
   const heat = heatOf(w.option_coverage);
   if (heat === 'good') return `${covers}, which meets the ${formatPct(HEAT_GOOD)} threshold.`;
   return `${covers}, below the ${formatPct(heat === 'mid' ? HEAT_GOOD : HEAT_MID)} threshold.`;
+}
+
+/** The aliases beneath both options, in `a`'s order (§6.7). */
+export function sharedAliases(a: SmCandidateResult, b: SmCandidateResult): string[] {
+  const inB = new Set((b.nodes ?? []).map((n) => n.alias));
+  return (a.nodes ?? []).map((n) => n.alias).filter((alias) => inB.has(alias));
+}
+
+export interface CompareColumn { coverage: string; responders: string; median: string; modal: string; binding: string }
+/** One card's side of the compare strip, as words (§6.7). A value the card does not have is EM_DASH; coverage falls back to noCoverageText. */
+export function compareColumn(slot: SmSlotResult, c: SmCandidateResult, asOfDrop: string | null): CompareColumn {
+  const week = slotWeekFor(slot, asOfDrop);
+  const answer = candidateWeekAt(c, week);
+  const a = c.aggregates;
+  const modal = a ? modalBand(a.utilization) : null;
+  const binding = bindingRows(c).map((r) => `${r.alias} · tier ${r.tier} · ${r.band}`).join(', ');
+  return {
+    coverage: answer ? formatPct(answer.option_coverage) : noCoverageText(c, week),
+    responders: a ? String(a.responders) : EM_DASH,
+    median: a && a.median_lead_time_days !== null ? `${a.median_lead_time_days} d` : EM_DASH,
+    modal: modal ? utilBandWord(modal) : EM_DASH,
+    binding: binding === '' ? EM_DASH : binding,
+  };
 }
