@@ -51,9 +51,9 @@ export function requestStatusText(s: SmRequestStatus): string {
 
 export function leadTimeText(lt: NonNullable<SmOptionPanel['delivery_history']>['lead_time']): string | null {
   if (lt === null) return null;
-  return lt.kind === 'calibrated_p50'
-    ? `Calibrated p50: ${lt.days} d`
-    : `Calibrated median: ${lt.days} d (${lt.sample_count} orders)`;
+  if (lt.kind !== 'calibrated_p50') return `Calibrated median: ${lt.days} d (${lt.sample_count} orders)`;
+  const p50 = `Calibrated p50: ${lt.days} d`;
+  return typeof lt.p90_days === 'number' ? `${p50} · p90: ${lt.p90_days} d` : p50;
 }
 
 /** The wire query: one `param=value` per value, in order, then the cursor when given. */

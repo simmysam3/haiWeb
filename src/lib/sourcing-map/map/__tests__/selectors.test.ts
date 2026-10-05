@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { capacityExists, laneState, heatOf, heatVar, formatPct, formatQty, formatDropDate, formatDay, formatAsOfUtc, defaultAsOfDrop, resolveAsOfDrop, availabilityText, limitText, gapText, applyStatusDelta } from '../selectors';
 import { vomeroResult, runningDetail, vomeroEstimate } from '../../__fixtures__/vomero';
 import { CANDIDATE_NAMES, mayWaitEstimate, multitierDetail, throttledStatus } from '@/app/sourcing-map/__fixtures__/sp2';
-import { bandVar, bandWord, bindingNodes, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
+import { bandVar, bandWord, bindingNodes, bindingRows, formatHourUtc, mayWaitNames, pathSummary, throttledText, bindingTier, nodeOf, traceSentence, traceable, cardSummaryText, utilizationText, underOf, candidateKeyOf, gapStubText, limitReason, unobservedTier, candidateNamesOf, sharedBindingText } from '../selectors';
 import type { SmCandidateResult2 } from '../../types';
-import { availabilityReason, HEAT_GOOD, HEAT_MID } from '../selectors';
+import { availabilityReason, HEAT_GOOD, HEAT_MID, otherTiers } from '../selectors';
+import { compareDetail } from '@/app/sourcing-map/__fixtures__/lf';
+import { modalBand, nodeTallies, pathGroups, utilBandWord } from '../selectors';
+import { notTracedDetail } from '@/app/sourcing-map/__fixtures__/sp3';
+import { compareColumn, pinnable, sharedAliases } from '../selectors';
 
 describe('map selectors', () => {
   it('formats a date or an instant with the year (UTC)', () => {
@@ -243,6 +247,19 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     expect(bindingNodes(vomeroResult)).toEqual([]);
   });
 
+  it('lists an option’s binding nodes with tier, band and binds_for from the trace, and country and class from its own nodes (§8.2)', () => {
+    expect(bindingRows(leon2!)).toEqual([{ alias: 'A', tier: 2, band: 'moderate', binds_for: 1, country: 'IT', classLabel: 'Dyes' }]);
+    expect(bindingRows(mekong2!)).toEqual([]);
+    // the trace's tier is the row's tier; an inherited node is not a binding source
+    const inline = structuredClone(leon2!);
+    inline.trace = { nodes: [{ alias: 'C', tier: 3, role: 'inherited', band: 'slight', binds_for: 1 }, { alias: 'B', tier: 3, role: 'binding', band: 'severe', binds_for: 1 }], edges: [], gaps: [] };
+    expect(bindingRows(inline)).toEqual([{ alias: 'B', tier: 3, band: 'severe', binds_for: 1, country: 'US', classLabel: 'Wet-blue' }]);
+    // a binding alias this option's nodes do not hold has no country and no class
+    const absent = structuredClone(leon2!);
+    absent.trace = { nodes: [{ alias: 'Z', tier: 4, role: 'binding', band: 'slight', binds_for: 1 }], edges: [], gaps: [] };
+    expect(bindingRows(absent)).toEqual([{ alias: 'Z', tier: 4, band: 'slight', binds_for: 1, country: null, classLabel: null }]);
+  });
+
   it('names the other options a shared binding source limits, each from its own side (A3)', () => {
     const twice = buildTwice();
     const [leon, mekong] = twice.slots[0]!.candidates;
@@ -285,6 +302,14 @@ describe('SP2 selectors: shared aliases, binding nodes and the trace sentence', 
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: [] } })).toBe(false);
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: [], gaps: leon2!.trace!.gaps } })).toBe(true);
     expect(traceable({ ...leon2!, trace: { nodes: [], edges: leon2!.trace!.edges, gaps: [] } })).toBe(true);
+  });
+
+  it('says where else an alias sits, from either side, and nothing when its tier is the same everywhere (§8.3)', () => {
+    const r = compareDetail.result!;
+    expect(otherTiers(r, 'C', 'leon')).toEqual([{ tier: 2, names: ['Mekong Tannery'] }]);
+    expect(otherTiers(r, 'C', 'mekong')).toEqual([{ tier: 3, names: ['León Cuero'] }]);
+    expect(otherTiers(r, 'A', 'leon')).toEqual([]);
+    expect(otherTiers(r, 'D', 'flowknit')).toEqual([]);
   });
 });
 
@@ -384,5 +409,87 @@ describe('availabilityReason: the pill tip says why the pill is in its state (ow
       const threshold = formatPct(heat === 'bad' ? HEAT_MID : HEAT_GOOD);
       expect(availabilityReason(at(stated, 10000), week, 10000)).toBe(`Covers ${formatPct(ratio)} of the ask, ${heat === 'good' ? 'which meets' : 'below'} the ${threshold} threshold.`);
     }
+  });
+});
+
+describe('what is beneath an option: the selectors (LF step 5)', () => {
+  const leon = compareDetail.result!.slots[0]!.candidates.find((c) => c.candidate_key === 'leon')!;
+
+  it('names the modal utilization band: the largest count, the first of low, moderate, high, at capacity on a tie, and none when every count is 0 (§6.7, w10)', () => {
+    expect(modalBand({ low: 0, moderate: 2, high: 1, at_capacity: 0 })).toBe('moderate');
+    expect(modalBand(leon.aggregates!.utilization)).toBe('low');
+    expect(modalBand({ low: 0, moderate: 0, high: 1, at_capacity: 1 })).toBe('high');
+    expect(modalBand({ low: 0, moderate: 0, high: 0, at_capacity: 0 })).toBeNull();
+    expect(utilBandWord('at_capacity')).toBe('at capacity');
+  });
+
+  const mekong = compareDetail.result!.slots[0]!.candidates.find((c) => c.candidate_key === 'mekong')!;
+
+  it('tallies countries and classes over the option’s own nodes, by count then by name, never from the served lists (§8.1)', () => {
+    expect(nodeTallies(mekong)).toEqual({ countries: [['IT', 2], ['IN', 1]], classes: [['Dyes', 2], ['Colorants', 1]] });
+    expect(nodeTallies(leon)).toEqual({ countries: [['IN', 1], ['IT', 1], ['US', 1]], classes: [['Colorants', 1], ['Dyes', 1]] });
+    // a node with no country is left out of the country tally, and one with no class out of the class tally
+    const nameless = { ...mekong, nodes: [...mekong.nodes!, { alias: 'H', tier: 2, country: null, class: null, band: null, observed_below: true }] };
+    expect(nodeTallies(nameless)).toEqual(nodeTallies(mekong));
+  });
+
+  const shape = (c: SmCandidateResult2) => pathGroups(c).map((t) => ({ tier: t.tier, groups: t.groups.map((g) => ({ label: g.label, level: g.level, aliases: g.nodes.map((n) => n.alias) })) }));
+
+  it('groups an option’s nodes by tier, then by class label and level, the no-class group last, nodes by alias (§7)', () => {
+    expect(shape(leon)).toEqual([
+      { tier: 2, groups: [{ label: 'Dyes', level: 4, aliases: ['A'] }, { label: null, level: null, aliases: ['B'] }] },
+      { tier: 3, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }] },
+    ]);
+    expect(shape(mekong)).toEqual([
+      { tier: 2, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }, { label: 'Dyes', level: 4, aliases: ['A', 'F'] }] },
+    ]);
+    // an inline option whose nodes arrive out of order comes back sorted
+    expect(shape({ ...mekong, nodes: [...mekong.nodes!].reverse() })).toEqual(shape(mekong));
+    // tiers ascending whatever the served order: León's nodes reversed arrive tier 3 first
+    expect(shape({ ...leon, nodes: [...leon.nodes!].reverse() })).toEqual(shape(leon));
+    // one group per label AND level: the same label at two levels is two groups, the shallower level first (the deeper one is served first)
+    const dyesL2 = { slug: 'cpt_leather_finish_dyes', label: 'Dyes', level: 2, of_levels: 4 };
+    const twoLevels = { ...mekong, nodes: [...mekong.nodes!, { alias: 'X', tier: 2, country: 'IT', class: dyesL2, band: null, observed_below: true }] };
+    expect(shape(twoLevels)).toEqual([
+      { tier: 2, groups: [{ label: 'Colorants', level: 2, aliases: ['C'] }, { label: 'Dyes', level: 2, aliases: ['X'] }, { label: 'Dyes', level: 4, aliases: ['A', 'F'] }] },
+    ]);
+  });
+});
+
+describe('what can be pinned (LF step 6)', () => {
+  it('a card can be pinned when it answered and carries a projection, traced or not (§6.2)', () => {
+    // León answered and is traced
+    expect(pinnable(leon2)).toBe(true);
+    // Mekong answered and has no trace: pinnable all the same (the León against Mekong comparison)
+    expect(pinnable(mekong2)).toBe(true);
+    // Arno timed out: it carries an empty projection, but it never answered
+    expect(pinnable(arno2)).toBe(false);
+    // the SP1 León answered, but no projection was served (no `nodes`)
+    expect(pinnable(vomeroResult.slots[0]!.candidates[0]!)).toBe(false);
+    // a León that answers for itself only: its projection is served and empty, so it can be pinned (unlike hasPath)
+    expect(pinnable(notTracedDetail.result!.slots[0]!.candidates[0]!)).toBe(true);
+  });
+});
+
+describe('the compare strip: the selectors (LF step 6)', () => {
+  it('names the aliases beneath both cards (§6.7)', () => {
+    // León (A, B, C) and Mekong (A, F, C) share A and C, in León's order
+    expect(sharedAliases(leon2!, mekong2!)).toEqual(['A', 'C']);
+    // León and Zephyr (E) share nothing
+    expect(sharedAliases(leon2!, zephyr2)).toEqual([]);
+    // a's order, not b's: León's nodes reversed (C, B, A) against Mekong's (A, F, C) share C then A
+    expect(sharedAliases({ ...leon2!, nodes: [...leon2!.nodes!].reverse() }, mekong2!)).toEqual(['C', 'A']);
+  });
+
+  it('words one card’s side of the strip, with a dash for what it does not have (§6.7)', () => {
+    const drop = '2027-03-15';
+    const leather = mt.slots[0]!;
+    expect(compareColumn(leather, leon2!, drop)).toEqual({ coverage: '50%', responders: '3', median: '14 d', modal: 'low', binding: 'A · tier 2 · moderate' });
+    // Mekong has no trace: nothing binds beneath it
+    expect(compareColumn(leather, mekong2!, drop)).toEqual({ coverage: '100%', responders: '3', median: '14 d', modal: 'low', binding: '—' });
+    // Arno timed out: its own gap words, and a dash for everything beneath it, never 0, NaN or a crash
+    expect(compareColumn(leather, arno2!, drop)).toEqual({ coverage: 'No answer · timeout', responders: '—', median: '—', modal: '—', binding: '—' });
+    // FlowKnit has one responder and withholds its median
+    expect(compareColumn(mt.slots[1]!, mt.slots[1]!.candidates[0]!, drop).median).toBe('—');
   });
 });
