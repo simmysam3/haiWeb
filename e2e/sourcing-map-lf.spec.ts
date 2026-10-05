@@ -17,12 +17,12 @@ const FIXTURES = path.join(process.cwd(), 'src/app/sourcing-map/__fixtures__');
 const estimate = JSON.parse(readFileSync(path.join(FIXTURES, 'sp2/estimate-may-wait.json'), 'utf8')) as unknown;
 const throttled = JSON.parse(readFileSync(path.join(FIXTURES, 'sp2/execution-throttled.json'), 'utf8')) as { status: unknown };
 const panelLeon = JSON.parse(readFileSync(path.join(FIXTURES, 'sp3/option-panel-leon.json'), 'utf8')) as unknown;
-/** The multitier fixture's option cards: leather (León, Mekong, Arno's timeout), knit uppers, laces, outsoles. */
+/** The compare fixture's (the multitier's deep copy with deltas) option cards: leather (León, Mekong, Arno's timeout), knit uppers, laces, outsoles. */
 const CARDS = 6;
-/** Its tier-row handles: León A B C, Mekong A F C, FlowKnit D, Bowline D, Zephyr E. */
+/** Its tier-row handles (compare): León A B C, Mekong A F C, FlowKnit D, Bowline D, Zephyr E. */
 const HANDLES = 9;
 
-// The two helpers below are copies of e2e/sourcing-map-sp2.spec.ts:26 and :50-71 (ruling F23): the existing specs are the
+// The three items below (TIER_ROW_H, handleBoxes, badHandles) are copies of e2e/sourcing-map-sp2.spec.ts:26 and :50-71 (ruling F23): the existing specs are the
 // regression guard of two shipped lanes and stay as they are, so the helpers are copied, not hoisted (a backlog line).
 /** A tier row's height (MAP_L.tierRowH); a handle is one line inside it. */
 const TIER_ROW_H = 26;
@@ -54,7 +54,8 @@ async function routeBff(page: Page): Promise<void> {
 
 /**
  * Measures as they are made, from before the page's scripts: each commit clears the previous measure, so the timeline
- * alone holds only the latest. Needed where a later commit would clear a figure this test must keep (H-2).
+ * alone holds only the latest. H-2 asserts on the timeline (the last commit's measure, in the state under test); this
+ * list is information only, logged beside it.
  */
 async function observeMeasures(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -74,7 +75,7 @@ const root = (page: Page) => page.getByTestId('sm-root');
 const cardButton = (page: Page, key: string) => page.locator(`section[aria-label="Sourcing map"] button[data-anchor="${key}"]`);
 const details = (page: Page, name: string) => page.getByRole('complementary', { name: `Details for ${name}` });
 
-async function openPage(page: Page, fixture: 'compare' | 'multitier' | 'throttled'): Promise<void> {
+async function openPage(page: Page, fixture: 'compare' | 'throttled'): Promise<void> {
   await routeBff(page);
   await page.goto(`${HARNESS}/sm-harness/${fixture}`);
   await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible();
@@ -95,7 +96,7 @@ async function setTheme(page: Page, theme: 'dark' | 'light'): Promise<void> {
 }
 
 interface Box { x: number; y: number; w: number; h: number }
-interface TraceGeometry { pinned: boolean; label: string; d: string; card: Box; header: Box; handle: Box; gutter: number }
+interface TraceGeometry { pinned: boolean; label: string; edges: number; d: string; card: Box; header: Box; handle: Box; gutter: number }
 /**
  * Each overlay's first edge with the geometry of the card it belongs to, in the trace frame's coordinates: the card
  * (its article), its header button and the `<key>/D` handle. The overlay's own card is the one named by its aria-label.
@@ -111,6 +112,7 @@ function traceGeometry(page: Page, cards: Array<{ pinned: boolean; key: string }
       return {
         pinned: s.pinned,
         label: svg.getAttribute('aria-label') ?? '',
+        edges: svg.querySelectorAll('path[data-trace-edge]').length,
         d: svg.querySelector('path[data-trace-edge]')!.getAttribute('d')!,
         card: rel(header.closest('article')!),
         header: rel(header),
@@ -142,19 +144,25 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     const edges = geo.map((g) => {
       const n = (g.d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
       const xs = [n[0]!, n[2]!, n[4]!, n[6]!];
+      const ys = [n[1]!, n[3]!, n[5]!, n[7]!];
       const off = (a: number, b: number) => Math.abs(a - b) < 0.5;
       return {
-        label: g.label, numbers: n.length,
+        count: g.edges, numbers: n.length,
         leavesOwnHeader: off(n[0]!, g.header.x) && off(n[1]!, g.header.y + g.header.h / 2),
         entersOwnHandle: off(n[6]!, g.handle.x) && off(n[7]!, g.handle.y + g.handle.h / 2),
-        insideOwnCard: Math.min(...xs) >= g.card.x - g.gutter && Math.max(...xs) <= g.card.x + g.card.w,
+        insideOwnCardX: Math.min(...xs) >= g.card.x - g.gutter && Math.max(...xs) <= g.card.x + g.card.w,
+        insideOwnCardY: Math.min(...ys) >= g.card.y && Math.max(...ys) <= g.card.y + g.card.h,
       };
     });
-    const sound = (label: string) => ({ label, numbers: 8, leavesOwnHeader: true, entersOwnHandle: true, insideOwnCard: true });
-    expect({ overlays, pinnedMarks }).toEqual({ overlays: 2, pinnedMarks: 1 });
-    expect(edges).toEqual(geo.map((g) => sound(g.label)));
-    expect({ cards: [dark.cards.length, light.cards.length], handles: [dark.handles.length, light.handles.length] }).toEqual({ cards: [CARDS, CARDS], handles: [HANDLES, HANDLES] });
-    expect({ dark: { cards: overflowing(dark.cards), handles: badHandles(dark.handles) }, light: { cards: overflowing(light.cards), handles: badHandles(light.handles) } })
+    const each = <T,>(want: T) => geo.map(() => want);
+    expect.soft({ overlays, pinnedMarks }).toEqual({ overlays: 2, pinnedMarks: 1 });
+    expect.soft(edges.map((e) => [e.count, e.numbers]), 'one edge of 8 numbers per overlay').toEqual(each([1, 8]));
+    expect.soft(edges.map((e) => e.leavesOwnHeader), 'each edge leaves its own header at left-mid').toEqual(each(true));
+    expect.soft(edges.map((e) => e.entersOwnHandle), 'each edge enters its own D at left-mid').toEqual(each(true));
+    expect.soft(edges.map((e) => e.insideOwnCardX), 'x-extent inside the card and its left gutter').toEqual(each(true));
+    expect.soft(edges.map((e) => e.insideOwnCardY), 'y-extent inside its own card').toEqual(each(true));
+    expect.soft({ cards: [dark.cards.length, light.cards.length], handles: [dark.handles.length, light.handles.length] }).toEqual({ cards: [CARDS, CARDS], handles: [HANDLES, HANDLES] });
+    expect.soft({ dark: { cards: overflowing(dark.cards), handles: badHandles(dark.handles) }, light: { cards: overflowing(light.cards), handles: badHandles(light.handles) } })
       .toEqual({ dark: { cards: [], handles: [] }, light: { cards: [], handles: [] } });
   });
 
@@ -230,11 +238,11 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     const four = [panel.getByRole('button', { name: 'Pin', exact: true }), panel.getByRole('tab', { name: 'Path beneath' }), page.getByRole('button', { name: 'Hide all paths' }), page.getByRole('button', { name: /^Heat on links/ })];
     await scan('e-unavailable', async () => (await Promise.all(four.map((l) => l.getAttribute('aria-disabled')))).every((v) => v === 'true') && (await visible(page.getByText('Available when the run completes.').first())));
 
-    expect(states['a-strip']).toEqual({ present: true, dark: '[]', light: '[]' });
-    expect(states['b-path-beneath']).toEqual({ present: true, dark: '[]', light: '[]' });
-    expect(states['c-handle-panel']).toEqual({ present: true, dark: '[]', light: '[]' });
-    expect(states['d-heat-off']).toEqual({ present: true, dark: '[]', light: '[]' });
-    expect(states['e-unavailable']).toEqual({ present: true, dark: '[]', light: '[]' });
+    expect.soft(states['a-strip'], 'a-strip').toEqual({ present: true, dark: '[]', light: '[]' });
+    expect.soft(states['b-path-beneath'], 'b-path-beneath').toEqual({ present: true, dark: '[]', light: '[]' });
+    expect.soft(states['c-handle-panel'], 'c-handle-panel').toEqual({ present: true, dark: '[]', light: '[]' });
+    expect.soft(states['d-heat-off'], 'd-heat-off').toEqual({ present: true, dark: '[]', light: '[]' });
+    expect.soft(states['e-unavailable'], 'e-unavailable').toEqual({ present: true, dark: '[]', light: '[]' });
   });
 
   test('H-4 Escape and focus: one layer per real key press, and focus lands on the opener, never <body>', async ({ page }) => {
@@ -295,7 +303,10 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     await cardButton(page, 'mekong').click();
     await page.getByRole('table', { name: 'Compare pinned and active' }).getByRole('button', { name: 'Unpin León Cuero' }).click();
     await frames();
-    const afterUnpin = { active: await active(), strips: await page.getByRole('table', { name: 'Compare pinned and active' }).count() };
+    const afterUnpin = {
+      mekongPinIsActive: await details(page, 'Mekong Tannery').getByRole('button', { name: 'Pin', exact: true }).evaluate((e) => e === document.activeElement),
+      strips: await page.getByRole('table', { name: 'Compare pinned and active' }).count(),
+    };
 
     console.log(`SM_LF_ESCAPE handle=${JSON.stringify(afterHandle)} details=${JSON.stringify(afterDetails)} tray=${afterTray} pinned=${pinnedBefore}->${pinnedAfter} one_press=${JSON.stringify(afterOne)}`);
     console.log(`SM_LF_FOCUS strip_unpin=${JSON.stringify(afterUnpin)}`);
@@ -306,7 +317,7 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     expect.soft(afterTray, 'Escape from the Configure tray: Configure is active').toBe('BUTTON|Configure');
     expect.soft([pinnedBefore, pinnedAfter], 'Escape with only a pin left clears it').toEqual([1, 0]);
     expect.soft(afterOne, 'one Escape from inside the handle panel closes it alone').toEqual({ insideHandle: true, handlePanels: 0, detailsShown: true });
-    expect.soft(afterUnpin, 'Unpin in the strip hands focus to Pin, never <body>').toEqual({ active: 'BUTTON|Pin', strips: 0 });
+    expect.soft(afterUnpin, 'Unpin in the strip hands focus to Pin, never <body>').toEqual({ mekongPinIsActive: true, strips: 0 });
   });
 
   test('H-5 the picker: Escape on the open Result list does not close the details', async ({ page }) => {
@@ -339,12 +350,14 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
       return {
         links: strokes.length,
         coloured: strokes.filter((c) => c !== neutral).length,
-        edgeKeepsBand: edgeStroke === resolve(edge.style.stroke) && edgeStroke !== neutral,
+        // the band's own token, named here and not read back from the edge's inline style
+        edgeKeepsBand: edgeStroke === resolve(`var(--sm-heat-${({ slight: 'good', moderate: 'mid', severe: 'bad' } as Record<string, string>)[edge.dataset.band ?? '']})`) && edgeStroke !== neutral,
         label: Array.from(document.querySelectorAll('button')).map((b) => b.textContent ?? '').find((t) => t.startsWith('Heat on links')) ?? '',
       };
     });
     const before = await links();
     await page.getByRole('button', { name: 'Heat on links: on' }).click();
+    await expect(page.getByRole('button', { name: 'Heat on links: off' })).toBeVisible();
     const pressed = await links();
     await page.reload();
     await expect(page.getByRole('region', { name: 'Sourcing map' })).toBeVisible();
@@ -355,9 +368,9 @@ test.describe('Sourcing Map LF harness (fixtures, real browser)', () => {
     console.log(`SM_LF_HEAT before=${JSON.stringify(before)} pressed=${JSON.stringify(pressed)} reloaded=${JSON.stringify(reloaded)}`);
 
     expect.soft(before.coloured, 'heat on: some links carry a heat colour').toBeGreaterThan(0);
-    expect.soft({ label: pressed.label, coloured: pressed.coloured }, 'the press makes every link neutral').toEqual({ label: 'Heat on links: off', coloured: 0 });
+    expect.soft({ label: pressed.label, links: pressed.links, coloured: pressed.coloured }, 'the press makes every link neutral').toEqual({ label: 'Heat on links: off', links: 14, coloured: 0 });
     expect.soft(pressed.edgeKeepsBand, 'the trace edge keeps its band colour with heat off').toBe(true);
-    expect.soft({ label: reloaded.label, coloured: reloaded.coloured }, 'after a reload the stored choice holds').toEqual({ label: 'Heat on links: off', coloured: 0 });
+    expect.soft({ label: reloaded.label, links: reloaded.links, coloured: reloaded.coloured }, 'after a reload the stored choice holds').toEqual({ label: 'Heat on links: off', links: 14, coloured: 0 });
   });
 
   test('H-7 handles: with León\'s Path beneath open there are still 9 map handles, and each reads alias · country · class with no digit', async ({ page }) => {
