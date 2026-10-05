@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AccountNav } from '../account-nav';
+import { HelpProvider } from '@/components/help';
 
 // next/navigation is used by AccountNav for usePathname
 vi.mock('next/navigation', () => ({
@@ -245,5 +246,22 @@ describe('AccountNav', () => {
     expect(form).not.toBeNull();
     expect(form?.getAttribute('action')).toBe('/api/auth/logout');
     expect((form?.getAttribute('method') ?? '').toLowerCase()).toBe('post');
+  });
+});
+
+describe('AccountNav — HAIWAVE Help entry point', () => {
+  it('puts the Help button in the white logo strip when the help agent is enabled', () => {
+    const { container } = render(
+      <HelpProvider enabled ownerKey="owner-test">
+        <AccountNav userName="Test User" userEmail="test@example.com" />
+      </HelpProvider>,
+    );
+    const logoStrip = container.querySelector('aside > div');
+    expect(logoStrip).toContainElement(screen.getByRole('button', { name: 'Help' }));
+  });
+
+  it('renders no Help button without an enabled help provider', () => {
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
   });
 });

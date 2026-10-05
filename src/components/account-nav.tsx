@@ -8,6 +8,7 @@ import useSWR from "swr";
 import { jsonFetcher } from "@/lib/swr-fetcher";
 import { NavBadge } from "./nav-badge";
 import { NavTooltip } from "./nav-tooltip";
+import { HelpButton } from "@/components/help";
 
 // v1.37: Sonar IA split — the bilateral-request inbox lives at
 // /account/sonar/requests (Active queue is the section default). The
@@ -241,7 +242,7 @@ export function AccountNav({ userName, userEmail, canUseSourcingMap = false }: A
 
   return (
     <aside className="w-64 bg-navy text-white flex flex-col shrink-0">
-      <div className="bg-white px-6 py-3">
+      <div className="bg-white px-6 py-3 flex items-center justify-between gap-3">
         <Link href="/">
           <Image
             src="/img/haiwave-logo.png"
@@ -251,6 +252,8 @@ export function AccountNav({ userName, userEmail, canUseSourcingMap = false }: A
             className="h-8 w-auto"
           />
         </Link>
+        {/* HAIWAVE Help (spec §7.1); renders nothing unless the layout's HelpProvider is enabled. */}
+        <HelpButton variant="nav" />
       </div>
       <nav className="flex-1 py-5 overflow-y-auto">
         {navSections.map((section, idx) => (

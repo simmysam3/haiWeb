@@ -4,6 +4,7 @@ import { SmHeader } from '../sm-header';
 import { SmThemeRoot } from '../theme-root';
 import { OpenRisksProvider } from '../open-risks';
 import { SM_THEME_TOKENS } from '@/lib/sourcing-map/theme';
+import { HelpProvider } from '@/components/help';
 
 afterEach(() => {
   window.localStorage.clear();
@@ -18,6 +19,7 @@ vi.mock('next/link', () => ({
     <a href={href} {...props}>{children}</a>
   ),
 }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/sourcing-map' }));
 
 describe('SmHeader', () => {
   it('shows the reversed logo, the app title, Console back to /account, the theme toggle and the page actions', () => {
@@ -93,5 +95,22 @@ describe('SmHeader', () => {
   it('shows the plain "Supply Risks" link with no provider, never "(0 open)"', () => {
     render(<SmHeader crumbs={[{ label: 'Projects' }]} />);
     expect(screen.getByRole('link', { name: 'Supply Risks' })).toHaveAttribute('href', '/account/sonar/supply-risks');
+  });
+});
+
+describe('SmHeader — HAIWAVE Help entry point', () => {
+  it('carries the Help button in the action group when the help agent is enabled', () => {
+    render(
+      <HelpProvider enabled ownerKey="owner-test">
+        <SmHeader crumbs={[{ label: 'Projects' }]} />
+      </HelpProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Help' });
+    expect(button.closest('div.ml-auto')).not.toBeNull();
+  });
+
+  it('has no Help button without an enabled help provider', () => {
+    render(<SmHeader crumbs={[{ label: 'Projects' }]} />);
+    expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
   });
 });

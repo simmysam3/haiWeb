@@ -1,6 +1,9 @@
 import { forbidden } from 'next/navigation';
 import { getSession, hasRole } from '@/lib/auth';
 import { fetchBffJson } from '@/lib/server-fetch';
+import { loadEnv } from '@/config/env';
+import { HelpProvider } from '@/components/help';
+import { helpOwnerKey } from '@/lib/help-owner';
 import type { SmSupplyRiskListResponse } from '@/lib/sourcing-map/types';
 import { OpenRisksProvider } from './_components/open-risks';
 import { SmThemeRoot } from './_components/theme-root';
@@ -22,8 +25,12 @@ export default async function SourcingMapLayout({ children }: { children: React.
   );
   const openCount = risks.kind === 'ok' && Number.isInteger(risks.data.open_count) ? risks.data.open_count : null;
   return (
-    <SmThemeRoot>
-      <OpenRisksProvider count={openCount}>{children}</OpenRisksProvider>
-    </SmThemeRoot>
+    // HAIWAVE Help (spec §7.1): the same panel as /account, restored from sessionStorage
+    // for the same signed-in user only (amendment P3-7).
+    <HelpProvider enabled={loadEnv().HELP_AGENT_ENABLED} ownerKey={helpOwnerKey(session)}>
+      <SmThemeRoot>
+        <OpenRisksProvider count={openCount}>{children}</OpenRisksProvider>
+      </SmThemeRoot>
+    </HelpProvider>
   );
 }
