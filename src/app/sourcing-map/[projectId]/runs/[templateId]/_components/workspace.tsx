@@ -203,16 +203,20 @@ export function Workspace({
     }
   }
 
-  // R2: closing the details returns focus to the card that opened them, found as closeHandle finds a handle: the
-  // `[data-anchor]` whose value equals the selected card's key, compared by value. It is never "the map's pressed
-  // button": the heat switch (LF §6.6) is a pressed button too, and it comes first. The card outlives the close, so it
-  // is focused before the panel unmounts.
+  // R2: closing the details returns focus to the card that opened them: the pressed `[data-anchor]` whose value equals
+  // the selected card's key, compared by value as closeHandle compares a handle's. A key alone can name two cards in two
+  // lanes (an SP1 participant, or one class in two slots: LF final review I-1); only the selected card's header is
+  // both pressed and an anchor (a handle's value carries `/<alias>`, and the heat switch, LF §6.6, has no anchor). The
+  // card outlives the close, so it is focused before the panel unmounts.
   const mapRef = useRef<HTMLDivElement | null>(null);
   function focusAnchor(anchor: string) {
     Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor]') ?? []).find((el) => el.dataset.anchor === anchor)?.focus();
   }
   function closeDetails() {
-    if (selectedCandidate) focusAnchor(candidateKeyOf(selectedCandidate));
+    if (selectedCandidate) {
+      const key = candidateKeyOf(selectedCandidate);
+      Array.from(mapRef.current?.querySelectorAll<HTMLElement>('[data-anchor][aria-pressed="true"]') ?? []).find((el) => el.dataset.anchor === key)?.focus();
+    }
     setSelected(null);
   }
 

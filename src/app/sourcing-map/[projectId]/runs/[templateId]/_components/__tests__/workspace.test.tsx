@@ -285,6 +285,16 @@ describe('Workspace', () => {
     const panel = screen.getByRole('complementary', { name: 'Details for León Cuero' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Close details' }));
     expect(screen.getByRole('button', { name: /^León Cuero, MX/ })).toHaveFocus();
+    // LF final review I-1: a key can name two cards. Zephyr has no candidate_key (SP1), so its participant id keys it in
+    // the EVA midsole lane and in the outsole lane alike; focus returns to the card selected, in its own lane
+    const outsole = within(screen.getByRole('group', { name: 'Rubber outsoles' })).getByRole('button', { name: /^Zephyr Compounds, DE/ });
+    // Escape's step 2 is the same close (§6.5)
+    fireEvent.click(outsole);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(outsole).toHaveFocus();
+    fireEvent.click(outsole);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Details for Zephyr Compounds' })).getByRole('button', { name: 'Close details' }));
+    expect(outsole).toHaveFocus();
   });
 
   it('a switch of result closes the details panel, whose pick named a card of the previous result (R3)', async () => {
