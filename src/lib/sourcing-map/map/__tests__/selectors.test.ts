@@ -477,13 +477,15 @@ describe('the compare strip: the selectors (LF step 6)', () => {
     expect(sharedAliases(leon2!, mekong2!)).toEqual(['A', 'C']);
     // León and Zephyr (E) share nothing
     expect(sharedAliases(leon2!, zephyr2)).toEqual([]);
+    // a's order, not b's: León's nodes reversed (C, B, A) against Mekong's (A, F, C) share C then A
+    expect(sharedAliases({ ...leon2!, nodes: [...leon2!.nodes!].reverse() }, mekong2!)).toEqual(['C', 'A']);
   });
 
   it('words one card’s side of the strip, with a dash for what it does not have (§6.7)', () => {
     const drop = '2027-03-15';
     const leather = mt.slots[0]!;
     expect(compareColumn(leather, leon2!, drop)).toEqual({ coverage: '50%', responders: '3', median: '14 d', modal: 'low', binding: 'A · tier 2 · moderate' });
-    // Mekong answers for itself only: nothing binds beneath it
+    // Mekong has no trace: nothing binds beneath it
     expect(compareColumn(leather, mekong2!, drop)).toEqual({ coverage: '100%', responders: '3', median: '14 d', modal: 'low', binding: '—' });
     // Arno timed out: its own gap words, and a dash for everything beneath it, never 0, NaN or a crash
     expect(compareColumn(leather, arno2!, drop)).toEqual({ coverage: 'No answer · timeout', responders: '—', median: '—', modal: '—', binding: '—' });

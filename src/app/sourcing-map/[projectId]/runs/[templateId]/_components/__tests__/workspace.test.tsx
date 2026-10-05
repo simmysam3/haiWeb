@@ -1320,6 +1320,19 @@ describe('Workspace', () => {
     expect(strip()).toBeNull();
     expect(screen.queryByText('Pinned')).toBeNull();
     expect(within(details('Mekong Tannery')).getByRole('button', { name: 'Pin' })).toHaveFocus();
+    // two slots through the workspace: León (leather) pinned, FlowKnit (uppers) active; each header names its own slot (I-1)
+    fireEvent.click(leon);
+    fireEvent.click(within(details('León Cuero')).getByRole('button', { name: 'Pin' }));
+    fireEvent.click(screen.getByRole('button', { name: /^FlowKnit Mills/ }));
+    expect(within(strip()!).getByText('León Cuero (pinned) · Full grain leather hides')).toBeInTheDocument();
+    expect(within(strip()!).getByText('FlowKnit Mills · Polyester knit uppers')).toBeInTheDocument();
+    // Unpin from the strip while the active card's Pin is unavailable (Arno never answered): focus stays on that Pin, never <body>
+    fireEvent.click(screen.getByRole('button', { name: /^Arno Pelli, IT/ }));
+    const arnoUnpin = within(strip()!).getByRole('button', { name: 'Unpin León Cuero' });
+    arnoUnpin.focus();
+    fireEvent.click(arnoUnpin);
+    expect(strip()).toBeNull();
+    expect(within(details('Arno Pelli')).getByRole('button', { name: 'Pin' })).toHaveFocus();
     await panelsSettled();
     await panelsSettled();
   });
