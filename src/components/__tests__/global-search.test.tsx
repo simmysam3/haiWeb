@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { GlobalSearch } from '../global-search';
 
 const pushMock = vi.fn();
@@ -84,6 +84,110 @@ describe('GlobalSearch', () => {
   it('renders an accessible search input', () => {
     render(<GlobalSearch />);
     expect(screen.getByLabelText('Search')).toBeDefined();
+    const combobox = screen.getByRole('combobox', { name: 'Search' });
+    expect(combobox.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it.each([
+    {
+      state: 'loading',
+      line: 'Searching…',
+      arrange: () => fetchMock.mockReturnValue(new Promise(() => {})),
+    },
+    {
+      state: 'empty',
+      line: 'No results for "ac".',
+      arrange: () =>
+        fetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({ counterparties: [], skus: [], scopes: [] }),
+        }),
+    },
+    {
+      state: 'error',
+      line: 'Search failed (500)',
+      arrange: () =>
+        fetchMock.mockResolvedValue({ ok: false, status: 500 }),
+    },
+  ])(
+    'the $state line is not a listbox: no listbox is rendered and aria-expanded stays false',
+    async ({ line, arrange }) => {
+      arrange();
+      render(<GlobalSearch />);
+      const combobox = screen.getByRole('combobox', { name: 'Search' });
+      fireEvent.change(combobox, { target: { value: 'ac' } });
+      vi.advanceTimersByTime(300);
+
+      await waitFor(() => {
+        expect(screen.getByText(line)).toBeDefined();
+      });
+      expect(screen.queryByRole('listbox')).toBeNull();
+      expect(combobox.getAttribute('aria-expanded')).toBe('false');
+    },
+  );
+
+  it('with results, the named listbox holds exactly the three named groups of options', async () => {
+    mockSearchResponse();
+    render(<GlobalSearch />);
+    const combobox = screen.getByRole('combobox', { name: 'Search' });
+    fireEvent.change(combobox, { target: { value: 'acme' } });
+    vi.advanceTimersByTime(300);
+
+    const listbox = await screen.findByRole('listbox', {
+      name: 'Search results',
+    });
+    expect(combobox.getAttribute('aria-expanded')).toBe('true');
+    const names = ['Counterparties', 'SKUs', 'Scopes / Requests'];
+    expect(within(listbox).getAllByRole('group')).toHaveLength(names.length);
+    for (const name of names) {
+      const group = within(listbox).getByRole('group', { name });
+      expect(within(group).getAllByRole('option')).toHaveLength(1);
+    }
+    expect(within(listbox).queryAllByRole('list')).toEqual([]);
+    expect(within(listbox).queryAllByRole('listitem')).toEqual([]);
+  });
+
+  it('keeps the "See all results" button outside the listbox', async () => {
+    mockSearchResponse();
+    render(<GlobalSearch />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Search' }), {
+      target: { value: 'acme' },
+    });
+    vi.advanceTimersByTime(300);
+
+    const listbox = await screen.findByRole('listbox', {
+      name: 'Search results',
+    });
+    const button = screen.getByRole('button', { name: /See all results/ });
+    expect(listbox.contains(button)).toBe(false);
+  });
+
+  it('aria-activedescendant follows the highlighted option and is absent otherwise', async () => {
+    mockSearchResponse();
+    render(<GlobalSearch />);
+    const combobox = screen.getByRole('combobox', { name: 'Search' });
+    fireEvent.change(combobox, { target: { value: 'acme' } });
+    vi.advanceTimersByTime(300);
+    await screen.findByRole('listbox', { name: 'Search results' });
+    const options = screen.getAllByRole('option');
+    const ids = options.map((o) => o.id);
+    expect(ids.every((id) => id !== '')).toBe(true);
+    expect(new Set(ids).size).toBe(options.length);
+    expect(combobox.hasAttribute('aria-activedescendant')).toBe(false);
+
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(combobox.getAttribute('aria-activedescendant')).toBe(ids[0]);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(combobox.getAttribute('aria-activedescendant')).toBe(ids[1]);
+
+    fireEvent.keyDown(combobox, { key: 'ArrowUp' });
+    fireEvent.keyDown(combobox, { key: 'ArrowUp' });
+    expect(combobox.hasAttribute('aria-activedescendant')).toBe(false);
+
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(combobox.getAttribute('aria-activedescendant')).toBe(ids[0]);
+    fireEvent.keyDown(combobox, { key: 'Escape' });
+    expect(combobox.hasAttribute('aria-activedescendant')).toBe(false);
   });
 
   it('does NOT fire the BFF call until query length >= 2 (min-length gate)', async () => {

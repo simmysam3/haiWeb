@@ -190,6 +190,7 @@ export function GlobalSearch() {
   const showDropdown = Boolean(
     isOpen && (debouncedQuery.length >= MIN_QUERY_LEN || isLoading || error),
   );
+  const showListbox = showDropdown && data !== null && flat.length > 0;
   const showEmpty =
     isOpen &&
     debouncedQuery.length >= MIN_QUERY_LEN &&
@@ -206,6 +207,7 @@ export function GlobalSearch() {
       <input
         id="global-search-input"
         type="search"
+        role="combobox"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -222,14 +224,17 @@ export function GlobalSearch() {
         spellCheck={false}
         className="w-full rounded-md border border-slate/30 bg-white px-3 py-2.5 text-base text-navy placeholder:text-slate focus:border-teal focus:outline-none focus:ring-2 focus:ring-teal/30 md:py-1.5 md:text-sm md:placeholder:text-slate"
         aria-autocomplete="list"
-        aria-expanded={showDropdown}
+        aria-expanded={showListbox}
         aria-controls="global-search-listbox"
+        aria-activedescendant={
+          showListbox && highlightedIndex >= 0
+            ? `global-search-option-${highlightedIndex}`
+            : undefined
+        }
       />
 
       {showDropdown && (
         <div
-          id="global-search-listbox"
-          role="listbox"
           // v.1.37 mobile pass: shorter max-height on small screens so the
           // dropdown doesn't extend past the viewport on phones with a
           // visible keyboard. Desktop keeps the original 480px ceiling.
@@ -247,14 +252,20 @@ export function GlobalSearch() {
             </div>
           )}
 
-          {data && flat.length > 0 && (
-            <ResultDropdown
-              data={data}
-              flat={flat}
-              highlightedIndex={highlightedIndex}
-              setHighlightedIndex={setHighlightedIndex}
-              onSelect={() => setIsOpen(false)}
-            />
+          {showListbox && (
+            <div
+              id="global-search-listbox"
+              role="listbox"
+              aria-label="Search results"
+            >
+              <ResultDropdown
+                data={data}
+                flat={flat}
+                highlightedIndex={highlightedIndex}
+                setHighlightedIndex={setHighlightedIndex}
+                onSelect={() => setIsOpen(false)}
+              />
+            </div>
           )}
 
           {debouncedQuery.length >= MIN_QUERY_LEN && (
@@ -354,21 +365,26 @@ function SearchSection({
   setHighlightedIndex,
   onSelect,
 }: SearchSectionProps) {
+  const headerId = `global-search-group-${rows[0].kind}`;
   return (
     <div>
-      <div className="border-b border-slate/10 bg-light-gray px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate">
+      <div
+        id={headerId}
+        className="border-b border-slate/10 bg-light-gray px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate"
+      >
         {label}
       </div>
-      <ul>
+      <ul role="group" aria-labelledby={headerId}>
         {rows.map((row, i) => {
           const flatIndex = startIndex + i;
           const isHighlighted = flatIndex === highlightedIndex;
           return (
-            <li key={`${row.kind}-${flatIndex}`}>
+            <li key={`${row.kind}-${flatIndex}`} role="none">
               <Link
                 href={row.href}
                 onClick={onSelect}
                 onMouseEnter={() => setHighlightedIndex(flatIndex)}
+                id={`global-search-option-${flatIndex}`}
                 role="option"
                 aria-selected={isHighlighted}
                 // v.1.37 mobile pass: per-row tap target ≥44px on mobile
