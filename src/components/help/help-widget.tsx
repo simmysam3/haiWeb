@@ -58,6 +58,8 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   // The latest sendText call. A newer request aborts the one in flight (one help request at a time), and
   // the aborted call ends after the newer one began: only the latest may clear `streaming`.
   const latestRequest = useRef(0);
+  // The case-summary request in flight. Reset and Close drop it: its answer belongs to the conversation they ended.
+  const summaryRequest = useRef<object | null>(null);
 
   useEffect(() => {
     stateRef.current = state;
@@ -191,10 +193,13 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
   const summarize = useCallback(() => {
     const conversationId = stateRef.current.conversationId;
     if (!conversationId) return;
+    const request = {};
+    summaryRequest.current = request;
     setSummary({ status: 'loading' });
-    void requestCaseSummary(conversationId).then((res) =>
-      setSummary(res ? { status: 'ready', summary: res.summary, contact: res.contact } : { status: 'failed' }),
-    );
+    void requestCaseSummary(conversationId).then((res) => {
+      if (summaryRequest.current !== request) return;
+      setSummary(res ? { status: 'ready', summary: res.summary, contact: res.contact } : { status: 'failed' });
+    });
   }, []);
   const setLanguage = useCallback((lang: HelpLanguage) => {
     setLanguageState(lang);
@@ -209,6 +214,7 @@ function HelpRuntime({ ownerKey, children }: { ownerKey: string | null; children
     (how: 'close' | 'reset') => {
       cancelRetry();
       stream.stop();
+      summaryRequest.current = null;
       setSummary({ status: 'idle' });
       setAnnouncement('');
       if (how === 'close') dispatch({ type: 'close' });

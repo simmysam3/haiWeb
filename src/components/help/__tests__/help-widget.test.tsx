@@ -788,4 +788,33 @@ describe('HelpProvider + HelpButton + HelpPanel (review round 1)', () => {
     expect(helpBodies().map((b) => b.message)).toEqual([UNANSWERED, UNANSWERED]);
     expect(screen.getAllByText(UNANSWERED)).toHaveLength(1);
   });
+
+  const caseSummaryPosts = () => fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/case-summary'));
+  /** Case-summary requests stay pending until the test answers them, in order. */
+  function holdCaseSummaries() {
+    const pending: Array<(res: Response) => void> = [];
+    const base = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/case-summary') ? new Promise<Response>((resolve) => pending.push(resolve)) : base?.(url, init),
+    );
+    return pending;
+  }
+
+  it('a support summary that arrives after Reset is not shown in the new conversation', async () => {
+    const pending = holdCaseSummaries();
+    replies.push(sseResponse(answer('Answer one.')));
+    renderWidget();
+    await openPanel();
+    ask(QUESTION);
+    await screen.findByText('Answer one.');
+    fireEvent.click(footerSummarize());
+    expect(caseSummaryPosts()).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Start a new conversation' }));
+    await act(async () => {
+      pending[0](jsonResponse(200, { summary: 'Summary of the OLD conversation', contact: 'support@haiwave.ai' }));
+      await new Promise((resolve) => setTimeout(resolve, 50)); // let the request's answer land
+    });
+    expect(screen.getByText(/Ask where to find something in the console/)).toBeInTheDocument();
+    expect(screen.queryByText('Summary of the OLD conversation')).toBeNull();
+  });
 });
