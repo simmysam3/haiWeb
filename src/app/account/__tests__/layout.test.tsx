@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { sessionFor } from '@/test/role-gate';
 
 const { getSession, navProps, helpProps } = vi.hoisted(() => ({
@@ -11,10 +11,11 @@ vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth')>('@/lib/auth');
   return { ...actual, getSession };
 });
+// Each mock renders a marker, so a test can see whether AccountNav sits inside the provider.
 vi.mock('@/components/account-nav', () => ({
   AccountNav: (p: Record<string, unknown>) => {
     navProps.push(p);
-    return null;
+    return <nav data-testid="account-nav" />;
   },
 }));
 vi.mock('@/components/throttle-header-indicator', () => ({ ThrottleHeaderIndicator: () => null }));
@@ -22,7 +23,7 @@ vi.mock('@/components/global-search', () => ({ GlobalSearch: () => null }));
 vi.mock('@/components/help', () => ({
   HelpProvider: ({ enabled, ownerKey, children }: { enabled: boolean; ownerKey: string | null; children: React.ReactNode }) => {
     helpProps.push({ enabled, ownerKey });
-    return <>{children}</>;
+    return <div data-testid="help-provider">{children}</div>;
   },
 }));
 
@@ -65,5 +66,13 @@ describe('AccountLayout', () => {
       'b161539033611f261ba7bcd678a2474a0b0235073d8c96352ba1e92c62179c57',
       null,
     ]);
+  });
+
+  it('renders AccountNav, which holds the Help button, inside the help provider (Task 3.9 review)', async () => {
+    const { default: AccountLayout } = await import('../layout');
+    getSession.mockResolvedValueOnce(sessionFor('account_admin'));
+    render(await AccountLayout({ children: null }));
+    // HelpButton renders nothing outside the provider's context, so a nav outside it has no Help button.
+    expect(screen.getByTestId('help-provider')).toContainElement(screen.getByTestId('account-nav'));
   });
 });
