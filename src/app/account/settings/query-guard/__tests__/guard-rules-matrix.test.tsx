@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { GuardRulesMatrix } from '../_components/guard-rules-matrix';
 import type { QueryGuardRule, ResolvedQueryGuardRule } from '@haiwave/protocol';
 
@@ -45,10 +45,38 @@ describe('GuardRulesMatrix', () => {
   });
   afterEach(() => fetchSpy.mockRestore());
 
+  it('is a named table, not an ARIA grid', () => {
+    render(<GuardRulesMatrix initialMatrix={defaultMatrix()} defaultAlertEmail={null} />);
+    expect(screen.getByRole('table', { name: 'Query Guard rules by rule type and trust class' })).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).toBeNull();
+  });
+
+  it('names its column headers and row headers in trust-class and rule-type order', () => {
+    render(<GuardRulesMatrix initialMatrix={defaultMatrix()} defaultAlertEmail={null} />);
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Rule \\ Class',
+      'All counterparties',
+      ...TRUST_CLASSES,
+    ]);
+    const rowHeaders = screen.getAllByRole('rowheader');
+    expect(rowHeaders).toHaveLength(RULE_TYPES.length);
+    rowHeaders.forEach((h, i) => {
+      expect(h.textContent?.startsWith(RULE_TYPES[i])).toBe(true);
+    });
+  });
+
   it('renders a cell per (rule_type, class column) with Default source tags', () => {
     render(<GuardRulesMatrix initialMatrix={defaultMatrix()} defaultAlertEmail={null} />);
     // 4 rule types × (1 global + 4 classes) = 20 interactive cells
-    expect(screen.getAllByRole('gridcell')).toHaveLength(20);
+    const cells = screen.getAllByRole('cell');
+    expect(cells).toHaveLength(20);
+    expect(screen.queryAllByRole('gridcell')).toEqual([]);
+    cells.forEach((cell, i) => {
+      const buttons = within(cell).getAllByRole('button');
+      expect(buttons).toHaveLength(1);
+      const column = i % 5 === 0 ? 'all counterparties' : TRUST_CLASSES[(i % 5) - 1];
+      expect(buttons[0]).toHaveAccessibleName(`${RULE_TYPES[Math.floor(i / 5)]} rule for ${column}`);
+    });
     expect(screen.getAllByText('Default')).toHaveLength(20);
     expect(screen.queryByText('Global')).not.toBeInTheDocument();
     expect(screen.queryByText('Class')).not.toBeInTheDocument();
