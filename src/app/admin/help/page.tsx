@@ -1,7 +1,7 @@
 // src/app/admin/help/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   HelpAdminConversationDetail,
   HelpAdminConversationList,
@@ -36,6 +36,11 @@ export default function AdminHelpPage() {
   const [loadError, setLoadError] = useState<{ read: "list" | "more"; status: number } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, DetailState>>({});
+  // Bumped by every list read: a Load more begun under an older read (other filters) is stale and dropped.
+  const generation = useRef(0);
+  // The generation whose Load more is in flight: a second click (a double click) must not read and append the
+  // same page again. A newer list read frees it, and a stale Load more that settles never frees a newer one.
+  const moreFor = useRef<number | null>(null);
 
   // The query STRING keys the read: a keystroke that leaves it unchanged (a partial id) reads nothing again.
   const query = useMemo(() => {
@@ -51,6 +56,7 @@ export default function AdminHelpPage() {
 
   useEffect(() => {
     let cancelled = false;
+    generation.current += 1;
     fetch(`/api/admin/help/conversations?${query}`)
       .then(async (r) => {
         if (cancelled) return;
@@ -61,6 +67,7 @@ export default function AdminHelpPage() {
           return;
         }
         const data = (await r.json()) as HelpAdminConversationList;
+        if (cancelled) return;
         setLoadError(null);
         setItems(data.items);
         setNextCursor(data.next_cursor);
@@ -78,21 +85,27 @@ export default function AdminHelpPage() {
   }, [query]);
 
   async function loadMore() {
-    if (!nextCursor) return;
+    const gen = generation.current;
+    if (!nextCursor || moreFor.current === gen) return;
+    moreFor.current = gen;
     const params = new URLSearchParams(query);
     params.set("cursor", nextCursor);
     try {
       const r = await fetch(`/api/admin/help/conversations?${params}`);
+      if (gen !== generation.current) return;
       if (!r.ok) {
         setLoadError({ read: "more", status: r.status });
         return;
       }
       const data = (await r.json()) as HelpAdminConversationList;
+      if (gen !== generation.current) return;
       setLoadError(null);
       setItems((prev) => [...(prev ?? []), ...data.items]);
       setNextCursor(data.next_cursor);
     } catch {
-      setLoadError({ read: "more", status: 0 });
+      if (gen === generation.current) setLoadError({ read: "more", status: 0 });
+    } finally {
+      if (moreFor.current === gen) moreFor.current = null;
     }
   }
 

@@ -5,6 +5,8 @@ import Page from '../page';
 
 const CONV = '0b8a5a52-58b6-4a8e-9a39-9a1d4c7f1f10';
 const CONV2 = '1c9b6b63-69c7-4b9f-8b4a-0b2e5d8f2a21';
+const CONV3 = '2dac7c74-7ad8-4cad-9c5b-1c3f6e9a3b32';
+const CONV4 = '3ebd8d85-8be9-4dbe-8d6d-2d4f7fab4c43';
 const PID = '11111111-1111-1111-1111-111111111111';
 const SUMMARY = {
   conversation_id: CONV,
@@ -355,6 +357,92 @@ describe('AdminHelpPage', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('clicks on Load more while one is pending read the next page once', async () => {
+    const more = deferred<Response>();
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('cursor=cur-2') ? more.promise : ok({ items: [SUMMARY], next_cursor: 'cur-2' }),
+    );
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    const button = screen.getByRole('button', { name: 'Load more' });
+    fireEvent.click(button);
+    fireEvent.click(button); // a double click
+    await act(async () => {}); // React re-renders, and the read is still pending
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await act(async () => more.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC' }], next_cursor: null })));
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('cursor=cur-2'))).toHaveLength(1);
+    expect(screen.getAllByText('Beta LLC')).toHaveLength(1);
+  });
+
+  it('a Load more that lands after the filters changed is dropped, and the new list keeps its cursor', async () => {
+    const more = deferred<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('cursor=cur-2')) return more.promise;
+      if (url.includes('cursor=td-2')) return ok({ items: [], next_cursor: null });
+      if (url.includes('thumbs_down=true')) return ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc', thumbs_down_count: 3 }], next_cursor: 'td-2' });
+      return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+    });
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thumbs-down only' }));
+    expect(await screen.findByText('Gamma Inc')).toBeInTheDocument();
+    // The unfiltered page 2 (no thumbs-down) lands late.
+    await act(async () =>
+      more.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC', thumbs_down_count: 0 }], next_cursor: 'cur-3' })),
+    );
+    expect(screen.queryByText('Beta LLC')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/admin/help/conversations?thumbs_down=true&page_size=50&cursor=td-2');
+  });
+
+  it("a stale Load more still pending neither blocks the new list's Load more nor releases its guard", async () => {
+    const stale = deferred<Response>();
+    const fresh = deferred<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('cursor=cur-2')) return stale.promise;
+      if (url.includes('cursor=td-2')) return fresh.promise;
+      if (url.includes('thumbs_down=true')) return ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc', thumbs_down_count: 3 }], next_cursor: 'td-2' });
+      return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+    });
+    const filteredPage2Reads = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('cursor=td-2')).length;
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' })); // becomes stale, still pending
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thumbs-down only' }));
+    await screen.findByText('Gamma Inc');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(filteredPage2Reads()).toBe(1);
+    await act(async () => stale.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC' }], next_cursor: 'cur-3' })));
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' })); // the new list's read is still pending
+    expect(filteredPage2Reads()).toBe(1);
+    await act(async () => fresh.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV4, participant_name: 'Delta Co', thumbs_down_count: 2 }], next_cursor: null })));
+    expect(screen.getByText('Delta Co')).toBeInTheDocument();
+    expect(screen.queryByText('Beta LLC')).toBeNull();
+  });
+
+  type Settle = (more: { resolve: (r: Response) => void; reject: (e: unknown) => void }) => void;
+  it.each<[string, Settle]>([
+    ['refused', (more) => more.resolve(refused(503))],
+    ['unreachable', (more) => more.reject(new TypeError('fetch failed'))],
+  ])('a Load more %s after the filters changed raises no alert over the new list', async (_how, settle) => {
+    const more = deferred<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('cursor=cur-2')) return more.promise;
+      if (url.includes('thumbs_down=true')) return ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc', thumbs_down_count: 3 }], next_cursor: null });
+      return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+    });
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thumbs-down only' }));
+    await screen.findByText('Gamma Inc');
+    await act(async () => settle(more));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Gamma Inc')).toBeInTheDocument();
+  });
+
   it('a read that lands after a newer one is ignored', async () => {
     const first = deferred<Response>();
     fetchMock.mockImplementation(async (url: string) =>
@@ -368,6 +456,25 @@ describe('AdminHelpPage', () => {
     await act(async () => first.resolve(ok({ items: [SUMMARY], next_cursor: 'cur-2' })));
     expect(screen.queryByText('Acme Corp')).toBeNull();
     expect(screen.getByText('Beta LLC')).toBeInTheDocument();
+  });
+
+  it('a read whose body lands after a newer read is ignored', async () => {
+    const body = deferred<unknown>();
+    const firstJson = vi.fn(() => body.promise);
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('thumbs_down=true')
+        ? ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc', thumbs_down_count: 3 }], next_cursor: null })
+        : ({ ok: true, status: 200, json: firstJson } as unknown as Response),
+    );
+    render(<Page />);
+    await act(async () => {});
+    expect(firstJson).toHaveBeenCalled(); // the first read's headers landed; its body is still coming
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thumbs-down only' }));
+    expect(await screen.findByText('Gamma Inc')).toBeInTheDocument();
+    await act(async () => body.resolve({ items: [SUMMARY], next_cursor: 'cur-2' }));
+    expect(screen.queryByText('Acme Corp')).toBeNull();
+    expect(screen.getByText('Gamma Inc')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
   });
 
   it('a read that fails after a newer one raises no alert', async () => {
