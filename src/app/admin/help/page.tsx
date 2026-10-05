@@ -43,6 +43,14 @@ export default function AdminHelpPage() {
   // The generation whose Load more is in flight: a second click (a double click) must not read and append the
   // same page again. A newer list read frees it, and a stale Load more that settles never frees a newer one.
   const moreFor = useRef<number | null>(null);
+  // The same cursor, current at once: Load more reads it here, never from its render's nextCursor. A click that
+  // lands after the previous Load more settled, before React re-renders, runs that render's onClick, whose
+  // nextCursor is still the page just read. Written only by putCursor, together with the state.
+  const cursorRef = useRef<{ cursor: string; gen: number } | null>(null);
+  function putCursor(next: { cursor: string; gen: number } | null) {
+    cursorRef.current = next;
+    setNextCursor(next);
+  }
 
   // The query STRING keys the read: a keystroke that leaves it unchanged (a partial id) reads nothing again.
   const query = useMemo(() => {
@@ -66,20 +74,20 @@ export default function AdminHelpPage() {
         if (!r.ok) {
           setLoadError({ read: "list", status: r.status });
           setItems([]);
-          setNextCursor(null);
+          putCursor(null);
           return;
         }
         const data = (await r.json()) as HelpAdminConversationList;
         if (cancelled) return;
         setLoadError(null);
         setItems(data.items);
-        setNextCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
+        putCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
       })
       .catch(() => {
         if (!cancelled) {
           setLoadError({ read: "list", status: 0 });
           setItems([]);
-          setNextCursor(null);
+          putCursor(null);
         }
       });
     return () => {
@@ -89,10 +97,11 @@ export default function AdminHelpPage() {
 
   async function loadMore() {
     const gen = generation.current;
-    if (!nextCursor || nextCursor.gen !== gen || moreFor.current === gen) return;
+    const cur = cursorRef.current;
+    if (!cur || cur.gen !== gen || moreFor.current === gen) return;
     moreFor.current = gen;
     const params = new URLSearchParams(query);
-    params.set("cursor", nextCursor.cursor);
+    params.set("cursor", cur.cursor);
     try {
       const r = await fetch(`/api/admin/help/conversations?${params}`);
       if (gen !== generation.current) return;
@@ -104,7 +113,7 @@ export default function AdminHelpPage() {
       if (gen !== generation.current) return;
       setLoadError(null);
       setItems((prev) => [...(prev ?? []), ...data.items]);
-      setNextCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
+      putCursor(data.next_cursor === null ? null : { cursor: data.next_cursor, gen });
     } catch {
       if (gen === generation.current) setLoadError({ read: "more", status: 0 });
     } finally {

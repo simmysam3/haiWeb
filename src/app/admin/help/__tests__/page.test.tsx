@@ -482,6 +482,28 @@ describe('AdminHelpPage', () => {
     expect(screen.getAllByText('Beta LLC')).toHaveLength(1);
   });
 
+  it('a Load more clicked after the previous one settled, before React re-renders, reads the next page, not the same one again', async () => {
+    const more = deferred<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('cursor=cur-3')) return ok({ items: [{ ...SUMMARY, conversation_id: CONV3, participant_name: 'Gamma Inc' }], next_cursor: null });
+      if (url.includes('cursor=cur-2')) return more.promise;
+      return ok({ items: [SUMMARY], next_cursor: 'cur-2' });
+    });
+    render(<Page />);
+    await screen.findByText('Acme Corp');
+    const button = screen.getByRole('button', { name: 'Load more' });
+    fireEvent.click(button);
+    // Page 2 settles outside act and only microtasks run: the Load more finishes, while React's re-render is only
+    // scheduled, so the button still carries the onClick of the render that showed page 1.
+    more.resolve(ok({ items: [{ ...SUMMARY, conversation_id: CONV2, participant_name: 'Beta LLC' }], next_cursor: 'cur-3' }));
+    for (let i = 0; i < 50; i++) await Promise.resolve();
+    expect(screen.queryByText('Beta LLC')).toBeNull(); // not rendered yet: the click below lands in that window
+    fireEvent.click(button);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('cursor=cur-2'))).toHaveLength(1);
+    expect(await screen.findByText('Gamma Inc')).toBeInTheDocument();
+    expect(screen.getAllByText('Beta LLC')).toHaveLength(1);
+  });
+
   it('a Load more that lands after the filters changed is dropped, and the new list keeps its cursor', async () => {
     const more = deferred<Response>();
     fetchMock.mockImplementation(async (url: string) => {
