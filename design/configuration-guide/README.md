@@ -24,6 +24,28 @@ content into the design-system markup per the contract, then stage it as
 `body.html` (committed alongside this template). A first pass is in place; re-run
 the authoring pass to refresh it whenever the guide changes.
 
+## Source binding (HAIWAVE Help, DESIGN-2026-10-03 §5.4)
+
+The help agent answers from the **full source markdown of the edition the PDF
+was rendered from**, so the body must say exactly which source it came from.
+The **first** `<section class="page">` in `body.html` carries three attributes
+(HTML comments are ignored when finding it, so a commented-out section never counts):
+
+- `data-edition="1.7"`: the guide edition (it must equal the version in the file name);
+- `data-source="client-implementation-guidelines-v1.7.md"`: the haiCore `docs/` file authored from;
+- `data-source-sha256="<64 hex>"`: `shasum -a 256` of that file at authoring time.
+
+`npm run build:guide-pdf` refuses to render when any attribute is missing, or
+when `$HAICORE_DIR/docs/<data-source>` (default `../haiCore`) no longer hashes
+to `data-source-sha256`. An in-place edit of the source therefore forces a
+re-author before the next PDF. On success it writes
+`private/agent-downloads/configuration-guide.json`
+(`{ bodySha256, edition, sourceFile, sourceSha256, builtAt }`) beside the PDF.
+The console BFF and `npm run publish:help-pack` read that file.
+
+The PDF keeps its own section numbering (owner ruling B, 2026-10-03). The help agent cites guide
+sections by title, so no numbering rule changes here.
+
 ## How it's consumed
 
 `scripts/build-guide-pdf.mjs` injects `{{title}}`/`{{date}}`/`{{body}}` into this

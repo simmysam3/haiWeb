@@ -20,7 +20,7 @@ const REQUESTS_HREF = "/account/sonar/requests";
 // the default landing; Gaps + Obligations are reached via in-page tabs.
 const BACKLOG_HREF = "/account/sonar/audit/events";
 
-interface NavItem {
+export interface NavItem {
   href: string;
   label: string;
   indent?: boolean;
@@ -96,7 +96,7 @@ function NavItemLink<T>({
   );
 }
 
-interface NavSection {
+export interface NavSection {
   label: string;
   /** Optional secondary line shown beneath the section title in the
    *  gradient header — friendlier framing under the all-caps label. */
@@ -104,7 +104,7 @@ interface NavSection {
   items: NavItem[];
 }
 
-const navSections: NavSection[] = [
+export const navSections: NavSection[] = [
   {
     // v.1.43: Sonar Observe carries Watcher Backlog — the drift-events
     // surface. It filters the same /sonar/compliance/changes feed by

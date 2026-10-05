@@ -1,0 +1,4 @@
+# The publish:help-pack dry-run preview (it embeds the support brief). Never committed, and never baked into the
+# image: Dockerfile.prod copies private/agent-downloads only.
+*
+!.gitignore

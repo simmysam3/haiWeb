@@ -17,7 +17,7 @@ So: **put the finished files there, then rebuild + redeploy the haiWeb prod imag
 | Download key | File | Produced by |
 |---|---|---|
 | `agent` | `haiwave-agent-v<version>.zip` (+ `manifest.json`) | `npm run build:agent-zip` |
-| `guide` | `configuration-guide.pdf` | `npm run build:guide-pdf` (or a manual Claude Design export) |
+| `guide` | `configuration-guide.pdf` | `npm run build:guide-pdf` |
 
 The agent zip is a `git archive` of the haiClient `HEAD` (tracked files only;
 secrets stay gitignored). The SDK ships **inside** that zip — there is no separate
@@ -39,17 +39,42 @@ SDK download.
      (a first pass is in place).
    - **Assemble + render:** `npm run build:guide-pdf` injects title/date/body into
      the template and prints to `configuration-guide.pdf` via Playwright.
+   - **Source binding:** the body's first page section must carry `data-edition`, `data-source` and
+     `data-source-sha256` (see `design/configuration-guide/README.md` § Source binding); the build refuses
+     otherwise, and writes `private/agent-downloads/configuration-guide.json` on success.
    ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT make the platform
    As-Built spec (`haiCore/docs/<date>_as_built.md`) the `{{body}}`: it is
    HAIWAVE-internal (DB schema, central services, prod deploy revisions, the
    security register) and would leak internal architecture to external adopters.
 3. **Publish:** rebuild + redeploy the haiWeb prod image. The new
    `private/agent-downloads/` contents are baked in and served.
+4. **Help pack (HAIWAVE Help, DESIGN-2026-10-03 §5.4):** after the deploy in step 3 is live, in the **same tree**:
+   `npm run publish:help-pack -- --dry-run` (inspect `private/help-pack/help-pack.preview.json`), then
+   `HAICORE_URL=<Central> HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack`.
+   - **The only argument is `--dry-run`, and it goes after npm's `--`.** Any other argument is refused: exit 1,
+     nothing sent. `npm run publish:help-pack --dry-run` without the `--` is refused too: npm keeps that flag for
+     itself and passes no argument. A run with no argument publishes, and a successful publish makes the pack active.
+     ⚠ npm keeps **every** flag typed before the `--`, not only `--dry-run` (measured with npm 11.12.1: `--dryrun`,
+     `--eval`, `-n`). The command receives no argument and cannot see such a flag, so with both variables set that
+     run **publishes**. Always type the `--`.
+   - **`HAICORE_DIR`** (default `../haiCore`) is the haiCore checkout the command reads: the guide source and the
+     as-built editions in `docs/`, the support brief in `docs/help/`, and the protocol version.
+   - **The target Central must run with `HELP_AGENT_ENABLED=true`.** With the flag off,
+     `PUT /api/v1/admin/help/packs` is not registered and the publish answers `HTTP 404`. The console's own
+     `HELP_AGENT_ENABLED` can stay off until the pack is active.
+   - It refuses unless `body.html` is the body the served PDF was built from and the guide source is unchanged
+     since; the brief must carry the owner's `reviewed_by`.
+   - Publish and evaluate on the rig first (`npm run help:eval` in haiCore apps/core). Production receives only a
+     pack that matches the one that passed there. The manifest's `built_at` and `built_from` differ on every run,
+     so these are the manifest fields that must equal the rig's: `guide.source_sha256`, `guide.body_sha256`,
+     `agent.version`, `brief.file` and `console_pages_sha256`.
 
 ### Dependencies for step 2
 
 - Playwright Chromium (`npx playwright install chromium`) — HTML → PDF. (No
   markdown converter: the body is generated design-system HTML, not markdown.)
+- The haiCore checkout at `HAICORE_DIR` (default `../haiCore`). The build reads the guide source the body names
+  (`docs/<data-source>`) and refuses unless that file still hashes to the bound `data-source-sha256`.
 
 Requires network. `build:guide-pdf` fails with an actionable message if Chromium
 is missing — it never emits a stale/empty PDF silently.
