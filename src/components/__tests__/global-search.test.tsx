@@ -138,7 +138,13 @@ describe('GlobalSearch', () => {
     });
     expect(combobox.getAttribute('aria-expanded')).toBe('true');
     const names = ['Counterparties', 'SKUs', 'Scopes / Requests'];
-    expect(within(listbox).getAllByRole('group')).toHaveLength(names.length);
+    const groups = within(listbox).getAllByRole('group');
+    expect(groups).toHaveLength(names.length);
+    expect(
+      groups.map(
+        (g) => document.getElementById(g.getAttribute('aria-labelledby')!)?.textContent,
+      ),
+    ).toEqual(names);
     for (const name of names) {
       const group = within(listbox).getByRole('group', { name });
       expect(within(group).getAllByRole('option')).toHaveLength(1);
@@ -170,8 +176,13 @@ describe('GlobalSearch', () => {
     vi.advanceTimersByTime(300);
     await screen.findByRole('listbox', { name: 'Search results' });
     const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(3);
     const ids = options.map((o) => o.id);
-    expect(ids.every((id) => id !== '')).toBe(true);
+    expect(ids).toEqual([
+      'global-search-option-0',
+      'global-search-option-1',
+      'global-search-option-2',
+    ]);
     expect(new Set(ids).size).toBe(options.length);
     expect(combobox.hasAttribute('aria-activedescendant')).toBe(false);
 
