@@ -13,6 +13,11 @@ import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 const APPROVED_DOCS = [
   'docs/identity-provider.md',
   'docs/typed-memory.md',
+  // Fixed upstream (haiClient PR #290, merged 2026-10-05 as d7a69aa3), re-read, and approved by the owner.
+  'docs/counterparty-sync.md',
+  'docs/erp-connector.md',
+  'docs/erp-write-enable.md',
+  'docs/work-queue.md',
 ];
 
 const created: string[] = [];

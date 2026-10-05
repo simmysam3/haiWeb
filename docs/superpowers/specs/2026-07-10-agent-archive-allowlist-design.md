@@ -95,3 +95,7 @@ customer-safety read (spec DESIGN-2026-10-03-console-help-agent §5.3 exclusions
 `~/dev/hw/reports/REPORT-2026-10-04-agent-docs-customer-safety.md`) and the owner has approved it. Each is listed by exact
 path in `ALLOWLIST`; the invariant test requires every approved doc to ship and refuses any `docs` entry that is not
 one approved file. They also feed the HAIWAVE Help knowledge pack (Task 1.8 reads every top-level `docs/*.md` in the zip).
+
+Approved so far:
+- 2026-10-04: `docs/identity-provider.md`, `docs/typed-memory.md`.
+- 2026-10-05: `docs/counterparty-sync.md`, `docs/erp-connector.md`, `docs/erp-write-enable.md`, `docs/work-queue.md`. These were fixed upstream for customer use (haiClient PR #290, merged as `d7a69aa3`), each re-read, and then approved by the owner.

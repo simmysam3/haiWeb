@@ -30,4 +30,6 @@ export const ALLOWLIST = [
   // not ship by default. A new doc needs its own read + the owner's approval + a line here and in the test's APPROVED_DOCS.
   // Fail-loud like every entry: renaming or removing one of these in haiClient breaks the archive build on purpose.
   'docs/identity-provider.md', 'docs/typed-memory.md',
+  // Fixed upstream for customer use (haiClient PR #290, merged 2026-10-05 as d7a69aa3), re-read, and approved by the owner.
+  'docs/counterparty-sync.md', 'docs/erp-connector.md', 'docs/erp-write-enable.md', 'docs/work-queue.md',
 ];
