@@ -53,7 +53,7 @@ describe('POST /api/account/users — invited-user provisioning', () => {
   it('triggers the verify-email + set-password action email', async () => {
     const res = await POST(req(invite));
     expect(res.status).toBe(201);
-    expect(sendExecuteActionsEmail).toHaveBeenCalledWith('u-new', ['VERIFY_EMAIL', 'UPDATE_PASSWORD']);
+    expect(sendExecuteActionsEmail).toHaveBeenCalledWith('u-new', ['VERIFY_EMAIL', 'UPDATE_PASSWORD'], { lifespanSeconds: 345600 });
   });
 
   it('403s a non-owner', async () => {

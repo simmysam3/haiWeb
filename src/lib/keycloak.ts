@@ -107,13 +107,14 @@ export async function createUser(params: CreateUserParams): Promise<string> {
 export async function sendExecuteActionsEmail(
   userId: string,
   actions: string[],
-  opts?: { clientId?: string; redirectUri?: string },
+  opts?: { clientId?: string; redirectUri?: string; lifespanSeconds?: number },
 ): Promise<void> {
   const token = await getAdminToken();
 
   const query = new URLSearchParams();
   if (opts?.clientId) query.set("client_id", opts.clientId);
   if (opts?.redirectUri) query.set("redirect_uri", opts.redirectUri);
+  if (opts?.lifespanSeconds !== undefined) query.set("lifespan", String(opts.lifespanSeconds));
   const qs = query.toString();
 
   const res = await fetch(
