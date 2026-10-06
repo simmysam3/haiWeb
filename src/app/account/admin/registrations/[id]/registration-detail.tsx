@@ -142,6 +142,7 @@ export function RegistrationDetail({ detail }: Props) {
         setStatus(fresh.status);
         setProvisioning(fresh.provisioning_status);
         setLastSent(fresh.last_invite_sent_at ?? null);
+        setLastExpires(fresh.last_invite_expires_at ?? null);
       }
       if (!res.ok) {
         if (fresh?.status === 'approved') {
@@ -164,6 +165,17 @@ export function RegistrationDetail({ detail }: Props) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /**
+   * After a send, learn the new link's expiry from the server (never compute it here: the
+   * lifespan is server-tunable). A failed re-read leaves the expiry unknown, which only
+   * silences the "previous link has expired" wording.
+   */
+  async function adoptSentState(sentAt: string) {
+    const fresh = await readDetail(detail.id);
+    setLastSent(fresh?.last_invite_sent_at ?? sentAt);
+    setLastExpires(fresh?.last_invite_expires_at ?? null);
   }
 
   async function submitResend() {
@@ -189,7 +201,7 @@ export function RegistrationDetail({ detail }: Props) {
         if (json.error?.code === 'previous_link_live' && serverExpiry) setLastExpires(serverExpiry);
         return;
       }
-      setLastSent(json.last_invite_sent_at);
+      await adoptSentState(json.last_invite_sent_at);
       setModal(null);
       showToast('Setup email sent.');
     } catch {
@@ -212,7 +224,7 @@ export function RegistrationDetail({ detail }: Props) {
         return;
       }
       setProvisioning('provisioned');
-      setLastSent(json.last_invite_sent_at);
+      await adoptSentState(json.last_invite_sent_at);
       setModal(null);
       showToast('Provisioning complete. Setup email sent.');
     } catch {
@@ -250,6 +262,8 @@ export function RegistrationDetail({ detail }: Props) {
   const resendCoolingDown = isResendCoolingDown(lastSent, now);
   const linkExpiry = lastExpires ? new Date(lastExpires) : null;
   const linkStillLive = linkExpiry !== null && now < linkExpiry;
+  // Only claim an expiry the server told us about; an unknown expiry says nothing.
+  const linkKnownExpired = linkExpiry !== null && now >= linkExpiry;
   const approveDisabled = submitting || (isBlocked && reason.trim().length === 0);
   const rejectDisabled = submitting || reason.trim().length === 0;
   const contactName = [detail.first_name, detail.last_name].filter(Boolean).join(' ');
@@ -416,8 +430,8 @@ export function RegistrationDetail({ detail }: Props) {
       <Modal open={modal === 'resend'} onClose={closeModal} title="Resend setup email">
         <div className="space-y-4">
           <p className="text-sm text-navy">
-            Send a new setup link to <strong>{detail.contact_email}</strong>? It lasts 4 days. The
-            previous link has expired.
+            Send a new setup link to <strong>{detail.contact_email}</strong>? It lasts 4 days.
+            {linkKnownExpired && ' The previous link has expired.'}
           </p>
           {error && (
             <p role="alert" className="text-sm text-problem">

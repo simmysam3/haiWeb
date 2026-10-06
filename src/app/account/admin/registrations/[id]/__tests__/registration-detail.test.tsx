@@ -278,7 +278,7 @@ describe('RegistrationDetail invite controls', () => {
     const user = userEvent.setup();
     at('2026-10-05T22:00:00.000Z');
     stubRoutes({ [RESEND]: [200, { ok: true, last_invite_sent_at: '2026-10-05T22:00:00.000Z' }] });
-    render(<RegistrationDetail detail={approvedDetail()} />);
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
 
     await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
     const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
@@ -639,5 +639,124 @@ describe('RegistrationDetail invite controls', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
 
     expect(screen.getAllByRole('button', { name: 'Resend setup email' })[0]).toBeDisabled();
+  });
+
+  it("a successful resend re-reads the new link's expiry, so Resend stays disabled past the cooldown", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [RESEND]: [200, { ok: true, last_invite_sent_at: '2026-10-05T22:00:00.000Z' }],
+      [REREAD]: [
+        200,
+        {
+          request: approvedDetail({
+            last_invite_sent_at: '2026-10-05T22:00:00.000Z',
+            last_invite_expires_at: '2026-10-09T22:00:00.000Z',
+          }),
+        },
+      ],
+    });
+    const { rerender } = render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Setup email sent.'));
+    expect(callsTo(REREAD)).toHaveLength(1);
+
+    at('2026-10-05T22:30:00.000Z'); // past the 10-minute cooldown
+    rerender(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(
+      screen.getByText(
+        'The current setup link is valid until 2026-10-09 22:00 UTC. A new one can be sent after it expires.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('a resend whose re-read fails leaves the expiry unknown: a later modal does not claim it has expired', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    const stale = approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' });
+    stubRoutes({ [RESEND]: [200, { ok: true, last_invite_sent_at: '2026-10-05T22:00:00.000Z' }] }); // re-read unstubbed: fails
+    const { rerender } = render(<RegistrationDetail detail={stale} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Setup email sent.'));
+
+    at('2026-10-05T22:30:00.000Z');
+    rerender(<RegistrationDetail detail={stale} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    expect(screen.getByRole('dialog', { name: 'Resend setup email' })).not.toHaveTextContent(
+      'The previous link has expired.',
+    );
+  });
+
+  it("a successful retry re-reads the new link's expiry, so Resend stays disabled past the cooldown", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    const none = approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null });
+    stubRoutes({
+      [RETRY]: [
+        200,
+        { ok: true, participant_id: 'p-9', provisioning_status: 'provisioned', last_invite_sent_at: '2026-10-05T22:00:00.000Z' },
+      ],
+      [REREAD]: [
+        200,
+        {
+          request: approvedDetail({
+            last_invite_sent_at: '2026-10-05T22:00:00.000Z',
+            last_invite_expires_at: '2026-10-09T22:00:00.000Z',
+          }),
+        },
+      ],
+    });
+    const { rerender } = render(<RegistrationDetail detail={none} />);
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm retry' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Provisioning complete.'));
+    expect(callsTo(REREAD)).toHaveLength(1);
+
+    at('2026-10-05T22:30:00.000Z');
+    rerender(<RegistrationDetail detail={none} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(screen.getByText(/The current setup link is valid until 2026-10-09 22:00 UTC/)).toBeInTheDocument();
+  });
+
+  it("an approve re-read adopts the link's expiry, so Resend stays disabled past the cooldown", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    const pending = makeDetail({ risk_tier: 'standard' });
+    stubRoutes({
+      [APPROVE]: [200, { ok: true, participant_id: 'p-9', status: 'approved' }],
+      [REREAD]: [
+        200,
+        {
+          request: approvedDetail({
+            last_invite_sent_at: '2026-10-05T22:00:00.000Z',
+            last_invite_expires_at: '2026-10-09T22:00:00.000Z',
+          }),
+        },
+      ],
+    });
+    const { rerender } = render(<RegistrationDetail detail={pending} />);
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Registration approved.'));
+
+    at('2026-10-05T22:30:00.000Z');
+    rerender(<RegistrationDetail detail={pending} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(screen.getByText(/The current setup link is valid until 2026-10-09 22:00 UTC/)).toBeInTheDocument();
+  });
+
+  it('with the previous link\'s expiry unknown the modal does not claim it has expired', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    expect(dialog).toHaveTextContent('Send a new setup link to jane@example.com? It lasts 4 days.');
+    expect(dialog).not.toHaveTextContent('The previous link has expired.');
   });
 });
