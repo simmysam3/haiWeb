@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pill } from '@/components/pill';
 import { RiskTierPills } from '../risk-tier-pills';
 import { Modal } from '@/components/modal';
@@ -11,12 +11,36 @@ import type {
 } from '@/lib/registration-types';
 import { BLOCKED_REQUIRES_OVERRIDE } from '@/lib/registration-types';
 import { REGISTRATION_TERMINAL } from './registration-terminal';
+import {
+  formatUtcMinute,
+  formatUtcTime,
+  inviteControl,
+  isRefusalCode,
+  isResendCoolingDown,
+  REFUSAL_SENTENCES,
+  refusalSentence,
+  resendAvailableAt,
+} from './invite-actions';
 
 interface Props {
   detail: Detail;
 }
 
-type ModalKind = 'approve' | 'reject' | null;
+type ModalKind = 'approve' | 'reject' | 'resend' | 'retry' | null;
+
+/**
+ * Re-reads the request from the BFF. A failed or malformed read is null: the
+ * caller falls back to what the approve response alone says.
+ */
+async function readDetail(id: string): Promise<Detail | null> {
+  try {
+    const res = await fetch(`/api/admin/registration-requests/${id}`);
+    const json = (await res.json()) as { request?: Detail };
+    return typeof json?.request?.status === 'string' ? json.request : null;
+  } catch {
+    return null;
+  }
+}
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -43,6 +67,23 @@ export function RegistrationDetail({ detail }: Props) {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [provisioning, setProvisioning] = useState(detail.provisioning_status);
+  const [lastSent, setLastSent] = useState(detail.last_invite_sent_at ?? null);
+  const [lastExpires, setLastExpires] = useState(detail.last_invite_expires_at ?? null);
+  // Re-render at the next moment Resend may become available (the cooldown ends, or the
+  // latest link expires), so the button enables without a reload.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const boundaries = [resendAvailableAt(lastSent), lastExpires ? new Date(lastExpires) : null];
+    const nowMs = Date.now();
+    const next = boundaries
+      .filter((b): b is Date => b !== null && !Number.isNaN(b.getTime()) && b.getTime() > nowMs)
+      .sort((x, y) => x.getTime() - y.getTime())[0];
+    if (!next) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), next.getTime() - nowMs);
+    return () => clearTimeout(timer);
+  }, [lastSent, lastExpires, tick]);
 
   const isBlocked = detail.risk_tier === 'blocked';
   // Unknown statuses fail CLOSED: an unrecognized status from a newer core is
@@ -57,6 +98,7 @@ export function RegistrationDetail({ detail }: Props) {
   const terminal = REGISTRATION_TERMINAL[status] ?? true;
 
   function openModal(kind: Exclude<ModalKind, null>) {
+    setNotice(null);
     setReason('');
     setError(null);
     setModal(kind);
@@ -93,13 +135,86 @@ export function RegistrationDetail({ detail }: Props) {
         );
         return;
       }
+      // The server may have approved even though the response was an error
+      // (provisioning or its email failed after the approval): ask it.
+      const fresh = await readDetail(detail.id);
+      if (fresh) {
+        setStatus(fresh.status);
+        setProvisioning(fresh.provisioning_status);
+        setLastSent(fresh.last_invite_sent_at ?? null);
+      }
       if (!res.ok) {
+        if (fresh?.status === 'approved') {
+          setModal(null);
+          const code = json?.error?.code;
+          if (isRefusalCode(code)) setNotice(REFUSAL_SENTENCES[code]);
+          return;
+        }
         setError('Approval failed. Please try again.');
         return;
       }
       setStatus('approved');
+      // No usable re-read: a 200 approve means it provisioned, but only claim it where the
+      // server reports provisioning at all (an older core does not: fail closed).
+      setProvisioning((p) => (p === undefined ? p : 'provisioned'));
       setModal(null);
       showToast('Registration approved.');
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitResend() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/registration-requests/${detail.id}/resend-invite`, {
+        method: 'POST',
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        last_invite_sent_at: string;
+        error?: {
+          code?: string;
+          details?: { last_invite_sent_at?: string; previous_link_expires_at?: string };
+        };
+      };
+      if (!res.ok) {
+        setError(refusalSentence(json));
+        // The server's own last send is the truth; adopt it so the page agrees with the refusal.
+        const serverLastSent = json.error?.details?.last_invite_sent_at;
+        if (json.error?.code === 'invite_cooldown_active' && serverLastSent) setLastSent(serverLastSent);
+        const serverExpiry = json.error?.details?.previous_link_expires_at;
+        if (json.error?.code === 'previous_link_live' && serverExpiry) setLastExpires(serverExpiry);
+        return;
+      }
+      setLastSent(json.last_invite_sent_at);
+      setModal(null);
+      showToast('Setup email sent.');
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitRetry() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/registration-requests/${detail.id}/retry-provisioning`, {
+        method: 'POST',
+      });
+      const json = (await res.json().catch(() => ({}))) as { last_invite_sent_at: string };
+      if (!res.ok) {
+        setError(refusalSentence(json));
+        return;
+      }
+      setProvisioning('provisioned');
+      setLastSent(json.last_invite_sent_at);
+      setModal(null);
+      showToast('Provisioning complete. Setup email sent.');
     } catch {
       setError('Could not reach the server.');
     } finally {
@@ -130,6 +245,11 @@ export function RegistrationDetail({ detail }: Props) {
     }
   }
 
+  const resendAvailableAtTime = resendAvailableAt(lastSent);
+  const now = new Date();
+  const resendCoolingDown = isResendCoolingDown(lastSent, now);
+  const linkExpiry = lastExpires ? new Date(lastExpires) : null;
+  const linkStillLive = linkExpiry !== null && now < linkExpiry;
   const approveDisabled = submitting || (isBlocked && reason.trim().length === 0);
   const rejectDisabled = submitting || reason.trim().length === 0;
   const contactName = [detail.first_name, detail.last_name].filter(Boolean).join(' ');
@@ -174,6 +294,12 @@ export function RegistrationDetail({ detail }: Props) {
         <p className="text-sm text-navy">{detail.screening_reason}</p>
       </div>
 
+      {notice && (
+        <p role="alert" className="text-sm text-problem">
+          {notice}
+        </p>
+      )}
+
       {toast && (
         <p role="status" className="text-sm text-success">
           {toast}
@@ -195,6 +321,46 @@ export function RegistrationDetail({ detail }: Props) {
             className="rounded border border-problem px-4 py-2 text-sm font-medium text-problem hover:bg-problem/5"
           >
             Reject
+          </button>
+        </div>
+      )}
+
+      {inviteControl({ status, provisioning_status: provisioning }) === 'resend' && (
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => openModal('resend')}
+            disabled={resendCoolingDown || linkStillLive || submitting}
+            className="rounded border border-teal px-4 py-2 text-sm font-medium text-teal disabled:opacity-50"
+          >
+            Resend setup email
+          </button>
+          {lastSent && (
+            <p className="text-sm text-slate">Last sent {formatUtcMinute(lastSent)}</p>
+          )}
+          {resendCoolingDown && resendAvailableAtTime && (
+            <p className="text-sm text-slate">
+              Available again at {formatUtcTime(resendAvailableAtTime)}
+            </p>
+          )}
+          {linkStillLive && lastExpires && (
+            <p className="text-sm text-slate">
+              The current setup link is valid until {formatUtcMinute(lastExpires)}. A new one can
+              be sent after it expires.
+            </p>
+          )}
+        </div>
+      )}
+
+      {inviteControl({ status, provisioning_status: provisioning }) === 'retry' && (
+        <div className="space-y-1">
+          <p className="text-sm text-navy">Approved, but the setup email was not sent.</p>
+          <button
+            type="button"
+            onClick={() => openModal('retry')}
+            className="rounded border border-teal px-4 py-2 text-sm font-medium text-teal"
+          >
+            Retry provisioning
           </button>
         </div>
       )}
@@ -242,6 +408,60 @@ export function RegistrationDetail({ detail }: Props) {
               className="rounded bg-teal px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
             >
               Confirm approval
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modal === 'resend'} onClose={closeModal} title="Resend setup email">
+        <div className="space-y-4">
+          <p className="text-sm text-navy">
+            Send a new setup link to <strong>{detail.contact_email}</strong>? It lasts 4 days. The
+            previous link has expired.
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-problem">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={closeModal} className="px-3 py-1.5 text-sm text-slate">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submitResend}
+              disabled={submitting}
+              className="rounded bg-teal px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              Confirm resend
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={modal === 'retry'} onClose={closeModal} title="Retry provisioning">
+        <div className="space-y-4">
+          <p className="text-sm text-navy">
+            Finish provisioning <strong>{detail.legal_entity_name}</strong> and send a setup link to{' '}
+            <strong>{detail.contact_email}</strong>? It lasts 4 days.
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-problem">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={closeModal} className="px-3 py-1.5 text-sm text-slate">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submitRetry}
+              disabled={submitting}
+              className="rounded bg-teal px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              Confirm retry
             </button>
           </div>
         </div>

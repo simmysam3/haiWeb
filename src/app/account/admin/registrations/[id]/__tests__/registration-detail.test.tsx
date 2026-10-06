@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RegistrationDetail } from '../registration-detail';
 import type { RegistrationDetail as Detail } from '@/lib/registration-types';
@@ -196,5 +196,448 @@ describe('RegistrationDetail', () => {
     await waitFor(() => expect(fetchMock()).toHaveBeenCalled());
     const [, init] = fetchMock().mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string).override).toBeUndefined();
+  });
+});
+
+// ---- D-239: Resend setup email / Retry provisioning ------------------------
+
+const LAST_SENT = '2026-10-05T21:40:00.000Z';
+const at = (iso: string) => vi.setSystemTime(new Date(iso));
+
+function approvedDetail(over: Partial<Detail> = {}): Detail {
+  return makeDetail({
+    status: 'approved',
+    risk_tier: 'standard',
+    provisioning_status: 'provisioned',
+    last_invite_sent_at: LAST_SENT,
+    ...over,
+  });
+}
+
+/** A URL-keyed fetch stub: 'METHOD /path' → [status, body], or 'never' for a request that never settles. */
+function stubRoutes(routes: Record<string, [number, unknown] | 'never' | 'throw'>) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const route = routes[`${init?.method ?? 'GET'} ${input}`];
+      if (route === 'never') return new Promise<Response>(() => {});
+      if (route === 'throw') throw new Error('network down');
+      if (!route) throw new Error(`unstubbed ${init?.method ?? 'GET'} ${input}`);
+      return new Response(JSON.stringify(route[1]), {
+        status: route[0],
+        headers: { 'content-type': 'application/json' },
+      });
+    }),
+  );
+}
+const RESEND = 'POST /api/admin/registration-requests/req-1/resend-invite';
+const RETRY = 'POST /api/admin/registration-requests/req-1/retry-provisioning';
+const APPROVE = 'POST /api/admin/registration-requests/req-1/approve';
+const REREAD = 'GET /api/admin/registration-requests/req-1';
+const callsTo = (key: string) =>
+  fetchMock().mock.calls.filter(
+    ([url, init]) => `${(init as RequestInit | undefined)?.method ?? 'GET'} ${url}` === key,
+  );
+
+describe('RegistrationDetail invite controls', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it('an approved, provisioned request shows Resend setup email and the last-sent time', () => {
+    at('2026-10-05T22:00:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeEnabled();
+    expect(screen.getByText('Last sent 2026-10-05 21:40 UTC')).toBeInTheDocument();
+    expect(screen.queryByText(/Available again at/)).not.toBeInTheDocument();
+  });
+
+  it('during the cooldown the button is disabled with "Available again at", and enables itself when the cooldown ends', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    at('2026-10-05T21:45:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(screen.getByText('Available again at 21:50 UTC')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(5 * 60 * 1000);
+    });
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeEnabled();
+    expect(screen.queryByText(/Available again at/)).not.toBeInTheDocument();
+  });
+
+  it('unmounting clears the pending cooldown timer', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    at('2026-10-05T21:45:00.000Z');
+    const { unmount } = render(<RegistrationDetail detail={approvedDetail()} />);
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('Resend confirms in a modal, POSTs, toasts and updates the last-sent time', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: [200, { ok: true, last_invite_sent_at: '2026-10-05T22:00:00.000Z' }] });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    expect(dialog).toHaveTextContent('Send a new setup link to jane@example.com? It lasts 4 days.');
+    expect(dialog).toHaveTextContent('The previous link has expired.');
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Setup email sent.'));
+    expect(callsTo(RESEND)).toHaveLength(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Last sent 2026-10-05 22:00 UTC')).toBeInTheDocument();
+  });
+
+  it('two clicks on Confirm resend send one POST', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: 'never' });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    const confirm = screen.getByRole('button', { name: 'Confirm resend' });
+    await user.click(confirm);
+    await user.click(confirm);
+
+    expect(callsTo(RESEND)).toHaveLength(1);
+    expect(confirm).toBeDisabled();
+  });
+
+  it.each([
+    [409, { error: { code: 'user_has_credentials' } }, 'This person has already set up their account. A new link is not needed.'],
+    [429, { error: { code: 'RATE_LIMIT_EXCEEDED' } }, 'Too many requests. Wait a minute and try again.'],
+  ])('a %s refusal shows its sentence in the modal and leaves Confirm usable again', async (status, body, sentence) => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: [status, body] });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent(sentence));
+    expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeEnabled();
+    expect(screen.getByText('Last sent 2026-10-05 21:40 UTC')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('a network failure on Resend shows "Could not reach the server." and frees Confirm', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: 'throw' });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not reach the server.'),
+    );
+    expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeEnabled();
+  });
+
+  it("a server cooldown 429 shows the server's time even when the browser clock is behind", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T21:25:00.000Z'); // 15 min before the server's last send
+    stubRoutes({
+      [RESEND]: [
+        429,
+        {
+          error: {
+            code: 'invite_cooldown_active',
+            details: { last_invite_sent_at: LAST_SENT, retry_after_seconds: 600 },
+          },
+        },
+      ],
+    });
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'A setup email was sent recently. Available again at 21:50 UTC.',
+      ),
+    );
+    expect(screen.getByText('Last sent 2026-10-05 21:40 UTC')).toBeInTheDocument();
+  });
+
+  it('a link still live disables Resend with its expiry line until it expires', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    at('2026-10-05T22:00:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-09T21:40:00.000Z' })} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(
+      screen.getByText(
+        'The current setup link is valid until 2026-10-09 21:40 UTC. A new one can be sent after it expires.',
+      ),
+    ).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(4 * 24 * 60 * 60 * 1000);
+    });
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeEnabled();
+    expect(screen.queryByText(/The current setup link is valid until/)).not.toBeInTheDocument();
+  });
+
+  it("a previous_link_live refusal shows the server's expiry and the page adopts it", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [RESEND]: [
+        409,
+        { error: { code: 'previous_link_live', details: { previous_link_expires_at: '2026-10-09T21:40:00.000Z' } } },
+      ],
+    });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    const sentence =
+      'The current setup link is valid until 2026-10-09 21:40 UTC. A new one can be sent after it expires.';
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent(sentence));
+    expect(screen.getAllByText(sentence)).toHaveLength(2); // the modal alert and the page line
+  });
+
+  it('an approved request whose email failed shows Retry provisioning; retry succeeds and becomes Resend with its last-sent time', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:30:00.000Z');
+    stubRoutes({
+      [RETRY]: [
+        200,
+        {
+          ok: true,
+          participant_id: 'p-9',
+          provisioning_status: 'provisioned',
+          last_invite_sent_at: '2026-10-05T22:30:00.000Z',
+        },
+      ],
+    });
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null })} />);
+    expect(screen.getByText('Approved, but the setup email was not sent.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resend setup email' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    const dialog = screen.getByRole('dialog', { name: 'Retry provisioning' });
+    expect(dialog).toHaveTextContent(
+      'Finish provisioning Sanctioned Metals LLC and send a setup link to jane@example.com? It lasts 4 days.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirm retry' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Provisioning complete. Setup email sent.'),
+    );
+    expect(callsTo(RETRY)).toHaveLength(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Approved, but the setup email was not sent.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled(); // cooling down
+    expect(screen.getByText('Last sent 2026-10-05 22:30 UTC')).toBeInTheDocument();
+  });
+
+  it('a retry refused participant_mismatch shows its sentence', async () => {
+    const user = userEvent.setup();
+    stubRoutes({ [RETRY]: [409, { error: { code: 'participant_mismatch' } }] });
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm retry' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Retry provisioning' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'A different account already uses this email address. Nothing was sent.',
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Confirm retry' })).toBeEnabled();
+    expect(screen.getByText('Approved, but the setup email was not sent.')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('a network failure on Retry shows "Could not reach the server." and frees Confirm', async () => {
+    const user = userEvent.setup();
+    stubRoutes({ [RETRY]: 'throw' });
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm retry' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Retry provisioning' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Could not reach the server.'),
+    );
+    expect(screen.getByRole('button', { name: 'Confirm retry' })).toBeEnabled();
+  });
+
+  it('two clicks on Confirm retry send one POST', async () => {
+    const user = userEvent.setup();
+    stubRoutes({ [RETRY]: 'never' });
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    const confirm = screen.getByRole('button', { name: 'Confirm retry' });
+    await user.click(confirm);
+    await user.click(confirm);
+
+    expect(callsTo(RETRY)).toHaveLength(1);
+    expect(confirm).toBeDisabled();
+  });
+
+  it('an approve 502 PROVISIONING_EMAIL_FAILED re-reads the detail and shows Retry at once', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [502, { error: { code: 'PROVISIONING_EMAIL_FAILED' } }],
+      [REREAD]: [
+        200,
+        { request: approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null }) },
+      ],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Approved, but the setup email was not sent.')).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('button', { name: 'Retry provisioning' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // no notice for the uppercase code
+    expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
+    expect(callsTo(REREAD)).toHaveLength(1);
+  });
+
+  it('an approve 409 participant_mismatch re-reads, shows Retry and the sentence', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [409, { error: { code: 'participant_mismatch' } }],
+      [REREAD]: [
+        200,
+        { request: approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null }) },
+      ],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'A different account already uses this email address. Nothing was sent.',
+      ),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry provisioning' })).toBeInTheDocument();
+  });
+
+  it('opening a new action clears the earlier page notice', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [409, { error: { code: 'participant_mismatch' } }],
+      [REREAD]: [
+        200,
+        { request: approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null }) },
+      ],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    expect(screen.getByRole('dialog', { name: 'Retry provisioning' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('an approve failure whose re-read fails keeps "Approval failed. Please try again." and shows no Retry', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [500, { error: { code: 'INTERNAL_ERROR' } }],
+      [REREAD]: [500, {}],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Approve registration' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Approval failed. Please try again.'),
+    );
+    expect(screen.queryByRole('button', { name: 'Retry provisioning' })).not.toBeInTheDocument();
+    expect(screen.getByText('Pending approval')).toBeInTheDocument();
+  });
+
+  it('an approve 200 re-reads and shows Resend with its last-sent time, cooling down', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [APPROVE]: [200, { ok: true, participant_id: 'p-9', status: 'approved' }],
+      [REREAD]: [200, { request: approvedDetail({ last_invite_sent_at: '2026-10-05T21:59:00.000Z' }) }],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Registration approved.'));
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(screen.getByText('Last sent 2026-10-05 21:59 UTC')).toBeInTheDocument();
+    expect(screen.getByText('Available again at 22:09 UTC')).toBeInTheDocument();
+  });
+
+  it('a detail from an older core (no provisioning_status) shows neither Resend nor Retry', () => {
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: undefined })} />);
+    expect(screen.queryByRole('button', { name: 'Resend setup email' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry provisioning' })).not.toBeInTheDocument();
+  });
+
+  it('a rejected request shows neither control', () => {
+    render(<RegistrationDetail detail={approvedDetail({ status: 'rejected' })} />);
+    expect(screen.queryByRole('button', { name: 'Resend setup email' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry provisioning' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['none', true],
+    [undefined, false],
+  ] as const)(
+    'an approve 200 whose re-read fails sets provisioned only when provisioning_status was defined (%s: Resend %s)',
+    async (provisioning_status, showsResend) => {
+      const user = userEvent.setup();
+      stubRoutes({
+        [APPROVE]: [200, { ok: true, participant_id: 'p-9', status: 'approved' }],
+        [REREAD]: [500, {}],
+      });
+      render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard', provisioning_status })} />);
+
+      await user.click(screen.getByRole('button', { name: /^approve$/i }));
+      await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+      await waitFor(() => expect(screen.getByText('Approved')).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: 'Resend setup email' }) !== null).toBe(showsResend);
+      expect(screen.queryByRole('button', { name: 'Retry provisioning' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('the Resend button on the page is disabled while a send is in flight', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: 'never' });
+    render(<RegistrationDetail detail={approvedDetail()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    expect(screen.getAllByRole('button', { name: 'Resend setup email' })[0]).toBeDisabled();
   });
 });
