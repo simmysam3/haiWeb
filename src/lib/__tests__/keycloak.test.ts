@@ -116,6 +116,36 @@ describe('invited-user identity assurance (IA-5)', () => {
     expect(body).toEqual(['VERIFY_EMAIL', 'UPDATE_PASSWORD']);
   });
 
+  it('sendExecuteActionsEmail puts lifespan in the query when given', async () => {
+    let url = '';
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => {
+      const s = String(u);
+      if (s.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      url = s;
+      return { ok: true, text: async () => '' } as unknown as Response;
+    }));
+
+    await sendExecuteActionsEmail('u-1', ['VERIFY_EMAIL', 'UPDATE_PASSWORD'], { lifespanSeconds: 345600 });
+    expect(new URL(url).searchParams.get('lifespan')).toBe('345600');
+  });
+
+  it('sendExecuteActionsEmail sends no lifespan when none is given', async () => {
+    let url = '';
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => {
+      const s = String(u);
+      if (s.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      url = s;
+      return { ok: true, text: async () => '' } as unknown as Response;
+    }));
+
+    await sendExecuteActionsEmail('u-1', ['VERIFY_EMAIL', 'UPDATE_PASSWORD']);
+    expect(new URL(url).searchParams.get('lifespan')).toBeNull();
+  });
+
   it('sendExecuteActionsEmail throws when Keycloak rejects', async () => {
     vi.stubGlobal('fetch', vi.fn(async (u: string) => {
       const s = String(u);

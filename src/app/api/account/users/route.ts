@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole, getRealmRole, RealmRoleNotFoundError } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
+import { TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
 
 /**
  * GET /api/account/users
@@ -114,7 +115,9 @@ export async function POST(request: NextRequest) {
 
     // The invitee proves mailbox control and sets their own password via
     // Keycloak's email flow; the portal never issues a usable credential.
-    await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"]);
+    await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"], {
+      lifespanSeconds: TEAM_INVITE_LIFESPAN_SECONDS,
+    });
 
     return NextResponse.json({ id: userId, email, first_name, last_name, role }, { status: 201 });
   } catch (err) {
