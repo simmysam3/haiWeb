@@ -533,6 +533,70 @@ describe('RegistrationDetail invite controls', () => {
     expect(screen.getByRole('button', { name: 'Resend setup email' })).toHaveAccessibleDescription('');
   });
 
+  it('a hung re-read after a refused resend still shows the refusal and lets the admin close the modal', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T21:25:00.000Z');
+    stubRoutes({
+      [RESEND]: [
+        429,
+        { error: { code: 'invite_cooldown_active', details: { last_invite_sent_at: LAST_SENT, retry_after_seconds: 600 } } },
+      ],
+      [REREAD]: 'never',
+    });
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('A setup email was sent recently. Available again at 21:50 UTC.'),
+    );
+    expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('a late re-read does not put a stale refusal into a modal the admin reopened', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T21:25:00.000Z');
+    let landReread: (r: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (`${init?.method ?? 'GET'} ${input}` === RESEND) {
+          return new Response(
+            JSON.stringify({ error: { code: 'invite_cooldown_active', details: { last_invite_sent_at: '2026-10-05T20:00:00.000Z', retry_after_seconds: 600 } } }),
+            { status: 429, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return new Promise<Response>((resolve) => { landReread = resolve; });
+      }),
+    );
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    expect(screen.getByRole('dialog', { name: 'Resend setup email' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await act(async () => {
+      landReread(
+        new Response(JSON.stringify({ request: liveDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' }) }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    // the re-read did land (the page now knows the live link) ...
+    await waitFor(() =>
+      expect(screen.getByText(/The current setup link is valid until 2026-10-09 21:40 UTC/)).toBeInTheDocument(),
+    );
+    // ... but its refinement is not written into the modal that was reopened since
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('a link still live disables Resend with its expiry line until it expires', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     at('2026-10-05T22:00:00.000Z');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pill } from '@/components/pill';
 import { RiskTierPills } from '../risk-tier-pills';
 import { Modal } from '@/components/modal';
@@ -74,6 +74,8 @@ export function RegistrationDetail({ detail }: Props) {
   // Re-render at the next moment Resend may become available (the cooldown ends, or the
   // latest link expires), so the button enables without a reload.
   const [tick, setTick] = useState(0);
+  // Bumped when a modal opens or a resend starts, so a late re-read cannot overwrite a newer message.
+  const resendAttempt = useRef(0);
   useEffect(() => {
     const boundaries = [resendAvailableAt(lastSent), lastExpires ? new Date(lastExpires) : null];
     const nowMs = Date.now();
@@ -99,6 +101,7 @@ export function RegistrationDetail({ detail }: Props) {
   const terminal = REGISTRATION_TERMINAL[status] ?? true;
 
   function openModal(kind: Exclude<ModalKind, null>) {
+    resendAttempt.current += 1;
     setNotice(null);
     setReason('');
     setError(null);
@@ -186,6 +189,7 @@ export function RegistrationDetail({ detail }: Props) {
   }
 
   async function submitResend() {
+    resendAttempt.current += 1;
     setSubmitting(true);
     setError(null);
     try {
@@ -200,29 +204,32 @@ export function RegistrationDetail({ detail }: Props) {
         };
       };
       if (!res.ok) {
-        // The server may know of a newer send than this page (another admin, an unconfirmed
-        // send): re-read, and replace the stored expiry (unknown when the re-read fails).
-        const fresh = await readDetail(detail.id);
+        // Show the refusal and free the modal first: a slow re-read must not trap the admin.
         const code = json.error?.code;
         const details = json.error?.details;
-        const sentAt =
-          fresh?.last_invite_sent_at ??
-          (code === 'invite_cooldown_active' ? details?.last_invite_sent_at : undefined);
-        if (sentAt) setLastSent(sentAt);
-        const expiry =
-          fresh?.last_invite_expires_at ??
-          (code === 'previous_link_live' ? details?.previous_link_expires_at : undefined) ??
-          null;
+        setError(refusalSentence(json));
+        if (code === 'invite_cooldown_active' && details?.last_invite_sent_at) {
+          setLastSent(details.last_invite_sent_at);
+        }
+        const detailsExpiry = code === 'previous_link_live' ? details?.previous_link_expires_at : undefined;
+        setLastExpires(detailsExpiry ?? null);
+        setSubmitting(false);
+        // Then refine from the server's own state: it may know of a newer send than this page
+        // (another admin, an unconfirmed send). The expiry is replaced, unknown when the re-read
+        // fails; a live link outranks a cooldown time in the sentence.
+        const attempt = resendAttempt.current;
+        const fresh = await readDetail(detail.id);
+        if (fresh?.last_invite_sent_at) setLastSent(fresh.last_invite_sent_at);
+        const expiry = fresh?.last_invite_expires_at ?? detailsExpiry ?? null;
         setLastExpires(expiry);
-        // A live link outranks a cooldown time: Resend is not free again at that time.
         const linkLive = expiry !== null && new Date() < new Date(expiry);
-        setError(
-          code === 'invite_cooldown_active' && linkLive
-            ? refusalSentence({
-                error: { code: 'previous_link_live', details: { previous_link_expires_at: expiry } },
-              })
-            : refusalSentence(json),
-        );
+        if (attempt === resendAttempt.current && code === 'invite_cooldown_active' && linkLive) {
+          setError(
+            refusalSentence({
+              error: { code: 'previous_link_live', details: { previous_link_expires_at: expiry } },
+            }),
+          );
+        }
         return;
       }
       // Close and confirm first: a slow re-read must not trap the admin in the modal.
