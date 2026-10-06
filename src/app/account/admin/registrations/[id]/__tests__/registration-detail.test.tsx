@@ -597,6 +597,123 @@ describe('RegistrationDetail invite controls', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('a refused resend with a slow re-read, then a second Confirm: the first re-read landing does not free Confirm mid-POST', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T21:25:00.000Z');
+    let landReread: (r: Response) => void = () => {};
+    let posts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (`${init?.method ?? 'GET'} ${input}` === RESEND) {
+          posts += 1;
+          if (posts === 1) {
+            return new Response(
+              JSON.stringify({ error: { code: 'invite_cooldown_active', details: { last_invite_sent_at: '2026-10-05T20:00:00.000Z', retry_after_seconds: 600 } } }),
+              { status: 429, headers: { 'content-type': 'application/json' } },
+            );
+          }
+          return new Promise<Response>(() => {}); // the second POST stays pending
+        }
+        return new Promise<Response>((resolve) => { landReread = resolve; });
+      }),
+    );
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' })); // B: its POST is pending
+    expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeDisabled();
+
+    await act(async () => {
+      landReread(
+        new Response(JSON.stringify({ request: approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' }) }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeDisabled();
+    expect(callsTo(RESEND)).toHaveLength(2);
+  });
+
+  it('an older refusal\'s re-read landing after a newer successful send does not roll the sent time or expiry back', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:30:00.000Z');
+    let landOld: (r: Response) => void = () => {};
+    let posts = 0;
+    let gets = 0;
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (`${init?.method ?? 'GET'} ${input}` === RESEND) {
+          posts += 1;
+          return posts === 1
+            ? json({ error: { code: 'invite_email_failed', details: { keycloak_status: 503 } } }, 502)
+            : json({ ok: true, last_invite_sent_at: '2026-10-05T22:30:00.000Z' });
+        }
+        gets += 1;
+        if (gets === 1) return new Promise<Response>((resolve) => { landOld = resolve; }); // the refusal's re-read: slow
+        return json({ request: liveDetail({ last_invite_sent_at: '2026-10-05T22:30:00.000Z', last_invite_expires_at: '2026-10-09T22:30:00.000Z' }) });
+      }),
+    );
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' })); // refused
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' })); // newer send succeeds
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Setup email sent.'));
+    await waitFor(() => expect(screen.getByText(/valid until 2026-10-09 22:30 UTC/)).toBeInTheDocument());
+
+    await act(async () => {
+      landOld(json({ request: approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z', last_invite_expires_at: '2026-10-05T21:00:00.000Z' }) }));
+    });
+    expect(screen.getByText('Last sent 2026-10-05 22:30 UTC')).toBeInTheDocument();
+    expect(screen.getByText(/valid until 2026-10-09 22:30 UTC/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+  });
+
+  it('an older successful send\'s slow re-read landing after a newer send does not roll the state back', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    let landOld: (r: Response) => void = () => {};
+    let posts = 0;
+    let gets = 0;
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (`${init?.method ?? 'GET'} ${input}` === RESEND) {
+          posts += 1;
+          return json({ ok: true, last_invite_sent_at: posts === 1 ? '2026-10-05T22:00:00.000Z' : '2026-10-05T22:30:00.000Z' });
+        }
+        gets += 1;
+        if (gets === 1) return new Promise<Response>((resolve) => { landOld = resolve; });
+        return json({ request: liveDetail({ last_invite_sent_at: '2026-10-05T22:30:00.000Z', last_invite_expires_at: '2026-10-09T22:30:00.000Z' }) });
+      }),
+    );
+    const stale = approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' });
+    const { rerender } = render(<RegistrationDetail detail={stale} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' })); // send 1, its re-read stays slow
+    await waitFor(() => expect(screen.getByText('Last sent 2026-10-05 22:00 UTC')).toBeInTheDocument());
+
+    at('2026-10-05T22:30:00.000Z'); // past the cooldown, expiry still unknown
+    rerender(<RegistrationDetail detail={stale} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' })); // send 2
+    await waitFor(() => expect(screen.getByText(/valid until 2026-10-09 22:30 UTC/)).toBeInTheDocument());
+
+    await act(async () => {
+      landOld(json({ request: approvedDetail({ last_invite_sent_at: '2026-10-05T22:00:00.000Z', last_invite_expires_at: '2026-10-05T22:10:00.000Z' }) }));
+    });
+    expect(screen.getByText('Last sent 2026-10-05 22:30 UTC')).toBeInTheDocument();
+    expect(screen.getByText(/valid until 2026-10-09 22:30 UTC/)).toBeInTheDocument();
+  });
+
   it('a link still live disables Resend with its expiry line until it expires', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     at('2026-10-05T22:00:00.000Z');

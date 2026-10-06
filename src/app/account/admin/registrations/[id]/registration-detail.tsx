@@ -76,6 +76,8 @@ export function RegistrationDetail({ detail }: Props) {
   const [tick, setTick] = useState(0);
   // Bumped when a modal opens or a resend starts, so a late re-read cannot overwrite a newer message.
   const resendAttempt = useRef(0);
+  // Bumped when a send starts: a re-read from an older send must not overwrite a newer send's state.
+  const sendSeq = useRef(0);
   useEffect(() => {
     const boundaries = [resendAvailableAt(lastSent), lastExpires ? new Date(lastExpires) : null];
     const nowMs = Date.now();
@@ -182,14 +184,42 @@ export function RegistrationDetail({ detail }: Props) {
    * lifespan is server-tunable). A failed re-read leaves the expiry unknown, which only
    * silences the "previous link has expired" wording.
    */
-  async function adoptSentState(sentAt: string) {
+  async function adoptSentState(sentAt: string, seq: number) {
     const fresh = await readDetail(detail.id);
+    if (seq !== sendSeq.current) return;
     setLastSent(fresh?.last_invite_sent_at ?? sentAt);
     setLastExpires(fresh?.last_invite_expires_at ?? null);
   }
 
+  /**
+   * After a refused Resend, learn the server's own state: it may know of a newer send than
+   * this page (another admin, an unconfirmed send). The expiry is replaced, unknown when the
+   * re-read fails; a live link outranks a cooldown time in the sentence.
+   */
+  async function refineRefusal(
+    code: string | undefined,
+    detailsExpiry: string | undefined,
+    attempt: number,
+    seq: number,
+  ) {
+    const fresh = await readDetail(detail.id);
+    if (seq !== sendSeq.current) return;
+    if (fresh?.last_invite_sent_at) setLastSent(fresh.last_invite_sent_at);
+    const expiry = fresh?.last_invite_expires_at ?? detailsExpiry ?? null;
+    setLastExpires(expiry);
+    const linkLive = expiry !== null && new Date() < new Date(expiry);
+    if (attempt === resendAttempt.current && code === 'invite_cooldown_active' && linkLive) {
+      setError(
+        refusalSentence({
+          error: { code: 'previous_link_live', details: { previous_link_expires_at: expiry } },
+        }),
+      );
+    }
+  }
+
   async function submitResend() {
     resendAttempt.current += 1;
+    const seq = ++sendSeq.current;
     setSubmitting(true);
     setError(null);
     try {
@@ -213,23 +243,10 @@ export function RegistrationDetail({ detail }: Props) {
         }
         const detailsExpiry = code === 'previous_link_live' ? details?.previous_link_expires_at : undefined;
         setLastExpires(detailsExpiry ?? null);
-        setSubmitting(false);
-        // Then refine from the server's own state: it may know of a newer send than this page
-        // (another admin, an unconfirmed send). The expiry is replaced, unknown when the re-read
-        // fails; a live link outranks a cooldown time in the sentence.
-        const attempt = resendAttempt.current;
-        const fresh = await readDetail(detail.id);
-        if (fresh?.last_invite_sent_at) setLastSent(fresh.last_invite_sent_at);
-        const expiry = fresh?.last_invite_expires_at ?? detailsExpiry ?? null;
-        setLastExpires(expiry);
-        const linkLive = expiry !== null && new Date() < new Date(expiry);
-        if (attempt === resendAttempt.current && code === 'invite_cooldown_active' && linkLive) {
-          setError(
-            refusalSentence({
-              error: { code: 'previous_link_live', details: { previous_link_expires_at: expiry } },
-            }),
-          );
-        }
+        // Then refine from the server's own state, never awaited here: the shared `finally`
+        // must free `submitting` at once, not when a slow re-read lands (a second Confirm may
+        // already be in flight by then).
+        void refineRefusal(code, detailsExpiry, resendAttempt.current, seq);
         return;
       }
       // Close and confirm first: a slow re-read must not trap the admin in the modal.
@@ -237,7 +254,7 @@ export function RegistrationDetail({ detail }: Props) {
       setLastExpires(null); // unknown until the re-read answers
       setModal(null);
       showToast('Setup email sent.');
-      void adoptSentState(json.last_invite_sent_at);
+      void adoptSentState(json.last_invite_sent_at, seq);
     } catch {
       setError('Could not reach the server.');
     } finally {
@@ -246,6 +263,7 @@ export function RegistrationDetail({ detail }: Props) {
   }
 
   async function submitRetry() {
+    const seq = ++sendSeq.current;
     setSubmitting(true);
     setError(null);
     try {
@@ -262,7 +280,7 @@ export function RegistrationDetail({ detail }: Props) {
       setLastExpires(null); // unknown until the re-read answers
       setModal(null);
       showToast('Provisioning complete. Setup email sent.');
-      void adoptSentState(json.last_invite_sent_at);
+      void adoptSentState(json.last_invite_sent_at, seq);
     } catch {
       setError('Could not reach the server.');
     } finally {
