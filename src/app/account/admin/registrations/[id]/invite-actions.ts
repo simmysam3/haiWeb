@@ -70,7 +70,11 @@ export function isRefusalCode(code: unknown): code is RegistrationActionRefusalC
 
 interface RefusalError {
   code?: unknown;
-  details?: { last_invite_sent_at?: string; previous_link_expires_at?: string };
+  details?: {
+    last_invite_sent_at?: string;
+    previous_link_expires_at?: string;
+    keycloak_status?: number | null;
+  };
 }
 
 /**
@@ -87,6 +91,10 @@ export function refusalSentence(body: unknown): string {
     return 'The setup email could not be sent. Nothing changed; try again later.';
   }
   if (!isRefusalCode(code)) return 'The request failed. Please try again.';
+  // A null Keycloak status: the send may or may not have gone out, and the wire cannot tell which.
+  if (code === 'invite_email_failed' && error?.details?.keycloak_status === null) {
+    return 'The setup email may not have been sent.';
+  }
   if (code === 'invite_cooldown_active') {
     const availableAt = resendAvailableAt(error?.details?.last_invite_sent_at);
     if (availableAt) return `${REFUSAL_SENTENCES[code]} Available again at ${formatUtcTime(availableAt)}.`;

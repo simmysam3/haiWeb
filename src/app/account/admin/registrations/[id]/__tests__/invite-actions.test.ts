@@ -157,4 +157,13 @@ describe('isRefusalCode', () => {
       expect(isRefusalCode(other)).toBe(false);
     }
   });
+
+  it('words invite_email_failed by what is known: an unknown Keycloak status may not have been sent', () => {
+    expect(refusalSentence({ error: { code: 'invite_email_failed', details: { keycloak_status: null } } })).toBe(
+      'The setup email may not have been sent.',
+    );
+    expect(refusalSentence({ error: { code: 'invite_email_failed', details: { keycloak_status: 503 } } })).toBe(
+      'The setup email could not be sent. Try again later.',
+    );
+  });
 });

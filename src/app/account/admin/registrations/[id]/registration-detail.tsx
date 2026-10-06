@@ -81,7 +81,8 @@ export function RegistrationDetail({ detail }: Props) {
       .filter((b): b is Date => b !== null && !Number.isNaN(b.getTime()) && b.getTime() > nowMs)
       .sort((x, y) => x.getTime() - y.getTime())[0];
     if (!next) return;
-    const timer = setTimeout(() => setTick((n) => n + 1), next.getTime() - nowMs);
+    // setTimeout runs a delay past 2^31-1 ms at once (a hot loop); the tick re-arms it.
+    const timer = setTimeout(() => setTick((n) => n + 1), Math.min(next.getTime() - nowMs, 2 ** 31 - 1));
     return () => clearTimeout(timer);
   }, [lastSent, lastExpires, tick]);
 
@@ -151,6 +152,12 @@ export function RegistrationDetail({ detail }: Props) {
           if (isRefusalCode(code)) setNotice(REFUSAL_SENTENCES[code]);
           return;
         }
+        if (fresh && (REGISTRATION_TERMINAL[fresh.status] ?? true)) {
+          // Settled elsewhere (e.g. another admin rejected it): approve must not be clickable again.
+          setModal(null);
+          setNotice('This request is no longer pending approval.');
+          return;
+        }
         setError('Approval failed. Please try again.');
         return;
       }
@@ -193,17 +200,37 @@ export function RegistrationDetail({ detail }: Props) {
         };
       };
       if (!res.ok) {
-        setError(refusalSentence(json));
-        // The server's own last send is the truth; adopt it so the page agrees with the refusal.
-        const serverLastSent = json.error?.details?.last_invite_sent_at;
-        if (json.error?.code === 'invite_cooldown_active' && serverLastSent) setLastSent(serverLastSent);
-        const serverExpiry = json.error?.details?.previous_link_expires_at;
-        if (json.error?.code === 'previous_link_live' && serverExpiry) setLastExpires(serverExpiry);
+        // The server may know of a newer send than this page (another admin, an unconfirmed
+        // send): re-read, and replace the stored expiry (unknown when the re-read fails).
+        const fresh = await readDetail(detail.id);
+        const code = json.error?.code;
+        const details = json.error?.details;
+        const sentAt =
+          fresh?.last_invite_sent_at ??
+          (code === 'invite_cooldown_active' ? details?.last_invite_sent_at : undefined);
+        if (sentAt) setLastSent(sentAt);
+        const expiry =
+          fresh?.last_invite_expires_at ??
+          (code === 'previous_link_live' ? details?.previous_link_expires_at : undefined) ??
+          null;
+        setLastExpires(expiry);
+        // A live link outranks a cooldown time: Resend is not free again at that time.
+        const linkLive = expiry !== null && new Date() < new Date(expiry);
+        setError(
+          code === 'invite_cooldown_active' && linkLive
+            ? refusalSentence({
+                error: { code: 'previous_link_live', details: { previous_link_expires_at: expiry } },
+              })
+            : refusalSentence(json),
+        );
         return;
       }
-      await adoptSentState(json.last_invite_sent_at);
+      // Close and confirm first: a slow re-read must not trap the admin in the modal.
+      setLastSent(json.last_invite_sent_at);
+      setLastExpires(null); // unknown until the re-read answers
       setModal(null);
       showToast('Setup email sent.');
+      void adoptSentState(json.last_invite_sent_at);
     } catch {
       setError('Could not reach the server.');
     } finally {
@@ -224,9 +251,11 @@ export function RegistrationDetail({ detail }: Props) {
         return;
       }
       setProvisioning('provisioned');
-      await adoptSentState(json.last_invite_sent_at);
+      setLastSent(json.last_invite_sent_at);
+      setLastExpires(null); // unknown until the re-read answers
       setModal(null);
       showToast('Provisioning complete. Setup email sent.');
+      void adoptSentState(json.last_invite_sent_at);
     } catch {
       setError('Could not reach the server.');
     } finally {
@@ -345,6 +374,7 @@ export function RegistrationDetail({ detail }: Props) {
             type="button"
             onClick={() => openModal('resend')}
             disabled={resendCoolingDown || linkStillLive || submitting}
+            aria-describedby={resendCoolingDown || linkStillLive ? 'resend-reason' : undefined}
             className="rounded border border-teal px-4 py-2 text-sm font-medium text-teal disabled:opacity-50"
           >
             Resend setup email
@@ -352,13 +382,13 @@ export function RegistrationDetail({ detail }: Props) {
           {lastSent && (
             <p className="text-sm text-slate">Last sent {formatUtcMinute(lastSent)}</p>
           )}
-          {resendCoolingDown && resendAvailableAtTime && (
-            <p className="text-sm text-slate">
+          {resendCoolingDown && !linkStillLive && resendAvailableAtTime && (
+            <p id="resend-reason" className="text-sm text-slate">
               Available again at {formatUtcTime(resendAvailableAtTime)}
             </p>
           )}
           {linkStillLive && lastExpires && (
-            <p className="text-sm text-slate">
+            <p id="resend-reason" className="text-sm text-slate">
               The current setup link is valid until {formatUtcMinute(lastExpires)}. A new one can
               be sent after it expires.
             </p>

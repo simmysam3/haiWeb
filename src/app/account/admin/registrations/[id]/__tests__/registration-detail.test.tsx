@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RegistrationDetail } from '../registration-detail';
 import type { RegistrationDetail as Detail } from '@/lib/registration-types';
@@ -214,6 +214,12 @@ function approvedDetail(over: Partial<Detail> = {}): Detail {
   });
 }
 
+/** Branch B shape: a send is always followed by a live link (4 days after the send). */
+const LIVE_UNTIL = '2026-10-09T21:40:00.000Z';
+function liveDetail(over: Partial<Detail> = {}): Detail {
+  return approvedDetail({ last_invite_expires_at: LIVE_UNTIL, ...over });
+}
+
 /** A URL-keyed fetch stub: 'METHOD /path' → [status, body], or 'never' for a request that never settles. */
 function stubRoutes(routes: Record<string, [number, unknown] | 'never' | 'throw'>) {
   vi.stubGlobal(
@@ -342,7 +348,38 @@ describe('RegistrationDetail invite controls', () => {
     expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeEnabled();
   });
 
-  it("a server cooldown 429 shows the server's time even when the browser clock is behind", async () => {
+  it("a cooldown 429 whose re-read finds a live link shows the live-link sentence, not a cooldown time", async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T21:25:00.000Z'); // 15 min before the server's last send
+    stubRoutes({
+      [RESEND]: [
+        429,
+        {
+          error: {
+            code: 'invite_cooldown_active',
+            details: { last_invite_sent_at: LAST_SENT, retry_after_seconds: 600 },
+          },
+        },
+      ],
+      [REREAD]: [200, { request: liveDetail({ last_invite_sent_at: LAST_SENT }) }],
+    });
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_sent_at: '2026-10-05T20:00:00.000Z' })} />);
+
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('alert')).toHaveTextContent(
+        'The current setup link is valid until 2026-10-09 21:40 UTC. A new one can be sent after it expires.',
+      ),
+    );
+    expect(screen.getByText('Last sent 2026-10-05 21:40 UTC')).toBeInTheDocument();
+    expect(screen.getAllByText(/^The current setup link is valid until 2026-10-09 21:40 UTC/)).toHaveLength(2); // modal alert + page line
+    expect(screen.queryByText(/Available again at/)).not.toBeInTheDocument();
+  });
+
+  it("a cooldown 429 with no live link known keeps the server's \"Available again at\" time, even when the browser clock is behind", async () => {
     const user = userEvent.setup();
     at('2026-10-05T21:25:00.000Z'); // 15 min before the server's last send
     stubRoutes({
@@ -368,6 +405,132 @@ describe('RegistrationDetail invite controls', () => {
       ),
     );
     expect(screen.getByText('Last sent 2026-10-05 21:40 UTC')).toBeInTheDocument();
+  });
+
+  it('a refused resend whose re-read fails leaves the stored expiry unknown, not stale', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({ [RESEND]: [502, { error: { code: 'invite_email_failed', details: { keycloak_status: 503 } } }] }); // re-read unstubbed: fails
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    expect(screen.getByRole('dialog', { name: 'Resend setup email' })).toHaveTextContent('The previous link has expired.');
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('The setup email could not be sent. Try again later.'));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    expect(screen.getByRole('dialog', { name: 'Resend setup email' })).not.toHaveTextContent('The previous link has expired.');
+  });
+
+  it('an unconfirmed send (502 invite_email_failed, null status) says it may not have been sent and shows the live link the re-read finds', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [RESEND]: [502, { error: { code: 'invite_email_failed', details: { keycloak_status: null } } }],
+      [REREAD]: [200, { request: liveDetail({ last_invite_sent_at: '2026-10-05T22:00:00.000Z', last_invite_expires_at: '2026-10-09T22:00:00.000Z' }) }],
+    });
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('The setup email may not have been sent.'));
+    expect(screen.getByText(/The current setup link is valid until 2026-10-09 22:00 UTC/)).toBeInTheDocument();
+    expect(screen.getByText('Last sent 2026-10-05 22:00 UTC')).toBeInTheDocument();
+  });
+
+  it('a far-future link expiry never schedules a re-render timer past the 32-bit limit', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    at('2026-10-05T22:00:00.000Z');
+    const spy = vi.spyOn(globalThis, 'setTimeout');
+    render(<RegistrationDetail detail={approvedDetail({ last_invite_expires_at: '2026-12-31T00:00:00.000Z' })} />); // ~86 days
+    const delays = spy.mock.calls.map(([, ms]) => ms).filter((ms): ms is number => typeof ms === 'number');
+    expect(delays.length).toBeGreaterThan(0);
+    expect(Math.max(...delays)).toBeLessThanOrEqual(2 ** 31 - 1);
+    spy.mockRestore();
+  });
+
+  it('a hung re-read after a successful resend does not trap the admin in the modal', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [RESEND]: [200, { ok: true, last_invite_sent_at: '2026-10-05T22:00:00.000Z' }],
+      [REREAD]: 'never',
+    });
+    render(<RegistrationDetail detail={liveDetail({ last_invite_expires_at: '2026-10-05T21:40:00.000Z' })} />);
+    await user.click(screen.getByRole('button', { name: 'Resend setup email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm resend' }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Setup email sent.'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Last sent 2026-10-05 22:00 UTC')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled(); // cooldown, expiry unknown until the re-read lands
+  });
+
+  it('a hung re-read after a successful retry does not trap the admin in the modal', async () => {
+    const user = userEvent.setup();
+    at('2026-10-05T22:00:00.000Z');
+    stubRoutes({
+      [RETRY]: [200, { ok: true, participant_id: 'p-9', provisioning_status: 'provisioned', last_invite_sent_at: '2026-10-05T22:00:00.000Z' }],
+      [REREAD]: 'never',
+    });
+    render(<RegistrationDetail detail={approvedDetail({ provisioning_status: 'none', last_invite_sent_at: null })} />);
+    await user.click(screen.getByRole('button', { name: 'Retry provisioning' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm retry' }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Provisioning complete.'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Last sent 2026-10-05 22:00 UTC')).toBeInTheDocument();
+  });
+
+  it('an approve failure whose re-read shows the request rejected closes the modal with a notice, so Confirm cannot be clicked again', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [500, { error: { code: 'INTERNAL_ERROR' } }],
+      [REREAD]: [200, { request: makeDetail({ risk_tier: 'standard', status: 'rejected' }) }],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('This request is no longer pending approval.'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirm approval/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
+    expect(callsTo(APPROVE)).toHaveLength(1);
+  });
+
+  it('an approve failure whose re-read still shows pending keeps the modal and its error', async () => {
+    const user = userEvent.setup();
+    stubRoutes({
+      [APPROVE]: [500, { error: { code: 'INTERNAL_ERROR' } }],
+      [REREAD]: [200, { request: makeDetail({ risk_tier: 'standard' }) }],
+    });
+    render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
+    await user.click(screen.getByRole('button', { name: /^approve$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm approval/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Approve registration' });
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('Approval failed. Please try again.'));
+    expect(screen.getByRole('button', { name: /confirm approval/i })).toBeEnabled();
+  });
+
+  it('the disabled Resend button is described by its reason; an enabled one has no description', () => {
+    at('2026-10-05T21:45:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toHaveAccessibleDescription('Available again at 21:50 UTC');
+
+    cleanup();
+    render(<RegistrationDetail detail={liveDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toHaveAccessibleDescription(
+      'The current setup link is valid until 2026-10-09 21:40 UTC. A new one can be sent after it expires.',
+    );
+
+    cleanup();
+    at('2026-10-05T22:00:00.000Z');
+    render(<RegistrationDetail detail={approvedDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toHaveAccessibleDescription('');
   });
 
   it('a link still live disables Resend with its expiry line until it expires', () => {
@@ -577,12 +740,15 @@ describe('RegistrationDetail invite controls', () => {
     expect(screen.getByText('Pending approval')).toBeInTheDocument();
   });
 
-  it('an approve 200 re-reads and shows Resend with its last-sent time, cooling down', async () => {
+  it('an approve 200 re-reads and shows Resend with its last-sent time, disabled by the live link it just sent', async () => {
     const user = userEvent.setup();
     at('2026-10-05T22:00:00.000Z');
     stubRoutes({
       [APPROVE]: [200, { ok: true, participant_id: 'p-9', status: 'approved' }],
-      [REREAD]: [200, { request: approvedDetail({ last_invite_sent_at: '2026-10-05T21:59:00.000Z' }) }],
+      [REREAD]: [
+        200,
+        { request: liveDetail({ last_invite_sent_at: '2026-10-05T21:59:00.000Z', last_invite_expires_at: '2026-10-09T21:59:00.000Z' }) },
+      ],
     });
     render(<RegistrationDetail detail={makeDetail({ risk_tier: 'standard' })} />);
 
@@ -592,7 +758,8 @@ describe('RegistrationDetail invite controls', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Registration approved.'));
     expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
     expect(screen.getByText('Last sent 2026-10-05 21:59 UTC')).toBeInTheDocument();
-    expect(screen.getByText('Available again at 22:09 UTC')).toBeInTheDocument();
+    expect(screen.getByText(/The current setup link is valid until 2026-10-09 21:59 UTC/)).toBeInTheDocument();
+    expect(screen.queryByText(/Available again at/)).not.toBeInTheDocument();
   });
 
   it('a detail from an older core (no provisioning_status) shows neither Resend nor Retry', () => {
@@ -758,5 +925,17 @@ describe('RegistrationDetail invite controls', () => {
     const dialog = screen.getByRole('dialog', { name: 'Resend setup email' });
     expect(dialog).toHaveTextContent('Send a new setup link to jane@example.com? It lasts 4 days.');
     expect(dialog).not.toHaveTextContent('The previous link has expired.');
+  });
+
+  it('with a live link known the page shows the live-link line, not a cooldown time that does not free Resend', () => {
+    at('2026-10-05T21:45:00.000Z'); // inside the cooldown, link live until 10-09
+    render(<RegistrationDetail detail={liveDetail()} />);
+    expect(screen.getByRole('button', { name: 'Resend setup email' })).toBeDisabled();
+    expect(
+      screen.getByText(
+        'The current setup link is valid until 2026-10-09 21:40 UTC. A new one can be sent after it expires.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Available again at/)).not.toBeInTheDocument();
   });
 });
