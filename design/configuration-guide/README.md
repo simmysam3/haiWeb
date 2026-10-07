@@ -7,7 +7,9 @@
 > - `guide-template.html`: the print template that command fills. It came from Claude
 >   Design and has six slots, each written as its name inside double curly braces:
 >   `lang`, `title`, `cover_line`, `version`, `date` and `body`. It is changed only by a
->   new Claude Design run against the markup sample, never by hand.
+>   new Claude Design run against the markup sample, never by hand. One exception: the
+>   cover wave's `opacity:.5`, set by hand on 2026-10-07 so the wave stays an accent. A new
+>   run keeps it; a test pins it.
 > - `guide-template-markup-sample.html`: the contract between the converter
 >   (`scripts/guide-markdown.mjs`) and the template. It shows every element and class
 >   the converter emits, and the template styles nothing else.

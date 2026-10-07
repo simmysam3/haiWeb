@@ -28,6 +28,8 @@
     thead: table-header-group, so a table that continues repeats its header row.
     p, li: orphans 3, widows 3.
   No JavaScript. Fonts, logo and cover wave are embedded; the file makes no network request.
+  The cover wave is drawn at opacity .5 so it stays an accent. That one value was set by hand (2026-10-07);
+  a new Claude Design run keeps it.
 
   FONTS (CSS variables --font-body, --font-heading, --font-mono)
     Inter (body and headings), IBM Plex Mono (code), Noto Sans Symbols 2 subset (check mark, warning sign).
@@ -87,7 +89,7 @@ body{font-family:var(--font-body);color:var(--gray-01);-webkit-font-smoothing:an
 
 /* cover */
 .cover{page:cover;position:relative;width:8.5in;height:11in;overflow:hidden;break-after:page;background:#fff}
-.cover-wave{position:absolute;inset:0;width:100%;height:100%;display:block;-webkit-mask-image:radial-gradient(ellipse 3.4in 1.7in at 1.8in calc(100% - 0.95in),transparent 55%,#000 100%);mask-image:radial-gradient(ellipse 3.4in 1.7in at 1.8in calc(100% - 0.95in),transparent 55%,#000 100%)}
+.cover-wave{position:absolute;inset:0;width:100%;height:100%;display:block;-webkit-mask-image:radial-gradient(ellipse 3.4in 1.7in at 1.8in calc(100% - 0.95in),transparent 55%,#000 100%);mask-image:radial-gradient(ellipse 3.4in 1.7in at 1.8in calc(100% - 0.95in),transparent 55%,#000 100%);opacity:.5}
 .cover-band{position:relative;background:var(--navy);padding:1.25in 0.75in 0.75in;border-bottom:3pt solid var(--teal)}
 .cover-band::before{content:"";display:block;width:0.6in;height:3pt;background:var(--teal);margin-bottom:22pt}
 .cover-title{margin:0;font-family:var(--font-heading);font-weight:700;font-size:30pt;line-height:1.15;letter-spacing:-0.01em;color:#fff;max-width:6.6in;text-wrap:balance}
