@@ -202,6 +202,13 @@ describe('the print template in design/configuration-guide', () => {
     // The running footer of every page: the version and the date inside a CSS string.
     expect(html).toMatch(/content:"1\.104\.0[^"]*2026-10-06";/);
   });
+
+  // The cover's wave is an accent, barely visible. Its image reaches an alpha of 92 of 255, so it is drawn at half strength.
+  it('draws the cover wave at half strength', () => {
+    const rule = committed().match(/\.cover-wave\{[^}]*\}/)?.[0];
+    expect(rule).toBeDefined();
+    expect(rule?.match(/;opacity:([^;}]*)[;}]/)?.[1]).toBe('.5');
+  });
 });
 
 const SOURCE_FILE = 'client-implementation-guidelines-v1.104.0.md';
