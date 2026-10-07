@@ -17,7 +17,7 @@ So: **put the finished files there, then rebuild + redeploy the haiWeb prod imag
 | Download key | File | Produced by |
 |---|---|---|
 | `agent` | `haiwave-agent-v<version>.zip` (+ `manifest.json`) | `npm run build:agent-zip` |
-| `guide` | `configuration-guide.pdf` | `npm run build:guide-pdf` |
+| `guide` | `configuration-guide.pdf` (+ `configuration-guide.json`) | `npm run render:guide-pdf` (renders the guide's markdown source through the print template, and records the PDF) |
 
 The agent zip is a `git archive` of the haiClient `HEAD` (tracked files only;
 secrets stay gitignored). The SDK ships **inside** that zip — there is no separate
@@ -28,48 +28,66 @@ SDK download.
 1. **Agent zip:** `npm run build:agent-zip` → writes `haiwave-agent-v<version>.zip`
    + `manifest.json` (version comes from `../haiClient/package.json`). Run this
    against the haiClient commit you are releasing.
-2. **Configuration guide PDF:** the committed design template
-   (`design/configuration-guide/template.html`, from Claude Design) has the fixed
-   chrome + `{{title}}`/`{{date}}`/`{{body}}` slots. `{{body}}` is **generated
-   design-system HTML** (a sequence of `<section class="page">` blocks per the
-   authoring contract at the top of that template), **not** markdown:
-   - **Author the body:** a Claude pass translates the source guide
-     (`haiCore/docs/client-implementation-guidelines-v1.6.md`) into the design-system
-     markup per the contract, committed as `design/configuration-guide/body.html`
-     (a first pass is in place).
-   - **Assemble + render:** `npm run build:guide-pdf` injects title/date/body into
-     the template and prints to `configuration-guide.pdf` via Playwright.
-   - **Source binding:** the body's first page section must carry `data-edition`, `data-source` and
-     `data-source-sha256` (see `design/configuration-guide/README.md` § Source binding); the build refuses
-     otherwise, and writes `private/agent-downloads/configuration-guide.json` on success.
+2. **Configuration guide PDF:** the PDF is rendered here from the guide's markdown source, haiCore
+   `docs/client-implementation-guidelines-v<agent version>.md`, through the print template
+   `design/configuration-guide/guide-template.html`.
+   - **Render it:** back up the PDF that is served now, then run, in the tree the image is built from:
+     `HAICORE_DIR=<haiCore checkout> npm run render:guide-pdf -- client-implementation-guidelines-v<agent version>.md`
+     That one command converts the guide, prints it, replaces `private/agent-downloads/configuration-guide.pdf`
+     (the file the download route serves) and records it: it writes `configuration-guide.json` beside the PDF,
+     with the PDF's SHA-256, the edition, the source file and its SHA-256, and the record time. The console and
+     `publish:help-pack` (step 4) read that record. The PDF and its record change together: a run that is
+     refused leaves both as they were.
+   - **It needs Playwright's Chromium:** `npx playwright install chromium`, once on the machine that renders.
+   - **Render once for an edition.** Two renders of the same guide differ in the PDF's own time stamp, so the PDF's
+     SHA-256 differs, and the help pack (step 4) names the PDF by that SHA-256. Once a pack built from this PDF has
+     been evaluated, do not render again: a new render means a new publish to the rig and a new evaluation.
+   - **A render that is stopped while it prints** can leave a file named
+     `configuration-guide.pdf.<random>.rendering` in `private/agent-downloads/`. Delete it before the image is built:
+     the image copies that directory as it stands.
+   - **The template came from Claude Design once, and is not edited by hand.** It changes only by a new Claude
+     Design run against the markup sample, `design/configuration-guide/guide-template-markup-sample.html`.
+   - **A guide that uses anything outside the template's markup is refused, with the line number in the guide.**
+     Nothing is guessed or left out. Correct the guide and run the command again; a new kind of element goes
+     into the template first.
+   - **`npm run record:guide-pdf` remains, for recording a PDF that was placed by hand:**
+     `HAICORE_DIR=<haiCore checkout> npm run record:guide-pdf -- client-implementation-guidelines-v<agent version>.md`.
+     It refuses, and writes nothing, when the PDF is missing, is empty or does not begin with `%PDF-`, or when it
+     cannot read the source. Run it too if `render:guide-pdf` ever says that the PDF was replaced and its
+     record was not made.
    ⚠ **Adopter-facing — configuration guide ONLY.** Do NOT make the platform
-   As-Built spec (`haiCore/docs/<date>_as_built.md`) the `{{body}}`: it is
+   As-Built spec (`haiCore/docs/<date>_as_built.md`) the source of this PDF: it is
    HAIWAVE-internal (DB schema, central services, prod deploy revisions, the
    security register) and would leak internal architecture to external adopters.
 3. **Publish:** rebuild + redeploy the haiWeb prod image. The new
    `private/agent-downloads/` contents are baked in and served.
 4. **Help pack (HAIWAVE Help, DESIGN-2026-10-03 §5.4):** after the deploy in step 3 is live, in the **same tree**:
    `npm run publish:help-pack -- --dry-run` (inspect `private/help-pack/help-pack.preview.json`), then
-   `HAICORE_URL=<Central> HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack`.
-   - **The only argument is `--dry-run`, and it goes after npm's `--`.** Any other argument is refused: exit 1,
-     nothing sent. `npm run publish:help-pack --dry-run` without the `--` is refused too: npm keeps that flag for
-     itself and passes no argument. A run with no argument publishes, and a successful publish makes the pack active.
-     ⚠ npm keeps **every** flag typed before the `--`, not only `--dry-run` (measured with npm 11.12.1: `--dryrun`,
-     `--eval`, `-n`). The command receives no argument and cannot see such a flag, so with both variables set that
-     run **publishes**. Always type the `--`.
+   `HAICORE_URL=<Central> HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack -- --publish`.
+   - **The command takes exactly one argument, after npm's `--`: `--dry-run` or `--publish`.** A publish needs
+     `--publish`, and a successful publish makes the pack active. Everything else is refused: exit 1, nothing
+     assembled or sent, and the two forms printed. That is a run with no argument, any other argument (a misspelt
+     one included), more than one argument, and `--publish` while npm holds a `--dry-run` of its own
+     (`npm run publish:help-pack --dry-run -- --publish`).
+     ⚠ npm keeps **every** flag typed before the `--` for itself (measured with npm 11.12.1: `--publish`, `--dryrun`,
+     `--eval`, `-n`). Such a flag never reaches the command, so that run arrives as a run with no argument and is
+     refused too: it no longer publishes. `npm run publish:help-pack --publish` without the `--` publishes nothing.
+     Always type the `--`.
    - **`HAICORE_DIR`** (default `../haiCore`) is the haiCore checkout the command reads: the guide source and the
      as-built editions in `docs/`, the support brief in `docs/help/`, and the protocol version.
    - **The target Central must run with `HELP_AGENT_ENABLED=true`.** With the flag off,
      `PUT /api/v1/admin/help/packs` is not registered and the publish answers `HTTP 404`. The console's own
      `HELP_AGENT_ENABLED` can stay off until the pack is active.
-   - It refuses unless `body.html` is the body the served PDF was built from and the guide source is unchanged
-     since; the brief must carry the owner's `reviewed_by`.
+   - It refuses unless the PDF in `private/agent-downloads/` is the one that was recorded and the guide source is
+     unchanged since; the brief must carry the owner's `reviewed_by`.
    - Publish and evaluate on the rig first (`npm run help:eval` in haiCore apps/core). Production receives only a
      pack that matches the one that passed there. The manifest's `built_at` and `built_from` differ on every run,
-     so these are the manifest fields that must equal the rig's: `guide.source_sha256`, `guide.body_sha256`,
-     `agent.version`, `brief.file` and `console_pages_sha256`.
+     so these are the manifest fields that must equal the rig's: `guide.source_sha256`, `guide.body_sha256`
+     (the served PDF's SHA-256), `agent.version`, `brief.file` and `console_pages_sha256`.
 
 ### Dependencies for step 2
+
+*This section describes the retired haiWeb render (`build:guide-pdf`, `body.html`), which the release flow no longer uses.*
 
 - Playwright Chromium (`npx playwright install chromium`) — HTML → PDF. (No
   markdown converter: the body is generated design-system HTML, not markdown.)
@@ -81,6 +99,8 @@ is missing — it never emits a stale/empty PDF silently.
 
 ### Authoring the body
 
+*This section describes the retired haiWeb render (`build:guide-pdf`, `body.html`), which the release flow no longer uses.*
+
 The template's header comment is the binding authoring contract for `{{body}}`
 (page box, one-topic-per-page openers, the component class reference, the PIN
 macro). Re-run the Claude authoring pass to refresh `body.html` whenever the guide
@@ -88,6 +108,8 @@ content changes, then re-run `build:guide-pdf`.
 The automated path above replaces this once the template is in place.
 
 ## ⚠ Current state — production is behind the working tree
+
+*The PDF is now rendered in the tree the image is built from with `npm run render:guide-pdf`, which records it as well (step 2). Where the text below says to re-run `npm run build:guide-pdf`, it names the retired render: run `npm run render:guide-pdf` there instead.*
 
 Measured 2026-08-22 in the `guide-1.6` worktree and in `~/dev/hw/haiWeb`.
 

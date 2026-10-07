@@ -7,15 +7,16 @@ import { fileURLToPath } from 'node:url';
 /**
  * Assemble the HAIWAVE Help knowledge pack from exactly what the console serves, and publish it to Central
  * (DESIGN-2026-10-03 §5; plan C.2 HelpPackPayload, C.4). Run in the SAME tree whose private/agent-downloads/ is baked
- * into the haiWeb image, after build:agent-zip and build:guide-pdf, and after the haiWeb deploy that ships them.
+ * into the haiWeb image, after build:agent-zip and render:guide-pdf, and after the haiWeb deploy that ships them.
  *
  *   npm run publish:help-pack -- --dry-run          # writes private/help-pack/help-pack.preview.json, publishes nothing
- *   HAICORE_URL=https://… HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack
+ *   HAICORE_URL=https://… HELP_PUBLISH_TOKEN=<haiwave_admin portal token> npm run publish:help-pack -- --publish
  *
- * The only argument is --dry-run, given after npm's `--`. Any other argument is refused, and so is a run with no
- * argument while npm_config_dry_run is set (npm keeps a --dry-run typed before the `--` for itself). npm keeps every
- * other flag typed before the `--` too (a misspelt --dryrun, -n): the command cannot see one, so that run is a run
- * with no argument, and it publishes.
+ * The command takes exactly one argument, given after npm's `--`: --dry-run, or --publish for the live publish. A run
+ * with no argument is refused, and so are any other argument (a misspelt one included), more than one argument, and
+ * --publish while npm_config_dry_run is set (npm keeps a --dry-run typed before the `--` for itself). npm keeps every
+ * other flag typed before the `--` too (--publish, a misspelt --dryrun, -n): the command cannot see one, so that run
+ * is a run with no argument, and it is refused: it publishes nothing.
  *
  * The target Central must run with HELP_AGENT_ENABLED=true: with the flag off, PUT /api/v1/admin/help/packs is not
  * registered and the publish answers 404. The console's own HELP_AGENT_ENABLED can stay off until the pack is active.
@@ -33,6 +34,15 @@ const AS_BUILT_RE = /^\d{1,2}-\d{1,2}_as_built\.md$/;
 /** @param {string} text */
 export function sha256Hex(text) {
   return createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+/**
+ * The SHA-256 of a file's raw bytes: the hash that render:guide-pdf records for the served PDF (and that
+ * record:guide-pdf records for a PDF placed by hand).
+ * @param {string} path
+ */
+function sha256OfFile(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
 /** The guide part: the source markdown without HTML comments and without its `## Change log` section. */
@@ -118,16 +128,21 @@ export function newerAsBuiltWarning({ haicoreDir, briefAsBuilt, commitTime = git
 export function assemblePack({ haiwebDir, haicoreDir, now = new Date(), head = gitHead }) {
   const downloads = join(haiwebDir, 'private', 'agent-downloads');
   const guide = JSON.parse(readFileSync(join(downloads, 'configuration-guide.json'), 'utf8'));
-  const body = readFileSync(join(haiwebDir, 'design', 'configuration-guide', 'body.html'), 'utf8');
-  if (sha256Hex(body) !== guide.bodySha256) {
+  if (sha256OfFile(join(downloads, 'configuration-guide.pdf')) !== guide.bodySha256) {
     throw new Error(
-      'assemblePack: design/configuration-guide/body.html is not the body the served PDF was built from ' +
-        '(configuration-guide.json bodySha256 differs). Re-run npm run build:guide-pdf, then publish.',
+      'assemblePack: private/agent-downloads/configuration-guide.pdf is not the PDF that was recorded ' +
+        '(configuration-guide.json bodySha256 differs). Render it again, which records it too: ' +
+        'npm run render:guide-pdf -- <guide source file>, then publish. A PDF that was placed by hand is recorded with ' +
+        'npm run record:guide-pdf -- <guide source file>.',
     );
   }
   const source = readFileSync(join(haicoreDir, 'docs', guide.sourceFile), 'utf8');
   if (sha256Hex(source) !== guide.sourceSha256) {
-    throw new Error(`assemblePack: ${guide.sourceFile} changed since the served PDF was built. Re-author and re-render the guide, then publish.`);
+    throw new Error(
+      `assemblePack: ${guide.sourceFile} is not the source that was recorded ` +
+        '(configuration-guide.json sourceSha256 differs). Check HAICORE_DIR. If the guide changed, the served PDF must be ' +
+        'rendered again from it, which records it too: npm run render:guide-pdf -- <guide source file>, then publish.',
+    );
   }
   const agent = JSON.parse(readFileSync(join(downloads, 'manifest.json'), 'utf8'));
   const zipFile = basename(agent.zipFile);
@@ -252,26 +267,39 @@ function isEntryPoint() {
 }
 
 if (isEntryPoint()) {
-  // Only --dry-run is an argument, and the live path is taken only when no argument came and npm_config_dry_run is
-  // not set. Anything else is refused here, before anything is assembled or sent. A misspelt flag that reaches the
-  // command must never publish. Nor must a --dry-run typed before npm's `--` separator: npm keeps it for itself,
-  // passes no argument and sets npm_config_dry_run. That case is refused rather than run as a dry run, so exit 0
-  // never means "did nothing". Any OTHER flag typed before the `--` cannot be seen here: npm keeps it and sets only
-  // npm_config_<that flag>, so such a run arrives as a run with no argument (docs/release-downloads.md, step 4).
+  // The command takes exactly one argument, --dry-run or --publish, and the live path is taken only for --publish
+  // itself. Everything else is refused here, before anything is assembled, written or sent: a run with no argument,
+  // an argument that is neither of the two (a misspelt one must never publish), more than one argument, and --publish
+  // while npm_config_dry_run is set. npm keeps every flag typed before its `--` separator for itself and passes no
+  // argument, so `npm run publish:help-pack --publish` arrives here as a run with no argument and is refused. When
+  // the flag npm kept is --dry-run it also sets npm_config_dry_run: with no argument the refusal says so, and beside
+  // --publish the two ask for opposite things. No other npm_config_ variable is read, and npm_config_publish is never
+  // a go. A refusal exits 1, so exit 0 never means "did nothing" (docs/release-downloads.md, step 4).
   const args = process.argv.slice(2);
-  const unknown = args.find((arg) => arg !== '--dry-run');
+  const npmDryRun = process.env.npm_config_dry_run !== undefined;
+  const unknown = args.find((arg) => arg !== '--dry-run' && arg !== '--publish');
   const refusal =
     unknown !== undefined
-      ? `unknown argument ${JSON.stringify(unknown)}: the only argument is --dry-run`
-      : args.length === 0 && process.env.npm_config_dry_run !== undefined
-        ? 'no argument came and npm_config_dry_run is set: npm keeps a --dry-run typed before its "--" separator for itself'
-        : null;
+      ? `unknown argument ${JSON.stringify(unknown)}: the one argument is --dry-run or --publish`
+      : args.length > 1
+        ? `more than one argument came (${args.join(' ')}): the command takes exactly one, --dry-run or --publish`
+        : args.length === 0
+          ? npmDryRun
+            ? 'no argument came and npm_config_dry_run is set: npm keeps a --dry-run typed before its "--" separator for itself'
+            : 'no argument came: the command takes one, --dry-run or --publish, after npm\'s "--" separator (npm keeps a flag typed before it for itself)'
+          : args[0] === '--publish' && npmDryRun
+            ? '--publish came while npm_config_dry_run is set (npm keeps a --dry-run typed before its "--" separator for itself): the two ask for opposite things'
+            : null;
   if (refusal !== null) {
-    console.error(`publish:help-pack: ${refusal}. Refused: nothing was assembled or sent.\nFor a dry run: npm run publish:help-pack -- --dry-run`);
+    console.error(
+      `publish:help-pack: ${refusal}. Refused: nothing was assembled or sent.\n` +
+        'For a dry run: npm run publish:help-pack -- --dry-run\n' +
+        'To publish:    npm run publish:help-pack -- --publish',
+    );
     process.exit(1);
   }
   main({
-    dryRun: args.includes('--dry-run'),
+    dryRun: args[0] !== '--publish',
     haiwebDir: resolve('.'),
     haicoreDir: resolve(process.env.HAICORE_DIR ?? '../haiCore'),
     env: process.env,
