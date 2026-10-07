@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync, copyFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, existsSync, realpathSync, copyFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -12,6 +12,7 @@ import {
   newerAsBuiltWarning, assemblePack, main, DEPLOY_DOC_PATHS,
 } from '../publish-help-pack.mjs';
 import { sha256Hex as guideSha256Hex, verifySourceUnchanged } from '../build-guide-pdf.mjs';
+import { recordGuidePdf } from '../record-guide-pdf.mjs';
 import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
 const sha = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex');
@@ -235,19 +236,23 @@ describe('newerAsBuiltWarning', () => {
 });
 
 const SOURCE = '<!-- header -->\n# Guide\n## §1 Quick Start\nRun it.\n## Change log\nrow\n';
-const BODY = '<section class="page" data-edition="1.7">TOC</section>';
+/** A stand-in for the served PDF: it begins with %PDF- and holds bytes that are not valid UTF-8, so the hash of its text is not the hash of its bytes. */
+const PDF = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.from([0xff, 0xfe, 0x00]), Buffer.from('\n%%EOF\n')]);
+const PDF_FILE = 'private/agent-downloads/configuration-guide.pdf';
+/** What record:guide-pdf writes as bodySha256: the hash of the PDF's raw bytes. */
+const PDF_SHA = createHash('sha256').update(PDF).digest('hex');
 const BRIEF = '---\nas_built: 9-22_as_built.md\ndate: 2026-10-07\nreviewed_by: Owner\n---\n# Brief\n';
 const PAGES = '## /account/agents\n**Page:** x\n';
 
-function trees(over: { body?: string; source?: string; brief?: string } = {}) {
+function trees(over: { source?: string; brief?: string } = {}) {
   const web = tmp('web-');
   const core = tmp('core-');
   const zip = makeZip(DOCS);
-  write(web, 'design/configuration-guide/body.html', over.body ?? BODY);
   write(web, 'design/help/console-pages.md', PAGES);
   write(web, 'private/agent-downloads/configuration-guide.json', JSON.stringify({
-    bodySha256: sha(BODY), edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE), builtAt: '2026-10-07T11:00:00.000Z',
+    bodySha256: PDF_SHA, edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE), builtAt: '2026-10-07T11:00:00.000Z',
   }));
+  writeFileSync(join(web, PDF_FILE), PDF);
   write(web, 'private/agent-downloads/manifest.json', JSON.stringify({ version: '1.102.0', zipFile: 'haiwave-agent-v1.102.0.zip', zipBytes: 1, builtAt: 'x' }));
   writeFileSync(join(web, 'private/agent-downloads/haiwave-agent-v1.102.0.zip'), readFileSync(zip));
   write(core, 'docs/client-implementation-guidelines-v1.7.md', over.source ?? SOURCE);
@@ -265,7 +270,7 @@ describe('assemblePack', () => {
     const p = assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
     expect(p.schema_version).toBe(1);
     expect(p.manifest).toEqual({
-      guide: { edition: '1.7', source_file: 'client-implementation-guidelines-v1.7.md', source_sha256: sha(SOURCE), body_sha256: sha(BODY), pdf_built_at: '2026-10-07T11:00:00.000Z' },
+      guide: { edition: '1.7', source_file: 'client-implementation-guidelines-v1.7.md', source_sha256: sha(SOURCE), body_sha256: PDF_SHA, pdf_built_at: '2026-10-07T11:00:00.000Z' },
       agent: { version: '1.102.0', zip_file: 'haiwave-agent-v1.102.0.zip' },
       brief: { file: 'SUPPORT-BRIEF-2026-10-07.md', date: '2026-10-07', reviewed_by: 'Owner', as_built: '9-22_as_built.md' },
       console_pages_sha256: sha(PAGES),
@@ -278,13 +283,80 @@ describe('assemblePack', () => {
     expect(p.parts.brief).toBe(BRIEF);
     expect(p.known_env_vars).toEqual(['AGENT_PUBLIC_URL', 'PORT']);
   });
-  it('refuses when body.html is not the body the served PDF was built from', () => {
-    const t = trees({ body: BODY + '<!-- edited after the render -->' });
-    expect(() => assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head })).toThrow(/not the body the served PDF was built from/);
+  // One byte differs, and it is one of the bytes that are not valid UTF-8: read as text the two files are the same.
+  it('refuses when the served PDF is not the PDF that was recorded', () => {
+    const t = trees();
+    const changed = Buffer.from(PDF);
+    changed[changed.indexOf(0xff)] = 0xfd;
+    expect(changed.toString('utf8')).toBe(PDF.toString('utf8'));
+    writeFileSync(join(t.web, PDF_FILE), changed);
+    let message = 'assembled';
+    try {
+      assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+    } catch (err) {
+      message = err instanceof Error ? err.message : String(err);
+    }
+    expect(message).toBe(
+      'assemblePack: private/agent-downloads/configuration-guide.pdf is not the PDF that was recorded ' +
+        '(configuration-guide.json bodySha256 differs). Render it again, which records it too: ' +
+        'npm run render:guide-pdf -- <guide source file>, then publish. A PDF that was placed by hand is recorded with ' +
+        'npm run record:guide-pdf -- <guide source file>.',
+    );
   });
-  it('refuses when the source markdown changed since the served PDF was built', () => {
+  // The stand-in PDF of the other tests is a few bytes, and the served one is megabytes. This one is built in memory,
+  // and its record holds the hash of every byte of it.
+  it('checks a PDF larger than 64 KiB whole: the recorded one assembles, and a change in its last byte alone refuses', () => {
+    const t = trees();
+    const big = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(200 * 1024, 0xa5), Buffer.from([0x01])]);
+    const bigSha = createHash('sha256').update(big).digest('hex');
+    writeFileSync(join(t.web, PDF_FILE), big);
+    write(t.web, 'private/agent-downloads/configuration-guide.json', JSON.stringify({
+      bodySha256: bigSha, edition: '1.7', sourceFile: 'client-implementation-guidelines-v1.7.md', sourceSha256: sha(SOURCE), builtAt: '2026-10-07T11:00:00.000Z',
+    }));
+    const assemble = () => assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+    expect(assemble().manifest.guide.body_sha256).toBe(bigSha);
+
+    const other = Buffer.from(big);
+    other[other.length - 1] = 0x02;
+    writeFileSync(join(t.web, PDF_FILE), other);
+    expect(assemble).toThrow(
+      'assemblePack: private/agent-downloads/configuration-guide.pdf is not the PDF that was recorded ' +
+        '(configuration-guide.json bodySha256 differs). Render it again, which records it too: ' +
+        'npm run render:guide-pdf -- <guide source file>, then publish. A PDF that was placed by hand is recorded with ' +
+        'npm run record:guide-pdf -- <guide source file>.',
+    );
+  });
+  it.each([
+    ['the served PDF', 'configuration-guide.pdf'],
+    ['the record', 'configuration-guide.json'],
+  ])('refuses when %s is missing, and the error names the file', (_name, file) => {
+    const t = trees();
+    rmSync(join(t.web, 'private/agent-downloads', file));
+    expect(() => assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head })).toThrow(join(t.web, 'private/agent-downloads', file));
+  });
+  // The body of the retired haiWeb render plays no part: the fixture tree has no design/configuration-guide/ at all.
+  it('never reads design/configuration-guide/body.html: it assembles without one, and to the same payload when one is there', () => {
+    const t = trees();
+    expect(existsSync(join(t.web, 'design/configuration-guide'))).toBe(false);
+    const without = assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+    write(t.web, 'design/configuration-guide/body.html', '<section class="page" data-edition="9.9">any text</section>');
+    expect(assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head })).toEqual(without);
+  });
+  // The remedy is a new render, which records the PDF too: the record command alone would record the old PDF
+  // against the new source.
+  it('refuses when the guide source is not the source that was recorded, and names the render command as the remedy', () => {
     const t = trees({ source: SOURCE + 'amended\n' });
-    expect(() => assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head })).toThrow(/changed since the served PDF was built/);
+    let message = 'assembled';
+    try {
+      assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+    } catch (err) {
+      message = err instanceof Error ? err.message : String(err);
+    }
+    expect(message).toBe(
+      'assemblePack: client-implementation-guidelines-v1.7.md is not the source that was recorded ' +
+        '(configuration-guide.json sourceSha256 differs). Check HAICORE_DIR. If the guide changed, the served PDF must be ' +
+        'rendered again from it, which records it too: npm run render:guide-pdf -- <guide source file>, then publish.',
+    );
   });
   it('stamps built_from with each tree\'s git HEAD when no head is passed', () => {
     const t = trees();
@@ -326,8 +398,45 @@ describe('assemblePack', () => {
     const sourceSha256 = guideSha256Hex(readFileSync(path, 'utf8'));
     expect(sourceSha256).not.toBe(createHash('sha256').update(readFileSync(path)).digest('hex'));
     await expect(verifySourceUnchanged({ sourceFile, sourceSha256 }, join(t.core, 'docs'))).resolves.toBeUndefined();
-    write(t.web, 'private/agent-downloads/configuration-guide.json', JSON.stringify({ bodySha256: sha(BODY), edition: '1.7', sourceFile, sourceSha256, builtAt: '2026-10-07T11:00:00.000Z' }));
+    write(t.web, 'private/agent-downloads/configuration-guide.json', JSON.stringify({ bodySha256: PDF_SHA, edition: '1.7', sourceFile, sourceSha256, builtAt: '2026-10-07T11:00:00.000Z' }));
     expect(assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head }).manifest.guide.source_sha256).toBe(sourceSha256);
+  });
+});
+
+// The two commands share no code: each hashes the PDF's bytes and the source's text on its own. This test holds them together.
+describe('record:guide-pdf, then assemblePack', () => {
+  it('assembles what was recorded, refuses the PDF once a byte of it changes, and assembles again once it is recorded again', () => {
+    const t = trees();
+    const downloads = join(t.web, 'private/agent-downloads');
+    const sourceFile = 'client-implementation-guidelines-v1.7.md';
+    const sourcePath = join(t.core, 'docs', sourceFile);
+    // The source holds a byte that is not valid UTF-8, so the two commands agree on it only if both hash its text.
+    writeFileSync(sourcePath, Buffer.concat([Buffer.from('# Guide\n'), Buffer.from([0xff]), Buffer.from('\n## §1 Quick Start\nRun it.\n')]));
+    rmSync(join(downloads, 'configuration-guide.json'));
+    const pdfShaOnDisk = () => createHash('sha256').update(readFileSync(join(t.web, PDF_FILE))).digest('hex');
+    const record = (now: Date) => recordGuidePdf({ downloadsDir: downloads, haicoreDocsDir: join(t.core, 'docs'), sourceFile, now });
+    const assemble = () => assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head });
+
+    const recordedAt = new Date('2026-10-07T11:15:00.000Z');
+    record(recordedAt);
+    const first = assemble();
+    expect(first.manifest.guide).toEqual({
+      edition: '1.7', source_file: sourceFile, source_sha256: sha(readFileSync(sourcePath, 'utf8')), body_sha256: pdfShaOnDisk(), pdf_built_at: recordedAt.toISOString(),
+    });
+    expect(first.manifest.guide.body_sha256).toBe(PDF_SHA);
+    expect(() => HelpPackPayloadSchema.parse(first)).not.toThrow();
+
+    // One byte changes, and as text the file is the same as before.
+    const changed = Buffer.from(PDF);
+    changed[changed.indexOf(0xff)] = 0xfd;
+    writeFileSync(join(t.web, PDF_FILE), changed);
+    expect(assemble).toThrow(/is not the PDF that was recorded/);
+
+    const recordedAgainAt = new Date('2026-10-08T09:30:00.000Z');
+    record(recordedAgainAt);
+    const second = assemble();
+    expect(second.manifest.guide).toEqual({ ...first.manifest.guide, body_sha256: pdfShaOnDisk(), pdf_built_at: recordedAgainAt.toISOString() });
+    expect(second.manifest.guide.body_sha256).not.toBe(first.manifest.guide.body_sha256);
   });
 });
 
@@ -569,7 +678,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     const t = gitTrees();
     const preload = join(tmp('helppack-preload-'), 'fake-fetch.mjs');
     writeFileSync(preload, 'globalThis.fetch = async () => ({ status: 401, text: async () => \'{"error":{"code":"UNAUTHORIZED"}}\' });\n');
-    const r = cli(t, [], { nodeArgs: ['--import', pathToFileURL(preload).href], env: { HAICORE_URL: 'http://help-pack.invalid', HELP_PUBLISH_TOKEN: 'sekret-bearer-token' } });
+    const r = cli(t, ['--publish'], { nodeArgs: ['--import', pathToFileURL(preload).href], env: { HAICORE_URL: 'http://help-pack.invalid', HELP_PUBLISH_TOKEN: 'sekret-bearer-token' } });
     expect(r.stderr).toContain('Publish failed: HTTP 401');
     expect(r.status).toBe(1);
   });
@@ -618,6 +727,11 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     delete env.npm_config_dry_run;
     return spawnSync(process.execPath, [...fake.nodeArgs, ...argv], { cwd: t.web, env, encoding: 'utf8' });
   }
+  /** All of stderr when the arguments are refused: the reason, that nothing was done, and the two forms the command takes. */
+  const refused = (reason: string) =>
+    `publish:help-pack: ${reason}. Refused: nothing was assembled or sent.\n` +
+    'For a dry run: npm run publish:help-pack -- --dry-run\n' +
+    'To publish:    npm run publish:help-pack -- --publish\n';
 
   // The entry check must hold wherever the checkout is. A file URL encodes a space, `#`, `%` and every non-ASCII
   // character, so a check that compares import.meta.url with a hand-built `file://<argv[1]>` is false in such a path:
@@ -684,8 +798,56 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(fake.requests()).toEqual([]);
   });
 
-  // Only `--dry-run` is an argument. Any other one used to take the LIVE path, and a successful publish activates the
-  // pack. Both variables are set here (fake values), so a command that is not refused sends one PUT to the fake.
+  // A publish is asked for with `--publish`. Both variables are set (fake values), and the fake answers 201.
+  it('--publish publishes: exit 0, one PUT to /api/v1/admin/help/packs, and "Published help pack" on stdout', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, ['--publish'], fake);
+    expect(fake.requests()).toEqual(['PUT http://help-pack.invalid/api/v1/admin/help/packs']);
+    expect(r.stdout).toContain('Published help pack 2026-10-07.1');
+    expect(r.status).toBe(0);
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // A run with no argument used to publish. Both variables are set and the tree is ready, so a run that is not
+  // refused sends the pack.
+  const NO_ARGUMENT = 'no argument came: the command takes one, --dry-run or --publish, after npm\'s "--" separator (npm keeps a flag typed before it for itself)';
+  it('refuses a run with no argument before any request: it says why, shows the two forms, and writes no preview', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, [], fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused(NO_ARGUMENT));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // `npm run publish:help-pack --publish`, typed without npm's `--` separator: npm keeps the flag for itself, passes no
+  // argument and sets npm_config_publish=true. The command never reads that variable: this is a run with no argument.
+  it('refuses when no argument came and npm_config_publish is set: npm kept the flag, and nothing is sent', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, npm_config_publish: 'true' } });
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused(NO_ARGUMENT));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // The same variable beside an argument that did arrive changes nothing: `--dry-run` is a dry run.
+  it('--dry-run is a dry run even when npm_config_publish is set: the preview, and no request', () => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, ['--dry-run'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, npm_config_publish: 'true' } });
+    expect(fake.requests()).toEqual([]);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Dry run: wrote');
+    expect(existsSync(join(t.web, PREVIEW))).toBe(true);
+  });
+
+  // Only `--dry-run` and `--publish` are arguments. Any other one used to take the LIVE path, and a successful publish
+  // activates the pack. Both variables are set here (fake values), so a command that is not refused sends one PUT to
+  // the fake.
   it.each(['--dryrun', '-n', '--dry-run=true'])('refuses the argument %s before any request, naming it and the dry-run command', (arg) => {
     const t = gitTrees();
     const fake = fakeFetch();
@@ -717,6 +879,60 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(existsSync(join(t.web, PREVIEW))).toBe(false);
   });
 
+  // A bare `--` beside `--publish` is an argument like any other, and an unknown one: two arguments came, so nothing
+  // runs. The command never drops it as a separator, which would leave `--publish` as the one argument and publish.
+  // Both variables are set (fake values), so a command that is not refused sends one PUT to the fake.
+  it.each([
+    ['in front of --publish', ['--', '--publish']],
+    ['after --publish', ['--publish', '--']],
+  ])('refuses a bare "--" %s: an unknown argument, never a separator to drop, so no request and no preview', (_name, args) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, args, fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused('unknown argument "--": the one argument is --dry-run or --publish'));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // The argument that publishes is `--publish`, exactly as written. A misspelt or foreign form of it is an unknown
+  // argument, however close it comes: refused before any request, with the argument named as it was typed.
+  it.each([
+    ['--publsh'],
+    ['--Publish'],
+    ['-p'],
+    ['publish'],
+    ['--publish=true'],
+    ['--publish '],
+    ['-publish'],
+  ])('refuses %j, which is not --publish, before any request: it names the argument and shows the two forms', (arg) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, [arg], fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused(`unknown argument ${JSON.stringify(arg)}: the one argument is --dry-run or --publish`));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // The command takes exactly one argument. `--dry-run` and `--publish` together ask for opposite things, and an
+  // argument typed twice is not one argument either. None of these runs, as a dry run or as a publish.
+  it.each([
+    ['--dry-run, then --publish', ['--dry-run', '--publish']],
+    ['--publish, then --dry-run', ['--publish', '--dry-run']],
+    ['--publish twice', ['--publish', '--publish']],
+    ['--dry-run twice', ['--dry-run', '--dry-run']],
+    ['--publish three times', ['--publish', '--publish', '--publish']],
+  ])('refuses more than one argument (%s) before any request, and writes no preview', (_name, args) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, args, fake);
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused(`more than one argument came (${args.join(' ')}): the command takes exactly one, --dry-run or --publish`));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
   // `npm run publish:help-pack --dry-run`, typed without npm's `--` separator: npm keeps the flag for itself, passes no
   // argument and sets npm_config_dry_run=true, and the command used to publish. It is refused, not run as a silent dry
   // run: exit 0 means "published" or "the dry run wrote its preview", never "did nothing".
@@ -733,7 +949,43 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     expect(r.stderr).toContain('npm keeps a --dry-run');
     expect(r.stderr).toContain('npm run publish:help-pack -- --dry-run');
     expect(r.stderr).not.toMatch(/published/i);
+    expect(r.stderr).toBe(refused('no argument came and npm_config_dry_run is set: npm keeps a --dry-run typed before its "--" separator for itself'));
     expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // `npm run publish:help-pack --dry-run -- --publish`: npm keeps the first flag and sets npm_config_dry_run, and the
+  // command receives `--publish`. The two ask for opposite things, so nothing runs: no publish, and no dry run either.
+  it.each([
+    ['true, as npm sets it', 'true'],
+    ['empty: the variable being there is enough', ''],
+  ])('refuses --publish while npm_config_dry_run is set (%s) before any request, and writes no preview', (_name, value) => {
+    const t = gitTrees();
+    const fake = fakeFetch();
+    const r = cli(t, ['--publish'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, npm_config_dry_run: value } });
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused('--publish came while npm_config_dry_run is set (npm keeps a --dry-run typed before its "--" separator for itself): the two ask for opposite things'));
+    expect(existsSync(join(t.web, PREVIEW))).toBe(false);
+  });
+
+  // The arguments are refused before the command reads anything. Here there is nothing to read: the directory is empty
+  // and HAICORE_DIR names nothing, so a command that assembled first would stop on a missing file instead.
+  it.each([
+    ['a run with no argument', [] as string[], {} as Record<string, string>, NO_ARGUMENT],
+    ['a misspelt argument', ['--publsh'], {}, 'unknown argument "--publsh": the one argument is --dry-run or --publish'],
+    ['two arguments', ['--dry-run', '--publish'], {}, 'more than one argument came (--dry-run --publish): the command takes exactly one, --dry-run or --publish'],
+    [
+      '--publish while npm_config_dry_run is set', ['--publish'], { npm_config_dry_run: 'true' },
+      '--publish came while npm_config_dry_run is set (npm keeps a --dry-run typed before its "--" separator for itself): the two ask for opposite things',
+    ],
+  ])('refuses %s before it reads anything: in an empty directory the refusal is the same, and the directory stays empty', (_name, args, env, reason) => {
+    const dir = tmp('helppack-no-tree-');
+    const fake = fakeFetch();
+    const r = cli({ web: dir, core: join(dir, 'no-haicore') }, args, { nodeArgs: fake.nodeArgs, env: { ...fake.env, ...env } });
+    expect(fake.requests()).toEqual([]);
+    expect([r.status, r.stdout]).toEqual([1, '']);
+    expect(r.stderr).toBe(refused(reason));
+    expect(readdirSync(dir)).toEqual([]);
   });
 
   // With `--dry-run` among the arguments the command did receive it: a dry run, whatever npm's variable says.
@@ -757,7 +1009,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     ['a control character', 'sekret-bearer\x7ftoken-tail'],
   ])('refuses a HELP_PUBLISH_TOKEN that holds %s before any request, and prints no part of it', (_name, token) => {
     const fake = fakeFetch();
-    const r = cli(gitTrees(), [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: token } });
+    const r = cli(gitTrees(), ['--publish'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: token } });
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain('HELP_PUBLISH_TOKEN');
     for (const part of ['sekret-bearer', 'token-tail']) expect(r.stderr).not.toContain(part);
@@ -768,7 +1020,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   // letters, digits, `.`, `_` and `-`: base64 has `+`, `/` and `=`, and `!` and `~` are the two ends of the range.
   it('accepts a HELP_PUBLISH_TOKEN that holds visible ASCII punctuation: one request, and the pack is published', () => {
     const fake = fakeFetch();
-    const r = cli(gitTrees(), [], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: 'eyJhbGciOi.abc+def/ghi=~!' } });
+    const r = cli(gitTrees(), ['--publish'], { nodeArgs: fake.nodeArgs, env: { ...fake.env, HELP_PUBLISH_TOKEN: 'eyJhbGciOi.abc+def/ghi=~!' } });
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('Published help pack');
     expect(fake.requests()).toHaveLength(1);
@@ -791,7 +1043,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   // with one address). The command prints both messages.
   it('prints the cause of a request that failed, beside the error', () => {
     const fake = fakeFetch("throw new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND help-pack.invalid') });");
-    const r = cli(gitTrees(), [], fake);
+    const r = cli(gitTrees(), ['--publish'], fake);
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain('fetch failed');
     expect(r.stderr).toContain('getaddrinfo ENOTFOUND help-pack.invalid');
@@ -812,7 +1064,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
     ['its code, when it has no inner errors either', "Object.assign(new Error(''), { code: 'ECONNREFUSED' })", ['ECONNREFUSED']],
   ])('prints why a request failed when the cause has no message of its own: %s', (_name, cause, reasons) => {
     const fake = fakeFetch(`throw new TypeError('fetch failed', { cause: ${cause} });`);
-    const r = cli(gitTrees(), [], fake);
+    const r = cli(gitTrees(), ['--publish'], fake);
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain('fetch failed');
     expect(r.stderr).toContain('ECONNREFUSED');
@@ -825,7 +1077,7 @@ describe('the CLI (node scripts/publish-help-pack.mjs)', () => {
   // other check of stderr in this file looks for a part of the text, so none would see a suffix.
   it('prints a refusal that has no cause as its message alone, with nothing after it', () => {
     const fake = fakeFetch();
-    const r = cli(gitTrees({ brief: UNREVIEWED }), [], fake);
+    const r = cli(gitTrees({ brief: UNREVIEWED }), ['--publish'], fake);
     expect([r.status, r.stdout]).toEqual([1, '']);
     expect(r.stderr).toContain('owner review is required before publishing');
     expect(r.stderr).toMatch(/\(spec §5\.3\)\n$/);

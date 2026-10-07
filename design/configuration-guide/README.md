@@ -1,5 +1,19 @@
 # Configuration-guide PDF template
 
+> **Status.** The served PDF is rendered from the guide's markdown source with
+> `npm run render:guide-pdf`, which also records it (see `../../docs/release-downloads.md`).
+> This folder now holds:
+>
+> - `guide-template.html`: the print template that command fills. It came from Claude
+>   Design and has six slots, each written as its name inside double curly braces:
+>   `lang`, `title`, `cover_line`, `version`, `date` and `body`. It is changed only by a
+>   new Claude Design run against the markup sample, never by hand.
+> - `guide-template-markup-sample.html`: the contract between the converter
+>   (`scripts/guide-markdown.mjs`) and the template. It shows every element and class
+>   the converter emits, and the template styles nothing else.
+> - `template.html` and `body.html`: the retired haiWeb render (`npm run build:guide-pdf`).
+>   The rest of this file describes that render.
+
 `template.html` is the **HAIWAVE Configuration Guide render template**, exported
 from Claude Design. It is self-contained — inlined design tokens, the brand-logo
 blob, the wave-watermark `<defs>`, and the page-numbering script are fixed chrome
@@ -41,7 +55,9 @@ to `data-source-sha256`. An in-place edit of the source therefore forces a
 re-author before the next PDF. On success it writes
 `private/agent-downloads/configuration-guide.json`
 (`{ bodySha256, edition, sourceFile, sourceSha256, builtAt }`) beside the PDF.
-The console BFF and `npm run publish:help-pack` read that file.
+The console BFF and `npm run publish:help-pack` read that file. Since the Claude
+Design route, `npm run record:guide-pdf` writes that file, with `bodySha256` = the
+served PDF's SHA-256.
 
 The PDF keeps its own section numbering (owner ruling B, 2026-10-03). The help agent cites guide
 sections by title, so no numbering rule changes here.

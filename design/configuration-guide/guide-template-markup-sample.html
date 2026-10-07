@@ -1,0 +1,164 @@
+<!--
+  Markup sample for the configuration-guide print template (2026-10-06).
+
+  This is the exact HTML our build produces for the body of the guide. It shows every kind of element the guide uses.
+  The template styles this markup as it stands: these elements, the two classes "planned" and "checklist", and the
+  "language-…" class on code. Nothing here may be renamed, wrapped or restructured, and the template may rely on
+  nothing that is not here. The text is filler: every word was replaced, letter for letter, by filler of the
+  same length, so that each line, heading and table row keeps the width the template was designed against. None of
+  it belongs in the template.
+
+  In the template, this markup sits where the {{body}} slot is. The cover is the template's own (slots {{title}},
+  {{cover_line}}, {{version}}, {{date}}), so it is not part of this sample.
+-->
+
+<h2>Loremips</h2>
+<p><strong>Umdol orsi</strong></p>
+<ul>
+  <li>§0 Tam et con sect etura</li>
+  <li>§1 Dipis Cinge</li>
+</ul>
+<p><strong>Litseddo</strong></p>
+<ul>
+  <li>§E Iusmodte mporincidi duntutlabore (et dolorem ag naa Liqua Uteni)</li>
+</ul>
+
+<hr>
+
+<h2>§1 Madmi Nimve</h2>
+<p><em>Niamquis: N (ostru dexerci't ation ulla)</em></p>
+<p>Mcol a borisnisiu taliqui pe xe acomm odoc onsequa tduisaute irure dolo rin reprehend, er itin volup: tat eve litesseci, llu md olor eeufugia, tnul la p ariat ure, xce pteu rs into ccaecatcu.</p>
+
+<h3>§1.1 Pida tat nonp</h3>
+<ol>
+  <li><strong>Roi Dent Sunti nculpaq.</strong> Uiofficiad eser unt MOLLITA nimides tl <strong><em>Aboruml › Oremi Psumdolo</em></strong> rsita metc onsecteturad ip iscingel (§2). It seddoeiu smo dtem porin cididu, ntu Tlaboreetd, olo rema gnaal.</li>
+  <li><strong>Iqua utenima dminimvenia.</strong> Mquisn os trude xerci <strong><em>Tationu › Llamco</em></strong>. Lab orisnis iutaliq uip <strong>exeaco mmodoc onse</strong>, qu atdu is aute irur edolor inrep rehenderiti. Nvoluptate veli tes secil lumdo (<code>LOREEUFUGIA_TN</code>, <code>ULLAP_AR</code>, <code>IATUREXC_EPTEUR_SI</code>, nto cca ecatcup idatatnon pro ident, suntin, CULP, aqu iof Ficiade SER untm OLL) it an imi destlabo.</li>
+  <li><strong>Rum lorem IPS umd.</strong> Ol Orsitamet con se c Tetura Dipisc ing. Elit se ddo eius modtem por incid iduntutl.</li>
+  <li><strong>Aboree</strong> td olo rema, gnaa liquaute nimadmi nimven iam qui snost rud exe rci tatio null.
+    <ul>
+      <li>A mcol abo risn isi utaliq uipe, xeac ommo doc.</li>
+      <li>O nsequa tdui saut e iruredo: <code>LORINREP_REHENDE_RITIN=/voluptate</code>.</li>
+    </ul>
+  </li>
+</ol>
+<p>Ve litessec illumdolo re eufugi-atnullap ariatur ex cepteu. Rsintocc aecatc upid at at no-nproide ntsuntinc ulpaq uio ffi ciade's eru ntmollit animides.</p>
+
+<h3>§1.2 Tla bo</h3>
+<p>Rumlo rem ipsumdol or s itam etcon <code>secte.tur</code>:</p>
+<pre><code class="language-bash"># Adipisc ingelits edd oeiusmodt (emporincid idun Tutlabo &gt; Reetdo, §1.1)
+LOREMAGNAAL_IQ=&lt;uaute&gt;
+NIMAD_MI=&lt;nimve&gt;
+NIAMQUIS_NOSTRU_DE=&lt;xerci&gt;
+TATIONUL_LAMCOL_ABORIS=&lt;nisiu tali qui pex-eaco mmodoc, on sequ atduis autei&gt;
+RUREDOLO_RINRE_PREHENDE=&lt;ritinvolup&gt;
+TATEVEL_ITES_SEC=&lt;illumdolor&gt;
+
+# Eeu fug iatnul lap ariat
+UREXCEPTE_URS_INT=oc-cae-...
+
+# Catcupi data tno npro identsunt
+INCULP_AQUI=/offi/ciade.serunt
+MOLLITAN_IMIDEST_LABOR=/umloremip
+</code></pre>
+<p>Sum do:</p>
+<pre><code class="language-bash">lorsit ame -t --cons ectetur-adipi \
+  -s 3001:3001 \
+  --cin-geli tsedd.oei \
+  -u smodtem-porinc:/idid/untutl \
+  -a boreetd-olor:/emag \
+  -n /aali/qu/aute/nimadmini:/mveniamqu:is \
+  nostrud-exerc
+</code></pre>
+<p>I tati onull amco la borisnis, iut ali quip exea co mmodoc onse qua tdui sa utei:</p>
+<pre><code>rure -d -o /lor/inre -p '%{rehe_nder}\i' -T 'i-nvolupt-atevelit-essecil: 3.100.0' -L 'umdoloreeufug: Iatnul &lt;lapar&gt;' iatur://excepte.ursinto.cca/eca/t1/cupida/&lt;TATNO_NP&gt;/roiden --tsunt 3 --incul-paqui 2
+</code></pre>
+
+<blockquote class="planned">
+  <p><strong>Planned.</strong> Offi <code>.ciad</code> es eru ntm ollitanim; idestla bo RUM lor emi.</p>
+</blockquote>
+
+<blockquote>
+  <p><strong>Psumdolorsi.</strong> Tametconsecte tu <strong>radi piscinge litse</strong> dd oeius mo dt emporincidi duntutla (<code>BOREETDOL</code>) or e MAGN aaliq uaut enim Adminim Veniamquis Nostrude. Xercitationul la mco <strong>labOri snisiut</strong> al iquip ex e acommod ocon, seq uatduis <strong><em>Auteiru Redolorinr › Eprehen Deritinv</em></strong>.</p>
+</blockquote>
+
+<blockquote>
+  <p><strong>Olup tate vel it esse cillumdo loreeu fugia tnu-llapa.</strong> ⚠ R iatu rex cepte u rsintoc caec. At cu pida ta tno npro, ide nt sunt inc ulpaquio ffic.</p>
+</blockquote>
+
+<blockquote>
+  <p><strong><code>iades_eruntm</code> ol litanimi des tlabor, uml or em ips umdolors.</strong> I tame't conse cte turadi pisc inge.</p>
+</blockquote>
+
+<blockquote>
+  <p>L itse ddoe iu smod tempo: r incid iduntu tlaboreet. Do lo remagn aa l iqua ute.</p>
+</blockquote>
+
+<hr>
+
+<h2>§0 Nim ad min imve niamq</h2>
+<p>U isnos trud exer citatio nul lamc olab or isn isiut:</p>
+<table>
+  <thead>
+    <tr><th>Aliquip</th><th>Exea com mo</th><th>Doc on se qua</th><th>Tdui</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>S</strong></td><td>Auteir ur-ed</td><td>Olor inreprehend. Eri tin vol uptatevel itess ecillumdo lor eeufug iatn ullapariature, xcepteursin, toc caecatcu.</td><td>§1 → §2 → §3 → §4 → §5 → §6 → §7 → §8 → §9</td></tr>
+    <tr><td><strong>P</strong></td><td>Idatatno npr oident</td><td>Sun tinc ulp aquioffic iades eru ntmollit animides tlabor: u mloremips UMD, o lorsitame tconsectetu radip, iscing elitseddoeiusmo.</td><td>Dte mporinci, di duntu</td></tr>
+    <tr><td><strong>T</strong></td><td>Labor eetd olorema</td><td>Gna aliqu aute nim admin im veni amq uisno str udexerc it ati ONULLAM colabori.</td><td>§2 → §6.7 → §10 → §11 → §12</td></tr>
+  </tbody>
+</table>
+
+<h3>§6.2 Snis iuta liqu ipex</h3>
+<p>E acomm odoc ons equatd uisaute:</p>
+<table>
+  <thead>
+    <tr><th>Irure</th><th>Dolorinr</th><th>Eprehen</th><th>Deritin Volu</th><th>Ptatevelit</th><th>Essecillu</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Mdol / ORE</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    <tr><td>Eufu giatn</td><td>✓</td><td>✓</td><td>✓</td><td>–</td><td>–</td></tr>
+    <tr><td>Ulla paria (≈ ±2%)</td><td>✓</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>
+  </tbody>
+</table>
+
+<h3>§3.4 Turexcep</h3>
+<p>T eursi ntocc aecat cupi datatnon pro iden tsunti:</p>
+<table>
+  <thead>
+    <tr><th>Nculpaqu</th><th>Ioffici</th><th>Ades er untm</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>OLLITAN_IMIDEST_LABORU_ML</code></td><td><code>oremips-umdolor</code></td><td>Sit ametco ns ect etura dipisci ng elits eddo Eiusmod. Tem po rinc id idun tutlabor eetdolor emagn aali quaute nimadminimv.</td></tr>
+    <tr><td><code>ENIAMQUI_SNOSTRU_DEXER</code></td><td><code>/citationu</code></td><td>Lla mc olab orisnis, iutaliqui pe xeacom: <code>/modoconse,/qua/tduisa/uteir,/ure/dolori/nrepr-ehende-2026</code>.</td></tr>
+    <tr><td><code>RITINVOL_UPTAT_EVELITES</code></td><td>(seci)</td><td>Llu mdolore <code>eufug://iatnulla.pariatu.rex/cepteu/rsintoc-caecatc/upidatat/nonpro-identsu/ntinc</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3>§11.6 Ulpaquioffi ciadeseru</h3>
+<ul class="checklist">
+  <li>Ntmoll ita nimide s Tlaborum <code>loremi_psumdolorsi</code> tametc on secte Turadip isci; ngelits edd oeius mo dtempo. <em>(rin: cidid-untutla)</em></li>
+  <li>Boreet dolorema gnaaliqua uten ima dmi nimv-eniamq uisn Ostrude (<code>xercitAtiOnulLamcol</code>). <em>(abo: risnis-iutal)</em></li>
+  <li>Iquipexe acommod OCO <strong>nseq-uatdui</strong> (<code>sauteiruRed</code>); ol orinre prehenderi tinv olup ta tevel itesse ci llumd. <em>(olo: ree-ufug)</em></li>
+</ul>
+
+<h3>§5.2 Iatnul</h3>
+<p>La pariature xcep, teu rsi ntoccae cat cupid atat no nproide ntsu: § → ✓ · › ‹ — – … ≈ × ± − € £ ¥.</p>
+<ul>
+  <li><strong>Ntincu</strong> lp aqu ioffici adeserun.</li>
+  <li>Tmol <code>LIT_ANIMIDES=tlabor</code>, uml oremipsum dolor si <code>tametc-3.8-onsec</code>.</li>
+  <li>T EturAdipis cingeli tseddoe.</li>
+</ul>
+<pre><code class="language-ts">iusmo dtempo = rinci did.untutlabo.reetdol({ orem, agna: 'aliquaut-enima' });
+dm (!inimve.ni) amqui sno Strud(`exercit ationu: ${llamco.labor.isni}`);
+</code></pre>
+
+<h2>Siutal iqu</h2>
+<table>
+  <thead>
+    <tr><th>Ipexeac</th><th>Ommo</th><th>Doconse</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>q1.104.0</td><td>2026-10-06</td><td>Uatd ui sauteiru redol o1.104 (rinre prehend 1.104.0, eri <code>t1.104.0</code>). <strong>I nvoluptate velites: se cil lumdolo.</strong> Reeufug: <strong>§6.7, §3.6 iat nul lapar-iatur excepteu</strong>.</td></tr>
+    <tr><td>r1.103.0</td><td>2026-10-05</td><td>Sint oc caecatcu pidat a1.103 (tnonp roident 1.103.0, sun <code>t1.103.0</code>). Inc ulpaq'u ioffici ade seruntm oll itanimi des tl abo rumlo remipsu md olorsitam.</td></tr>
+  </tbody>
+</table>
