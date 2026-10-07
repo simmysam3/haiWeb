@@ -85,31 +85,9 @@ SDK download.
      so these are the manifest fields that must equal the rig's: `guide.source_sha256`, `guide.body_sha256`
      (the served PDF's SHA-256), `agent.version`, `brief.file` and `console_pages_sha256`.
 
-### Dependencies for step 2
-
-*This section describes the retired haiWeb render (`build:guide-pdf`, `body.html`), which the release flow no longer uses.*
-
-- Playwright Chromium (`npx playwright install chromium`) — HTML → PDF. (No
-  markdown converter: the body is generated design-system HTML, not markdown.)
-- The haiCore checkout at `HAICORE_DIR` (default `../haiCore`). The build reads the guide source the body names
-  (`docs/<data-source>`) and refuses unless that file still hashes to the bound `data-source-sha256`.
-
-Requires network. `build:guide-pdf` fails with an actionable message if Chromium
-is missing — it never emits a stale/empty PDF silently.
-
-### Authoring the body
-
-*This section describes the retired haiWeb render (`build:guide-pdf`, `body.html`), which the release flow no longer uses.*
-
-The template's header comment is the binding authoring contract for `{{body}}`
-(page box, one-topic-per-page openers, the component class reference, the PIN
-macro). Re-run the Claude authoring pass to refresh `body.html` whenever the guide
-content changes, then re-run `build:guide-pdf`.
-The automated path above replaces this once the template is in place.
-
 ## ⚠ Current state — production is behind the working tree
 
-*The PDF is now rendered in the tree the image is built from with `npm run render:guide-pdf`, which records it as well (step 2). Where the text below says to re-run `npm run build:guide-pdf`, it names the retired render: run `npm run render:guide-pdf` there instead.*
+*The PDF is now rendered in the tree the image is built from with `npm run render:guide-pdf`, which records it as well (step 2). Where the text below says to re-run `npm run build:guide-pdf`, it names the earlier render, which was removed in October 2026: run the `render:guide-pdf` command of step 2 there instead.*
 
 Measured 2026-08-22 in the `guide-1.6` worktree and in `~/dev/hw/haiWeb`.
 
@@ -137,6 +115,9 @@ render is cheap and a copied artifact has no provenance.
 > Point-in-time record of download regenerations. The artifacts themselves
 > (`private/agent-downloads/*`, `private/design-intake/*`) are gitignored — this
 > log is the tracked record of what was produced.
+>
+> Entries before October 2026 name `build:guide-pdf`, `body.html` and `template.html`. They belong to the earlier
+> render, which printed an authored HTML body and has since been removed with its files.
 
 ### 2026-08-22 — guide body re-authored to edition 1.6; PDF re-rendered (zip + prod pending)
 

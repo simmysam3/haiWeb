@@ -11,7 +11,6 @@ import {
   stripGuideForPack, parseKnownEnvVars, parseFrontMatter, latestBriefFile, collectDeployDocs, listZipEntries,
   newerAsBuiltWarning, assemblePack, main, DEPLOY_DOC_PATHS,
 } from '../publish-help-pack.mjs';
-import { sha256Hex as guideSha256Hex, verifySourceUnchanged } from '../build-guide-pdf.mjs';
 import { recordGuidePdf } from '../record-guide-pdf.mjs';
 import { ALLOWLIST } from '../lib/agent-archive-allowlist.mjs';
 
@@ -390,14 +389,13 @@ describe('assemblePack', () => {
     expect(assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head }).manifest.brief).toEqual({ file: 'SUPPORT-BRIEF-2026-10-07.md', date: '', reviewed_by: '', as_built: '' });
     await expect(main({ dryRun: true, haiwebDir: t.web, haicoreDir: t.core, env: {}, head, commitTime: () => 1, log: () => {}, warn: () => {} })).rejects.toThrow(/owner review/);
   });
-  it('hashes the guide source as build:guide-pdf does: as UTF-8 text, never as raw bytes (CN-1)', async () => {
+  it('hashes the guide source as UTF-8 text, never as raw bytes (CN-1)', () => {
     const t = trees();
     const sourceFile = 'client-implementation-guidelines-v1.7.md';
     const path = join(t.core, 'docs', sourceFile);
     writeFileSync(path, Buffer.concat([Buffer.from('# Guide\n'), Buffer.from([0xff]), Buffer.from('\n## §1 Quick Start\nRun it.\n')]));
-    const sourceSha256 = guideSha256Hex(readFileSync(path, 'utf8'));
+    const sourceSha256 = sha(readFileSync(path, 'utf8'));
     expect(sourceSha256).not.toBe(createHash('sha256').update(readFileSync(path)).digest('hex'));
-    await expect(verifySourceUnchanged({ sourceFile, sourceSha256 }, join(t.core, 'docs'))).resolves.toBeUndefined();
     write(t.web, 'private/agent-downloads/configuration-guide.json', JSON.stringify({ bodySha256: PDF_SHA, edition: '1.7', sourceFile, sourceSha256, builtAt: '2026-10-07T11:00:00.000Z' }));
     expect(assemblePack({ haiwebDir: t.web, haicoreDir: t.core, now: NOW, head }).manifest.guide.source_sha256).toBe(sourceSha256);
   });
