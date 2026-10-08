@@ -12,7 +12,6 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "build:agent-zip": "node scripts/build-agent-zip.mjs",
-    "build:guide-pdf": "node scripts/build-guide-pdf.mjs",
     "record:guide-pdf": "node scripts/record-guide-pdf.mjs",
     "render:guide-pdf": "node scripts/render-guide-pdf.mjs",
     "publish:help-pack": "node scripts/publish-help-pack.mjs"
