@@ -89,6 +89,8 @@ SDK download.
 
 *The PDF is now rendered in the tree the image is built from with `npm run render:guide-pdf`, which records it as well (step 2). Where the text below says to re-run `npm run build:guide-pdf`, it names the earlier render, which was removed in October 2026: run the `render:guide-pdf` command of step 2 there instead.*
 
+*This section is the state of 2026-08-22. Production was updated on 2026-10-07: see that entry of the regeneration log.*
+
 Measured 2026-08-22 in the `guide-1.6` worktree and in `~/dev/hw/haiWeb`.
 
 | Artifact | On disk (main checkout) | This worktree | Production |
@@ -118,6 +120,32 @@ render is cheap and a copied artifact has no provenance.
 >
 > Entries before October 2026 name `build:guide-pdf`, `body.html` and `template.html`. They belong to the earlier
 > render, which printed an authored HTML body and has since been removed with its files.
+
+### 2026-10-07 — v1.104.0 artifacts: the agent zip and the first PDF from the markdown render (production updated)
+
+- **Agent zip:** `haiwave-agent-v1.104.0.zip`, 3,415,577 B, sha256
+  `edeec3553fbccaf1960647dfe48951e132373f1bc1ad8b7d0dad7eb97dcdf8e2`, built from the `v1.104.0` tag of haiClient
+  (`ad24c1d7`). `manifest.json`:
+  `{ "version": "1.104.0", "zipFile": "haiwave-agent-v1.104.0.zip", "zipBytes": 3415577, "builtAt": "2026-10-07T16:49:15.501Z" }`.
+  The older zips (`v1.76.1`, `v1.102.0`, `v1.103.0`) were moved out of `private/agent-downloads/`: the folder holds
+  one zip.
+- **Configuration guide PDF:** the first one made by `npm run render:guide-pdf` (step 2), from haiCore
+  `docs/client-implementation-guidelines-v1.104.0.md` (sha256
+  `3d35745361ab689fa7f173c528f83ca24c4879f38bb8bc257944e4acc2eff266`) through
+  `design/configuration-guide/guide-template.html` at haiWeb `308e1020`. `configuration-guide.pdf`: 3,253,460 B,
+  80 pages, sha256 `1767a925ae2d46f265d738b9e713fca17d386d25b4a03e43a96f287440786dfc`. It replaced the edition-1.6
+  PDF of 2026-08-22 (17,221,951 B, 49 pages).
+- **The record beside it:** `configuration-guide.json` holds that SHA-256 as `bodySha256`, `edition` `1.104.0`, the
+  source file and its SHA-256, and `builtAt` `2026-10-07T17:32:43.721Z`.
+- **Rendered twice; the second render is the one served.** The first (`builtAt` `2026-10-07T16:49:46.402Z`,
+  3,253,325 B) drew the cover wave too dark. The template's cover wave was set to `opacity:.5` (#230) and the guide
+  rendered again. The help pack was first published after the second render.
+- **Checked in the print:** no heading of the guide missing (16 chapter headings and 81 section headings looked
+  for), each of the guide's 57 non-blank code lines whole on one printed line, no comment text, no unfilled slot.
+- **Help pack:** published on 2026-10-07 from this tree (step 4). It names the PDF by its SHA-256, so this edition
+  is not rendered again (step 2, "Render once for an edition").
+- **Production: UPDATED 2026-10-07.** The console image was built from haiWeb `308e1020` (tag `v1.104.0`) with this
+  folder and deployed. One download of each file from production matched by SHA-256.
 
 ### 2026-08-22 — guide body re-authored to edition 1.6; PDF re-rendered (zip + prod pending)
 
