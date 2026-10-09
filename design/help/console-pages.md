@@ -213,14 +213,14 @@
 **Page:** Admin › Users
 **For:** Managing the people in your organization who can sign in to this account, and their roles.
 **You can:** invite a user · change a user's name or role · deactivate a user · delete a user.
-**Where:** "Invite User" (right side of the bar above the user table) opens the "Invite User" dialog: "First Name", "Last Name", "Email Address", "Role" and "Send Invitation". The table shows Name, Role, Status and Last Login; every row except the Owner's has "Edit", "Deactivate" (active users only) and "Delete". An email address cannot be changed: delete the user and invite them again. The roles you can assign are Account Admin, Procurement Read Only, Procurement Transact, Buyer View Only, Buyer Request Quote, Buyer Full Transact, Inside Sales Read Only and Inside Sales Transact. Only the account Owner can open this page; other roles are sent to the System Dashboard.
+**Where:** "Invite User" (right side of the bar above the user table) opens the "Invite User" dialog: "First Name", "Last Name", "Email Address", "Role" and "Send Invitation". The table shows Name, Role, Status and Last Login; every row except the Owner's has "Edit", "Deactivate" (active users only) and "Delete". An email address cannot be changed: delete the user and invite them again. The roles you can assign are Account Admin, Procurement Read Only, Procurement Transact, Buyer View Only, Buyer Request Quote, Buyer Full Transact, Inside Sales Read Only and Inside Sales Transact. The Owner and Account Admin roles can open this page; other roles are sent to the System Dashboard.
 **Related:** /account/security
 
 ## /account/billing
 **Page:** Admin › Billing
 **For:** Subscription, payment methods and invoice history for your HAIWAVE account.
 **You can:** nothing yet; the page shows "Coming soon".
-**Where:** under the "Billing" heading, a "Coming soon" card says that subscription, payment methods and invoice history will appear here. Only the account Owner can open this page; other roles are sent to the System Dashboard.
+**Where:** under the "Billing" heading, a "Coming soon" card says that subscription, payment methods and invoice history will appear here. The Owner and Account Admin roles can open this page; other roles are sent to the System Dashboard.
 
 ## /account/security
 **Page:** Admin › Sign-in & Security

@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { navSections } from '@/components/account-nav';
+import { STATUS_LABELS } from '@/components/status-badge';
 
 const ROOT = process.cwd();
 const FILE = join(ROOT, 'design/help/console-pages.md');
@@ -181,6 +182,17 @@ describe('design/help/console-pages.md (DESIGN-2026-10-03 §5.2, D10; plan C.5)'
       .map((line) => /^\*\*([^*]+)\*\* — /.exec(line)?.[1])
       .filter((term): term is string => term !== undefined);
     expect(terms.filter((term, i) => terms.indexOf(term) !== i)).toEqual([]);
+  });
+
+  // Who may open the Users and Billing pages, in the labels a customer sees for the two roles.
+  it('says the Owner and Account Admin roles can open the Users and Billing pages', () => {
+    const sections = pageSections(read());
+    const rule = `The ${STATUS_LABELS.account_owner} and ${STATUS_LABELS.account_admin} roles can open this page; other roles are sent to the System Dashboard.`;
+    for (const route of ['/account/users', '/account/billing']) {
+      const entry = sections.get(route) ?? '';
+      expect(entry, route).not.toContain('Only the account Owner can open this page');
+      expect(entry, route).toContain(rule);
+    }
   });
 
   // scripts/publish-help-pack.mjs puts this file into the knowledge pack as it is, so a comment in it would reach the
