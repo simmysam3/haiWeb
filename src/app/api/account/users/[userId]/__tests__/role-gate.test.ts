@@ -27,6 +27,13 @@ const stranger = { id: 'user-9', email: 'other.user@example.test', attributes: {
 // The caller's own Keycloak record.
 const self = { id: 'user-1', email: 'user@example.test', attributes: { participant_id: ['participant-1'] } };
 const rename = { first_name: 'Second', last_name: 'User' };
+// The three shapes a PATCH takes. The deactivation returns before the name and
+// role path is reached, so a refusal is pinned on every one of them.
+const patchBodies: Array<[string, Record<string, unknown>]> = [
+  ['a rename', rename],
+  ['a role change', { role: 'buyer_view_only' }],
+  ['a deactivation', { status: 'disabled' }],
+];
 
 function signedInAs(session: ReturnType<typeof sessionFor> | null): void {
   (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(session);
@@ -67,16 +74,18 @@ describe('PATCH /api/account/users/:userId: who may edit a user', () => {
     expect((await PATCH(patchRequest('user-2', rename), ctx('user-2'))).status).toBe(200);
   });
 
-  it.each(NON_ADMINISTERING_ROLES)('refuses a %s with 403 before any Keycloak call', async (role) => {
-    signedInAs(sessionFor(role));
-    expect((await PATCH(patchRequest('user-2', rename), ctx('user-2'))).status).toBe(403);
-    expect(keycloakCalls()).toBe(0);
-  });
+  describe.each(patchBodies)('%s', (_what, body) => {
+    it.each(NON_ADMINISTERING_ROLES)('is refused for a %s with 403 before any Keycloak call', async (role) => {
+      signedInAs(sessionFor(role));
+      expect((await PATCH(patchRequest('user-2', body), ctx('user-2'))).status).toBe(403);
+      expect(keycloakCalls()).toBe(0);
+    });
 
-  it('answers 401 without a session, before any Keycloak call', async () => {
-    signedInAs(null);
-    expect((await PATCH(patchRequest('user-2', rename), ctx('user-2'))).status).toBe(401);
-    expect(keycloakCalls()).toBe(0);
+    it('answers 401 without a session, before any Keycloak call', async () => {
+      signedInAs(null);
+      expect((await PATCH(patchRequest('user-2', body), ctx('user-2'))).status).toBe(401);
+      expect(keycloakCalls()).toBe(0);
+    });
   });
 });
 
