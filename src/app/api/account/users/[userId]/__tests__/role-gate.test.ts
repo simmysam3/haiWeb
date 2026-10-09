@@ -35,6 +35,15 @@ const patchBodies: Array<[string, Record<string, unknown>]> = [
   ['a deactivation', { status: 'disabled' }],
 ];
 
+// An account_admin session whose token carried no user id, or no participant.
+function adminWith(ids: { userId?: string; participantId?: string }): ReturnType<typeof sessionFor> {
+  const s = sessionFor('account_admin');
+  return {
+    ...s,
+    user: { ...s.user, id: ids.userId ?? s.user.id },
+    participant: { ...s.participant, id: ids.participantId ?? s.participant.id },
+  };
+}
 function signedInAs(session: ReturnType<typeof sessionFor> | null): void {
   (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(session);
 }
@@ -180,6 +189,43 @@ describe('PATCH /api/account/users/:userId: nobody changes their own role', () =
     const res = await PATCH(patchRequest('user-2', { role: 'buyer_view_only' }), ctx('user-2'));
     expect(res.status).toBe(200);
     expect(keycloak.updateUserRole).toHaveBeenCalledWith('user-2', 'buyer_view_only');
+  });
+});
+
+describe('PATCH /api/account/users/:userId: a session with no user id', () => {
+  // Every self guard compares with the session's user id; without one, the
+  // target below is in fact the caller's own record and no guard could tell.
+  beforeEach(() => {
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(self);
+    signedInAs(adminWith({ userId: '' }));
+  });
+
+  it('is refused a role change with 403 before any Keycloak call', async () => {
+    const res = await PATCH(patchRequest('user-1', { role: 'buyer_view_only' }), ctx('user-1'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('is refused a deactivation with 403 before any Keycloak call', async () => {
+    const res = await PATCH(patchRequest('user-1', { status: 'disabled' }), ctx('user-1'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('is refused a rename with 403 before any Keycloak call', async () => {
+    const res = await PATCH(patchRequest('user-1', rename), ctx('user-1'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+});
+
+describe('DELETE /api/account/users/:userId: a session with no user id', () => {
+  it('is refused with 403 before any Keycloak call', async () => {
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(self);
+    signedInAs(adminWith({ userId: '' }));
+    const res = await DELETE(deleteRequest('user-1', { email: self.email }), ctx('user-1'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
   });
 });
 

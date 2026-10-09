@@ -298,6 +298,16 @@ describe('UsersTable: the signed-in user\'s own row', () => {
     expect(screen.queryByText("You can't change your own role.")).toBeNull();
   });
 
+  // Measured, not designed: an empty id matches no row, so no row is treated as
+  // the viewer's own. The route refuses every edit and delete from such a session.
+  it('treats no row as your own when the signed-in user id is empty', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('Role')).toHaveValue('buyer_view_only');
+  });
+
   it('sends the two names and no role when you rename yourself', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const method = init?.method ?? 'GET';

@@ -81,6 +81,11 @@ export async function PATCH(
   if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  // Every self guard below compares with the session's user id. A session
+  // that carries none could not be told from its own record, so it is refused.
+  if (!session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { userId } = await params;
   const { first_name, last_name, role, status } = await readJson(request);
@@ -198,6 +203,10 @@ export async function DELETE(
   }
 
   if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // As in PATCH: the self guard below needs the session's user id.
+  if (!session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
