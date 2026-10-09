@@ -95,8 +95,28 @@ describe('invited-user identity assurance (IA-5)', () => {
     const id = await createUser({ email: 'a@b.com', firstName: 'A', lastName: 'B', attributes: {} });
     expect(id).toBe('u-new');
     expect(sent.emailVerified).toBe(false);
+    // No list given: the field is left out, not sent empty.
+    expect(sent).not.toHaveProperty('requiredActions');
     const creds = (sent.credentials as Array<{ type: string; temporary?: boolean }> | undefined) ?? [];
     expect(creds.some((c) => c.type === 'password' && c.temporary === false)).toBe(false);
+  });
+
+  it('createUser puts the given required actions on the new user', async () => {
+    let sent: Record<string, unknown> = {};
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes('/protocol/openid-connect/token')) {
+        return { ok: true, json: async () => ({ access_token: 't', expires_in: 60 }) } as unknown as Response;
+      }
+      if (u.endsWith('/users')) {
+        sent = JSON.parse(String(init?.body));
+        return { ok: true, headers: { get: (k: string) => (k === 'Location' ? '/admin/realms/x/users/u-new' : null) }, text: async () => '' } as unknown as Response;
+      }
+      return { ok: true, text: async () => '' } as unknown as Response;
+    }));
+
+    await createUser({ email: 'user@example.test', firstName: 'Test', lastName: 'User', requiredActions: ['UPDATE_PASSWORD', 'CONFIGURE_TOTP'] });
+    expect(sent.requiredActions).toEqual(['UPDATE_PASSWORD', 'CONFIGURE_TOTP']);
   });
 
   it('sendExecuteActionsEmail PUTs the requested actions to the user', async () => {

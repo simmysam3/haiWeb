@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, canAdministerAccount, isAssignableRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole, getRealmRole, RealmRoleNotFoundError } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
-import { TEAM_INVITE_ACTIONS, TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
+import { TEAM_INVITE_ACTIONS, TEAM_INVITE_LIFESPAN_SECONDS, TEAM_MEMBER_REQUIRED_ACTIONS } from "@/config/actions-email-lifespan";
 
 /**
  * GET /api/account/users
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
       attributes: {
         participant_id: [session.participant.id],
       },
+      requiredActions: TEAM_MEMBER_REQUIRED_ACTIONS,
     });
     createdUserId = userId;
 

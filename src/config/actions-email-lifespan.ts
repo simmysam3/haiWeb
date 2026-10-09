@@ -12,3 +12,10 @@ export const TEAM_INVITE_LIFESPAN_SECONDS = 4 * 24 * 60 * 60;
  * asked to. One list, so every sender of the invite asks for the same.
  */
 export const TEAM_INVITE_ACTIONS: readonly string[] = ["VERIFY_EMAIL", "UPDATE_PASSWORD", "CONFIGURE_TOTP"];
+
+/**
+ * The steps a new team member's account itself carries from creation until
+ * they are done, whatever way the user first signs in: the same two an
+ * account's first user is created with. The email is proved through the link.
+ */
+export const TEAM_MEMBER_REQUIRED_ACTIONS: readonly string[] = ["UPDATE_PASSWORD", "CONFIGURE_TOTP"];
