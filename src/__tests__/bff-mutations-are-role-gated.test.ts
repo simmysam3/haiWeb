@@ -5,9 +5,10 @@ import { join, relative } from 'node:path';
 /**
  * Role-matrix guard (D-211; generalises D-55). Every BFF route handler that
  * mutates state (POST / PUT / PATCH / DELETE) must carry a role gate: the
- * `withHaiCore` `role` option, `requireAdmin`, an in-handler `hasRole`, or the
- * query-guard editor check `forbidNonEditor`. `hasRole(user, 'account_admin')`
- * is the transact-level gate. Read-only GETs stay session-only, with the one
+ * `withHaiCore` `role` option, `requireAdmin`, an in-handler `hasRole`, the
+ * query-guard editor check `forbidNonEditor`, or the user-management check
+ * `canAdministerAccount`. `hasRole(user, 'account_admin')` is the
+ * transact-level gate. Read-only GETs stay session-only, with the one
  * exception below, which reveals a plaintext credential.
  *
  * Routes that are deliberately open to any session are allowlisted with the
@@ -15,7 +16,7 @@ import { join, relative } from 'node:path';
  */
 const API_ROOT = join(__dirname, '..', 'app', 'api');
 const MUTATION = /export (?:const|async function) (POST|PUT|PATCH|DELETE)\b/g;
-const GATE = /(role:\s*['"]|requireAdmin|hasRole\(|forbidNonEditor\()/;
+const GATE = /(role:\s*['"]|requireAdmin|hasRole\(|forbidNonEditor\(|canAdministerAccount\()/;
 
 export const OPEN_BY_DESIGN: Record<string, string> = {
   'auth/logout/route.ts': 'ends the caller\'s own session',
@@ -56,6 +57,7 @@ describe('every mutating BFF route carries a role gate (D-211)', () => {
   it('detects gates and mutations (positive controls)', () => {
     expect(hasGate("export const POST = withHaiCore(async () => 1, { role: 'account_admin' });")).toBe(true);
     expect(hasGate('const forbidden = forbidNonEditor(session);')).toBe(true);
+    expect(hasGate('if (!canAdministerAccount(session.user.role)) {')).toBe(true);
     expect(hasGate('export const POST = withHaiCore(async () => 1);')).toBe(false);
     expect(mutationExports('export const GET = 1;\nexport const DELETE = 2;\nexport async function PATCH() {}')).toEqual(['DELETE', 'PATCH']);
   });
