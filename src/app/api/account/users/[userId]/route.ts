@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole, isAssignableRole, resolveUserRole } from "@/lib/auth";
+import { getSession, canAdministerAccount, isAssignableRole, resolveUserRole } from "@/lib/auth";
 import {
   updateUserRole,
   updateUserName,
@@ -66,8 +66,8 @@ function patchFailureMessage(err: unknown, nameSaved: boolean, roleStarted: bool
  * PATCH /api/account/users/:userId
  *
  * Changes a user's name, role, or status (deactivation) in Keycloak. Requires
- * account_owner role. The email is never editable: a wrong email is a delete
- * and a fresh invitation (owner ruling 2026-09-06).
+ * the account_owner or account_admin role. The email is never editable: a
+ * wrong email is a delete and a fresh invitation (owner ruling 2026-09-06).
  */
 export async function PATCH(
   request: NextRequest,
@@ -78,7 +78,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -172,11 +172,12 @@ export async function PATCH(
 /**
  * DELETE /api/account/users/:userId
  *
- * Permanently deletes a user in Keycloak. Requires account_owner role. The
- * body must name the user (`{ email }`): a browser tab still running an older
- * bundle sends a body-less DELETE that used to mean "deactivate", and that
- * request must fail closed here, never delete. Records of what the user did
- * are kept — haiCore stores actors as plain ids with no link to Keycloak.
+ * Permanently deletes a user in Keycloak. Requires the account_owner or
+ * account_admin role. The body must name the user (`{ email }`): a browser
+ * tab still running an older bundle sends a body-less DELETE that used to
+ * mean "deactivate", and that request must fail closed here, never delete.
+ * Records of what the user did are kept — haiCore stores actors as plain ids
+ * with no link to Keycloak.
  */
 export async function DELETE(
   request: NextRequest,
@@ -187,7 +188,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

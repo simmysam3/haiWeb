@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
+import { getSession, canAdministerAccount, isAssignableRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole, getRealmRole, RealmRoleNotFoundError } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
 import { TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
@@ -8,7 +8,8 @@ import { TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
  * GET /api/account/users
  *
  * Lists users for the current participant from Keycloak.
- * Requires account_owner role. Falls back to mock users.
+ * Requires the account_owner or account_admin role. A Keycloak failure
+ * answers 502, never a made-up list.
  */
 export async function GET() {
   const session = await getSession();
@@ -16,7 +17,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -58,7 +59,7 @@ function inviteFailureMessage(
  * POST /api/account/users
  *
  * Invites a new user to the participant account via Keycloak.
- * Requires account_owner role.
+ * Requires the account_owner or account_admin role.
  */
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

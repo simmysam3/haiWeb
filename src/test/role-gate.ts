@@ -17,6 +17,22 @@ export function sessionFor(role: UserRole): Session {
   };
 }
 
+/**
+ * The nine roles, split as `canAdministerAccount` splits them: the two that
+ * may manage users and open Billing, and the seven that may not (the three
+ * transact roles among them).
+ */
+export const ADMINISTERING_ROLES: readonly UserRole[] = ['account_owner', 'account_admin'];
+export const NON_ADMINISTERING_ROLES: readonly UserRole[] = [
+  'procurement_transact',
+  'buyer_full_transact',
+  'inside_sales_transact',
+  'procurement_read_only',
+  'buyer_view_only',
+  'buyer_request_quote',
+  'inside_sales_read_only',
+];
+
 export interface RecordedCall {
   name: string;
   args: unknown[];
