@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { sessionFor, NON_ADMINISTERING_ROLES } from '@/test/role-gate';
 
-const { getSession, redirect } = vi.hoisted(() => ({
+const { getSession, redirect, tableProps } = vi.hoisted(() => ({
   getSession: vi.fn(),
+  tableProps: [] as Array<Record<string, unknown>>,
   // next/navigation's redirect never returns: it throws.
   redirect: vi.fn((to: string) => {
     throw new Error(`REDIRECT:${to}`);
@@ -15,14 +16,20 @@ vi.mock('@/lib/auth', async () => {
   return { ...actual, getSession };
 });
 vi.mock('next/navigation', () => ({ redirect }));
-// The table fetches the roster on mount; a marker stands in for it.
-vi.mock('../users-table', () => ({ UsersTable: () => <div data-testid="users-table" /> }));
+// The table fetches the roster on mount; a marker stands in for it and records its props.
+vi.mock('../users-table', () => ({
+  UsersTable: (p: Record<string, unknown>) => {
+    tableProps.push(p);
+    return <div data-testid="users-table" />;
+  },
+}));
 
 import UsersPage from '../page';
 
 beforeEach(() => {
   getSession.mockReset();
   redirect.mockClear();
+  tableProps.length = 0;
 });
 
 describe('UsersPage: who may open it', () => {
@@ -32,6 +39,12 @@ describe('UsersPage: who may open it', () => {
     expect(screen.getByRole('heading', { name: 'Users' })).toBeInTheDocument();
     expect(screen.getByTestId('users-table')).toBeInTheDocument();
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('tells the table who is signed in, so their own row offers no role change', async () => {
+    getSession.mockResolvedValue(sessionFor('account_admin'));
+    render(await UsersPage());
+    expect(tableProps.map((p) => p.currentUserId)).toEqual(['user-1']);
   });
 
   it('opens for an account_owner', async () => {

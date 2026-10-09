@@ -13,7 +13,12 @@ import { RoleSelect } from "./role-select";
 const FIELD_CLASS =
   "w-full px-3 py-2 border border-slate/20 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal";
 
-export function UsersTable() {
+interface UsersTableProps {
+  /** The signed-in user's id: their own row offers no role change (the BFF refuses one). */
+  currentUserId?: string;
+}
+
+export function UsersTable({ currentUserId }: UsersTableProps = {}) {
   // The roster is the hook's own state and every local change is an updater on it, so a load's answer and an invite's
   // append apply in the order they arrived. A copy refreshed in a passive effect ran a commit after the append and could
   // put back a roster older than it, wiping the invited row until the re-read answered.
@@ -154,6 +159,9 @@ export function UsersTable() {
   const editDirty = editUser
     ? Object.keys(editChanges(editUser)).length > 0 && editFirstName.trim() !== "" && editLastName.trim() !== ""
     : false;
+
+  // The caller's own row: the role is not offered, so it never differs and never travels.
+  const editingSelf = editUser !== null && editUser.id === currentUserId;
 
   async function handleEdit() {
     if (!editUser) return;
@@ -448,7 +456,11 @@ export function UsersTable() {
               Email can&apos;t be changed. If it&apos;s wrong, delete this user and invite them again.
             </p>
           </div>
-          <RoleSelect id="edit-role" value={editRole} onChange={setEditRole} />
+          {editingSelf ? (
+            <p className="text-xs text-slate">You can&apos;t change your own role.</p>
+          ) : (
+            <RoleSelect id="edit-role" value={editRole} onChange={setEditRole} />
+          )}
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
             <Button onClick={handleEdit} disabled={actionBusy || !editDirty}>{actionBusy ? "Saving…" : "Save"}</Button>

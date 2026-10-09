@@ -15,7 +15,7 @@ export default async function UsersPage() {
         title="Users"
         description="Manage team members with access to this account."
       />
-      <UsersTable />
+      <UsersTable currentUserId={session.user.id} />
     </div>
   );
 }

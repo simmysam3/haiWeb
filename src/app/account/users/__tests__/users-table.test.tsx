@@ -276,6 +276,45 @@ describe('UsersTable — edit name and role (email is never editable)', () => {
   });
 });
 
+describe('UsersTable: the signed-in user\'s own row', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('offers no role select when editing yourself, and says why', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="u1" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('First Name')).toHaveValue('Jo');
+    expect(screen.queryByLabelText('Role')).toBeNull();
+    expect(screen.getByText("You can't change your own role.")).toBeInTheDocument();
+  });
+
+  it('still offers the role select on another user\'s row', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="someone-else" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('Role')).toHaveValue('buyer_view_only');
+    expect(screen.queryByText("You can't change your own role.")).toBeNull();
+  });
+
+  it('sends the two names and no role when you rename yourself', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'PATCH') return jsonResponse({ success: true, user_id: 'u1', first_name: 'Joe', last_name: 'Lee' });
+      return jsonResponse([seedUser]);
+    });
+    render(<UsersTable currentUserId="u1" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Joe' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(callTo(fetchMock, '/api/account/users/u1', 'PATCH')).toBeTruthy());
+    const [, init] = callTo(fetchMock, '/api/account/users/u1', 'PATCH') as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ first_name: 'Joe', last_name: 'Lee' });
+  });
+});
+
 describe('UsersTable — permanent delete', () => {
   beforeEach(() => vi.restoreAllMocks());
 
