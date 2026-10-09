@@ -20,6 +20,10 @@ export async function GET() {
   if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  // A session that names no participant has no users of its own to manage.
+  if (!session.participant.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   try {
     const users = await listUsers(session.participant.id);
@@ -68,6 +72,10 @@ export async function POST(request: NextRequest) {
   }
 
   if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // As in GET: without a participant there is no account to invite into.
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

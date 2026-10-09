@@ -19,6 +19,11 @@ import { GET, POST } from '../route';
 import { getSession } from '@/lib/auth';
 import * as keycloak from '@/lib/keycloak';
 
+// An account_admin session whose token carried no participant.
+function adminWithNoParticipant(): ReturnType<typeof sessionFor> {
+  const s = sessionFor('account_admin');
+  return { ...s, participant: { ...s.participant, id: '' } };
+}
 function signedInAs(session: ReturnType<typeof sessionFor> | null): void {
   (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(session);
 }
@@ -118,4 +123,18 @@ describe('POST /api/account/users: what an account_admin\'s invite can set', () 
       expect(keycloakCalls()).toBe(0);
     },
   );
+});
+
+describe('/api/account/users: a session that names no participant', () => {
+  it('is refused the list with 403 before any Keycloak call', async () => {
+    signedInAs(adminWithNoParticipant());
+    expect((await GET()).status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('is refused an invite with 403 before any Keycloak call', async () => {
+    signedInAs(adminWithNoParticipant());
+    expect((await POST(inviteRequest())).status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
 });

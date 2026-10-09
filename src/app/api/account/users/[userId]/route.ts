@@ -86,6 +86,10 @@ export async function PATCH(
   if (!session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  // A session that names no participant has no users of its own to manage.
+  if (!session.participant.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { userId } = await params;
   const { first_name, last_name, role, status } = await readJson(request);
@@ -205,8 +209,12 @@ export async function DELETE(
   if (!canAdministerAccount(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  // As in PATCH: the self guard below needs the session's user id.
+  // As in PATCH: the self guard below needs the session's user id, and the
+  // account's own users are found by the session's participant.
   if (!session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

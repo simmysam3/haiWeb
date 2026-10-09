@@ -535,6 +535,17 @@ describe('UsersTable — load error', () => {
     expect(screen.queryByText(/0 users/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
+
+  // Measured: what a signed-in user sees when the list itself is refused (a
+  // session that names no participant gets 403 from the route).
+  it('shows the same load-error panel, and no roster or invite button, when the list answers 403', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'Forbidden' }, 403));
+    render(<UsersTable />);
+    expect(await screen.findByText('Could not load users.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ users/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /invite user/i })).toBeNull();
+  });
 });
 
 describe('UsersTable — a late initial load never wipes an invited row (§L-29)', () => {

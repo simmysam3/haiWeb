@@ -219,6 +219,32 @@ describe('PATCH /api/account/users/:userId: a session with no user id', () => {
   });
 });
 
+describe('PATCH /api/account/users/:userId: a session that names no participant', () => {
+  // A target whose own participant attribute is empty would otherwise match it.
+  const unassigned = { id: 'user-7', email: 'seventh.user@example.test', attributes: { participant_id: [''] } };
+  beforeEach(() => {
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(unassigned);
+    signedInAs(adminWith({ participantId: '' }));
+  });
+
+  it.each(patchBodies)('is refused %s with 403 before any Keycloak call', async (_what, body) => {
+    const res = await PATCH(patchRequest('user-7', body), ctx('user-7'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+});
+
+describe('DELETE /api/account/users/:userId: a session that names no participant', () => {
+  it('is refused with 403 before any Keycloak call', async () => {
+    const unassigned = { id: 'user-7', email: 'seventh.user@example.test', attributes: { participant_id: [''] } };
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(unassigned);
+    signedInAs(adminWith({ participantId: '' }));
+    const res = await DELETE(deleteRequest('user-7', { email: unassigned.email }), ctx('user-7'));
+    expect(res.status).toBe(403);
+    expect(keycloakCalls()).toBe(0);
+  });
+});
+
 describe('DELETE /api/account/users/:userId: a session with no user id', () => {
   it('is refused with 403 before any Keycloak call', async () => {
     (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(self);
