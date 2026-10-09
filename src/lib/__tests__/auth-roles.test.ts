@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUserRole, hasRole } from '../auth';
+import { resolveUserRole, hasRole, canAdministerAccount, type UserRole } from '../auth';
 
 describe('resolveUserRole', () => {
   it('resolves account_admin from the realm roles (regression: it was missing from the priority list)', () => {
@@ -35,5 +35,25 @@ describe('hasRole with account_admin', () => {
 
   it('denies an account_admin gate to buyer_view_only', () => {
     expect(hasRole('buyer_view_only', 'account_admin')).toBe(false);
+  });
+});
+
+describe('canAdministerAccount: who may manage users and open Billing', () => {
+  // Every role is named: a role added to UserRole fails the type check here
+  // until it is given an answer.
+  const expected: Record<UserRole, boolean> = {
+    account_owner: true,
+    account_admin: true,
+    procurement_read_only: false,
+    procurement_transact: false,
+    buyer_view_only: false,
+    buyer_request_quote: false,
+    buyer_full_transact: false,
+    inside_sales_read_only: false,
+    inside_sales_transact: false,
+  };
+
+  it.each(Object.entries(expected) as Array<[UserRole, boolean]>)('%s: %s', (role, allowed) => {
+    expect(canAdministerAccount(role)).toBe(allowed);
   });
 });
