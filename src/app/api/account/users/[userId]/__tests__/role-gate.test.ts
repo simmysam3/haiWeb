@@ -24,6 +24,8 @@ import * as keycloak from '@/lib/keycloak';
 // sessionFor's caller is user-1 of participant-1.
 const colleague = { id: 'user-2', email: 'second.user@example.test', attributes: { participant_id: ['participant-1'] } };
 const stranger = { id: 'user-9', email: 'other.user@example.test', attributes: { participant_id: ['participant-2'] } };
+// The caller's own Keycloak record.
+const self = { id: 'user-1', email: 'user@example.test', attributes: { participant_id: ['participant-1'] } };
 const rename = { first_name: 'Second', last_name: 'User' };
 
 function signedInAs(session: ReturnType<typeof sessionFor> | null): void {
@@ -115,6 +117,60 @@ describe('PATCH /api/account/users/:userId: what an account_admin\'s edit can re
     expect((keycloak.updateUserName as ReturnType<typeof vi.fn>).mock.calls).toEqual([['user-2', 'Second', 'User']]);
     // The read of the target and the one write: nothing else was sent.
     expect(keycloakCalls()).toBe(2);
+  });
+});
+
+describe('PATCH /api/account/users/:userId: nobody changes their own role', () => {
+  beforeEach(() => {
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(self);
+  });
+
+  it('refuses an account_admin who sets their own role to another one: 400 before any Keycloak call', async () => {
+    signedInAs(sessionFor('account_admin'));
+    const res = await PATCH(patchRequest('user-1', { role: 'buyer_view_only' }), ctx('user-1'));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("You can't change your own role.");
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('writes no role mapping when the caller sends their unchanged role with a rename: the names are saved', async () => {
+    signedInAs(sessionFor('account_admin'));
+    const res = await PATCH(patchRequest('user-1', { ...rename, role: 'account_admin' }), ctx('user-1'));
+    expect(res.status).toBe(200);
+    expect(keycloak.updateUserName).toHaveBeenCalledWith('user-1', 'Second', 'User');
+    expect(keycloak.updateUserRole).not.toHaveBeenCalled();
+    expect(keycloak.getRealmRole).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account_owner who sets their own role: 400 before any Keycloak call', async () => {
+    signedInAs(sessionFor('account_owner'));
+    const res = await PATCH(patchRequest('user-1', { role: 'account_admin' }), ctx('user-1'));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("You can't change your own role.");
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('refuses the role change even when a rename travels with it: nothing is saved', async () => {
+    signedInAs(sessionFor('account_admin'));
+    const res = await PATCH(patchRequest('user-1', { ...rename, role: 'buyer_view_only' }), ctx('user-1'));
+    expect(res.status).toBe(400);
+    expect(keycloakCalls()).toBe(0);
+  });
+
+  it('still lets the caller rename themselves, as the Edit dialog sends it (names only)', async () => {
+    signedInAs(sessionFor('account_admin'));
+    const res = await PATCH(patchRequest('user-1', rename), ctx('user-1'));
+    expect(res.status).toBe(200);
+    expect(keycloak.updateUserName).toHaveBeenCalledWith('user-1', 'Second', 'User');
+    expect(keycloak.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it('still lets an account_admin change ANOTHER user\'s role', async () => {
+    signedInAs(sessionFor('account_admin'));
+    (keycloak.getUser as ReturnType<typeof vi.fn>).mockResolvedValue(colleague);
+    const res = await PATCH(patchRequest('user-2', { role: 'buyer_view_only' }), ctx('user-2'));
+    expect(res.status).toBe(200);
+    expect(keycloak.updateUserRole).toHaveBeenCalledWith('user-2', 'buyer_view_only');
   });
 });
 

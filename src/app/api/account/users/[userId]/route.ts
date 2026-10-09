@@ -129,13 +129,22 @@ export async function PATCH(
   if (wantsRole && (typeof role !== "string" || !isAssignableRole(role))) {
     return NextResponse.json({ error: "role is not assignable" }, { status: 400 });
   }
+  // Nobody changes their own role from the console: an account's only admin
+  // could otherwise leave it with no one who can manage its users.
+  const ownRecord = userId === session.user.id;
+  if (wantsRole && ownRecord && role !== session.user.role) {
+    return NextResponse.json({ error: "You can't change your own role." }, { status: 400 });
+  }
+  // The caller's own unchanged role, sent back with other edits, is not a role
+  // change: no role mapping is read or written for it.
+  const appliesRole = wantsRole && !ownRecord;
 
   let nameSaved = false;
   let roleStarted = false;
   try {
     // Resolve the role before touching anything (W-F4): a missing role must
     // leave the user exactly as it was — name included.
-    if (wantsRole) {
+    if (appliesRole) {
       await getRealmRole(role as string);
     }
 
@@ -150,7 +159,7 @@ export async function PATCH(
       result.first_name = (first_name as string).trim();
       result.last_name = (last_name as string).trim();
     }
-    if (wantsRole) {
+    if (appliesRole) {
       roleStarted = true;
       // The realm role-mappings govern (D-212): report the role that applies
       // after the change, which may differ from the one requested when the
