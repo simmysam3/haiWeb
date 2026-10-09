@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole, isAssignableRole } from "@/lib/auth";
+import { getSession, canAdministerAccount, isAssignableRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole, getRealmRole, RealmRoleNotFoundError } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
-import { TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
+import { TEAM_INVITE_ACTIONS, TEAM_INVITE_LIFESPAN_SECONDS, TEAM_MEMBER_REQUIRED_ACTIONS } from "@/config/actions-email-lifespan";
 
 /**
  * GET /api/account/users
  *
  * Lists users for the current participant from Keycloak.
- * Requires account_owner role. Falls back to mock users.
+ * Requires the account_owner or account_admin role. A Keycloak failure
+ * answers 502, never a made-up list.
  */
 export async function GET() {
   const session = await getSession();
@@ -16,13 +17,20 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // A session that names no participant has no users of its own to manage.
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
-    const users = await listUsers(session.participant.id);
-    return NextResponse.json((users as KeycloakUserRep[]).map(toAccountUser));
+    const users = (await listUsers(session.participant.id)) as KeycloakUserRep[];
+    // Keycloak's search is not the only check: keep the users whose participant
+    // is the session's, the comparison the per-user routes make on their target.
+    const own = users.filter((u) => u.attributes?.participant_id?.[0] === session.participant.id);
+    return NextResponse.json(own.map(toAccountUser));
   } catch (err) {
     // Surface the outage; never fabricate a user list from mock data.
     console.error("[account/users GET] failed to list users", err);
@@ -58,7 +66,7 @@ function inviteFailureMessage(
  * POST /api/account/users
  *
  * Invites a new user to the participant account via Keycloak.
- * Requires account_owner role.
+ * Requires the account_owner or account_admin role.
  */
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -66,7 +74,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // As in GET: without a participant there is no account to invite into.
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -105,6 +117,7 @@ export async function POST(request: NextRequest) {
       attributes: {
         participant_id: [session.participant.id],
       },
+      requiredActions: TEAM_MEMBER_REQUIRED_ACTIONS,
     });
     createdUserId = userId;
 
@@ -113,9 +126,10 @@ export async function POST(request: NextRequest) {
     await updateUserRole(userId, role);
     roleAssigned = true;
 
-    // The invitee proves mailbox control and sets their own password via
-    // Keycloak's email flow; the portal never issues a usable credential.
-    await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"], {
+    // The invitee proves mailbox control, sets their own password and sets up
+    // an authenticator via Keycloak's email flow; the portal never issues a
+    // usable credential.
+    await sendExecuteActionsEmail(userId, [...TEAM_INVITE_ACTIONS], {
       lifespanSeconds: TEAM_INVITE_LIFESPAN_SECONDS,
     });
 

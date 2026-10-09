@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Only the session and the owner check are doubled; the role vocabulary
-// (isAssignableRole, resolveUserRole) is the real one.
+// Only the session is doubled; the role gate and the role vocabulary
+// (isAssignableRole, resolveUserRole) are the real ones.
 vi.mock('@/lib/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth')>()),
   getSession: vi.fn(),
-  hasRole: (role: string) => role === 'account_owner',
 }));
 vi.mock('@/lib/keycloak', () => {
   // Defined inside the factory so the route's `instanceof` and the tests' `new`
@@ -50,10 +49,10 @@ describe('POST /api/account/users — invited-user provisioning', () => {
     expect(params.attributes.participant_id).toEqual(['p-apex']);
   });
 
-  it('triggers the verify-email + set-password action email', async () => {
+  it('triggers the verify-email + set-password + authenticator-setup action email', async () => {
     const res = await POST(req(invite));
     expect(res.status).toBe(201);
-    expect(sendExecuteActionsEmail).toHaveBeenCalledWith('u-new', ['VERIFY_EMAIL', 'UPDATE_PASSWORD'], { lifespanSeconds: 345600 });
+    expect(sendExecuteActionsEmail).toHaveBeenCalledWith('u-new', ['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP'], { lifespanSeconds: 345600 });
   });
 
   it('403s a non-owner', async () => {
@@ -125,9 +124,11 @@ describe('POST /api/account/users — invited-user provisioning', () => {
 
 describe('GET /api/account/users — Keycloak → DTO mapping', () => {
   it('maps raw Keycloak users to the snake_case account DTO the table renders', async () => {
+    // Both belong to the session's participant: the route returns no one else.
+    const attributes = { participant_id: [owner.participant.id] };
     (listUsers as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'kc1', email: 'a@b.com', firstName: 'Ada', lastName: 'Lovelace', enabled: true, realmRoles: ['procurement_transact'] },
-      { id: 'kc2', email: 'x@y.com', firstName: 'Grace', lastName: 'Hopper', enabled: false },
+      { id: 'kc1', email: 'a@b.com', firstName: 'Ada', lastName: 'Lovelace', enabled: true, realmRoles: ['procurement_transact'], attributes },
+      { id: 'kc2', email: 'x@y.com', firstName: 'Grace', lastName: 'Hopper', enabled: false, attributes },
     ]);
     const res = await GET();
     expect(res.status).toBe(200);

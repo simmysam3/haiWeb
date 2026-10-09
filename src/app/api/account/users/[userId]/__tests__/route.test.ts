@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Only the session and the owner check are doubled; the role vocabulary
-// (isAssignableRole, resolveUserRole) is the real one.
+// Only the session is doubled; the role gate and the role vocabulary
+// (isAssignableRole, resolveUserRole) are the real ones.
 vi.mock('@/lib/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth')>()),
   getSession: vi.fn(),
-  hasRole: (userRole: string) => userRole === 'account_owner',
 }));
 
 vi.mock('@/lib/keycloak', () => {

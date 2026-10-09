@@ -1,4 +1,4 @@
-import { getSession, hasRole } from "@/lib/auth";
+import { getSession, hasRole, canAdministerAccount } from "@/lib/auth";
 import { loadEnv } from "@/config/env";
 import { AccountNav } from "@/components/account-nav";
 import { ThrottleHeaderIndicator } from "@/components/throttle-header-indicator";
@@ -30,6 +30,7 @@ export default async function AccountLayout({
             userName={userName}
             userEmail={userEmail}
             canUseSourcingMap={session ? hasRole(session.user.role, "account_admin") : false}
+            canAdministerAccount={session ? canAdministerAccount(session.user.role) : false}
           />
           <main className="flex-1 bg-light-gray flex flex-col">
             {/*

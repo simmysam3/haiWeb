@@ -1,11 +1,11 @@
-import { getSession, hasRole } from "@/lib/auth";
+import { getSession, canAdministerAccount } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { ComingSoon } from "@/components/coming-soon";
 import { redirect } from "next/navigation";
 
 export default async function BillingPage() {
   const session = await getSession();
-  if (!session || !hasRole(session.user.role, "account_owner")) {
+  if (!session || !canAdministerAccount(session.user.role)) {
     redirect("/account");
   }
 

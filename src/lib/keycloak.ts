@@ -61,13 +61,16 @@ interface CreateUserParams {
   firstName: string;
   lastName: string;
   attributes?: Record<string, string[]>;
+  /** Required actions the account carries until the user completes them. Not sent when absent. */
+  requiredActions?: readonly string[];
 }
 
 // Create an invited user WITHOUT a credential and unverified. Identity assurance
-// (IA-5) is completed by the invitee via `sendExecuteActionsEmail`
-// (VERIFY_EMAIL + UPDATE_PASSWORD): the account cannot be used until they prove
-// mailbox control and set a password only they know — the inviter never holds a
-// working credential and email is not auto-trusted.
+// (IA-5) is completed by the invitee via `sendExecuteActionsEmail`: the account
+// cannot be used until they prove mailbox control and set a password only they
+// know — the inviter never holds a working credential and email is not
+// auto-trusted. `requiredActions`, when given, stay on the account until the
+// user has completed them.
 export async function createUser(params: CreateUserParams): Promise<string> {
   const token = await getAdminToken();
 
@@ -85,6 +88,7 @@ export async function createUser(params: CreateUserParams): Promise<string> {
       enabled: true,
       emailVerified: false,
       attributes: params.attributes ?? {},
+      ...(params.requiredActions ? { requiredActions: [...params.requiredActions] } : {}),
     }),
   });
 

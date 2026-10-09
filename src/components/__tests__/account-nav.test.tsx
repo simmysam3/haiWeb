@@ -236,6 +236,40 @@ describe('AccountNav', () => {
     expect(screen.queryByRole('link', { name: 'Demand Exceptions' })).toBeNull();
   });
 
+  it('shows Users and Billing under Admin only when canAdministerAccount', () => {
+    const { unmount } = render(
+      <AccountNav userName="Test User" userEmail="test@example.com" canAdministerAccount />,
+    );
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/account/users');
+    expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/account/billing');
+    unmount();
+    render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    expect(screen.queryByRole('link', { name: 'Users' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Billing' })).toBeNull();
+  });
+
+  it('keeps the two grants apart: neither one shows the other\'s items', () => {
+    const { unmount } = render(
+      <AccountNav userName="Test User" userEmail="test@example.com" canUseSourcingMap />,
+    );
+    expect(screen.getByRole('link', { name: 'Sourcing Map' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Users' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Billing' })).toBeNull();
+    unmount();
+    render(<AccountNav userName="Test User" userEmail="test@example.com" canAdministerAccount />);
+    expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Sourcing Map' })).toBeNull();
+  });
+
+  it('keeps Sign-in & Security under Admin for a user who sees neither Users nor Billing', () => {
+    const { container } = render(<AccountNav userName="Test User" userEmail="test@example.com" />);
+    const sections = Array.from(container.querySelectorAll('nav > div'));
+    const admin = sections.find((s) => s.textContent?.trimStart().startsWith('Admin'));
+    expect(admin).toBeTruthy();
+    const hrefs = Array.from(admin!.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['/account/security']);
+  });
+
   it('renders Sign Out as a POST form, never a prefetchable logout link', () => {
     render(<AccountNav userName="Test User" userEmail="test@example.com" />);
     // No anchor to the logout route (a <Link> would be prefetched by Next).

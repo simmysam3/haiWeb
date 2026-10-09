@@ -276,6 +276,55 @@ describe('UsersTable — edit name and role (email is never editable)', () => {
   });
 });
 
+describe('UsersTable: the signed-in user\'s own row', () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it('offers no role select when editing yourself, and says why', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="u1" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('First Name')).toHaveValue('Jo');
+    expect(screen.queryByLabelText('Role')).toBeNull();
+    expect(screen.getByText("You can't change your own role.")).toBeInTheDocument();
+  });
+
+  it('still offers the role select on another user\'s row', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="someone-else" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('Role')).toHaveValue('buyer_view_only');
+    expect(screen.queryByText("You can't change your own role.")).toBeNull();
+  });
+
+  // Measured, not designed: an empty id matches no row, so no row is treated as
+  // the viewer's own. The route refuses every edit and delete from such a session.
+  it('treats no row as your own when the signed-in user id is empty', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([seedUser]));
+    render(<UsersTable currentUserId="" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('Role')).toHaveValue('buyer_view_only');
+  });
+
+  it('sends the two names and no role when you rename yourself', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'PATCH') return jsonResponse({ success: true, user_id: 'u1', first_name: 'Joe', last_name: 'Lee' });
+      return jsonResponse([seedUser]);
+    });
+    render(<UsersTable currentUserId="u1" />);
+    await screen.findByText('Jo Lee');
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    fireEvent.change(screen.getByLabelText('First Name'), { target: { value: 'Joe' } });
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await waitFor(() => expect(callTo(fetchMock, '/api/account/users/u1', 'PATCH')).toBeTruthy());
+    const [, init] = callTo(fetchMock, '/api/account/users/u1', 'PATCH') as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ first_name: 'Joe', last_name: 'Lee' });
+  });
+});
+
 describe('UsersTable — permanent delete', () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -485,6 +534,17 @@ describe('UsersTable — load error', () => {
     // An outage must NOT read as "this account has no users".
     expect(screen.queryByText(/0 users/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  // Measured: what a signed-in user sees when the list itself is refused (a
+  // session that names no participant gets 403 from the route).
+  it('shows the same load-error panel, and no roster or invite button, when the list answers 403', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'Forbidden' }, 403));
+    render(<UsersTable />);
+    expect(await screen.findByText('Could not load users.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ users/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /invite user/i })).toBeNull();
   });
 });
 

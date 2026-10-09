@@ -28,7 +28,7 @@ export interface NavItem {
   /** One-sentence hover hint surfaced via <NavTooltip>. ~12-word target. */
   tooltip?: string;
   /** Shown only when the named capability is granted by the layout (spec §9.2). */
-  requires?: 'sourcing_map';
+  requires?: 'sourcing_map' | 'account_administration';
 }
 
 interface RequestManagementCounts {
@@ -197,8 +197,8 @@ export const navSections: NavSection[] = [
   {
     label: "Admin",
     items: [
-      { href: "/account/users", label: "Users", tooltip: "Manage the user accounts and roles inside your organization." },
-      { href: "/account/billing", label: "Billing", tooltip: "Stripe subscription and metered-usage billing for your HAIWAVE account." },
+      { href: "/account/users", label: "Users", tooltip: "Manage the user accounts and roles inside your organization.", requires: "account_administration" },
+      { href: "/account/billing", label: "Billing", tooltip: "Stripe subscription and metered-usage billing for your HAIWAVE account.", requires: "account_administration" },
       // v.1.58: Settings section dissolved — Sign-in & Security moved here.
       { href: "/account/security", label: "Sign-in & Security", tooltip: "Manage your password, two-factor authentication, and passkeys for signing in to HAIWAVE." },
     ],
@@ -226,10 +226,21 @@ interface AccountNavProps {
   userEmail: string;
   /** hasRole(role, 'account_admin') — the Sourcing Map item is hidden otherwise (AC 1). */
   canUseSourcingMap?: boolean;
+  /** canAdministerAccount(role) — the Users and Billing items are hidden otherwise, as their pages redirect. */
+  canAdministerAccount?: boolean;
 }
 
-export function AccountNav({ userName, userEmail, canUseSourcingMap = false }: AccountNavProps) {
+export function AccountNav({
+  userName,
+  userEmail,
+  canUseSourcingMap = false,
+  canAdministerAccount = false,
+}: AccountNavProps) {
   const pathname = usePathname();
+  const granted: Record<NonNullable<NavItem["requires"]>, boolean> = {
+    sourcing_map: canUseSourcingMap,
+    account_administration: canAdministerAccount,
+  };
 
   function isItemActive(item: NavItem): boolean {
     if (item.href === "/account") return pathname === "/account";
@@ -268,7 +279,7 @@ export function AccountNav({ userName, userEmail, canUseSourcingMap = false }: A
                 </div>
               )}
             </div>
-            {section.items.filter((item) => item.requires !== "sourcing_map" || canUseSourcingMap).map((item) => {
+            {section.items.filter((item) => !item.requires || granted[item.requires]).map((item) => {
               const isActive = isItemActive(item);
               let entry: React.ReactNode;
               if (item.href === REQUESTS_HREF) {

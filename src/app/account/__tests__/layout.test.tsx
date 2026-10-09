@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { sessionFor } from '@/test/role-gate';
+import { sessionFor, ADMINISTERING_ROLES, NON_ADMINISTERING_ROLES } from '@/test/role-gate';
 
 const { getSession, navProps, helpProps } = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -40,6 +40,28 @@ describe('AccountLayout', () => {
     getSession.mockResolvedValueOnce(sessionFor('buyer_view_only'));
     render(await AccountLayout({ children: null }));
     expect(navProps.map((p) => p.canUseSourcingMap)).toEqual([true, false]);
+  });
+
+  it('grants the Users and Billing nav items to account_admin', async () => {
+    const { default: AccountLayout } = await import('../layout');
+    getSession.mockResolvedValueOnce(sessionFor('account_admin'));
+    render(await AccountLayout({ children: null }));
+    expect(navProps.map((p) => p.canAdministerAccount)).toEqual([true]);
+  });
+
+  it('grants them to the two administering roles and to no other role, nor without a session', async () => {
+    const { default: AccountLayout } = await import('../layout');
+    for (const role of [...ADMINISTERING_ROLES, ...NON_ADMINISTERING_ROLES]) {
+      getSession.mockResolvedValueOnce(sessionFor(role));
+      render(await AccountLayout({ children: null }));
+    }
+    getSession.mockResolvedValueOnce(null);
+    render(await AccountLayout({ children: null }));
+    expect(navProps.map((p) => p.canAdministerAccount)).toEqual([
+      true, true, // account_owner, account_admin
+      false, false, false, false, false, false, false, // the three transact roles and the four others
+      false, // no session
+    ]);
   });
 
   it('mounts the help provider, enabled only when HELP_AGENT_ENABLED=true', async () => {

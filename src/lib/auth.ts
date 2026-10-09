@@ -72,6 +72,21 @@ export function isAssignableRole(role: string): role is UserRole {
   return (ASSIGNABLE_USER_ROLES as readonly string[]).includes(role);
 }
 
+// Roles that may manage the account's users and open Billing. An exact list,
+// deliberately stricter than `hasRole(role, "account_admin")`, whose ladder
+// also grants the transact roles: an invite may assign account_admin, so
+// managing users stays with the roles named here.
+const ACCOUNT_ADMINISTRATION_ROLES: readonly UserRole[] = ["account_owner", "account_admin"];
+
+/**
+ * True for the roles that may list, invite, edit, deactivate and delete the
+ * account's users and open Billing. The Users and Billing pages, the
+ * /api/account/users handlers and the Admin menu all ask this one function.
+ */
+export function canAdministerAccount(role: UserRole): boolean {
+  return ACCOUNT_ADMINISTRATION_ROLES.includes(role);
+}
+
 export interface Session {
   user: {
     id: string;

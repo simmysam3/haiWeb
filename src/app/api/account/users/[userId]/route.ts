@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, hasRole, isAssignableRole, resolveUserRole } from "@/lib/auth";
+import { getSession, canAdministerAccount, isAssignableRole, resolveUserRole } from "@/lib/auth";
 import {
   updateUserRole,
   updateUserName,
@@ -66,8 +66,8 @@ function patchFailureMessage(err: unknown, nameSaved: boolean, roleStarted: bool
  * PATCH /api/account/users/:userId
  *
  * Changes a user's name, role, or status (deactivation) in Keycloak. Requires
- * account_owner role. The email is never editable: a wrong email is a delete
- * and a fresh invitation (owner ruling 2026-09-06).
+ * the account_owner or account_admin role. The email is never editable: a
+ * wrong email is a delete and a fresh invitation (owner ruling 2026-09-06).
  */
 export async function PATCH(
   request: NextRequest,
@@ -78,7 +78,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // Every self guard below compares with the session's user id. A session
+  // that carries none could not be told from its own record, so it is refused.
+  if (!session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // A session that names no participant has no users of its own to manage.
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -129,13 +138,22 @@ export async function PATCH(
   if (wantsRole && (typeof role !== "string" || !isAssignableRole(role))) {
     return NextResponse.json({ error: "role is not assignable" }, { status: 400 });
   }
+  // Nobody changes their own role from the console: an account's only admin
+  // could otherwise leave it with no one who can manage its users.
+  const ownRecord = userId === session.user.id;
+  if (wantsRole && ownRecord && role !== session.user.role) {
+    return NextResponse.json({ error: "You can't change your own role." }, { status: 400 });
+  }
+  // The caller's own unchanged role, sent back with other edits, is not a role
+  // change: no role mapping is read or written for it.
+  const appliesRole = wantsRole && !ownRecord;
 
   let nameSaved = false;
   let roleStarted = false;
   try {
     // Resolve the role before touching anything (W-F4): a missing role must
     // leave the user exactly as it was — name included.
-    if (wantsRole) {
+    if (appliesRole) {
       await getRealmRole(role as string);
     }
 
@@ -150,7 +168,7 @@ export async function PATCH(
       result.first_name = (first_name as string).trim();
       result.last_name = (last_name as string).trim();
     }
-    if (wantsRole) {
+    if (appliesRole) {
       roleStarted = true;
       // The realm role-mappings govern (D-212): report the role that applies
       // after the change, which may differ from the one requested when the
@@ -172,11 +190,12 @@ export async function PATCH(
 /**
  * DELETE /api/account/users/:userId
  *
- * Permanently deletes a user in Keycloak. Requires account_owner role. The
- * body must name the user (`{ email }`): a browser tab still running an older
- * bundle sends a body-less DELETE that used to mean "deactivate", and that
- * request must fail closed here, never delete. Records of what the user did
- * are kept — haiCore stores actors as plain ids with no link to Keycloak.
+ * Permanently deletes a user in Keycloak. Requires the account_owner or
+ * account_admin role. The body must name the user (`{ email }`): a browser
+ * tab still running an older bundle sends a body-less DELETE that used to
+ * mean "deactivate", and that request must fail closed here, never delete.
+ * Records of what the user did are kept — haiCore stores actors as plain ids
+ * with no link to Keycloak.
  */
 export async function DELETE(
   request: NextRequest,
@@ -187,7 +206,15 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasRole(session.user.role, "account_owner")) {
+  if (!canAdministerAccount(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // As in PATCH: the self guard below needs the session's user id, and the
+  // account's own users are found by the session's participant.
+  if (!session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!session.participant.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
