@@ -114,6 +114,16 @@ describe('POST /api/account/users: what an account_admin\'s invite can set', () 
     expect(params.attributes).toEqual({ participant_id: ['participant-1'] });
   });
 
+  it('asks the invited user to verify the email, set a password and set up an authenticator, on a four-day link', async () => {
+    signedInAs(sessionFor('account_admin'));
+    expect((await POST(inviteRequest())).status).toBe(201);
+    expect(keycloak.sendExecuteActionsEmail).toHaveBeenCalledWith(
+      'user-2',
+      ['VERIFY_EMAIL', 'UPDATE_PASSWORD', 'CONFIGURE_TOTP'],
+      { lifespanSeconds: 345600 },
+    );
+  });
+
   it.each(['account_owner', 'haiwave_admin', 'no_such_role'])(
     'refuses to assign the role %s: 400 and nobody is created',
     async (role) => {

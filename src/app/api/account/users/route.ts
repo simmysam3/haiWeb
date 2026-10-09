@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, canAdministerAccount, isAssignableRole } from "@/lib/auth";
 import { listUsers, createUser, sendExecuteActionsEmail, updateUserRole, getRealmRole, RealmRoleNotFoundError } from "@/lib/keycloak";
 import { toAccountUser, type KeycloakUserRep } from "@/lib/account-user";
-import { TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
+import { TEAM_INVITE_ACTIONS, TEAM_INVITE_LIFESPAN_SECONDS } from "@/config/actions-email-lifespan";
 
 /**
  * GET /api/account/users
@@ -125,9 +125,10 @@ export async function POST(request: NextRequest) {
     await updateUserRole(userId, role);
     roleAssigned = true;
 
-    // The invitee proves mailbox control and sets their own password via
-    // Keycloak's email flow; the portal never issues a usable credential.
-    await sendExecuteActionsEmail(userId, ["VERIFY_EMAIL", "UPDATE_PASSWORD"], {
+    // The invitee proves mailbox control, sets their own password and sets up
+    // an authenticator via Keycloak's email flow; the portal never issues a
+    // usable credential.
+    await sendExecuteActionsEmail(userId, [...TEAM_INVITE_ACTIONS], {
       lifespanSeconds: TEAM_INVITE_LIFESPAN_SECONDS,
     });
 
