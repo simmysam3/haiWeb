@@ -65,6 +65,9 @@ describe('RoleSelect — every dropdown role carries a definition and is assigna
     render(<RoleSelect id="invite-role" value="account_admin" onChange={() => {}} />);
     // An explicit label: without a STATUS_LABELS entry the option reads the raw id "account_admin".
     expect(screen.getByRole('option', { name: 'Account Admin' })).toBeInTheDocument();
-    expect(screen.getByText('Account administrator; manages portal settings, the library and manifests.')).toBeInTheDocument();
+    // What the role covers, as someone assigning it reads it: users and the Billing page included.
+    expect(
+      screen.getByText('Account administrator; manages users, portal settings, the library and manifests, and can open Billing.'),
+    ).toBeInTheDocument();
   });
 });
