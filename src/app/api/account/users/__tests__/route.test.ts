@@ -124,9 +124,11 @@ describe('POST /api/account/users — invited-user provisioning', () => {
 
 describe('GET /api/account/users — Keycloak → DTO mapping', () => {
   it('maps raw Keycloak users to the snake_case account DTO the table renders', async () => {
+    // Both belong to the session's participant: the route returns no one else.
+    const attributes = { participant_id: [owner.participant.id] };
     (listUsers as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { id: 'kc1', email: 'a@b.com', firstName: 'Ada', lastName: 'Lovelace', enabled: true, realmRoles: ['procurement_transact'] },
-      { id: 'kc2', email: 'x@y.com', firstName: 'Grace', lastName: 'Hopper', enabled: false },
+      { id: 'kc1', email: 'a@b.com', firstName: 'Ada', lastName: 'Lovelace', enabled: true, realmRoles: ['procurement_transact'], attributes },
+      { id: 'kc2', email: 'x@y.com', firstName: 'Grace', lastName: 'Hopper', enabled: false, attributes },
     ]);
     const res = await GET();
     expect(res.status).toBe(200);

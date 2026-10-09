@@ -138,3 +138,17 @@ describe('/api/account/users: a session that names no participant', () => {
     expect(keycloakCalls()).toBe(0);
   });
 });
+
+describe('GET /api/account/users: only the session\'s own participant\'s users are returned', () => {
+  it('drops a user of another participant and a user with no participant from Keycloak\'s answer', async () => {
+    signedInAs(sessionFor('account_admin'));
+    (keycloak.listUsers as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { id: 'user-2', email: 'second.user@example.test', attributes: { participant_id: ['participant-1'] }, realmRoles: [] },
+      { id: 'user-9', email: 'other.user@example.test', attributes: { participant_id: ['participant-2'] }, realmRoles: [] },
+      { id: 'user-8', email: 'eighth.user@example.test', realmRoles: [] },
+    ]);
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Array<{ id: string }>).map((u) => u.id)).toEqual(['user-2']);
+  });
+});

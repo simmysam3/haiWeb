@@ -26,8 +26,11 @@ export async function GET() {
   }
 
   try {
-    const users = await listUsers(session.participant.id);
-    return NextResponse.json((users as KeycloakUserRep[]).map(toAccountUser));
+    const users = (await listUsers(session.participant.id)) as KeycloakUserRep[];
+    // Keycloak's search is not the only check: keep the users whose participant
+    // is the session's, the comparison the per-user routes make on their target.
+    const own = users.filter((u) => u.attributes?.participant_id?.[0] === session.participant.id);
+    return NextResponse.json(own.map(toAccountUser));
   } catch (err) {
     // Surface the outage; never fabricate a user list from mock data.
     console.error("[account/users GET] failed to list users", err);
